@@ -6,8 +6,9 @@
 Source: mutter
 Section: x11
 Priority: optional
-Maintainer: Debian GNOME Maintainers <pkg-gnome-maintainers@lists.alioth.debian.org>
-Uploaders: Emilio Pozuelo Monfort <pochu@debian.org>, Frederic Peters <fpeters@debian.org>, Laurent Bigonville <bigon@debian.org>
+Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
+XSBC-Original-Maintainer: Debian GNOME Maintainers <pkg-gnome-maintainers@lists.alioth.debian.org>
+Uploaders: Debian GNOME Maintainers <pkg-gnome-maintainers@lists.alioth.debian.org>, Laurent Bigonville <bigon@debian.org>
 Build-Depends: cdbs (>= 0.4.41),
                debhelper (>= 5),
                dh-autoreconf,
@@ -39,9 +40,8 @@ Build-Depends: cdbs (>= 0.4.41),
                libice-dev,
                zenity,
                gnome-doc-utils (>= 0.8),
-               gnome-pkg-tools (>= 0.10),
-               dpkg-dev (>= 1.13.19)
-Standards-Version: 3.9.1
+               gnome-pkg-tools (>= 0.10)
+Standards-Version: 3.9.2
 Vcs-Svn: svn://svn.debian.org/svn/pkg-gnome/packages/unstable/mutter
 Vcs-Browser: http://svn.debian.org/viewsvn/pkg-gnome/packages/unstable/mutter
 

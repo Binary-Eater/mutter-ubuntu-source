@@ -5,7 +5,8 @@
 Source: mutter
 Section: x11
 Priority: optional
-Maintainer: Debian GNOME Maintainers <pkg-gnome-maintainers@lists.alioth.debian.org>
+Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
+XSBC-Original-Maintainer: Debian GNOME Maintainers <pkg-gnome-maintainers@lists.alioth.debian.org>
 Uploaders: Andreas Henriksson <andreas@fatal.se>, Jeremy Bicha <jbicha@debian.org>, Michael Biebl <biebl@debian.org>, Sjoerd Simons <sjoerd@debian.org>
 Build-Depends: debhelper (>= 10),
                gnome-pkg-tools (>= 0.10),
@@ -24,7 +25,7 @@ Build-Depends: debhelper (>= 10),
                libdrm-dev [!hurd-any],
                libegl1-mesa-dev,
                libgnome-desktop-3-dev (>= 3.21.2),
-               libgudev-1.0-dev [linux-any],
+               libgudev-1.0-dev (>= 232) [linux-any],
                libinput-dev [linux-any],
                libstartup-notification0-dev (>= 0.7),
                libsystemd-dev (>= 212) [linux-any],
@@ -53,7 +54,6 @@ Build-Depends: debhelper (>= 10),
                libwayland-dev (>= 1.13.0) [linux-any],
                wayland-protocols (>= 1.9) [linux-any],
                xkb-data,
-               libgl1-mesa-dri <!nocheck>,
                xvfb <!nocheck>,
                xauth <!nocheck>,
                zenity

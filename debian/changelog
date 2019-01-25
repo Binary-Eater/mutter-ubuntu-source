@@ -1,3 +1,16 @@
+mutter (3.30.2-1~ubuntu18.10.3) cosmic; urgency=medium
+
+  * d/p/clutter-Avoid-rounding-compensation-when-invalidating-2D-.patch,
+    d/p/clutter-Fix-offscreen-effect-painting-of-clones.patch:
+    - Fix offscreen-effect painting of clones in zoom mode (LP: #1767648,
+      LP: #1779615)
+  * d/p/cogl-auto-texture-Avoid-a-double-free-crash.patch,
+    d/p/clutter-offscreen-effect-Disable-if-no-texture.patch:
+    - Fix crash in dual monitor setup and gdm activation (LP: #1790525,
+      LP: #1795774)
+
+ -- Marco Trevisan (Treviño) <marco@ubuntu.com>  Fri, 25 Jan 2019 11:09:33 +0000
+
 mutter (3.30.2-1~ubuntu18.10.2) cosmic; urgency=medium
 
   * Update gbp.conf and Vcs metadata for cosmic

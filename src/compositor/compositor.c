@@ -86,6 +86,8 @@
 #include "wayland/meta-wayland-private.h"
 #endif
 
+G_DEFINE_TYPE (MetaCompositor, meta_compositor, G_TYPE_OBJECT)
+
 static void
 on_presented (ClutterStage     *stage,
               CoglFrameEvent    event,
@@ -131,11 +133,8 @@ meta_switch_workspace_completed (MetaCompositor *compositor)
 void
 meta_compositor_destroy (MetaCompositor *compositor)
 {
-  clutter_threads_remove_repaint_func (compositor->pre_paint_func_id);
-  clutter_threads_remove_repaint_func (compositor->post_paint_func_id);
-
-  if (compositor->have_x11_sync_object)
-    meta_sync_ring_destroy ();
+  g_object_run_dispose (G_OBJECT (compositor));
+  g_object_unref (compositor);
 }
 
 static void
@@ -636,15 +635,53 @@ meta_shape_cow_for_window (MetaCompositor *compositor,
 }
 
 static void
+on_redirected_monitor_changed (MetaWindow     *window,
+                               int             old_monitor,
+                               MetaCompositor *compositor)
+{
+  MetaBackend *backend = meta_get_backend ();
+  MetaMonitorManager *monitor_manager =
+    meta_backend_get_monitor_manager (backend);
+
+  if (old_monitor >= 0 && window->monitor &&
+      window->monitor->number != old_monitor)
+    {
+      g_signal_handlers_block_by_func (window,
+                                       on_redirected_monitor_changed,
+                                       compositor);
+
+      meta_monitor_manager_disable_scale_for_monitor (monitor_manager,
+                                                      window->monitor);
+      g_signal_handlers_unblock_by_func (window,
+                                         on_redirected_monitor_changed,
+                                         compositor);
+    }
+  else
+    meta_shape_cow_for_window (compositor, window);
+}
+
+static void
 set_unredirected_window (MetaCompositor *compositor,
                          MetaWindow     *window)
 {
+  MetaBackend *backend;
+  MetaMonitorManager *monitor_manager;
+
   if (compositor->unredirected_window == window)
     return;
+
+  backend = meta_get_backend ();
+  monitor_manager = meta_backend_get_monitor_manager (backend);
 
   if (compositor->unredirected_window != NULL)
     {
       MetaWindowActor *window_actor = META_WINDOW_ACTOR (meta_window_get_compositor_private (compositor->unredirected_window));
+
+      g_signal_handlers_disconnect_by_func (compositor->unredirected_window,
+                                            on_redirected_monitor_changed,
+                                            compositor);
+      meta_monitor_manager_disable_scale_for_monitor (monitor_manager, NULL);
+
       meta_window_actor_set_unredirected (window_actor, FALSE);
     }
 
@@ -654,6 +691,13 @@ set_unredirected_window (MetaCompositor *compositor,
   if (compositor->unredirected_window != NULL)
     {
       MetaWindowActor *window_actor = META_WINDOW_ACTOR (meta_window_get_compositor_private (compositor->unredirected_window));
+
+      meta_monitor_manager_disable_scale_for_monitor (monitor_manager,
+                                                      window->monitor);
+      g_signal_connect_object (window, "monitor-changed",
+                               G_CALLBACK (on_redirected_monitor_changed),
+                               compositor, 0);
+
       meta_window_actor_set_unredirected (window_actor, TRUE);
     }
 }
@@ -1274,12 +1318,20 @@ on_shadow_factory_changed (MetaShadowFactory *factory,
 MetaCompositor *
 meta_compositor_new (MetaDisplay *display)
 {
-  MetaBackend *backend = meta_get_backend ();
-  ClutterBackend *clutter_backend = meta_backend_get_clutter_backend (backend);
   MetaCompositor *compositor;
 
-  compositor = g_new0 (MetaCompositor, 1);
+  compositor = g_object_new (META_TYPE_COMPOSITOR, NULL);
   compositor->display = display;
+
+  return compositor;
+}
+
+static void
+meta_compositor_init (MetaCompositor *compositor)
+{
+  MetaBackend *backend = meta_get_backend ();
+  ClutterBackend *clutter_backend = meta_backend_get_clutter_backend (backend);
+
   compositor->context = clutter_backend->cogl_context;
 
   g_signal_connect (meta_shadow_factory_get_default (),
@@ -1297,7 +1349,33 @@ meta_compositor_new (MetaDisplay *display)
                                            meta_post_paint_func,
                                            compositor,
                                            NULL);
-  return compositor;
+}
+
+static void
+meta_compositor_dispose (GObject *gobject)
+{
+  MetaCompositor *compositor = META_COMPOSITOR (gobject);
+
+  g_clear_handle_id (&compositor->pre_paint_func_id,
+                     clutter_threads_remove_repaint_func);
+  g_clear_handle_id (&compositor->post_paint_func_id,
+                     clutter_threads_remove_repaint_func);
+
+  if (compositor->have_x11_sync_object)
+    {
+      meta_sync_ring_destroy ();
+      compositor->have_x11_sync_object = FALSE;
+    }
+
+  G_OBJECT_CLASS (meta_compositor_parent_class)->dispose (gobject);
+}
+
+static void
+meta_compositor_class_init (MetaCompositorClass *klass)
+{
+  GObjectClass *gobject_class = G_OBJECT_CLASS (klass);
+
+  gobject_class->dispose = meta_compositor_dispose;
 }
 
 /**

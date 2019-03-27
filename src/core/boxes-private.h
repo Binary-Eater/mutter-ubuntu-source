@@ -157,6 +157,10 @@ gboolean meta_rectangle_overlaps_with_region (
                                          const GList         *spanning_rects,
                                          const MetaRectangle *rect);
 
+gboolean meta_rectangle_has_adjacent_in_region (
+                                         const GList         *spanning_rects,
+                                         const MetaRectangle *rect);
+
 /* Make the rectangle small enough to fit into one of the spanning_rects,
  * but make it no smaller than min_size.
  */
@@ -283,5 +287,9 @@ void meta_rectangle_crop_and_scale (const MetaRectangle *rect,
                                     int                  dst_width,
                                     int                  dst_height,
                                     MetaRectangle       *dest);
+
+gboolean meta_rectangle_has_neighbor (const MetaRectangle *rect,
+                                      const MetaRectangle *neighbor,
+                                      MetaSide             neighbor_side);
 
 #endif /* META_BOXES_PRIVATE_H */

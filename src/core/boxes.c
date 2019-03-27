@@ -911,6 +911,27 @@ meta_rectangle_overlaps_with_region (const GList         *spanning_rects,
   return overlaps;
 }
 
+gboolean
+meta_rectangle_has_adjacent_in_region (const GList         *spanning_rects,
+                                       const MetaRectangle *rect)
+{
+  const GList *l;
+
+  for (l = spanning_rects; l; l = l->next)
+    {
+      MetaRectangle *other = (MetaRectangle *) l->data;
+
+      if (other == rect)
+        continue;
+
+      if (meta_rectangle_is_adjecent_to ((MetaRectangle *) rect, other))
+        {
+          return TRUE;
+        }
+    }
+
+  return FALSE;
+}
 
 void
 meta_rectangle_clamp_to_fit_into_region (const GList         *spanning_rects,
@@ -2200,4 +2221,36 @@ meta_rectangle_crop_and_scale (const MetaRectangle *rect,
   clutter_rect_offset (&tmp, src_rect->origin.x, src_rect->origin.y);
 
   meta_rectangle_from_clutter_rect (&tmp, META_ROUNDING_STRATEGY_GROW, dest);
+}
+
+gboolean
+meta_rectangle_has_neighbor (const MetaRectangle *rect,
+                             const MetaRectangle *neighbor,
+                             MetaSide             neighbor_side)
+{
+  switch (neighbor_side)
+    {
+    case META_SIDE_RIGHT:
+      if (neighbor->x == (rect->x + rect->width) &&
+          meta_rectangle_vert_overlap (neighbor, rect))
+        return TRUE;
+      break;
+    case META_SIDE_LEFT:
+      if (rect->x == (neighbor->x + neighbor->width) &&
+          meta_rectangle_vert_overlap (neighbor, rect))
+        return TRUE;
+      break;
+    case META_SIDE_TOP:
+      if (rect->y == (neighbor->y + neighbor->height) &&
+          meta_rectangle_horiz_overlap (neighbor, rect))
+        return TRUE;
+      break;
+    case META_SIDE_BOTTOM:
+      if (neighbor->y == (rect->y + rect->height) &&
+          meta_rectangle_horiz_overlap (neighbor, rect))
+        return TRUE;
+      break;
+    }
+
+  return FALSE;
 }

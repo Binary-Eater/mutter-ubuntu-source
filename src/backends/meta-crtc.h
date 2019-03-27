@@ -60,6 +60,7 @@ struct _MetaCrtc
   MetaCrtcMode *current_mode;
   MetaMonitorTransform transform;
   unsigned int all_transforms;
+  float scale;
 
   MetaLogicalMonitor *logical_monitor;
 

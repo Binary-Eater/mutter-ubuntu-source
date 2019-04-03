@@ -39,9 +39,14 @@ gboolean meta_crtc_xrandr_set_config (MetaCrtc            *crtc,
                                       int                  n_outputs,
                                       xcb_timestamp_t     *out_timestamp);
 
-MetaCrtc * meta_create_xrandr_crtc (MetaGpuXrandr      *gpu_xrandr,
-                                    XRRCrtcInfo        *xrandr_crtc,
-                                    RRCrtc              crtc_id,
-                                    XRRScreenResources *resources);
+gboolean meta_crtc_xrandr_set_scale (MetaCrtc         *crtc,
+                                     xcb_randr_crtc_t  xrandr_crtc,
+                                     float             scale);
+
+MetaCrtc * meta_create_xrandr_crtc (MetaGpuXrandr              *gpu_xrandr,
+                                    XRRCrtcInfo                *xrandr_crtc,
+                                    RRCrtc                      crtc_id,
+                                    XRRScreenResources         *resources,
+                                    XRRCrtcTransformAttributes *transform_attributes);
 
 #endif /* META_CRTC_XRANDR_H */

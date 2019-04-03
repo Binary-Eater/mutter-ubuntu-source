@@ -45,7 +45,6 @@
 #include "backends/meta-backend-private.h"
 #include "backends/meta-crtc.h"
 #include "backends/meta-output.h"
-#include "core/boxes-private.h"
 
 G_DEFINE_TYPE (MetaLogicalMonitor, meta_logical_monitor, G_TYPE_OBJECT)
 
@@ -303,6 +302,37 @@ meta_logical_monitor_has_neighbor (MetaLogicalMonitor   *logical_monitor,
                                    MetaLogicalMonitor   *neighbor,
                                    MetaDisplayDirection  neighbor_direction)
 {
-  return meta_rectangle_has_neighbor (&logical_monitor->rect, &neighbor->rect,
-                                      (MetaSide) neighbor_direction);
+  switch (neighbor_direction)
+    {
+    case META_DISPLAY_RIGHT:
+      if (neighbor->rect.x == (logical_monitor->rect.x +
+                               logical_monitor->rect.width) &&
+          meta_rectangle_vert_overlap (&neighbor->rect,
+                                       &logical_monitor->rect))
+        return TRUE;
+      break;
+    case META_DISPLAY_LEFT:
+      if (logical_monitor->rect.x == (neighbor->rect.x +
+                                      neighbor->rect.width) &&
+          meta_rectangle_vert_overlap (&neighbor->rect,
+                                       &logical_monitor->rect))
+        return TRUE;
+      break;
+    case META_DISPLAY_UP:
+      if (logical_monitor->rect.y == (neighbor->rect.y +
+                                      neighbor->rect.height) &&
+          meta_rectangle_horiz_overlap (&neighbor->rect,
+                                        &logical_monitor->rect))
+        return TRUE;
+      break;
+    case META_DISPLAY_DOWN:
+      if (neighbor->rect.y == (logical_monitor->rect.y +
+                               logical_monitor->rect.height) &&
+          meta_rectangle_horiz_overlap (&neighbor->rect,
+                                        &logical_monitor->rect))
+        return TRUE;
+      break;
+    }
+
+  return FALSE;
 }

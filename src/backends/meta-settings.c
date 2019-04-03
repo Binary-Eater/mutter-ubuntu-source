@@ -82,22 +82,18 @@ calculate_ui_scaling_factor (MetaSettings *settings)
   MetaMonitorManager *monitor_manager =
     meta_backend_get_monitor_manager (settings->backend);
 
-
-  if (settings->experimental_features &
-      META_EXPERIMENTAL_FEATURE_X11_RANDR_FRACTIONAL_SCALING)
+  if (!meta_is_wayland_compositor () &&
+      (settings->experimental_features &
+       META_EXPERIMENTAL_FEATURE_X11_RANDR_FRACTIONAL_SCALING))
     {
-      if (settings->x11_scale_mode == META_X11_SCALE_MODE_UP)
-        return 1;
+      float scale = 1;
 
       if (monitor_manager &&
           settings->x11_scale_mode == META_X11_SCALE_MODE_UI_DOWN)
-        {
-          float max_scale =
-            meta_monitor_manager_get_maximum_crtc_scale (monitor_manager);
-          return ceilf (max_scale);
-        }
+        scale =
+          ceilf (meta_monitor_manager_get_maximum_crtc_scale (monitor_manager));
 
-      return 1;
+      return scale;
     }
   else if (monitor_manager)
     {

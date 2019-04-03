@@ -139,11 +139,10 @@ meta_crtc_xrandr_set_scale (MetaCrtc         *crtc,
   else
     scale_filter = FilterFast;
 
-  transform_cookie = xcb_randr_set_crtc_transform (xcb_conn, xrandr_crtc,
-                                                   transformation,
-                                                   strlen (scale_filter),
-                                                   scale_filter,
-                                                   0, NULL);
+  transform_cookie =
+    xcb_randr_set_crtc_transform_checked (xcb_conn, xrandr_crtc, transformation,
+                                          strlen (scale_filter), scale_filter,
+                                          0, NULL);
 
   xcb_error = xcb_request_check (xcb_conn, transform_cookie);
   if (xcb_error)

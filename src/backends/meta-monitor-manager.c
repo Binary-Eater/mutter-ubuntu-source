@@ -1817,7 +1817,7 @@ is_global_scale_matching_in_config (MetaMonitorsConfig *config,
     {
       MetaLogicalMonitorConfig *logical_monitor_config = l->data;
 
-      if (logical_monitor_config->scale != scale)
+      if (fabs (logical_monitor_config->scale - scale) > FLT_EPSILON)
         return FALSE;
     }
 
@@ -3181,9 +3181,13 @@ void
 meta_monitor_manager_rebuild_derived (MetaMonitorManager *manager,
                                       MetaMonitorsConfig *config)
 {
+  MetaMonitorManagerClass *klass = META_MONITOR_MANAGER_GET_CLASS (manager);
   GList *old_logical_monitors;
 
   meta_monitor_manager_update_monitor_modes_derived (manager);
+
+  if (klass->update_screen_size_derived)
+    klass->update_screen_size_derived (manager, config);
 
   if (manager->in_init)
     return;

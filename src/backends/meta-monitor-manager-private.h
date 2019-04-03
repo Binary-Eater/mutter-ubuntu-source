@@ -161,6 +161,9 @@ struct _MetaMonitorManager
  * @apply_monitors_config: Tries to apply the given config using the given
  *   method. Throws an error if something went wrong.
  *
+ * @update_screen_size_derived: Computes the screen size for derived
+ *   configuration.
+ *
  * @set_power_save_mode: Sets the #MetaPowerSave mode (for all displays).
  *
  * @change_backlight: Changes the backlight intensity to the given value (in
@@ -203,6 +206,9 @@ struct _MetaMonitorManagerClass
                                      MetaMonitorsConfig      *,
                                      MetaMonitorsConfigMethod ,
                                      GError                 **);
+
+  void (*update_screen_size_derived)  (MetaMonitorManager *,
+                                       MetaMonitorsConfig *);
 
   void (*set_power_save_mode) (MetaMonitorManager *,
                                MetaPowerSave);

@@ -13,8 +13,6 @@
 
 struct _MetaCompositor
 {
-  GObject         parent;
-
   MetaDisplay    *display;
 
   guint           pre_paint_func_id;

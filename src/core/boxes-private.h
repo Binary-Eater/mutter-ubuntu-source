@@ -288,8 +288,4 @@ void meta_rectangle_crop_and_scale (const MetaRectangle *rect,
                                     int                  dst_height,
                                     MetaRectangle       *dest);
 
-gboolean meta_rectangle_has_neighbor (const MetaRectangle *rect,
-                                      const MetaRectangle *neighbor,
-                                      MetaSide             neighbor_side);
-
 #endif /* META_BOXES_PRIVATE_H */

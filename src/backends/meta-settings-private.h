@@ -33,7 +33,14 @@ typedef enum _MetaExperimentalFeature
   META_EXPERIMENTAL_FEATURE_NONE = 0,
   META_EXPERIMENTAL_FEATURE_SCALE_MONITOR_FRAMEBUFFER = (1 << 0),
   META_EXPERIMENTAL_FEATURE_KMS_MODIFIERS  = (1 << 1),
+  META_EXPERIMENTAL_FEATURE_X11_RANDR_FRACTIONAL_SCALING  = (1 << 2),
 } MetaExperimentalFeature;
+
+typedef enum _MetaX11ScaleMode
+{
+  META_X11_SCALE_MODE_UP = 1,
+  META_X11_SCALE_MODE_UI_DOWN,
+} MetaX11ScaleMode;
 
 #define META_TYPE_SETTINGS (meta_settings_get_type ())
 G_DECLARE_FINAL_TYPE (MetaSettings, meta_settings,
@@ -64,6 +71,8 @@ void meta_settings_enable_experimental_feature (MetaSettings           *settings
 void meta_settings_get_xwayland_grab_patterns (MetaSettings  *settings,
                                                GPtrArray    **whitelist_patterns,
                                                GPtrArray    **blacklist_patterns);
+
+MetaX11ScaleMode meta_settings_get_x11_scale_mode (MetaSettings *settings);
 
 gboolean  meta_settings_are_xwayland_grabs_allowed (MetaSettings *settings);
 

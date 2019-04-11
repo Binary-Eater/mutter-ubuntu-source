@@ -1,3 +1,17 @@
+mutter (3.32.0+git20190410-1ubuntu1) disco; urgency=medium
+
+  * Merge with debian git snapshot (LP: #1820542), remaining changes:
+    + debian/control:
+      - Update VCS flags to point to launchpad
+      - Update maintainer to ubuntu
+    + debian/gbp.conf: update branch to point to ubuntu/master
+    + debian/patches/x11-Add-support-for-fractional-scaling-using-Randr.patch:
+      - X11: Add support for fractional scaling using Randr
+  * d/p/x11-Add-support-for-fractional-scaling-using-Randr.patch:
+    - Refreshed.
+
+ -- Marco Trevisan (Treviño) <marco@ubuntu.com>  Wed, 10 Apr 2019 20:12:29 -0500
+
 mutter (3.32.0+git20190410-1) experimental; urgency=medium
 
   * New upstream snapshot up to commit
@@ -23,6 +37,30 @@ mutter (3.32.0+git20190410-1) experimental; urgency=medium
     a direct BD on the providers. Thanks, Lintian.
 
  -- Iain Lane <laney@debian.org>  Wed, 10 Apr 2019 16:36:23 +0100
+
+mutter (3.32.0-1ubuntu2) disco; urgency=medium
+
+  * debian/patches/x11-Add-support-for-fractional-scaling-using-Randr.patch:
+    - Don't invert the screen size when rotation is enabled (LP: #1822513)
+    - Remove unneeded cleanup changes
+    - Use xcb checked function to set scaling to catch errors
+    - Update screen size only after monitors modes have been derived
+      (LP: #1822616)
+    - Trigger a monitors rebuild only if scale has changed (LP: #1823485)
+    - Only update UI scaling when output scaling is enabled (LP: #1822478)
+
+ -- Marco Trevisan (Treviño) <marco@ubuntu.com>  Wed, 03 Apr 2019 19:19:59 -0400
+
+mutter (3.32.0-1ubuntu1) disco; urgency=medium
+
+  * debian/control:
+    - Update VCS flags to point to launchpad
+    - Update maintainer to ubuntu
+  * debian/gbp.conf: update branch to point to ubuntu/master
+  * debian/patches/x11-Add-support-for-fractional-scaling-using-Randr.patch:
+    - X11: Add support for fractional scaling using Randr (LP: #1820850)
+
+ -- Marco Trevisan (Treviño) <marco@ubuntu.com>  Wed, 27 Mar 2019 06:48:11 +0100
 
 mutter (3.32.0-1) experimental; urgency=medium
 

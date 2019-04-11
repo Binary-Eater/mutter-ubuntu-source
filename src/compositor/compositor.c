@@ -92,6 +92,11 @@ on_presented (ClutterStage     *stage,
               ClutterFrameInfo *frame_info,
               MetaCompositor   *compositor);
 
+static void
+on_redirected_monitor_changed (MetaWindow     *window,
+                               int             old_monitor,
+                               MetaCompositor *compositor);
+
 static gboolean
 is_modal (MetaDisplay *display)
 {
@@ -133,6 +138,11 @@ meta_compositor_destroy (MetaCompositor *compositor)
 {
   clutter_threads_remove_repaint_func (compositor->pre_paint_func_id);
   clutter_threads_remove_repaint_func (compositor->post_paint_func_id);
+
+  if (compositor->unredirected_window)
+    g_signal_handlers_disconnect_by_func (compositor->unredirected_window,
+                                          on_redirected_monitor_changed,
+                                          compositor);
 
   if (compositor->have_x11_sync_object)
     meta_sync_ring_destroy ();
@@ -636,15 +646,53 @@ meta_shape_cow_for_window (MetaCompositor *compositor,
 }
 
 static void
+on_redirected_monitor_changed (MetaWindow     *window,
+                               int             old_monitor,
+                               MetaCompositor *compositor)
+{
+  MetaBackend *backend = meta_get_backend ();
+  MetaMonitorManager *monitor_manager =
+    meta_backend_get_monitor_manager (backend);
+
+  if (old_monitor >= 0 && window->monitor &&
+      window->monitor->number != old_monitor)
+    {
+      g_signal_handlers_block_by_func (window,
+                                       on_redirected_monitor_changed,
+                                       compositor);
+
+      meta_monitor_manager_disable_scale_for_monitor (monitor_manager,
+                                                      window->monitor);
+      g_signal_handlers_unblock_by_func (window,
+                                         on_redirected_monitor_changed,
+                                         compositor);
+    }
+  else
+    meta_shape_cow_for_window (compositor, window);
+}
+
+static void
 set_unredirected_window (MetaCompositor *compositor,
                          MetaWindow     *window)
 {
+  MetaBackend *backend;
+  MetaMonitorManager *monitor_manager;
+
   if (compositor->unredirected_window == window)
     return;
+
+  backend = meta_get_backend ();
+  monitor_manager = meta_backend_get_monitor_manager (backend);
 
   if (compositor->unredirected_window != NULL)
     {
       MetaWindowActor *window_actor = META_WINDOW_ACTOR (meta_window_get_compositor_private (compositor->unredirected_window));
+
+      g_signal_handlers_disconnect_by_func (compositor->unredirected_window,
+                                            on_redirected_monitor_changed,
+                                            compositor);
+      meta_monitor_manager_disable_scale_for_monitor (monitor_manager, NULL);
+
       meta_window_actor_set_unredirected (window_actor, FALSE);
     }
 
@@ -654,6 +702,12 @@ set_unredirected_window (MetaCompositor *compositor,
   if (compositor->unredirected_window != NULL)
     {
       MetaWindowActor *window_actor = META_WINDOW_ACTOR (meta_window_get_compositor_private (compositor->unredirected_window));
+
+      meta_monitor_manager_disable_scale_for_monitor (monitor_manager,
+                                                      window->monitor);
+      g_signal_connect (window, "monitor-changed",
+                        G_CALLBACK (on_redirected_monitor_changed), compositor);
+
       meta_window_actor_set_unredirected (window_actor, TRUE);
     }
 }

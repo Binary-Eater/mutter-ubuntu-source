@@ -120,6 +120,11 @@
                                         framebuffers instead of window content,
                                         to manage HiDPI monitors. Does not
                                         require a restart.
+
+        • “x11-randr-fractional-scaling” — enable fractional scaling under X11
+                                           using xrandr scaling. It might reduce
+                                           performances.
+                                           Does not require a restart.
       </description>
     </key>
 

@@ -368,6 +368,15 @@ meta_output_dummy_notify_destroy (MetaOutput *output)
   g_clear_pointer (&output->driver_private, g_free);
 }
 
+static gboolean
+has_tiled_monitors (void)
+{
+  const char *tiled_monitors_str;
+
+  tiled_monitors_str = g_getenv ("MUTTER_DEBUG_TILED_DUMMY_MONITORS");
+  return g_strcmp0 (tiled_monitors_str, "1") == 0;
+}
+
 static void
 meta_monitor_manager_dummy_read_current (MetaMonitorManager *manager)
 {
@@ -377,7 +386,6 @@ meta_monitor_manager_dummy_read_current (MetaMonitorManager *manager)
   float *monitor_scales = NULL;
   const char *num_monitors_str;
   const char *monitor_scales_str;
-  const char *tiled_monitors_str;
   gboolean tiled_monitors;
   unsigned int i;
   GList *outputs;
@@ -454,8 +462,7 @@ meta_monitor_manager_dummy_read_current (MetaMonitorManager *manager)
       g_strfreev (scales_str_list);
     }
 
-  tiled_monitors_str = g_getenv ("MUTTER_DEBUG_TILED_DUMMY_MONITORS");
-  tiled_monitors = g_strcmp0 (tiled_monitors_str, "1") == 0;
+  tiled_monitors = has_tiled_monitors ();
 
   modes = NULL;
   crtcs = NULL;
@@ -680,9 +687,10 @@ meta_monitor_manager_dummy_is_transform_handled (MetaMonitorManager  *manager,
 }
 
 static float
-meta_monitor_manager_dummy_calculate_monitor_mode_scale (MetaMonitorManager *manager,
-                                                         MetaMonitor        *monitor,
-                                                         MetaMonitorMode    *monitor_mode)
+meta_monitor_manager_dummy_calculate_monitor_mode_scale (MetaMonitorManager           *manager,
+                                                         MetaLogicalMonitorLayoutMode  layout_mode,
+                                                         MetaMonitor                  *monitor,
+                                                         MetaMonitorMode              *monitor_mode)
 {
   MetaOutput *output;
   MetaOutputDummy *output_dummy;
@@ -706,6 +714,7 @@ meta_monitor_manager_dummy_calculate_supported_scales (MetaMonitorManager       
   switch (layout_mode)
     {
     case META_LOGICAL_MONITOR_LAYOUT_MODE_LOGICAL:
+    case META_LOGICAL_MONITOR_LAYOUT_MODE_GLOBAL_UI_LOGICAL:
       break;
     case META_LOGICAL_MONITOR_LAYOUT_MODE_PHYSICAL:
       constraints |= META_MONITOR_SCALES_CONSTRAINT_NO_FRAC;
@@ -737,6 +746,9 @@ meta_monitor_manager_dummy_get_capabilities (MetaMonitorManager *manager)
     META_MONITOR_MANAGER_CAPABILITY_NONE;
 
   capabilities |= META_MONITOR_MANAGER_CAPABILITY_MIRRORING;
+
+  if (has_tiled_monitors ())
+    capabilities |= META_MONITOR_MANAGER_CAPABILITY_TILING;
 
   if (meta_settings_is_experimental_feature_enabled (
         settings,

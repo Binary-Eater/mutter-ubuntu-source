@@ -92,6 +92,15 @@ on_presented (ClutterStage     *stage,
               ClutterFrameInfo *frame_info,
               MetaCompositor   *compositor);
 
+static void
+on_top_window_actor_destroyed (MetaWindowActor *window_actor,
+                               MetaCompositor  *compositor);
+
+static void
+on_redirected_monitor_changed (MetaWindow     *window,
+                               int             old_monitor,
+                               MetaCompositor *compositor);
+
 static gboolean
 is_modal (MetaDisplay *display)
 {
@@ -131,8 +140,38 @@ meta_switch_workspace_completed (MetaCompositor *compositor)
 void
 meta_compositor_destroy (MetaCompositor *compositor)
 {
+  g_signal_handler_disconnect (compositor->stage,
+                               compositor->stage_after_paint_id);
+  g_signal_handler_disconnect (compositor->stage,
+                               compositor->stage_presented_id);
+
+  compositor->stage_after_paint_id = 0;
+  compositor->stage_presented_id = 0;
+  compositor->stage = NULL;
+
   clutter_threads_remove_repaint_func (compositor->pre_paint_func_id);
   clutter_threads_remove_repaint_func (compositor->post_paint_func_id);
+
+  if (compositor->top_window_actor)
+    {
+      g_signal_handlers_disconnect_by_func (compositor->top_window_actor,
+                                            on_top_window_actor_destroyed,
+                                            compositor);
+      compositor->top_window_actor = NULL;
+    }
+
+  if (compositor->unredirected_window)
+    {
+      g_signal_handlers_disconnect_by_func (compositor->unredirected_window,
+                                            on_redirected_monitor_changed,
+                                            compositor);
+      compositor->unredirected_window = NULL;
+    }
+
+  g_clear_pointer (&compositor->window_group, clutter_actor_destroy);
+  g_clear_pointer (&compositor->top_window_group, clutter_actor_destroy);
+  g_clear_pointer (&compositor->feedback_group, clutter_actor_destroy);
+  g_clear_pointer (&compositor->windows, g_list_free);
 
   if (compositor->have_x11_sync_object)
     meta_sync_ring_destroy ();
@@ -503,9 +542,10 @@ meta_compositor_manage (MetaCompositor *compositor)
 
   compositor->stage = meta_backend_get_stage (backend);
 
-  g_signal_connect (compositor->stage, "presented",
-                    G_CALLBACK (on_presented),
-                    compositor);
+  compositor->stage_presented_id =
+    g_signal_connect (compositor->stage, "presented",
+                      G_CALLBACK (on_presented),
+                                                     compositor);
 
   /* We use connect_after() here to accomodate code in GNOME Shell that,
    * when benchmarking drawing performance, connects to ::after-paint
@@ -515,8 +555,9 @@ meta_compositor_manage (MetaCompositor *compositor)
    * connections to ::after-paint, connect() vs. connect_after() doesn't
    * matter.
    */
-  g_signal_connect_after (CLUTTER_STAGE (compositor->stage), "after-paint",
-                          G_CALLBACK (after_stage_paint), compositor);
+  compositor->stage_after_paint_id =
+    g_signal_connect_after (compositor->stage, "after-paint",
+                            G_CALLBACK (after_stage_paint), compositor);
 
   clutter_stage_set_sync_delay (CLUTTER_STAGE (compositor->stage), META_SYNC_DELAY);
 
@@ -636,15 +677,53 @@ meta_shape_cow_for_window (MetaCompositor *compositor,
 }
 
 static void
+on_redirected_monitor_changed (MetaWindow     *window,
+                               int             old_monitor,
+                               MetaCompositor *compositor)
+{
+  MetaBackend *backend = meta_get_backend ();
+  MetaMonitorManager *monitor_manager =
+    meta_backend_get_monitor_manager (backend);
+
+  if (old_monitor >= 0 && window->monitor &&
+      window->monitor->number != old_monitor)
+    {
+      g_signal_handlers_block_by_func (window,
+                                       on_redirected_monitor_changed,
+                                       compositor);
+
+      meta_monitor_manager_disable_scale_for_monitor (monitor_manager,
+                                                      window->monitor);
+      g_signal_handlers_unblock_by_func (window,
+                                         on_redirected_monitor_changed,
+                                         compositor);
+    }
+  else
+    meta_shape_cow_for_window (compositor, window);
+}
+
+static void
 set_unredirected_window (MetaCompositor *compositor,
                          MetaWindow     *window)
 {
+  MetaBackend *backend;
+  MetaMonitorManager *monitor_manager;
+
   if (compositor->unredirected_window == window)
     return;
+
+  backend = meta_get_backend ();
+  monitor_manager = meta_backend_get_monitor_manager (backend);
 
   if (compositor->unredirected_window != NULL)
     {
       MetaWindowActor *window_actor = META_WINDOW_ACTOR (meta_window_get_compositor_private (compositor->unredirected_window));
+
+      g_signal_handlers_disconnect_by_func (compositor->unredirected_window,
+                                            on_redirected_monitor_changed,
+                                            compositor);
+      meta_monitor_manager_disable_scale_for_monitor (monitor_manager, NULL);
+
       meta_window_actor_set_unredirected (window_actor, FALSE);
     }
 
@@ -654,6 +733,12 @@ set_unredirected_window (MetaCompositor *compositor,
   if (compositor->unredirected_window != NULL)
     {
       MetaWindowActor *window_actor = META_WINDOW_ACTOR (meta_window_get_compositor_private (compositor->unredirected_window));
+
+      meta_monitor_manager_disable_scale_for_monitor (monitor_manager,
+                                                      window->monitor);
+      g_signal_connect (window, "monitor-changed",
+                        G_CALLBACK (on_redirected_monitor_changed), compositor);
+
       meta_window_actor_set_unredirected (window_actor, TRUE);
     }
 }

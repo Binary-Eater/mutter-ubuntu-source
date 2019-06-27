@@ -96,6 +96,11 @@ static void
 on_top_window_actor_destroyed (MetaWindowActor *window_actor,
                                MetaCompositor  *compositor);
 
+static void
+on_redirected_monitor_changed (MetaWindow     *window,
+                               int             old_monitor,
+                               MetaCompositor *compositor);
+
 static gboolean
 is_modal (MetaDisplay *display)
 {
@@ -153,6 +158,14 @@ meta_compositor_destroy (MetaCompositor *compositor)
                                             on_top_window_actor_destroyed,
                                             compositor);
       compositor->top_window_actor = NULL;
+    }
+
+  if (compositor->unredirected_window)
+    {
+      g_signal_handlers_disconnect_by_func (compositor->unredirected_window,
+                                            on_redirected_monitor_changed,
+                                            compositor);
+      compositor->unredirected_window = NULL;
     }
 
   g_clear_pointer (&compositor->window_group, clutter_actor_destroy);
@@ -664,15 +677,53 @@ meta_shape_cow_for_window (MetaCompositor *compositor,
 }
 
 static void
+on_redirected_monitor_changed (MetaWindow     *window,
+                               int             old_monitor,
+                               MetaCompositor *compositor)
+{
+  MetaBackend *backend = meta_get_backend ();
+  MetaMonitorManager *monitor_manager =
+    meta_backend_get_monitor_manager (backend);
+
+  if (old_monitor >= 0 && window->monitor &&
+      window->monitor->number != old_monitor)
+    {
+      g_signal_handlers_block_by_func (window,
+                                       on_redirected_monitor_changed,
+                                       compositor);
+
+      meta_monitor_manager_disable_scale_for_monitor (monitor_manager,
+                                                      window->monitor);
+      g_signal_handlers_unblock_by_func (window,
+                                         on_redirected_monitor_changed,
+                                         compositor);
+    }
+  else
+    meta_shape_cow_for_window (compositor, window);
+}
+
+static void
 set_unredirected_window (MetaCompositor *compositor,
                          MetaWindow     *window)
 {
+  MetaBackend *backend;
+  MetaMonitorManager *monitor_manager;
+
   if (compositor->unredirected_window == window)
     return;
+
+  backend = meta_get_backend ();
+  monitor_manager = meta_backend_get_monitor_manager (backend);
 
   if (compositor->unredirected_window != NULL)
     {
       MetaWindowActor *window_actor = META_WINDOW_ACTOR (meta_window_get_compositor_private (compositor->unredirected_window));
+
+      g_signal_handlers_disconnect_by_func (compositor->unredirected_window,
+                                            on_redirected_monitor_changed,
+                                            compositor);
+      meta_monitor_manager_disable_scale_for_monitor (monitor_manager, NULL);
+
       meta_window_actor_set_unredirected (window_actor, FALSE);
     }
 
@@ -682,6 +733,12 @@ set_unredirected_window (MetaCompositor *compositor,
   if (compositor->unredirected_window != NULL)
     {
       MetaWindowActor *window_actor = META_WINDOW_ACTOR (meta_window_get_compositor_private (compositor->unredirected_window));
+
+      meta_monitor_manager_disable_scale_for_monitor (monitor_manager,
+                                                      window->monitor);
+      g_signal_connect (window, "monitor-changed",
+                        G_CALLBACK (on_redirected_monitor_changed), compositor);
+
       meta_window_actor_set_unredirected (window_actor, TRUE);
     }
 }

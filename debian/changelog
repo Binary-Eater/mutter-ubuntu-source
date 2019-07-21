@@ -1,3 +1,9 @@
+mutter (3.32.2+git20190711-2ubuntu1~19.04.1) disco; urgency=medium
+
+  * No-change backport from disco to eoan.
+
+ -- Iain Lane <laney@debian.org>  Sun, 21 Jul 2019 20:51:33 +0100
+
 mutter (3.32.2+git20190711-2ubuntu1) eoan; urgency=medium
 
   * Merge with debian. Remaining changes:
@@ -43,6 +49,12 @@ mutter (3.32.2+git20190711-1) experimental; urgency=medium
     - Revert dependency on meson 0.50.0
 
  -- Marco Trevisan (Treviño) <marco@ubuntu.com>  Fri, 12 Jul 2019 14:11:53 +0100
+
+mutter (3.32.2+git20190626-1ubuntu1~19.04.1) disco; urgency=medium
+
+  * No-change backport from eoan to disco for SRU.
+
+ -- Iain Lane <iain.lane@canonical.com>  Thu, 27 Jun 2019 16:38:59 +0100
 
 mutter (3.32.2+git20190626-1ubuntu1) eoan; urgency=medium
 
@@ -96,6 +108,13 @@ mutter (3.32.2-1) experimental; urgency=medium
     - Refreshed
 
  -- Marco Trevisan (Treviño) <marco@ubuntu.com>  Tue, 21 May 2019 12:31:38 +0100
+
+mutter (3.32.1-2ubuntu1~19.04.1) disco; urgency=medium
+
+  * Backport from eoan to disco
+  * Update VCS metadata
+
+ -- Iain Lane <iain.lane@canonical.com>  Wed, 01 May 2019 11:32:50 +0100
 
 mutter (3.32.1-2ubuntu1) eoan; urgency=medium
 

@@ -33,6 +33,7 @@
 #include <meta/meta-x11-errors.h>
 #include "window-private.h"
 #include "meta-shaped-texture-private.h"
+#include "meta-window-actor-private.h"
 #include "meta-cullable.h"
 #include "x11/window-x11.h"
 #include "x11/meta-x11-display-private.h"
@@ -69,10 +70,12 @@ free_damage (MetaSurfaceActorX11 *self)
 {
   MetaSurfaceActorX11Private *priv = meta_surface_actor_x11_get_instance_private (self);
   MetaDisplay *display = priv->display;
-  Display *xdisplay = meta_x11_display_get_xdisplay (display->x11_display);
+  Display *xdisplay;
 
   if (priv->damage == None)
     return;
+
+  xdisplay = meta_x11_display_get_xdisplay (display->x11_display);
 
   meta_x11_error_trap_push (display->x11_display);
   XDamageDestroy (xdisplay, priv->damage);
@@ -85,11 +88,13 @@ detach_pixmap (MetaSurfaceActorX11 *self)
 {
   MetaSurfaceActorX11Private *priv = meta_surface_actor_x11_get_instance_private (self);
   MetaDisplay *display = priv->display;
-  Display *xdisplay = meta_x11_display_get_xdisplay (display->x11_display);
   MetaShapedTexture *stex = meta_surface_actor_get_texture (META_SURFACE_ACTOR (self));
+  Display *xdisplay;
 
   if (priv->pixmap == None)
     return;
+
+  xdisplay = meta_x11_display_get_xdisplay (display->x11_display);
 
   /* Get rid of all references to the pixmap before freeing it; it's unclear whether
    * you are supposed to be able to free a GLXPixmap after freeing the underlying
@@ -354,12 +359,18 @@ meta_surface_actor_x11_is_unredirected (MetaSurfaceActor *actor)
 }
 
 static void
+release_x11_resources (MetaSurfaceActorX11 *self)
+{
+  detach_pixmap (self);
+  free_damage (self);
+}
+
+static void
 meta_surface_actor_x11_dispose (GObject *object)
 {
   MetaSurfaceActorX11 *self = META_SURFACE_ACTOR_X11 (object);
 
-  detach_pixmap (self);
-  free_damage (self);
+  release_x11_resources (self);
 
   G_OBJECT_CLASS (meta_surface_actor_x11_parent_class)->dispose (object);
 }
@@ -417,8 +428,7 @@ window_decorated_notify (MetaWindow *window,
 {
   MetaSurfaceActorX11 *self = META_SURFACE_ACTOR_X11 (user_data);
 
-  detach_pixmap (self);
-  free_damage (self);
+  release_x11_resources (self);
   create_damage (self);
 }
 
@@ -456,6 +466,10 @@ meta_surface_actor_x11_new (MetaWindow *window)
   create_damage (self);
   g_signal_connect_object (priv->window, "notify::decorated",
                            G_CALLBACK (window_decorated_notify), self, 0);
+
+  g_signal_connect_object (meta_window_actor_from_window (window), "destroy",
+                           G_CALLBACK (release_x11_resources), self,
+                           G_CONNECT_SWAPPED);
 
   priv->unredirected = FALSE;
   sync_unredirected (self);

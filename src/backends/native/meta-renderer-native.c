@@ -1098,7 +1098,7 @@ meta_renderer_native_egl_context_created (CoglDisplay *cogl_display,
                                       cogl_display_egl->dummy_surface,
                                       cogl_display_egl->egl_context))
     {
-      _cogl_set_error (error, COGL_WINSYS_ERROR,
+      g_set_error (error, COGL_WINSYS_ERROR,
                    COGL_WINSYS_ERROR_CREATE_CONTEXT,
                    "Failed to make context current");
       return FALSE;
@@ -2488,10 +2488,34 @@ meta_onscreen_native_allocate (CoglOnscreen *onscreen,
 }
 
 static void
+destroy_egl_surface (CoglOnscreen *onscreen)
+{
+  CoglOnscreenEGL *onscreen_egl = onscreen->winsys;
+
+  if (onscreen_egl->egl_surface != EGL_NO_SURFACE)
+    {
+      MetaOnscreenNative *onscreen_native = onscreen_egl->platform;
+      MetaEgl *egl = meta_onscreen_native_get_egl (onscreen_native);
+      CoglFramebuffer *framebuffer = COGL_FRAMEBUFFER (onscreen);
+      CoglContext *cogl_context = framebuffer->context;
+      CoglRenderer *cogl_renderer = cogl_context->display->renderer;
+      CoglRendererEGL *cogl_renderer_egl = cogl_renderer->winsys;
+
+      meta_egl_destroy_surface (egl,
+                                cogl_renderer_egl->edpy,
+                                onscreen_egl->egl_surface,
+                                NULL);
+      onscreen_egl->egl_surface = EGL_NO_SURFACE;
+    }
+}
+
+static void
 meta_renderer_native_release_onscreen (CoglOnscreen *onscreen)
 {
   CoglFramebuffer *framebuffer = COGL_FRAMEBUFFER (onscreen);
   CoglContext *cogl_context = framebuffer->context;
+  CoglDisplay *cogl_display = cogl_context_get_display (cogl_context);
+  CoglDisplayEGL *cogl_display_egl = cogl_display->winsys;
   CoglRenderer *cogl_renderer = cogl_context->display->renderer;
   CoglRendererEGL *cogl_renderer_egl = cogl_renderer->winsys;
   CoglOnscreenEGL *onscreen_egl = onscreen->winsys;
@@ -2504,15 +2528,15 @@ meta_renderer_native_release_onscreen (CoglOnscreen *onscreen)
 
   onscreen_native = onscreen_egl->platform;
 
-  if (onscreen_egl->egl_surface != EGL_NO_SURFACE)
+  if (onscreen_egl->egl_surface != EGL_NO_SURFACE &&
+      (cogl_display_egl->current_draw_surface == onscreen_egl->egl_surface ||
+       cogl_display_egl->current_read_surface == onscreen_egl->egl_surface))
     {
-      MetaEgl *egl = meta_onscreen_native_get_egl (onscreen_native);
-
-      meta_egl_destroy_surface (egl,
-                                cogl_renderer_egl->edpy,
-                                onscreen_egl->egl_surface,
-                                NULL);
-      onscreen_egl->egl_surface = EGL_NO_SURFACE;
+      if (!_cogl_winsys_egl_make_current (cogl_display,
+                                          cogl_display_egl->dummy_surface,
+                                          cogl_display_egl->dummy_surface,
+                                          cogl_display_egl->egl_context))
+        g_warning ("Failed to clear current context");
     }
 
   renderer_gpu_data =
@@ -2527,6 +2551,8 @@ meta_renderer_native_release_onscreen (CoglOnscreen *onscreen)
 
       free_current_bo (onscreen);
 
+      destroy_egl_surface (onscreen);
+
       if (onscreen_native->gbm.surface)
         {
           gbm_surface_destroy (onscreen_native->gbm.surface);
@@ -2537,6 +2563,9 @@ meta_renderer_native_release_onscreen (CoglOnscreen *onscreen)
     case META_RENDERER_NATIVE_MODE_EGL_DEVICE:
       release_dumb_fb (&onscreen_native->egl.dumb_fb,
                        onscreen_native->render_gpu);
+
+      destroy_egl_surface (onscreen);
+
       if (onscreen_native->egl.stream != EGL_NO_STREAM_KHR)
         {
           MetaEgl *egl = meta_onscreen_native_get_egl (onscreen_native);
@@ -3387,6 +3416,7 @@ create_renderer_gpu_data_egl_device (MetaRendererNative  *renderer_native,
                    G_IO_ERROR_FAILED,
                    "Missing EGL extensions required for EGLDevice renderer: %s",
                    missing_extensions_str);
+      meta_egl_terminate (egl, egl_display, NULL);
       g_free (missing_extensions_str);
       g_free (missing_extensions);
       return NULL;

@@ -1,3 +1,20 @@
+mutter (3.33.91-1ubuntu1) eoan; urgency=medium
+
+  [ Iain Lane ]
+  * Merge with debian. Remaining changes:
+    + debian/control:
+      - Update VCS flags to point to launchpad
+      - Update maintainer to ubuntu
+    + debian/gbp.conf: update branch to point to ubuntu/master
+    + debian/patches/x11-Add-support-for-fractional-scaling-using-Randr.patch:
+      - X11: Add support for fractional scaling using Randr
+
+  [ Marco Trevisan (Treviño) ]
+  * debian/patches: Refresh. Compositor is now a GObject, so we can use
+    smarter connection
+
+ -- Iain Lane <iain.lane@canonical.com>  Fri, 23 Aug 2019 21:02:03 +0100
+
 mutter (3.33.91-1) experimental; urgency=medium
 
   [ Dmitry Shachnev ]
@@ -100,6 +117,18 @@ mutter (3.33.4-1) experimental; urgency=medium
 
  -- Iain Lane <laney@debian.org>  Tue, 30 Jul 2019 18:16:52 +0100
 
+mutter (3.32.2+git20190711-2ubuntu1) eoan; urgency=medium
+
+  * Merge with debian. Remaining changes:
+    + debian/control:
+      - Update VCS flags to point to launchpad
+      - Update maintainer to ubuntu
+    + debian/gbp.conf: update branch to point to ubuntu/master
+    + debian/patches/x11-Add-support-for-fractional-scaling-using-Randr.patch:
+      - X11: Add support for fractional scaling using Randr
+
+ -- Iain Lane <iain.lane@canonical.com>  Fri, 19 Jul 2019 16:59:08 +0100
+
 mutter (3.32.2+git20190711-2) experimental; urgency=medium
 
   * d/p/window-x11-Focus-a-window-in-the-active-workspace-as-take.patch:
@@ -108,6 +137,18 @@ mutter (3.32.2+git20190711-2) experimental; urgency=medium
     - Tests: don't wait too much after window destruction, causing failures
 
  -- Marco Trevisan (Treviño) <marco@ubuntu.com>  Fri, 19 Jul 2019 16:55:02 +0100
+
+mutter (3.32.2+git20190711-1ubuntu1) eoan; urgency=medium
+
+  * Merge with debian. Remaining changes:
+    + debian/control:
+      - Update VCS flags to point to launchpad
+      - Update maintainer to ubuntu
+    + debian/gbp.conf: update branch to point to ubuntu/master
+    + debian/patches/x11-Add-support-for-fractional-scaling-using-Randr.patch:
+      - X11: Add support for fractional scaling using Randr
+
+ -- Iain Lane <iain.lane@canonical.com>  Fri, 12 Jul 2019 14:23:04 +0100
 
 mutter (3.32.2+git20190711-1) experimental; urgency=medium
 
@@ -121,6 +162,18 @@ mutter (3.32.2+git20190711-1) experimental; urgency=medium
     - Revert dependency on meson 0.50.0
 
  -- Marco Trevisan (Treviño) <marco@ubuntu.com>  Fri, 12 Jul 2019 14:11:53 +0100
+
+mutter (3.32.2+git20190626-1ubuntu1) eoan; urgency=medium
+
+  * Merge with debian (LP: #1834493). Remaining changes:
+    + debian/control:
+      - Update VCS flags to point to launchpad
+      - Update maintainer to ubuntu
+    + debian/gbp.conf: update branch to point to ubuntu/master
+    + debian/patches/x11-Add-support-for-fractional-scaling-using-Randr.patch:
+      - X11: Add support for fractional scaling using Randr
+
+ -- Iain Lane <iain.lane@canonical.com>  Thu, 27 Jun 2019 15:58:31 +0100
 
 mutter (3.32.2+git20190626-1) experimental; urgency=medium
 
@@ -137,6 +190,18 @@ mutter (3.32.2+git20190626-1) experimental; urgency=medium
 
  -- Marco Trevisan (Treviño) <marco@ubuntu.com>  Thu, 27 Jun 2019 13:02:32 +0100
 
+mutter (3.32.2-1ubuntu1) eoan; urgency=medium
+
+  * Merge with debian. Remaining changes:
+    + debian/control:
+      - Update VCS flags to point to launchpad
+      - Update maintainer to ubuntu
+    + debian/gbp.conf: update branch to point to ubuntu/master
+    + debian/patches/x11-Add-support-for-fractional-scaling-using-Randr.patch:
+      - X11: Add support for fractional scaling using Randr
+
+ -- Iain Lane <iain.lane@canonical.com>  Tue, 21 May 2019 17:38:07 +0100
+
 mutter (3.32.2-1) experimental; urgency=medium
 
   * New upstream release
@@ -150,6 +215,24 @@ mutter (3.32.2-1) experimental; urgency=medium
     - Refreshed
 
  -- Marco Trevisan (Treviño) <marco@ubuntu.com>  Tue, 21 May 2019 12:31:38 +0100
+
+mutter (3.32.1-2ubuntu1) eoan; urgency=medium
+
+  * Merge with debian
+    - Update to 3.32.1 upstream version (LP: #1826936)
+    - Fix applications aren't focused in Wayland session (LP: #1826176)
+    - Fix crash on hotplugging a dock with a monitor (LP: #1826182)
+    Remaining changes:
+    + debian/control:
+      - Update VCS flags to point to launchpad
+      - Update maintainer to ubuntu
+    + debian/gbp.conf: update branch to point to ubuntu/master
+    + debian/patches/x11-Add-support-for-fractional-scaling-using-Randr.patch:
+      - X11: Add support for fractional scaling using Randr
+  * d/p/x11-Add-support-for-fractional-scaling-using-Randr.patch:
+    - Fixed crash on calculation of global scale (LP: #1826933)
+
+ -- Marco Trevisan (Treviño) <marco@ubuntu.com>  Wed, 01 May 2019 11:08:08 +0100
 
 mutter (3.32.1-2) experimental; urgency=medium
 
@@ -181,6 +264,20 @@ mutter (3.32.0+git20190410-2) experimental; urgency=medium
 
  -- Iain Lane <laney@debian.org>  Sun, 14 Apr 2019 11:11:22 +0100
 
+mutter (3.32.0+git20190410-1ubuntu1) disco; urgency=medium
+
+  * Merge with debian git snapshot (LP: #1820542), remaining changes:
+    + debian/control:
+      - Update VCS flags to point to launchpad
+      - Update maintainer to ubuntu
+    + debian/gbp.conf: update branch to point to ubuntu/master
+    + debian/patches/x11-Add-support-for-fractional-scaling-using-Randr.patch:
+      - X11: Add support for fractional scaling using Randr
+  * d/p/x11-Add-support-for-fractional-scaling-using-Randr.patch:
+    - Refreshed.
+
+ -- Marco Trevisan (Treviño) <marco@ubuntu.com>  Wed, 10 Apr 2019 20:12:29 -0500
+
 mutter (3.32.0+git20190410-1) experimental; urgency=medium
 
   * New upstream snapshot up to commit
@@ -206,6 +303,30 @@ mutter (3.32.0+git20190410-1) experimental; urgency=medium
     a direct BD on the providers. Thanks, Lintian.
 
  -- Iain Lane <laney@debian.org>  Wed, 10 Apr 2019 16:36:23 +0100
+
+mutter (3.32.0-1ubuntu2) disco; urgency=medium
+
+  * debian/patches/x11-Add-support-for-fractional-scaling-using-Randr.patch:
+    - Don't invert the screen size when rotation is enabled (LP: #1822513)
+    - Remove unneeded cleanup changes
+    - Use xcb checked function to set scaling to catch errors
+    - Update screen size only after monitors modes have been derived
+      (LP: #1822616)
+    - Trigger a monitors rebuild only if scale has changed (LP: #1823485)
+    - Only update UI scaling when output scaling is enabled (LP: #1822478)
+
+ -- Marco Trevisan (Treviño) <marco@ubuntu.com>  Wed, 03 Apr 2019 19:19:59 -0400
+
+mutter (3.32.0-1ubuntu1) disco; urgency=medium
+
+  * debian/control:
+    - Update VCS flags to point to launchpad
+    - Update maintainer to ubuntu
+  * debian/gbp.conf: update branch to point to ubuntu/master
+  * debian/patches/x11-Add-support-for-fractional-scaling-using-Randr.patch:
+    - X11: Add support for fractional scaling using Randr (LP: #1820850)
+
+ -- Marco Trevisan (Treviño) <marco@ubuntu.com>  Wed, 27 Mar 2019 06:48:11 +0100
 
 mutter (3.32.0-1) experimental; urgency=medium
 

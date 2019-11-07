@@ -40,6 +40,7 @@ enum
   UI_SCALING_FACTOR_CHANGED,
   GLOBAL_SCALING_FACTOR_CHANGED,
   FONT_DPI_CHANGED,
+  X11_SCALE_MODE_CHANGED,
   EXPERIMENTAL_FEATURES_CHANGED,
 
   N_SIGNALS
@@ -56,6 +57,7 @@ struct _MetaSettings
   GSettings *interface_settings;
   GSettings *mutter_settings;
   GSettings *wayland_settings;
+  GSettings *x11_settings;
 
   int ui_scaling_factor;
   int global_scaling_factor;
@@ -68,6 +70,8 @@ struct _MetaSettings
   gboolean xwayland_allow_grabs;
   GPtrArray *xwayland_grab_whitelist_patterns;
   GPtrArray *xwayland_grab_blacklist_patterns;
+
+  MetaX11ScaleMode x11_scale_mode;
 };
 
 G_DEFINE_TYPE (MetaSettings, meta_settings, G_TYPE_OBJECT)
@@ -77,14 +81,33 @@ calculate_ui_scaling_factor (MetaSettings *settings)
 {
   MetaMonitorManager *monitor_manager =
     meta_backend_get_monitor_manager (settings->backend);
-  MetaLogicalMonitor *primary_logical_monitor;
 
-  primary_logical_monitor =
-    meta_monitor_manager_get_primary_logical_monitor (monitor_manager);
-  if (!primary_logical_monitor)
-    return 1;
+  if (!meta_is_wayland_compositor () &&
+      (settings->experimental_features &
+       META_EXPERIMENTAL_FEATURE_X11_RANDR_FRACTIONAL_SCALING))
+    {
+      float scale = 1;
 
-  return (int) meta_logical_monitor_get_scale (primary_logical_monitor);
+      if (monitor_manager &&
+          settings->x11_scale_mode == META_X11_SCALE_MODE_UI_DOWN)
+        scale =
+          ceilf (meta_monitor_manager_get_maximum_crtc_scale (monitor_manager));
+
+      return scale;
+    }
+  else if (monitor_manager)
+    {
+      MetaLogicalMonitor *primary_logical_monitor;
+
+      primary_logical_monitor =
+        meta_monitor_manager_get_primary_logical_monitor (monitor_manager);
+      if (!primary_logical_monitor)
+        return 1;
+
+      return (int) meta_logical_monitor_get_scale (primary_logical_monitor);
+    }
+
+  return 1;
 }
 
 static gboolean
@@ -268,6 +291,8 @@ experimental_features_handler (GVariant *features_variant,
         features |= META_EXPERIMENTAL_FEATURE_RT_SCHEDULER;
       else if (g_str_equal (feature, "autostart-xwayland"))
         features |= META_EXPERIMENTAL_FEATURE_AUTOSTART_XWAYLAND;
+      else if (g_str_equal (feature, "x11-randr-fractional-scaling"))
+        features |= META_EXPERIMENTAL_FEATURE_X11_RANDR_FRACTIONAL_SCALING;
       else
         g_info ("Unknown experimental feature '%s'\n", feature);
     }
@@ -396,6 +421,25 @@ wayland_settings_changed (GSettings    *wayland_settings,
     }
 }
 
+static void
+update_x11_scale_mode (MetaSettings *settings)
+{
+  settings->x11_scale_mode =
+    g_settings_get_enum (settings->x11_settings, "fractional-scale-mode");
+}
+
+static void
+x11_settings_changed (GSettings    *wayland_settings,
+                      gchar        *key,
+                      MetaSettings *settings)
+{
+  if (g_str_equal (key, "fractional-scale-mode"))
+    {
+      update_x11_scale_mode (settings);
+      g_signal_emit (settings, signals[X11_SCALE_MODE_CHANGED], 0, NULL);
+    }
+}
+
 void
 meta_settings_get_xwayland_grab_patterns (MetaSettings  *settings,
                                           GPtrArray    **whitelist_patterns,
@@ -409,6 +453,12 @@ gboolean
 meta_settings_are_xwayland_grabs_allowed (MetaSettings *settings)
 {
   return (settings->xwayland_allow_grabs);
+}
+
+MetaX11ScaleMode
+meta_settings_get_x11_scale_mode (MetaSettings *settings)
+{
+  return settings->x11_scale_mode;
 }
 
 MetaSettings *
@@ -430,6 +480,7 @@ meta_settings_dispose (GObject *object)
   g_clear_object (&settings->mutter_settings);
   g_clear_object (&settings->interface_settings);
   g_clear_object (&settings->wayland_settings);
+  g_clear_object (&settings->x11_settings);
   g_clear_pointer (&settings->xwayland_grab_whitelist_patterns,
                    g_ptr_array_unref);
   g_clear_pointer (&settings->xwayland_grab_blacklist_patterns,
@@ -453,6 +504,10 @@ meta_settings_init (MetaSettings *settings)
   g_signal_connect (settings->wayland_settings, "changed",
                     G_CALLBACK (wayland_settings_changed),
                     settings);
+  settings->x11_settings = g_settings_new ("org.gnome.mutter.x11");
+  g_signal_connect (settings->x11_settings, "changed",
+                    G_CALLBACK (x11_settings_changed),
+                    settings);
 
   /* Chain up inter-dependent settings. */
   g_signal_connect (settings, "global-scaling-factor-changed",
@@ -464,6 +519,7 @@ meta_settings_init (MetaSettings *settings)
   update_experimental_features (settings);
   update_xwayland_grab_access_rules (settings);
   update_xwayland_allow_grabs (settings);
+  update_x11_scale_mode (settings);
 }
 
 static void
@@ -512,6 +568,14 @@ meta_settings_class_init (MetaSettingsClass *klass)
 
   signals[FONT_DPI_CHANGED] =
     g_signal_new ("font-dpi-changed",
+                  G_TYPE_FROM_CLASS (object_class),
+                  G_SIGNAL_RUN_LAST,
+                  0,
+                  NULL, NULL, NULL,
+                  G_TYPE_NONE, 0);
+
+  signals[X11_SCALE_MODE_CHANGED] =
+    g_signal_new ("x11-scale-mode-changed",
                   G_TYPE_FROM_CLASS (object_class),
                   G_SIGNAL_RUN_LAST,
                   0,

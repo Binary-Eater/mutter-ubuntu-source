@@ -29,6 +29,7 @@
 #include "backends/x11/meta-event-x11.h"
 #include "clutter/x11/clutter-x11.h"
 #include "compositor/meta-sync-ring.h"
+#include "compositor/meta-window-actor-x11.h"
 #include "core/display-private.h"
 #include "core/window-private.h"
 #include "x11/meta-x11-display-private.h"
@@ -53,8 +54,9 @@ process_damage (MetaCompositorX11  *compositor_x11,
                 MetaWindow         *window)
 {
   MetaWindowActor *window_actor = meta_window_actor_from_window (window);
+  MetaWindowActorX11 *window_actor_x11 = META_WINDOW_ACTOR_X11 (window_actor);
 
-  meta_window_actor_process_x11_damage (window_actor, damage_xevent);
+  meta_window_actor_x11_process_damage (window_actor_x11, damage_xevent);
 
   compositor_x11->frame_has_updated_xsurfaces = TRUE;
 }
@@ -244,6 +246,7 @@ set_unredirected_window (MetaCompositorX11 *compositor_x11,
   if (prev_unredirected_window)
     {
       MetaWindowActor *window_actor;
+      MetaWindowActorX11 *window_actor_x11;
 
       g_signal_handlers_disconnect_by_func (prev_unredirected_window,
                                             on_redirected_monitor_changed,
@@ -251,7 +254,8 @@ set_unredirected_window (MetaCompositorX11 *compositor_x11,
       meta_monitor_manager_disable_scale_for_monitor (monitor_manager, NULL);
 
       window_actor = meta_window_actor_from_window (prev_unredirected_window);
-      meta_window_actor_set_unredirected (window_actor, FALSE);
+      window_actor_x11 = META_WINDOW_ACTOR_X11 (window_actor);
+      meta_window_actor_x11_set_unredirected (window_actor_x11, FALSE);
     }
 
   shape_cow_for_window (compositor_x11, window);
@@ -260,6 +264,7 @@ set_unredirected_window (MetaCompositorX11 *compositor_x11,
   if (window)
     {
       MetaWindowActor *window_actor;
+      MetaWindowActorX11 *window_actor_x11;
 
       meta_monitor_manager_disable_scale_for_monitor (monitor_manager,
                                                       window->monitor);
@@ -268,31 +273,43 @@ set_unredirected_window (MetaCompositorX11 *compositor_x11,
                                compositor_x11, 0);
 
       window_actor = meta_window_actor_from_window (window);
-      meta_window_actor_set_unredirected (window_actor, TRUE);
+      window_actor_x11 = META_WINDOW_ACTOR_X11 (window_actor);
+      meta_window_actor_x11_set_unredirected (window_actor_x11, TRUE);
     }
+}
+
+static void
+maybe_unredirect_top_window (MetaCompositorX11 *compositor_x11)
+{
+  MetaCompositor *compositor = META_COMPOSITOR (compositor_x11);
+  MetaWindow *window_to_unredirect = NULL;
+  MetaWindowActor *window_actor;
+  MetaWindowActorX11 *window_actor_x11;
+
+  if (meta_compositor_is_unredirect_inhibited (compositor))
+    goto out;
+
+  window_actor = meta_compositor_get_top_window_actor (compositor);
+  if (!window_actor)
+    goto out;
+
+  window_actor_x11 = META_WINDOW_ACTOR_X11 (window_actor);
+  if (!meta_window_actor_x11_should_unredirect (window_actor_x11))
+    goto out;
+
+  window_to_unredirect = meta_window_actor_get_meta_window (window_actor);
+
+out:
+  set_unredirected_window (compositor_x11, window_to_unredirect);
 }
 
 static void
 meta_compositor_x11_pre_paint (MetaCompositor *compositor)
 {
   MetaCompositorX11 *compositor_x11 = META_COMPOSITOR_X11 (compositor);
-  MetaWindowActor *top_window_actor;
   MetaCompositorClass *parent_class;
 
-  top_window_actor = meta_compositor_get_top_window_actor (compositor);
-  if (!meta_compositor_is_unredirect_inhibited (compositor) &&
-      top_window_actor &&
-      meta_window_actor_should_unredirect (top_window_actor))
-    {
-      MetaWindow *top_window;
-
-      top_window = meta_window_actor_get_meta_window (top_window_actor);
-      set_unredirected_window (compositor_x11, top_window);
-    }
-  else
-    {
-      set_unredirected_window (compositor_x11, NULL);
-    }
+  maybe_unredirect_top_window (compositor_x11);
 
   parent_class = META_COMPOSITOR_CLASS (meta_compositor_x11_parent_class);
   parent_class->pre_paint (compositor);

@@ -27,6 +27,7 @@
 #include "backends/native/meta-seat-native.h"
 #include "backends/native/meta-virtual-input-device-native.h"
 #include "clutter/clutter-mutter.h"
+#include "meta/util.h"
 
 enum
 {
@@ -115,6 +116,10 @@ release_pressed_buttons (ClutterVirtualInputDevice *virtual_device)
   uint64_t time_us;
 
   time_us = g_get_monotonic_time ();
+
+  meta_topic (META_DEBUG_INPUT,
+              "Releasing pressed buttons while destroying virtual input device "
+              "(device %p)\n", virtual_device);
 
   for (code = 0; code < G_N_ELEMENTS (virtual_evdev->button_count); code++)
     {
@@ -231,6 +236,11 @@ meta_virtual_input_device_native_notify_button (ClutterVirtualInputDevice *virtu
       return;
     }
 
+  meta_topic (META_DEBUG_INPUT,
+              "Emitting virtual button-%s of button 0x%x (device %p)\n",
+              button_state == CLUTTER_BUTTON_STATE_PRESSED ? "press" : "release",
+              evdev_button, virtual_device);
+
   meta_seat_native_notify_button (virtual_evdev->seat,
                                   virtual_evdev->device,
                                   time_us,
@@ -261,10 +271,15 @@ meta_virtual_input_device_native_notify_key (ClutterVirtualInputDevice *virtual_
   if (key_count < 0 || key_count > 1)
     {
       g_warning ("Received multiple virtual 0x%x key %s (ignoring)", key,
-		 key_state == CLUTTER_KEY_STATE_PRESSED ? "presses" : "releases");
+                 key_state == CLUTTER_KEY_STATE_PRESSED ? "presses" : "releases");
       update_button_count (virtual_evdev, key, 1 - key_state);
       return;
     }
+
+  meta_topic (META_DEBUG_INPUT,
+              "Emitting virtual key-%s of key 0x%x (device %p)\n",
+              key_state == CLUTTER_KEY_STATE_PRESSED ? "press" : "release",
+              key, virtual_device);
 
   meta_seat_native_notify_key (virtual_evdev->seat,
                                virtual_evdev->device,
@@ -282,13 +297,15 @@ pick_keycode_for_keyval_in_current_group (ClutterVirtualInputDevice *virtual_dev
 {
   MetaVirtualInputDeviceNative *virtual_evdev =
     META_VIRTUAL_INPUT_DEVICE_NATIVE (virtual_device);
+  ClutterBackend *backend;
   ClutterKeymap *keymap;
   struct xkb_keymap *xkb_keymap;
   struct xkb_state  *state;
   guint keycode, layout;
   xkb_keycode_t min_keycode, max_keycode;
 
-  keymap = clutter_backend_get_keymap (clutter_get_default_backend ());
+  backend = clutter_get_default_backend ();
+  keymap = clutter_seat_get_keymap (clutter_backend_get_default_seat (backend));
   xkb_keymap = meta_keymap_native_get_keyboard_map (META_KEYMAP_NATIVE (keymap));
   state = virtual_evdev->seat->xkb;
 
@@ -353,6 +370,12 @@ apply_level_modifiers (ClutterVirtualInputDevice *virtual_device,
 
   clutter_input_device_keycode_to_evdev (virtual_evdev->device,
                                          keycode, &evcode);
+
+  meta_topic (META_DEBUG_INPUT,
+              "Emitting virtual key-%s of modifier key 0x%x (device %p)\n",
+              key_state == CLUTTER_KEY_STATE_PRESSED ? "press" : "release",
+              evcode, virtual_device);
+
   meta_seat_native_notify_key (virtual_evdev->seat,
                                virtual_evdev->device,
                                time_us,
@@ -394,11 +417,17 @@ meta_virtual_input_device_native_notify_keyval (ClutterVirtualInputDevice *virtu
   key_count = update_button_count (virtual_evdev, evcode, key_state);
   if (key_count < 0 || key_count > 1)
     {
-      g_warning ("Received multiple virtual 0x%x key %s (ignoring)", keycode,
-		 key_state == CLUTTER_KEY_STATE_PRESSED ? "presses" : "releases");
+      g_warning ("Received multiple virtual 0x%x key %s (ignoring)", evcode,
+                 key_state == CLUTTER_KEY_STATE_PRESSED ? "presses" : "releases");
       update_button_count (virtual_evdev, evcode, 1 - key_state);
       return;
     }
+
+  meta_topic (META_DEBUG_INPUT,
+              "Emitting virtual key-%s of key 0x%x with modifier level %d, "
+              "press count %d (device %p)\n",
+              key_state == CLUTTER_KEY_STATE_PRESSED ? "press" : "release",
+              evcode, level, key_count, virtual_device);
 
   if (key_state)
     apply_level_modifiers (virtual_device, time_us, level, key_state);
@@ -630,21 +659,26 @@ meta_virtual_input_device_native_constructed (GObject *object)
     CLUTTER_VIRTUAL_INPUT_DEVICE (object);
   MetaVirtualInputDeviceNative *virtual_evdev =
     META_VIRTUAL_INPUT_DEVICE_NATIVE (object);
-  ClutterDeviceManager *manager;
   ClutterInputDeviceType device_type;
   ClutterStage *stage;
 
-  manager = clutter_virtual_input_device_get_manager (virtual_device);
   device_type = clutter_virtual_input_device_get_device_type (virtual_device);
 
+  meta_topic (META_DEBUG_INPUT,
+              "Creating new virtual input device of type %d (%p)\n",
+              device_type, virtual_device);
+
   virtual_evdev->device =
-    meta_input_device_native_new_virtual (manager,
-                                          virtual_evdev->seat,
+    meta_input_device_native_new_virtual (virtual_evdev->seat,
                                           device_type,
                                           CLUTTER_INPUT_MODE_SLAVE);
 
-  stage = meta_device_manager_native_get_stage (META_DEVICE_MANAGER_NATIVE (manager));
+  stage = meta_seat_native_get_stage (virtual_evdev->seat);
   _clutter_input_device_set_stage (virtual_evdev->device, stage);
+
+  g_signal_emit_by_name (virtual_evdev->seat,
+                         "device-added",
+                         virtual_evdev->device);
 }
 
 static void
@@ -657,6 +691,10 @@ meta_virtual_input_device_native_finalize (GObject *object)
   GObjectClass *object_class;
 
   release_pressed_buttons (virtual_device);
+  g_signal_emit_by_name (virtual_evdev->seat,
+                         "device-removed",
+                         virtual_evdev->device);
+
   g_clear_object (&virtual_evdev->device);
 
   object_class =

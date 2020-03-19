@@ -31,6 +31,7 @@
 #include "compositor/meta-sync-ring.h"
 #include "compositor/meta-window-actor-x11.h"
 #include "core/display-private.h"
+#include "core/window-private.h"
 #include "x11/meta-x11-display-private.h"
 
 struct _MetaCompositorX11
@@ -207,18 +208,54 @@ shape_cow_for_window (MetaCompositorX11 *compositor_x11,
 }
 
 static void
+on_redirected_monitor_changed (MetaWindow     *window,
+                               int             old_monitor,
+                               MetaCompositor *compositor)
+{
+  MetaBackend *backend = meta_get_backend ();
+  MetaMonitorManager *monitor_manager =
+    meta_backend_get_monitor_manager (backend);
+
+  if (old_monitor >= 0 && window->monitor &&
+      window->monitor->number != old_monitor)
+    {
+      g_signal_handlers_block_by_func (window,
+                                       on_redirected_monitor_changed,
+                                       compositor);
+
+      meta_monitor_manager_disable_scale_for_monitor (monitor_manager,
+                                                      window->monitor);
+      g_signal_handlers_unblock_by_func (window,
+                                         on_redirected_monitor_changed,
+                                         compositor);
+    }
+  else
+    shape_cow_for_window (META_COMPOSITOR_X11 (compositor), window);
+}
+
+static void
 set_unredirected_window (MetaCompositorX11 *compositor_x11,
                          MetaWindow        *window)
 {
+  MetaBackend *backend;
+  MetaMonitorManager *monitor_manager;
   MetaWindow *prev_unredirected_window = compositor_x11->unredirected_window;
 
   if (prev_unredirected_window == window)
     return;
 
+  backend = meta_get_backend ();
+  monitor_manager = meta_backend_get_monitor_manager (backend);
+
   if (prev_unredirected_window)
     {
       MetaWindowActor *window_actor;
       MetaWindowActorX11 *window_actor_x11;
+
+      g_signal_handlers_disconnect_by_func (prev_unredirected_window,
+                                            on_redirected_monitor_changed,
+                                            compositor_x11);
+      meta_monitor_manager_disable_scale_for_monitor (monitor_manager, NULL);
 
       window_actor = meta_window_actor_from_window (prev_unredirected_window);
       window_actor_x11 = META_WINDOW_ACTOR_X11 (window_actor);
@@ -232,6 +269,12 @@ set_unredirected_window (MetaCompositorX11 *compositor_x11,
     {
       MetaWindowActor *window_actor;
       MetaWindowActorX11 *window_actor_x11;
+
+      meta_monitor_manager_disable_scale_for_monitor (monitor_manager,
+                                                      window->monitor);
+      g_signal_connect_object (window, "monitor-changed",
+                               G_CALLBACK (on_redirected_monitor_changed),
+                               compositor_x11, 0);
 
       window_actor = meta_window_actor_from_window (window);
       window_actor_x11 = META_WINDOW_ACTOR_X11 (window_actor);

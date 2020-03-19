@@ -158,3 +158,9 @@ option('xwayland_initfd',
   value: 'auto',
   description: 'Whether Xwayland -initfd argument is used'
 )
+
+option('default_driver',
+  type: 'combo',
+  choices: ['auto', 'gl', 'gl3', 'gles2', 'nop'],
+  value: 'auto'
+)

@@ -78,7 +78,6 @@
 #include "clutter-private.h"
 
 #include "cogl/cogl.h"
-#include "cogl/cogl-trace.h"
 
 struct _ClutterStageQueueRedrawEntry
 {
@@ -1321,14 +1320,8 @@ clutter_stage_queue_actor_relayout (ClutterStage *stage,
 {
   ClutterStagePrivate *priv = stage->priv;
 
-  if (g_hash_table_contains (priv->pending_relayouts, stage))
-    return;
-
   if (g_hash_table_size (priv->pending_relayouts) == 0)
     _clutter_stage_schedule_update (stage);
-
-  if (actor == (ClutterActor *) stage)
-    g_hash_table_remove_all (priv->pending_relayouts);
 
   g_hash_table_add (priv->pending_relayouts, g_object_ref (actor));
   priv->pending_relayouts_version++;
@@ -3752,6 +3745,21 @@ _clutter_stage_clear_update_time (ClutterStage *stage)
     _clutter_stage_window_clear_update_time (stage_window);
 }
 
+int64_t
+_clutter_stage_get_next_presentation_time (ClutterStage *stage)
+{
+  ClutterStageWindow *stage_window;
+
+  if (CLUTTER_ACTOR_IN_DESTRUCTION (stage))
+    return 0;
+
+  stage_window = _clutter_stage_get_window (stage);
+  if (stage_window == NULL)
+    return 0;
+
+  return _clutter_stage_window_get_next_presentation_time (stage_window);
+}
+
 ClutterPaintVolume *
 _clutter_stage_paint_volume_stack_allocate (ClutterStage *stage)
 {
@@ -4349,6 +4357,20 @@ capture_view (ClutterStage          *stage,
   cairo_surface_mark_dirty (capture->image);
 }
 
+/**
+ * clutter_stage_capture:
+ * @stage: a #ClutterStage
+ * @paint: whether to pain the frame
+ * @rect: a #cairo_rectangle_int_t in stage coordinates
+ * @out_captures: (out) (array length=out_n_captures): an array of
+ *   #ClutterCapture
+ * @out_n_captures: (out): the number of captures in @out_captures
+ *
+ * Captures the stage pixels of @rect into @captures. @rect is in stage
+ * coordinates.
+ *
+ * Returns: %TRUE if a #ClutterCapture has been created, %FALSE otherwise
+ */
 gboolean
 clutter_stage_capture (ClutterStage          *stage,
                        gboolean               paint,

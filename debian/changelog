@@ -1,3 +1,21 @@
+mutter (3.36.1-1) experimental; urgency=medium
+
+  * Team upload
+  * New upstream release
+  * d/copyright: Update
+  * Refresh patches
+  * Update symbols file.
+    Note that this includes ABI breaks: some symbols that are only used
+    internally have disappeared from mutter's private fork of Clutter and
+    Cogl. The only user of this version of mutter is GNOME Shell, which
+    does not use these symbols.
+  * d/patches: Update from gnome-3-36 branch up to 3.36.1-8-ge339a57dd
+  * d/p/clutter-stage-Don-t-assume-stage-relayouts-reallocate-eve.patch:
+    Add patch proposed upstream to fix a gnome-shell crash with the
+    "Native window placement" extension.
+
+ -- Simon McVittie <smcv@debian.org>  Fri, 03 Apr 2020 14:23:52 +0100
+
 mutter (3.36.0-2) experimental; urgency=medium
 
   * control: Build against gnome-desktop 3.36 and break old gnome-shell. So we

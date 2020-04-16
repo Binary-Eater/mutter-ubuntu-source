@@ -1423,7 +1423,7 @@ meta_monitor_manager_disable_scale_for_monitor (MetaMonitorManager *manager,
       return FALSE;
     }
 
-  if (monitor && monitor->scale != 1.0f)
+  if (monitor && fmodf (monitor->scale, 1.0) != 0.0f)
     {
       if (manager->scale_override_monitors)
         {

@@ -1,8 +1,17 @@
+mutter (3.36.2-1ubuntu1~20.04.1) focal; urgency=medium
+
+  * Backport to focal (LP: #1877209)
+  * debian/gbp.conf: Set branch to ubuntu/focal
+  * debian/control: Update VCS references to focal branch
+  * debian/rules: Revert groovy/debian build changes as per dh 13
+
+ -- Marco Trevisan (Treviño) <marco@ubuntu.com>  Thu, 07 May 2020 03:22:16 +0200
+
 mutter (3.36.2-1ubuntu1) groovy; urgency=medium
 
   * Merge with debian, including new upstream release:
     - Fix super key not working with secondary layout (LP: #1871913)
-  * xrandr-scaling: Fix compiler warnings (LP: #1875608)
+  * xrandr-scaling: Fix compiler warnings (LP: #1874207)
   * xrandr-scaling: Take care of global UI scale when restoring from config
     (LP: #1825593)
   * Remaining changes with debian:

@@ -191,6 +191,7 @@ META_EXPORT_TEST
 gboolean meta_verify_logical_monitor_config (MetaLogicalMonitorConfig    *logical_monitor_config,
                                              MetaLogicalMonitorLayoutMode layout_mode,
                                              MetaMonitorManager          *monitor_manager,
+                                             float                        max_scale,
                                              GError                     **error);
 
 META_EXPORT_TEST

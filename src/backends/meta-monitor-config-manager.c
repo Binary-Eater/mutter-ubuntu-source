@@ -1172,6 +1172,39 @@ meta_monitor_config_manager_create_for_rotate_monitor (MetaMonitorConfigManager 
   return create_for_builtin_display_rotation (config_manager, TRUE, META_MONITOR_TRANSFORM_NORMAL);
 }
 
+MetaMonitorsConfig *
+meta_monitor_config_manager_create_for_layout (MetaMonitorConfigManager     *config_manager,
+                                               MetaMonitorsConfig           *config,
+                                               MetaLogicalMonitorLayoutMode  layout_mode)
+{
+  MetaMonitorManager *monitor_manager = config_manager->monitor_manager;
+  GList *logical_monitor_configs;
+  GList *l;
+
+  if (!config)
+    return NULL;
+
+  if (config->layout_mode == layout_mode)
+    return g_object_ref (config);
+
+  logical_monitor_configs =
+    clone_logical_monitor_config_list (config->logical_monitor_configs);
+
+  if (layout_mode == META_LOGICAL_MONITOR_LAYOUT_MODE_PHYSICAL)
+    {
+      for (l = logical_monitor_configs; l; l = l->next)
+        {
+          MetaLogicalMonitorConfig *monitor_config = l->data;
+          monitor_config->scale = roundf (monitor_config->scale);
+        }
+    }
+
+  return meta_monitors_config_new (monitor_manager,
+                                   logical_monitor_configs,
+                                   layout_mode,
+                                   META_MONITORS_CONFIG_FLAG_NONE);
+}
+
 static MetaMonitorsConfig *
 create_for_switch_config_all_mirror (MetaMonitorConfigManager *config_manager)
 {

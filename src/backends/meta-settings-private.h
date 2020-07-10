@@ -40,8 +40,9 @@ typedef enum _MetaExperimentalFeature
 
 typedef enum _MetaX11ScaleMode
 {
+  META_X11_SCALE_MODE_NONE = 0,
   META_X11_SCALE_MODE_UP = 1,
-  META_X11_SCALE_MODE_UI_DOWN,
+  META_X11_SCALE_MODE_UI_DOWN = 2,
 } MetaX11ScaleMode;
 
 #define META_TYPE_SETTINGS (meta_settings_get_type ())
@@ -77,5 +78,8 @@ void meta_settings_get_xwayland_grab_patterns (MetaSettings  *settings,
 gboolean meta_settings_are_xwayland_grabs_allowed (MetaSettings *settings);
 
 MetaX11ScaleMode meta_settings_get_x11_scale_mode (MetaSettings *settings);
+
+void meta_settings_enable_x11_fractional_scaling (MetaSettings *settings,
+                                                  gboolean      enabled);
 
 #endif /* META_SETTINGS_PRIVATE_H */

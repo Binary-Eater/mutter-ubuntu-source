@@ -52,6 +52,7 @@ MetaCrtc * meta_create_xrandr_crtc (MetaGpuXrandr              *gpu_xrandr,
                                     XRRCrtcInfo                *xrandr_crtc,
                                     RRCrtc                      crtc_id,
                                     XRRScreenResources         *resources,
-                                    XRRCrtcTransformAttributes *transform_attributes);
+                                    XRRCrtcTransformAttributes *transform_attributes,
+                                    float                       scale_multiplier);
 
 #endif /* META_CRTC_XRANDR_H */

@@ -23,7 +23,7 @@
 #ifndef META_WINDOW_X11_PRIVATE_H
 #define META_WINDOW_X11_PRIVATE_H
 
-#include "core/window-private.h"
+#include "window-private.h"
 #include "x11/iconcache.h"
 
 G_BEGIN_DECLS
@@ -33,10 +33,6 @@ typedef struct _MetaWindowX11Private MetaWindowX11Private;
 struct _MetaWindowX11Class
 {
   MetaWindowClass parent_class;
-
-  void (*freeze_commits) (MetaWindow *window);
-  void (*thaw_commits)   (MetaWindow *window);
-  gboolean (*always_update_shape) (MetaWindow *window);
 };
 
 struct _MetaWindowX11
@@ -51,9 +47,6 @@ struct _MetaWindowX11Private
   /* TRUE if the client forced these on */
   guint wm_state_skip_taskbar : 1;
   guint wm_state_skip_pager : 1;
-  guint wm_take_focus : 1;
-  guint wm_ping : 1;
-  guint wm_delete_window : 1;
 
   /* Weird "_NET_WM_STATE_MODAL" flag */
   guint wm_state_modal : 1;
@@ -76,9 +69,6 @@ struct _MetaWindowX11Private
   MetaIconCache icon_cache;
   Pixmap wm_hints_pixmap;
   Pixmap wm_hints_mask;
-
-  /* Freeze/thaw on resize (for Xwayland) */
-  gboolean thaw_after_paint;
 };
 
 G_END_DECLS

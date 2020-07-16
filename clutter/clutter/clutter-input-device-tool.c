@@ -21,7 +21,9 @@
  * Author: Carlos Garnacho <carlosg@gnome.org>
  */
 
+#ifdef HAVE_CONFIG_H
 #include "clutter-build-config.h"
+#endif
 
 #include "clutter-input-device-tool.h"
 #include "clutter-private.h"
@@ -35,8 +37,7 @@ struct _ClutterInputDeviceToolPrivate
   guint64 id;
 };
 
-enum
-{
+enum {
   PROP_0,
   PROP_TYPE,
   PROP_SERIAL,

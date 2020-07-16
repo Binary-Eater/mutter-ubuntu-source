@@ -45,7 +45,7 @@ void gluBeginPolygon (GLUtesselator* tess);
 void gluDeleteTess (GLUtesselator* tess);
 void gluEndPolygon (GLUtesselator* tess);
 
-typedef void (_GLUfuncptr)(void);
+typedef void (_GLUfuncptr)();
 
 void gluGetTessProperty (GLUtesselator* tess, GLenum which, double* data);
 

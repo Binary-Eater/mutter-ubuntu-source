@@ -63,19 +63,19 @@ struct _CoglAtlasTexture
 
 CoglAtlasTexture *
 _cogl_atlas_texture_new_from_bitmap (CoglBitmap *bmp,
-                                     gboolean can_convert_in_place);
+                                     CoglBool can_convert_in_place);
 
-COGL_EXPORT void
+void
 _cogl_atlas_texture_add_reorganize_callback (CoglContext *ctx,
                                              GHookFunc callback,
                                              void *user_data);
 
-COGL_EXPORT void
+void
 _cogl_atlas_texture_remove_reorganize_callback (CoglContext *ctx,
                                                 GHookFunc callback,
                                                 void *user_data);
 
-gboolean
+CoglBool
 _cogl_is_atlas_texture (void *object);
 
 #endif /* _COGL_ATLAS_TEXTURE_PRIVATE_H_ */

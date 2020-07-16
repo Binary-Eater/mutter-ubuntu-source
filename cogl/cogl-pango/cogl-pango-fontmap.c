@@ -34,7 +34,9 @@
  *
  */
 
+#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
+#endif
 
 /* This is needed to get the Pango headers to export stuff needed to
    subclass */
@@ -94,7 +96,7 @@ cogl_pango_font_map_new (void)
 PangoContext *
 cogl_pango_font_map_create_context (CoglPangoFontMap *fm)
 {
-  g_return_val_if_fail (COGL_PANGO_IS_FONT_MAP (fm), NULL);
+  _COGL_RETURN_VAL_IF_FAIL (COGL_PANGO_IS_FONT_MAP (fm), NULL);
 
 #if PANGO_VERSION_CHECK (1, 22, 0)
   /* We can just directly use the pango context from the Cairo font
@@ -138,7 +140,7 @@ void
 cogl_pango_font_map_set_resolution (CoglPangoFontMap *font_map,
 				    double            dpi)
 {
-  g_return_if_fail (COGL_PANGO_IS_FONT_MAP (font_map));
+  _COGL_RETURN_IF_FAIL (COGL_PANGO_IS_FONT_MAP (font_map));
 
   pango_cairo_font_map_set_resolution (PANGO_CAIRO_FONT_MAP (font_map), dpi);
 }
@@ -153,7 +155,7 @@ cogl_pango_font_map_clear_glyph_cache (CoglPangoFontMap *fm)
 
 void
 cogl_pango_font_map_set_use_mipmapping (CoglPangoFontMap *fm,
-                                        gboolean          value)
+                                        CoglBool          value)
 {
   PangoRenderer *renderer = _cogl_pango_font_map_get_renderer (fm);
 
@@ -161,7 +163,7 @@ cogl_pango_font_map_set_use_mipmapping (CoglPangoFontMap *fm,
                                            value);
 }
 
-gboolean
+CoglBool
 cogl_pango_font_map_get_use_mipmapping (CoglPangoFontMap *fm)
 {
   PangoRenderer *renderer = _cogl_pango_font_map_get_renderer (fm);

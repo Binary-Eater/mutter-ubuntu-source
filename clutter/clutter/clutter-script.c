@@ -75,6 +75,65 @@
  * packing rules of Clutter still apply, and an actor cannot be packed
  * in multiple containers without unparenting it in between).
  *
+ * Behaviours and timelines can also be defined inside a UI definition
+ * buffer:
+ *
+ * <informalexample><programlisting><![CDATA[
+ * {
+ *   "id"          : "rotate-behaviour",
+ *   "type"        : "ClutterBehaviourRotate",
+ *   "angle-start" : 0.0,
+ *   "angle-end"   : 360.0,
+ *   "axis"        : "z-axis",
+ *   "alpha"       : {
+ *     "timeline" : { "duration" : 4000, "loop" : true },
+ *     "mode"     : "easeInSine"
+ *   }
+ * }
+ * ]]></programlisting></informalexample>
+ *
+ * And then to apply a defined behaviour to an actor defined inside the
+ * definition of an actor, the "behaviour" member can be used:
+ *
+ * <informalexample><programlisting><![CDATA[
+ * {
+ *   "id" : "my-rotating-actor",
+ *   "type" : "ClutterTexture",
+ *   ...
+ *   "behaviours" : [ "rotate-behaviour" ]
+ * }
+ * ]]></programlisting></informalexample>
+ *
+ * A #ClutterAlpha belonging to a #ClutterBehaviour can only be defined
+ * implicitly like in the example above, or explicitly by setting the
+ * "alpha" property to point to a previously defined #ClutterAlpha, e.g.:
+ *
+ * <informalexample><programlisting><![CDATA[
+ * {
+ *   "id"          : "rotate-behaviour",
+ *   "type"        : "ClutterBehaviourRotate",
+ *   "angle-start" : 0.0,
+ *   "angle-end"   : 360.0,
+ *   "axis"        : "z-axis",
+ *   "alpha"       : {
+ *     "id"       : "rotate-alpha",
+ *     "type"     : "ClutterAlpha",
+ *     "timeline" : {
+ *       "id"       : "rotate-timeline",
+ *       "type      : "ClutterTimeline",
+ *       "duration" : 4000,
+ *       "loop"     : true
+ *     },
+ *     "function" : "custom_sine_alpha"
+ *   }
+ * }
+ * ]]></programlisting></informalexample>
+ *
+ * Implicitely defined #ClutterAlpha<!-- -->s and #ClutterTimeline<!-- -->s
+ * can omit the `id`, as well as the `type` members, but will not be available
+ * using clutter_script_get_object() (they can, however, be extracted using the
+ * #ClutterBehaviour and #ClutterAlpha API respectively).
+ *
  * Signal handlers can be defined inside a Clutter UI definition file and
  * then autoconnected to their respective signals using the
  * clutter_script_connect_signals() function:
@@ -151,6 +210,7 @@
  *                   function
  *   "type_func"  := the GType function name, for non-standard classes
  *   "children"   := an array of names or objects to add as children
+ *   "behaviours" := an array of names or objects to apply to an actor
  *   "signals"    := an array of signal definitions to connect to an object
  *   "is-default" := a boolean flag used when defining the #ClutterStage;
  *                   if set to "true" the default stage will be used instead
@@ -160,7 +220,9 @@
  * #ClutterScript is available since Clutter 0.6
  */
 
+#ifdef HAVE_CONFIG_H
 #include "clutter-build-config.h"
+#endif
 
 #include <stdlib.h>
 #include <string.h>
@@ -175,6 +237,7 @@
 
 #include "clutter-actor.h"
 #include "clutter-stage.h"
+#include "clutter-texture.h"
 
 #include "clutter-script.h"
 #include "clutter-script-private.h"
@@ -185,6 +248,7 @@
 #include "clutter-debug.h"
 
 #include "deprecated/clutter-alpha.h"
+#include "deprecated/clutter-behaviour.h"
 #include "deprecated/clutter-container.h"
 #include "deprecated/clutter-state.h"
 
@@ -200,6 +264,8 @@ enum
 };
 
 static GParamSpec *obj_props[PROP_LAST];
+
+#define CLUTTER_SCRIPT_GET_PRIVATE(obj) (G_TYPE_INSTANCE_GET_PRIVATE ((obj), CLUTTER_TYPE_SCRIPT, ClutterScriptPrivate))
 
 struct _ClutterScriptPrivate
 {
@@ -282,12 +348,15 @@ object_info_free (gpointer data)
       g_free (oinfo->class_name);
       g_free (oinfo->type_func);
 
-      g_list_free_full (oinfo->properties, property_info_free);
+      g_list_foreach (oinfo->properties, (GFunc) property_info_free, NULL);
+      g_list_free (oinfo->properties);
 
-      g_list_free_full (oinfo->signals, signal_info_free);
+      g_list_foreach (oinfo->signals, (GFunc) signal_info_free, NULL);
+      g_list_free (oinfo->signals);
 
       /* these are ids */
-      g_list_free_full (oinfo->children, g_free);
+      g_list_foreach (oinfo->children, (GFunc) g_free, NULL);
+      g_list_free (oinfo->children);
 
       /* we unref top-level objects and leave the actors alone,
        * unless we are unmerging in which case we have to destroy
@@ -313,7 +382,7 @@ object_info_free (gpointer data)
 static void
 clutter_script_finalize (GObject *gobject)
 {
-  ClutterScriptPrivate *priv = CLUTTER_SCRIPT (gobject)->priv;
+  ClutterScriptPrivate *priv = CLUTTER_SCRIPT_GET_PRIVATE (gobject);
 
   g_object_unref (priv->parser);
   g_hash_table_destroy (priv->objects);
@@ -462,10 +531,11 @@ clutter_script_init (ClutterScript *script)
 /**
  * clutter_script_new:
  *
- * Creates a new #ClutterScript instance. #ClutterScript can be used to load
- * objects definitions for scenegraph elements, like actors, or behavioural
- * elements, like timelines. The definitions must be encoded using the
- * JavaScript Object Notation (JSON) language.
+ * Creates a new #ClutterScript instance. #ClutterScript can be used
+ * to load objects definitions for scenegraph elements, like actors,
+ * or behavioural elements, like behaviours and timelines. The
+ * definitions must be encoded using the JavaScript Object Notation (JSON)
+ * language.
  *
  * Return value: the newly created #ClutterScript instance. Use
  *   g_object_unref() when done.
@@ -778,7 +848,8 @@ clutter_script_unmerge_objects (ClutterScript *script,
   for (l = data.ids; l != NULL; l = l->next)
     g_hash_table_remove (priv->objects, l->data);
 
-  g_slist_free_full (data.ids, g_free);
+  g_slist_foreach (data.ids, (GFunc) g_free, NULL);
+  g_slist_free (data.ids);
 
   clutter_script_ensure_objects (script);
 }
@@ -800,7 +871,9 @@ construct_each_objects (gpointer key,
       if (oinfo->object == NULL)
         _clutter_script_construct_object (script, oinfo);
 
-      /* this will take care of setting up properties and adding children */
+      /* this will take care of setting up properties,
+       * adding children and applying behaviours
+       */
       _clutter_script_apply_properties (script, oinfo);
     }
 }

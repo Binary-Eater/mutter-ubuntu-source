@@ -83,7 +83,9 @@
  * Since: 1.8
  */
 
+#ifdef HAVE_CONFIG_H
 #include "clutter-build-config.h"
+#endif
 
 #include "clutter-gesture-action-private.h"
 
@@ -118,7 +120,7 @@ struct _ClutterGestureActionPrivate
   gint requested_nb_points;
   GArray *points;
 
-  gulong actor_capture_id;
+  guint actor_capture_id;
   gulong stage_capture_id;
 
   ClutterGestureTriggerEdge edge;
@@ -308,7 +310,11 @@ cancel_gesture (ClutterGestureAction *action)
 
   priv->in_gesture = FALSE;
 
-  g_clear_signal_handler (&priv->stage_capture_id, priv->stage);
+  if (priv->stage_capture_id != 0)
+    {
+      g_signal_handler_disconnect (priv->stage, priv->stage_capture_id);
+      priv->stage_capture_id = 0;
+    }
 
   actor = clutter_actor_meta_get_actor (CLUTTER_ACTOR_META (action));
   g_signal_emit (action, gesture_signals[GESTURE_CANCEL], 0, actor);
@@ -477,8 +483,11 @@ stage_captured_event_cb (ClutterActor         *stage,
       break;
     }
 
-  if (priv->points->len == 0)
-    g_clear_signal_handler (&priv->stage_capture_id, priv->stage);
+  if (priv->points->len == 0 && priv->stage_capture_id)
+    {
+      g_signal_handler_disconnect (priv->stage, priv->stage_capture_id);
+      priv->stage_capture_id = 0;
+    }
 
   return CLUTTER_EVENT_PROPAGATE;
 }
@@ -531,7 +540,7 @@ clutter_gesture_action_set_actor (ClutterActorMeta *meta,
       ClutterActor *old_actor = clutter_actor_meta_get_actor (meta);
 
       if (old_actor != NULL)
-        g_clear_signal_handler (&priv->actor_capture_id, old_actor);
+        g_signal_handler_disconnect (old_actor, priv->actor_capture_id);
 
       priv->actor_capture_id = 0;
     }
@@ -539,7 +548,7 @@ clutter_gesture_action_set_actor (ClutterActorMeta *meta,
   if (priv->stage_capture_id != 0)
     {
       if (priv->stage != NULL)
-        g_clear_signal_handler (&priv->stage_capture_id, priv->stage);
+        g_signal_handler_disconnect (priv->stage, priv->stage_capture_id);
 
       priv->stage_capture_id = 0;
       priv->stage = NULL;
@@ -797,7 +806,8 @@ clutter_gesture_action_class_init (ClutterGestureActionClass *klass)
                   G_TYPE_FROM_CLASS (klass),
                   G_SIGNAL_RUN_LAST,
                   G_STRUCT_OFFSET (ClutterGestureActionClass, gesture_end),
-                  NULL, NULL, NULL,
+                  NULL, NULL,
+                  _clutter_marshal_VOID__OBJECT,
                   G_TYPE_NONE, 1,
                   CLUTTER_TYPE_ACTOR);
 
@@ -819,7 +829,8 @@ clutter_gesture_action_class_init (ClutterGestureActionClass *klass)
                   G_TYPE_FROM_CLASS (klass),
                   G_SIGNAL_RUN_LAST,
                   G_STRUCT_OFFSET (ClutterGestureActionClass, gesture_cancel),
-                  NULL, NULL, NULL,
+                  NULL, NULL,
+                  _clutter_marshal_VOID__OBJECT,
                   G_TYPE_NONE, 1,
                   CLUTTER_TYPE_ACTOR);
 }

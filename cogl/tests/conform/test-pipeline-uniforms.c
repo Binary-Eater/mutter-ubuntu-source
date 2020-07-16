@@ -2,7 +2,6 @@
 
 #include <string.h>
 
-#include "test-declarations.h"
 #include "test-utils.h"
 
 #define LONG_ARRAY_SIZE 128
@@ -101,8 +100,8 @@ create_pipeline_for_shader (TestState *state, const char *shader_source)
 
   cogl_pipeline_set_user_program (pipeline, program);
 
-  cogl_object_unref (shader);
-  cogl_object_unref (program);
+  cogl_handle_unref (shader);
+  cogl_handle_unref (program);
 
   return pipeline;
 }

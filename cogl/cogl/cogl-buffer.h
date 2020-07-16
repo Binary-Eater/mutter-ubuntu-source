@@ -40,8 +40,9 @@
 #define __COGL_BUFFER_H__
 
 #include <cogl/cogl-types.h>
+#include <cogl/cogl-error.h>
 
-G_BEGIN_DECLS
+COGL_BEGIN_DECLS
 
 /**
  * SECTION:cogl-buffer
@@ -88,8 +89,7 @@ typedef struct _CoglBuffer CoglBuffer;
  *
  * Stability: unstable
  */
-typedef enum /*< prefix=COGL_BUFFER_ERROR >*/
-{
+typedef enum { /*< prefix=COGL_BUFFER_ERROR >*/
   COGL_BUFFER_ERROR_MAP
 } CoglBufferError;
 
@@ -107,7 +107,7 @@ _cogl_buffer_error_domain (void);
  * Since: 1.2
  * Stability: unstable
  */
-COGL_EXPORT gboolean
+CoglBool
 cogl_is_buffer (void *object);
 
 /**
@@ -121,7 +121,7 @@ cogl_is_buffer (void *object);
  * Since: 1.2
  * Stability: unstable
  */
-COGL_EXPORT unsigned int
+unsigned int
 cogl_buffer_get_size (CoglBuffer *buffer);
 
 /**
@@ -137,8 +137,7 @@ cogl_buffer_get_size (CoglBuffer *buffer);
  * Since: 1.2
  * Stability: unstable
  */
-typedef enum /*< prefix=COGL_BUFFER_UPDATE_HINT >*/
-{
+typedef enum { /*< prefix=COGL_BUFFER_UPDATE_HINT >*/
   COGL_BUFFER_UPDATE_HINT_STATIC,
   COGL_BUFFER_UPDATE_HINT_DYNAMIC,
   COGL_BUFFER_UPDATE_HINT_STREAM
@@ -155,7 +154,7 @@ typedef enum /*< prefix=COGL_BUFFER_UPDATE_HINT >*/
  * Since: 1.2
  * Stability: unstable
  */
-COGL_EXPORT void
+void
 cogl_buffer_set_update_hint (CoglBuffer          *buffer,
                              CoglBufferUpdateHint hint);
 
@@ -170,7 +169,7 @@ cogl_buffer_set_update_hint (CoglBuffer          *buffer,
  * Since: 1.2
  * Stability: unstable
  */
-COGL_EXPORT CoglBufferUpdateHint
+CoglBufferUpdateHint
 cogl_buffer_get_update_hint (CoglBuffer *buffer);
 
 /**
@@ -185,8 +184,7 @@ cogl_buffer_get_update_hint (CoglBuffer *buffer);
  * Since: 1.2
  * Stability: unstable
  */
-typedef enum /*< prefix=COGL_BUFFER_ACCESS >*/
-{
+typedef enum { /*< prefix=COGL_BUFFER_ACCESS >*/
  COGL_BUFFER_ACCESS_READ       = 1 << 0,
  COGL_BUFFER_ACCESS_WRITE      = 1 << 1,
  COGL_BUFFER_ACCESS_READ_WRITE = COGL_BUFFER_ACCESS_READ | COGL_BUFFER_ACCESS_WRITE
@@ -210,8 +208,7 @@ typedef enum /*< prefix=COGL_BUFFER_ACCESS >*/
  * Since: 1.4
  * Stability: unstable
  */
-typedef enum /*< prefix=COGL_BUFFER_MAP_HINT >*/
-{
+typedef enum { /*< prefix=COGL_BUFFER_MAP_HINT >*/
   COGL_BUFFER_MAP_HINT_DISCARD = 1 << 0,
   COGL_BUFFER_MAP_HINT_DISCARD_RANGE = 1 << 1
 } CoglBufferMapHint;
@@ -244,7 +241,7 @@ typedef enum /*< prefix=COGL_BUFFER_MAP_HINT >*/
  * Since: 1.2
  * Stability: unstable
  */
-COGL_EXPORT void *
+void *
 cogl_buffer_map (CoglBuffer *buffer,
                  CoglBufferAccess access,
                  CoglBufferMapHint hints);
@@ -257,7 +254,7 @@ cogl_buffer_map (CoglBuffer *buffer,
  * @access: how the mapped buffer will be used by the application
  * @hints: A mask of #CoglBufferMapHint<!-- -->s that tell Cogl how
  *   the data will be modified once mapped.
- * @error: A #GError for catching exceptional errors
+ * @error: A #CoglError for catching exceptional errors
  *
  * Maps a sub-region of the buffer into the application's address space
  * for direct access.
@@ -281,13 +278,13 @@ cogl_buffer_map (CoglBuffer *buffer,
  * Since: 2.0
  * Stability: unstable
  */
-COGL_EXPORT void *
+void *
 cogl_buffer_map_range (CoglBuffer *buffer,
                        size_t offset,
                        size_t size,
                        CoglBufferAccess access,
                        CoglBufferMapHint hints,
-                       GError **error);
+                       CoglError **error);
 
 /**
  * cogl_buffer_unmap:
@@ -298,7 +295,7 @@ cogl_buffer_map_range (CoglBuffer *buffer,
  * Since: 1.2
  * Stability: unstable
  */
-COGL_EXPORT void
+void
 cogl_buffer_unmap (CoglBuffer *buffer);
 
 /**
@@ -317,12 +314,12 @@ cogl_buffer_unmap (CoglBuffer *buffer);
  * Since: 1.2
  * Stability: unstable
  */
-COGL_EXPORT gboolean
+CoglBool
 cogl_buffer_set_data (CoglBuffer *buffer,
                       size_t offset,
                       const void *data,
                       size_t size);
 
-G_END_DECLS
+COGL_END_DECLS
 
 #endif /* __COGL_BUFFER_H__ */

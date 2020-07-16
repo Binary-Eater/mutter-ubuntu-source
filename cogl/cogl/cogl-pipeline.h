@@ -46,7 +46,7 @@ typedef struct _CoglPipeline CoglPipeline;
 
 #include <glib-object.h>
 
-G_BEGIN_DECLS
+COGL_BEGIN_DECLS
 
 /**
  * SECTION:cogl-pipeline
@@ -69,11 +69,10 @@ G_BEGIN_DECLS
  *
  * Returns: a #GType that can be used with the GLib type system.
  */
-COGL_EXPORT
 GType cogl_pipeline_get_gtype (void);
 
 /**
- * cogl_pipeline_new: (constructor)
+ * cogl_pipeline_new:
  * @context: a #CoglContext
  *
  * Allocates and initializes a default simple pipeline that will color
@@ -84,7 +83,7 @@ GType cogl_pipeline_get_gtype (void);
  * Since: 2.0
  * Stability: Unstable
  */
-COGL_EXPORT CoglPipeline *
+CoglPipeline *
 cogl_pipeline_new (CoglContext *context);
 
 /**
@@ -105,7 +104,7 @@ cogl_pipeline_new (CoglContext *context);
  * Since: 2.0
  * Stability: Unstable
  */
-COGL_EXPORT CoglPipeline *
+CoglPipeline *
 cogl_pipeline_copy (CoglPipeline *source);
 
 /**
@@ -120,7 +119,7 @@ cogl_pipeline_copy (CoglPipeline *source);
  * Since: 2.0
  * Stability: Unstable
  */
-COGL_EXPORT gboolean
+CoglBool
 cogl_is_pipeline (void *object);
 
 /**
@@ -135,7 +134,7 @@ cogl_is_pipeline (void *object);
  * Since: 2.0
  * Stability: Unstable
  */
-typedef gboolean (*CoglPipelineLayerCallback) (CoglPipeline *pipeline,
+typedef CoglBool (*CoglPipelineLayerCallback) (CoglPipeline *pipeline,
                                                int layer_index,
                                                void *user_data);
 
@@ -152,7 +151,7 @@ typedef gboolean (*CoglPipelineLayerCallback) (CoglPipeline *pipeline,
  * Since: 2.0
  * Stability: Unstable
  */
-COGL_EXPORT void
+void
 cogl_pipeline_foreach_layer (CoglPipeline *pipeline,
                              CoglPipelineLayerCallback callback,
                              void *user_data);
@@ -177,10 +176,10 @@ cogl_pipeline_foreach_layer (CoglPipeline *pipeline,
  * Since: 2.0
  * Stability: Unstable
  */
-COGL_EXPORT int
+int
 cogl_pipeline_get_uniform_location (CoglPipeline *pipeline,
                                     const char *uniform_name);
 
-G_END_DECLS
+COGL_END_DECLS
 
 #endif /* __COGL_PIPELINE_H__ */

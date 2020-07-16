@@ -27,7 +27,8 @@
  * and bezier curves.
  *
  * A #ClutterPath contains a description of a path consisting of
- * straight lines and bezier curves.
+ * straight lines and bezier curves. This can be used in a
+ * #ClutterBehaviourPath to animate an actor moving along the path.
  *
  * The path consists of a series of nodes. Each node is one of the
  * following four types:
@@ -60,7 +61,9 @@
  * #ClutterPath is available since Clutter 1.0
  */
 
+#ifdef HAVE_CONFIG_H
 #include "clutter-build-config.h"
+#endif
 
 #include <string.h>
 #include <stdarg.h>
@@ -243,6 +246,9 @@ clutter_path_finalize (GObject *object)
  *
  * Creates a new #ClutterPath instance with no nodes.
  *
+ * The object has a floating reference so if you add it to a
+ * #ClutterBehaviourPath then you do not need to unref it.
+ *
  * Return value: the newly created #ClutterPath
  *
  * Since: 1.0
@@ -262,6 +268,9 @@ clutter_path_new (void)
  * Creates a new #ClutterPath instance with the nodes described in
  * @desc. See clutter_path_add_string() for details of the format of
  * the string.
+ *
+ * The object has a floating reference so if you add it to a
+ * #ClutterBehaviourPath then you do not need to unref it.
  *
  * Return value: the newly created #ClutterPath
  *
@@ -288,7 +297,8 @@ clutter_path_clear (ClutterPath *path)
 {
   ClutterPathPrivate *priv = path->priv;
 
-  g_slist_free_full (priv->nodes, (GDestroyNotify) clutter_path_node_full_free);
+  g_slist_foreach (priv->nodes, (GFunc) clutter_path_node_full_free, NULL);
+  g_slist_free (priv->nodes);
 
   priv->nodes = priv->nodes_tail = NULL;
   priv->nodes_dirty = TRUE;
@@ -651,7 +661,8 @@ clutter_path_parse_description (const gchar  *p,
   return TRUE;
 
  fail:
-  g_slist_free_full (nodes, (GDestroyNotify) clutter_path_node_full_free);
+  g_slist_foreach (nodes, (GFunc) clutter_path_node_full_free, NULL);
+  g_slist_free (nodes);
   return FALSE;
 }
 

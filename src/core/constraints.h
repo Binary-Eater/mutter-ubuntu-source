@@ -23,17 +23,14 @@
 #ifndef META_CONSTRAINTS_H
 #define META_CONSTRAINTS_H
 
-#include "core/frame.h"
-#include "core/window-private.h"
-#include "meta/util.h"
+#include <meta/util.h>
+#include "window-private.h"
+#include "frame.h"
 
 void meta_window_constrain (MetaWindow          *window,
                             MetaMoveResizeFlags  flags,
-                            MetaGravity          resize_gravity,
+                            int                  resize_gravity,
                             const MetaRectangle *orig,
-                            MetaRectangle       *new,
-                            MetaRectangle       *intermediate,
-                            int                 *rel_x,
-                            int                 *rel_y);
+                            MetaRectangle       *new);
 
 #endif /* META_CONSTRAINTS_H */

@@ -34,10 +34,9 @@ void            _clutter_content_attached               (ClutterContent   *conte
 void            _clutter_content_detached               (ClutterContent   *content,
                                                          ClutterActor     *actor);
 
-void            _clutter_content_paint_content          (ClutterContent      *content,
-                                                         ClutterActor        *actor,
-                                                         ClutterPaintNode    *node,
-                                                         ClutterPaintContext *paint_context);
+void            _clutter_content_paint_content          (ClutterContent   *content,
+                                                         ClutterActor     *actor,
+                                                         ClutterPaintNode *node);
 
 G_END_DECLS
 

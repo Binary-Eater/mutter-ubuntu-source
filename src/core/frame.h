@@ -22,7 +22,8 @@
 #ifndef META_FRAME_PRIVATE_H
 #define META_FRAME_PRIVATE_H
 
-#include "core/window-private.h"
+#include "window-private.h"
+
 #include "ui/frames.h"
 
 struct _MetaFrame
@@ -49,6 +50,7 @@ struct _MetaFrame
   int bottom_height;
 
   guint need_reapply_frame_shape : 1;
+  guint is_flashing : 1; /* used by the visual bell flash */
   guint borders_cached : 1;
 
   MetaUIFrame *ui_frame;
@@ -72,9 +74,8 @@ void meta_frame_clear_cached_borders (MetaFrame *frame);
 
 cairo_region_t *meta_frame_get_frame_bounds (MetaFrame *frame);
 
-void meta_frame_get_mask (MetaFrame             *frame,
-                          cairo_rectangle_int_t *frame_rect,
-                          cairo_t               *cr);
+void meta_frame_get_mask (MetaFrame *frame,
+                          cairo_t   *cr);
 
 void meta_frame_set_screen_cursor (MetaFrame	*frame,
 				   MetaCursor	cursor);

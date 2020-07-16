@@ -26,8 +26,6 @@
 
 #include "backends/x11/nested/meta-cursor-renderer-x11-nested.h"
 
-#include <X11/Xcursor/Xcursor.h>
-
 #include "backends/x11/meta-backend-x11.h"
 
 struct _MetaCursorRendererX11Nested

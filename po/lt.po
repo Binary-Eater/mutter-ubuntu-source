@@ -6,14 +6,14 @@
 # Tomas Kuliavas <tokul@users.sourceforge.net>, 2003.
 # Žygimantas Beručka <zygis@gnome.org>, 2004-2007.
 # Gintautas Miliauskas <gintautas@miliauskas.lt>, 2007-2009, 2010.
-# Aurimas Černius <aurisc4@gmail.com>, 2013-2020.
+# Aurimas Černius <aurisc4@gmail.com>, 2013, 2014, 2015, 2016, 2017, 2018.
 #
 msgid ""
 msgstr ""
 "Project-Id-Version: lt\n"
 "Report-Msgid-Bugs-To: https://gitlab.gnome.org/GNOME/mutter/issues\n"
-"POT-Creation-Date: 2020-02-23 17:41+0000\n"
-"PO-Revision-Date: 2020-03-01 14:47+0200\n"
+"POT-Creation-Date: 2018-03-01 18:57+0000\n"
+"PO-Revision-Date: 2018-03-03 13:37+0200\n"
 "Last-Translator: Aurimas Černius <aurisc4@gmail.com>\n"
 "Language-Team: Lietuvių <gnome-lt@lists.akl.lt>\n"
 "Language: lt\n"
@@ -21,8 +21,8 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && (n"
-"%100<10 || n%100>=20) ? 1 : 2)\n"
-"X-Generator: Gtranslator 3.34.0\n"
+"%100<10 || n%100>=20) ? 1 : 2);\n"
+"X-Generator: Gtranslator 2.91.7\n"
 
 #: data/50-mutter-navigation.xml:6
 msgid "Navigation"
@@ -397,58 +397,37 @@ msgid ""
 "proof. Currently possible keywords: • “scale-monitor-framebuffer” — makes "
 "mutter default to layout logical monitors in a logical pixel coordinate "
 "space, while scaling monitor framebuffers instead of window content, to "
-"manage HiDPI monitors. Does not require a restart. • “rt-scheduler” — makes "
-"mutter request a low priority real-time scheduling. The executable or user "
-"must have CAP_SYS_NICE. Requires a restart. • “autostart-xwayland” — "
-"initializes Xwayland lazily if there are X11 clients. Requires restart."
+"manage HiDPI monitors. Does not require a restart. • “remote-desktop” — "
+"enables remote desktop support. To support remote desktop with screen "
+"sharing, “screen-cast” must also be enabled. • “screen-cast” — enables "
+"screen cast support."
 msgstr ""
 "Norėdami įjungti eksperimentines savybes, pridėkite į sąrašą raktinį žodį. "
 "Ar savybė reikalauja kompozitoriaus paleidimo iš naujo priklauso nuo "
-"konkrečios savybės. Nei viena eksperimentinė savybė neprivalo būti prieinama "
+"konkrečios savybės. Nei viena eksperimentinė savybė privalo būti prieinama "
 "ar konfigūruojama. Nesitikėkite, kad ką nors pridėjus į šį sąrašą, tai "
 "išliks ir ateityje. Šiuo metu galimi raktažodžiai: • „scale-monitor-"
 "framebuffer“ — mutter numatytai išdėsto loginius monitorius loginėje "
 "pikselių koordinačių erdvėje, tuo pat ištempiant monitorių kadrų buferius "
 "vietoje langų turinio, tokiu būdu valdant didelio tankio monitorius. "
-"Nereikalauja paleisti iš naujo. • “rt-scheduler” — priverčia mutter prašyti "
-"žemo prioriteto realaus laiko planavimo. Programa arba naudotojas turi "
-"turėti CAP_SYS_NICE. Reikalauja paleisti iš naujo. • “autostart-xwayland” — "
-"paleidžia Xwayland prireikus, kai yra X11 klientų. Reikalauja paleisti iš "
-"naujo."
+"Nereikalauja paleisti iš naujo. • „remote-desktop“ – įjungia nutolusio "
+"darbalaukio palaikymą. Norint nutolusio darbalaukio su dalinimusi ekranu, "
+"taip pat reikia įjungti „screen-cast“. • „screen-cast“ – įjungia ekrano "
+"transliacijos palaikymą."
 
-#: data/org.gnome.mutter.gschema.xml.in:134
-msgid "Modifier to use to locate the pointer"
-msgstr "Pakaitos klavišas, naudojamas žymękliui surasti"
-
-#: data/org.gnome.mutter.gschema.xml.in:135
-msgid "This key will initiate the “locate pointer” action."
-msgstr "Šis klavišas paleisti veiksmą „surasti žymeklį“."
-
-#: data/org.gnome.mutter.gschema.xml.in:142
-msgid "Timeout for check-alive ping"
-msgstr "check-alive ping laiko limitas"
-
-#: data/org.gnome.mutter.gschema.xml.in:143
-msgid ""
-"Number of milliseconds a client has to respond to a ping request in order to "
-"not be detected as frozen. Using 0 will disable the alive check completely."
-msgstr ""
-"Per kiek milisekundžių klientas turi atsakyti į ping užklausą, kad nebūtų "
-"aptiktas kaip pakibęs. 0 išjungtas šį tikrinimą."
-
-#: data/org.gnome.mutter.gschema.xml.in:165
+#: data/org.gnome.mutter.gschema.xml.in:145
 msgid "Select window from tab popup"
 msgstr "Pasirinkti langą iš tab iššokimo"
 
-#: data/org.gnome.mutter.gschema.xml.in:170
+#: data/org.gnome.mutter.gschema.xml.in:150
 msgid "Cancel tab popup"
 msgstr "Atšaukti tab iššokimą"
 
-#: data/org.gnome.mutter.gschema.xml.in:175
+#: data/org.gnome.mutter.gschema.xml.in:155
 msgid "Switch monitor configurations"
 msgstr "Perjungti monitorių konfigūracijas"
 
-#: data/org.gnome.mutter.gschema.xml.in:180
+#: data/org.gnome.mutter.gschema.xml.in:160
 msgid "Rotates the built-in monitor configuration"
 msgstr "Suka integruotas monitorių konfigūracijas"
 
@@ -505,36 +484,28 @@ msgid "Re-enable shortcuts"
 msgstr "Iš naujo įjungti trumpinius"
 
 #: data/org.gnome.mutter.wayland.gschema.xml.in:64
-msgid "Allow X11 grabs to lock keyboard focus with Xwayland"
-msgstr "Leisti X11 pagriebimams užrakinti klaviatūros fokusą su XWayland"
+msgid "Allow grabs with Xwayland"
+msgstr "Leisti pagriebimus su XWayland"
 
 #: data/org.gnome.mutter.wayland.gschema.xml.in:65
 msgid ""
-"Allow all keyboard events to be routed to X11 “override redirect” windows "
-"with a grab when running in Xwayland. This option is to support X11 clients "
-"which map an “override redirect” window (which do not receive keyboard "
-"focus) and issue a keyboard grab to force all keyboard events to that "
-"window. This option is seldom used and has no effect on regular X11 windows "
-"which can receive keyboard focus under normal circumstances. For a X11 grab "
-"to be taken into account under Wayland, the client must also either send a "
-"specific X11 ClientMessage to the root window or be among the applications "
-"white-listed in key “xwayland-grab-access-rules”."
+"Allow keyboard grabs issued by X11 applications running in Xwayland to be "
+"taken into account. For a X11 grab to be taken into account under Wayland, "
+"the client must also either send a specific X11 ClientMessage to the root "
+"window or be among the applications white-listed in key “xwayland-grab-"
+"access-rules”."
 msgstr ""
-"Leisti visus klaviatūros įvykius nukreipti į X11 „override redirect“ langus "
-"su pagriebimu naudojant Xwayland. Šis parametras yra skirtas X11 klientams, "
-"kurie rodo „override redirect“ langą (kuris negauna klaviatūros fokuso) ir "
-"įvykdo klaviatūros pagriebimą, kad visi klaviatūros įvykiai priverstinai "
-"keliautų į tą langą. Šis parametras yra retai naudojamas ir neturi poveikio "
-"X11 langams, kurie gali įprastai gayti klaviatūros fokusą. Kad X11 "
-"pagriebimas būtų įvertintas Wayland aplinkoje, klientas taip pat turi arba "
-"atsiųsti specialią ClientMessage į šakninį langą, arba būti tarp programų, "
-"kurioms tai yra leidžiama rakte „xwayland-grab-access-rules“."
+"Leisti turėti omenyje X11 programų, veikiančių Xwayland, išduotus "
+"klaviatūros pagriebimus. Tam, kad X11 pagriebimas būtų turimas omenyje "
+"naudojant Wayland, klientas privalo arba siųsti tam tikrą X11 ClientMessage "
+"į šakninį langą arba būti tarp programų, esančių rakto „xwayland-grab-access-"
+"rules“ baltajame sąraše."
 
-#: data/org.gnome.mutter.wayland.gschema.xml.in:84
+#: data/org.gnome.mutter.wayland.gschema.xml.in:77
 msgid "Xwayland applications allowed to issue keyboard grabs"
 msgstr "Xwayland programos, kurioms leidžiama išduoti klaviatūros pagriebimus"
 
-#: data/org.gnome.mutter.wayland.gschema.xml.in:85
+#: data/org.gnome.mutter.wayland.gschema.xml.in:78
 msgid ""
 "List the resource names or resource class of X11 windows either allowed or "
 "not allowed to issue X11 keyboard grabs under Xwayland. The resource name or "
@@ -561,7 +532,7 @@ msgstr ""
 #. TRANSLATORS: This string refers to a button that switches between
 #. * different modes.
 #.
-#: src/backends/meta-input-settings.c:2567
+#: src/backends/meta-input-settings.c:2325
 #, c-format
 msgid "Mode Switch (Group %d)"
 msgstr "Veiksenos perjungimas (Grupė %d)"
@@ -569,57 +540,50 @@ msgstr "Veiksenos perjungimas (Grupė %d)"
 #. TRANSLATORS: This string refers to an action, cycles drawing tablets'
 #. * mapping through the available outputs.
 #.
-#: src/backends/meta-input-settings.c:2590
+#: src/backends/meta-input-settings.c:2348
 msgid "Switch monitor"
 msgstr "Perjungti monitorių"
 
-#: src/backends/meta-input-settings.c:2592
+#: src/backends/meta-input-settings.c:2350
 msgid "Show on-screen help"
 msgstr "Rodyti pagalbą ekrane"
 
-#: src/backends/meta-monitor.c:223
+#: src/backends/meta-monitor-manager.c:900
 msgid "Built-in display"
 msgstr "Integruotas vaizduoklis"
 
-#: src/backends/meta-monitor.c:252
+#: src/backends/meta-monitor-manager.c:923
 msgid "Unknown"
 msgstr "Nežinomas"
 
-#: src/backends/meta-monitor.c:254
+#: src/backends/meta-monitor-manager.c:925
 msgid "Unknown Display"
 msgstr "Nežinomas vaizduoklis"
 
-#: src/backends/meta-monitor.c:262
+#. TRANSLATORS: this is a monitor vendor name, followed by a
+#. * size in inches, like 'Dell 15"'
+#.
+#: src/backends/meta-monitor-manager.c:933
 #, c-format
-msgctxt ""
-"This is a monitor vendor name, followed by a size in inches, like 'Dell 15\"'"
 msgid "%s %s"
 msgstr "%s %s"
-
-#: src/backends/meta-monitor.c:270
-#, c-format
-msgctxt ""
-"This is a monitor vendor name followed by product/model name where size in "
-"inches could not be calculated, e.g. Dell U2414H"
-msgid "%s %s"
-msgstr "%s %s"
-
-#. Translators: this string will appear in Sysprof
-#: src/backends/meta-profiler.c:79
-msgid "Compositor"
-msgstr "Komponuotojas"
 
 #. This probably means that a non-WM compositor like xcompmgr is running;
 #. * we have no way to get it to exit
-#: src/compositor/compositor.c:533
+#: src/compositor/compositor.c:481
 #, c-format
 msgid ""
 "Another compositing manager is already running on screen %i on display “%s”."
 msgstr "Kita kompozicijos tvarkytuvė jau veikia ekrane %i vaizduoklyje „%s“."
 
-#: src/core/bell.c:192
+#: src/core/bell.c:194
 msgid "Bell event"
 msgstr "Skambučio įvykis"
+
+#: src/core/display.c:608
+#, c-format
+msgid "Failed to open X Window System display “%s”\n"
+msgstr "Nepavyko atverti X Window sistemos vaizduoklio „%s“\n"
 
 #: src/core/main.c:190
 msgid "Disable connection to session manager"
@@ -653,43 +617,39 @@ msgstr "Vykdyti kaip wayland kompozitorių"
 msgid "Run as a nested compositor"
 msgstr "Vykdyti kaip įdėtinį kompozitorių"
 
-#: src/core/main.c:238
-msgid "Run wayland compositor without starting Xwayland"
-msgstr "Paleisti wayland kompozitorių nepaleidžiant Xwayland"
-
-#: src/core/main.c:246
+#: src/core/main.c:240
 msgid "Run as a full display server, rather than nested"
 msgstr "Vykdyti kaip visą vaizduoklio serverį, o ne įdėtinį"
 
-#: src/core/main.c:252
+#: src/core/main.c:246
 msgid "Run with X11 backend"
 msgstr "Paleisti su X11 realizacija"
 
 #. Translators: %s is a window title
-#: src/core/meta-close-dialog-default.c:151
+#: src/core/meta-close-dialog-default.c:147
 #, c-format
 msgid "“%s” is not responding."
 msgstr "%s neatsiliepia į komandas."
 
-#: src/core/meta-close-dialog-default.c:153
+#: src/core/meta-close-dialog-default.c:149
 msgid "Application is not responding."
 msgstr "Programa neatsiliepia į komandas."
 
-#: src/core/meta-close-dialog-default.c:158
+#: src/core/meta-close-dialog-default.c:154
 msgid ""
 "You may choose to wait a short while for it to continue or force the "
 "application to quit entirely."
 msgstr "Galite šiek tiek palaukti arba priverstinai uždaryti programą."
 
-#: src/core/meta-close-dialog-default.c:165
+#: src/core/meta-close-dialog-default.c:161
 msgid "_Force Quit"
 msgstr "_Priverstinai išeiti"
 
-#: src/core/meta-close-dialog-default.c:165
+#: src/core/meta-close-dialog-default.c:161
 msgid "_Wait"
 msgstr "_Laukti"
 
-#: src/core/mutter.c:38
+#: src/core/mutter.c:39
 #, c-format
 msgid ""
 "mutter %s\n"
@@ -705,29 +665,20 @@ msgstr ""
 "Nėra JOKIOS garantijos; netgi PARDAVIMO ar TINKAMUMO TAM TIKRAM TIKSLUI "
 "garantijos.\n"
 
-#: src/core/mutter.c:52
+#: src/core/mutter.c:53
 msgid "Print version"
 msgstr "Parodyti versiją"
 
-#: src/core/mutter.c:58
+#: src/core/mutter.c:59
 msgid "Mutter plugin to use"
 msgstr "Naudojamas Mutter įskiepis"
 
-#: src/core/prefs.c:1911
+#: src/core/prefs.c:1997
 #, c-format
 msgid "Workspace %d"
 msgstr "Darbo sritis %d"
 
-#: src/core/util.c:122
-msgid "Mutter was compiled without support for verbose mode\n"
-msgstr "Mutter buvo sukompiliuota be išsamaus veikimo veiksenos\n"
-
-#: src/wayland/meta-wayland-tablet-pad.c:568
-#, c-format
-msgid "Mode Switch: Mode %d"
-msgstr "Veiksenos perjungimas: veiksena %d"
-
-#: src/x11/meta-x11-display.c:676
+#: src/core/screen.c:583
 #, c-format
 msgid ""
 "Display “%s” already has a window manager; try using the --replace option to "
@@ -736,26 +687,21 @@ msgstr ""
 "Vaizduoklis „%s“ jau turi langų tvarkytuvę; pabandykite pakeisti esamą langų "
 "tvarkytuvę, naudodami parametrą --replace."
 
-#: src/x11/meta-x11-display.c:1089
-msgid "Failed to initialize GDK\n"
-msgstr "Nepavyko inicializuoti GDK\n"
-
-#: src/x11/meta-x11-display.c:1113
-#, c-format
-msgid "Failed to open X Window System display “%s”\n"
-msgstr "Nepavyko atverti X Window sistemos vaizduoklio „%s“\n"
-
-#: src/x11/meta-x11-display.c:1196
+#: src/core/screen.c:668
 #, c-format
 msgid "Screen %d on display “%s” is invalid\n"
 msgstr "Ekranas %d vaizduoklyje „%s“ yra netinkamas\n"
 
-#: src/x11/meta-x11-selection-input-stream.c:460
-#, c-format
-msgid "Format %s not supported"
-msgstr "Formatas %s nepalaikomas"
+#: src/core/util.c:120
+msgid "Mutter was compiled without support for verbose mode\n"
+msgstr "Mutter buvo sukompiliuota be išsamaus veikimo veiksenos\n"
 
-#: src/x11/session.c:1821
+#: src/wayland/meta-wayland-tablet-pad.c:567
+#, c-format
+msgid "Mode Switch: Mode %d"
+msgstr "Veiksenos perjungimas: veiksena %d"
+
+#: src/x11/session.c:1818
 msgid ""
 "These windows do not support “save current setup” and will have to be "
 "restarted manually next time you log in."
@@ -763,7 +709,7 @@ msgstr ""
 "Šie langai nepalaiko „išsaugoti esamus nustatymus“ komandos ir, kai kitą "
 "kartą prisijungsite, turės būti paleisti rankiniu būdu."
 
-#: src/x11/window-props.c:569
+#: src/x11/window-props.c:559
 #, c-format
 msgid "%s (on %s)"
 msgstr "%s (kompiuteryje %s)"

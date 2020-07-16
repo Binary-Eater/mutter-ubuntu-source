@@ -23,18 +23,15 @@
 
 #define _XOPEN_SOURCE /* for kill() */
 
-#include "config.h"
-
-#include "core/meta-close-dialog-default-private.h"
-#include "meta/meta-close-dialog.h"
+#include <config.h>
+#include "util-private.h"
+#include "window-private.h"
+#include <meta/meta-close-dialog.h>
+#include "meta-close-dialog-default-private.h"
 
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <signal.h>
-
-#include "core/util-private.h"
-#include "core/window-private.h"
-#include "x11/meta-x11-display-private.h"
 
 typedef struct _MetaCloseDialogDefaultPrivate MetaCloseDialogDefaultPrivate;
 
@@ -46,8 +43,7 @@ struct _MetaCloseDialogDefault
   guint child_watch_id;
 };
 
-enum
-{
+enum {
   PROP_0,
   PROP_WINDOW,
   N_PROPS
@@ -161,7 +157,7 @@ meta_close_dialog_default_show (MetaCloseDialog *dialog)
   dialog_pid =
     meta_show_dialog ("--question",
                       window_content, NULL,
-                      window->display->x11_display->screen_name,
+                      window->screen->screen_name,
                       _("_Force Quit"), _("_Wait"),
                       "face-sad-symbolic", window->xwindow,
                       NULL, NULL);
@@ -180,7 +176,11 @@ meta_close_dialog_default_hide (MetaCloseDialog *dialog)
 
   dialog_default = META_CLOSE_DIALOG_DEFAULT (dialog);
 
-  g_clear_handle_id (&dialog_default->child_watch_id, g_source_remove);
+  if (dialog_default->child_watch_id)
+    {
+      g_source_remove (dialog_default->child_watch_id);
+      dialog_default->child_watch_id = 0;
+    }
 
   if (dialog_default->dialog_pid > -1)
     {
@@ -203,7 +203,8 @@ meta_close_dialog_default_finalize (GObject *object)
 
   dialog = META_CLOSE_DIALOG_DEFAULT (object);
 
-  g_clear_handle_id (&dialog->child_watch_id, g_source_remove);
+  if (dialog->child_watch_id)
+    g_source_remove (dialog->child_watch_id);
 
   if (dialog->dialog_pid > -1)
     {

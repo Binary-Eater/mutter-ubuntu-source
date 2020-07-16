@@ -29,7 +29,6 @@
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
-#include <EGL/eglmesaext.h>
 
 /*
  * This is a little different to the tests shipped with EGL implementations,

@@ -29,7 +29,9 @@
  *   Robert Bragg <robert@linux.intel.com>
  */
 
+#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
+#endif
 
 #include <string.h>
 
@@ -38,11 +40,11 @@
 
 #include "cogl-display-private.h"
 #include "cogl-renderer-private.h"
+#include "cogl-winsys-private.h"
 #ifdef COGL_HAS_WAYLAND_EGL_SERVER_SUPPORT
 #include "cogl-wayland-server.h"
 #endif
 #include "cogl-gtype-private.h"
-#include "winsys/cogl-winsys-private.h"
 
 static void _cogl_display_free (CoglDisplay *display);
 
@@ -87,7 +89,7 @@ cogl_display_new (CoglRenderer *renderer,
                   CoglOnscreenTemplate *onscreen_template)
 {
   CoglDisplay *display = g_slice_new0 (CoglDisplay);
-  GError *error = NULL;
+  CoglError *error = NULL;
 
   _cogl_init ();
 
@@ -119,7 +121,7 @@ void
 cogl_display_set_onscreen_template (CoglDisplay *display,
                                     CoglOnscreenTemplate *onscreen_template)
 {
-  g_return_if_fail (display->setup == FALSE);
+  _COGL_RETURN_IF_FAIL (display->setup == FALSE);
 
   if (onscreen_template)
     cogl_object_ref (onscreen_template);
@@ -135,9 +137,9 @@ cogl_display_set_onscreen_template (CoglDisplay *display,
     display->onscreen_template = cogl_onscreen_template_new (NULL);
 }
 
-gboolean
+CoglBool
 cogl_display_setup (CoglDisplay *display,
-                    GError **error)
+                    CoglError **error)
 {
   const CoglWinsysVtable *winsys;
 
@@ -158,7 +160,7 @@ void
 cogl_wayland_display_set_compositor_display (CoglDisplay *display,
                                              struct wl_display *wayland_display)
 {
-  g_return_if_fail (display->setup == FALSE);
+  _COGL_RETURN_IF_FAIL (display->setup == FALSE);
 
   display->wayland_compositor_display = wayland_display;
 }

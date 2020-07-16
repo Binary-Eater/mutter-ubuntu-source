@@ -74,7 +74,7 @@ struct _CallyUtilClass
   gpointer _padding_dummy[8];
 };
 
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_1_4
 GType cally_util_get_type (void) G_GNUC_CONST;
 
 void _cally_util_override_atk_util (void);

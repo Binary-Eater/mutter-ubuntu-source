@@ -37,7 +37,9 @@
  * Pixel Buffers API.
  */
 
+#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
+#endif
 
 #include <stdio.h>
 #include <string.h>
@@ -62,7 +64,7 @@ _cogl_buffer_register_buffer_type (const CoglObjectClass *klass)
   _cogl_buffer_types = g_slist_prepend (_cogl_buffer_types, (void *) klass);
 }
 
-gboolean
+CoglBool
 cogl_is_buffer (void *object)
 {
   const CoglObject *obj = object;
@@ -88,7 +90,7 @@ malloc_map_range (CoglBuffer *buffer,
                   size_t size,
                   CoglBufferAccess access,
                   CoglBufferMapHint hints,
-                  GError **error)
+                  CoglError **error)
 {
   buffer->flags |= COGL_BUFFER_FLAG_MAPPED;
   return buffer->data + offset;
@@ -100,12 +102,12 @@ malloc_unmap (CoglBuffer *buffer)
   buffer->flags &= ~COGL_BUFFER_FLAG_MAPPED;
 }
 
-static gboolean
+static CoglBool
 malloc_set_data (CoglBuffer *buffer,
                  unsigned int offset,
                  const void *data,
                  unsigned int size,
-                 GError **error)
+                 CoglError **error)
 {
   memcpy (buffer->data + offset, data, size);
   return TRUE;
@@ -119,7 +121,7 @@ _cogl_buffer_initialize (CoglBuffer *buffer,
                          CoglBufferUsageHint usage_hint,
                          CoglBufferUpdateHint update_hint)
 {
-  gboolean use_malloc = FALSE;
+  CoglBool use_malloc = FALSE;
 
   buffer->context = ctx;
   buffer->flags = COGL_BUFFER_FLAG_NONE;
@@ -135,6 +137,12 @@ _cogl_buffer_initialize (CoglBuffer *buffer,
       default_target == COGL_BUFFER_BIND_TARGET_PIXEL_UNPACK)
     {
       if (!_cogl_has_private_feature (ctx, COGL_PRIVATE_FEATURE_PBOS))
+        use_malloc = TRUE;
+    }
+  else if (default_target == COGL_BUFFER_BIND_TARGET_ATTRIBUTE_BUFFER ||
+           default_target == COGL_BUFFER_BIND_TARGET_INDEX_BUFFER)
+    {
+      if (!_cogl_has_private_feature (ctx, COGL_PRIVATE_FEATURE_VBOS))
         use_malloc = TRUE;
     }
 
@@ -161,8 +169,8 @@ _cogl_buffer_initialize (CoglBuffer *buffer,
 void
 _cogl_buffer_fini (CoglBuffer *buffer)
 {
-  g_return_if_fail (!(buffer->flags & COGL_BUFFER_FLAG_MAPPED));
-  g_return_if_fail (buffer->immutable_ref == 0);
+  _COGL_RETURN_IF_FAIL (!(buffer->flags & COGL_BUFFER_FLAG_MAPPED));
+  _COGL_RETURN_IF_FAIL (buffer->immutable_ref == 0);
 
   if (buffer->flags & COGL_BUFFER_FLAG_BUFFER_OBJECT)
     buffer->context->driver_vtable->buffer_destroy (buffer);
@@ -204,7 +212,7 @@ cogl_buffer_get_update_hint (CoglBuffer *buffer)
 static void
 warn_about_midscene_changes (void)
 {
-  static gboolean seen = FALSE;
+  static CoglBool seen = FALSE;
   if (!seen)
     {
       g_warning ("Mid-scene modification of buffers has "
@@ -217,9 +225,9 @@ void *
 _cogl_buffer_map (CoglBuffer *buffer,
                   CoglBufferAccess access,
                   CoglBufferMapHint hints,
-                  GError **error)
+                  CoglError **error)
 {
-  g_return_val_if_fail (cogl_is_buffer (buffer), NULL);
+  _COGL_RETURN_VAL_IF_FAIL (cogl_is_buffer (buffer), NULL);
 
   return cogl_buffer_map_range (buffer, 0, buffer->size, access, hints, error);
 }
@@ -229,11 +237,12 @@ cogl_buffer_map (CoglBuffer *buffer,
                  CoglBufferAccess access,
                  CoglBufferMapHint hints)
 {
-  GError *ignore_error = NULL;
+  CoglError *ignore_error = NULL;
   void *ptr =
     cogl_buffer_map_range (buffer, 0, buffer->size, access, hints,
                            &ignore_error);
-  g_clear_error (&ignore_error);
+  if (!ptr)
+    cogl_error_free (ignore_error);
   return ptr;
 }
 
@@ -243,10 +252,10 @@ cogl_buffer_map_range (CoglBuffer *buffer,
                        size_t size,
                        CoglBufferAccess access,
                        CoglBufferMapHint hints,
-                       GError **error)
+                       CoglError **error)
 {
-  g_return_val_if_fail (cogl_is_buffer (buffer), NULL);
-  g_return_val_if_fail (!(buffer->flags & COGL_BUFFER_FLAG_MAPPED), NULL);
+  _COGL_RETURN_VAL_IF_FAIL (cogl_is_buffer (buffer), NULL);
+  _COGL_RETURN_VAL_IF_FAIL (!(buffer->flags & COGL_BUFFER_FLAG_MAPPED), NULL);
 
   if (G_UNLIKELY (buffer->immutable_ref))
     warn_about_midscene_changes ();
@@ -286,9 +295,9 @@ _cogl_buffer_map_range_for_fill_or_fallback (CoglBuffer *buffer,
 {
   CoglContext *ctx = buffer->context;
   void *ret;
-  GError *ignore_error = NULL;
+  CoglError *ignore_error = NULL;
 
-  g_return_val_if_fail (!ctx->buffer_map_fallback_in_use, NULL);
+  _COGL_RETURN_VAL_IF_FAIL (!ctx->buffer_map_fallback_in_use, NULL);
 
   ctx->buffer_map_fallback_in_use = TRUE;
 
@@ -302,7 +311,7 @@ _cogl_buffer_map_range_for_fill_or_fallback (CoglBuffer *buffer,
   if (ret)
     return ret;
 
-  g_error_free (ignore_error);
+  cogl_error_free (ignore_error);
 
   /* If the map fails then we'll use a temporary buffer to fill
      the data and then upload it using cogl_buffer_set_data when
@@ -321,7 +330,7 @@ _cogl_buffer_unmap_for_fill_or_fallback (CoglBuffer *buffer)
 {
   CoglContext *ctx = buffer->context;
 
-  g_return_if_fail (ctx->buffer_map_fallback_in_use);
+  _COGL_RETURN_IF_FAIL (ctx->buffer_map_fallback_in_use);
 
   ctx->buffer_map_fallback_in_use = FALSE;
 
@@ -352,15 +361,15 @@ _cogl_buffer_unmap_for_fill_or_fallback (CoglBuffer *buffer)
     cogl_buffer_unmap (buffer);
 }
 
-gboolean
+CoglBool
 _cogl_buffer_set_data (CoglBuffer *buffer,
                        size_t offset,
                        const void *data,
                        size_t size,
-                       GError **error)
+                       CoglError **error)
 {
-  g_return_val_if_fail (cogl_is_buffer (buffer), FALSE);
-  g_return_val_if_fail ((offset + size) <= buffer->size, FALSE);
+  _COGL_RETURN_VAL_IF_FAIL (cogl_is_buffer (buffer), FALSE);
+  _COGL_RETURN_VAL_IF_FAIL ((offset + size) <= buffer->size, FALSE);
 
   if (G_UNLIKELY (buffer->immutable_ref))
     warn_about_midscene_changes ();
@@ -368,23 +377,24 @@ _cogl_buffer_set_data (CoglBuffer *buffer,
   return buffer->vtable.set_data (buffer, offset, data, size, error);
 }
 
-gboolean
+CoglBool
 cogl_buffer_set_data (CoglBuffer *buffer,
                       size_t offset,
                       const void *data,
                       size_t size)
 {
-  GError *ignore_error = NULL;
-  gboolean status =
+  CoglError *ignore_error = NULL;
+  CoglBool status =
     _cogl_buffer_set_data (buffer, offset, data, size, &ignore_error);
-  g_clear_error (&ignore_error);
+  if (!status)
+    cogl_error_free (ignore_error);
   return status;
 }
 
 CoglBuffer *
 _cogl_buffer_immutable_ref (CoglBuffer *buffer)
 {
-  g_return_val_if_fail (cogl_is_buffer (buffer), NULL);
+  _COGL_RETURN_VAL_IF_FAIL (cogl_is_buffer (buffer), NULL);
 
   buffer->immutable_ref++;
   return buffer;
@@ -393,8 +403,8 @@ _cogl_buffer_immutable_ref (CoglBuffer *buffer)
 void
 _cogl_buffer_immutable_unref (CoglBuffer *buffer)
 {
-  g_return_if_fail (cogl_is_buffer (buffer));
-  g_return_if_fail (buffer->immutable_ref > 0);
+  _COGL_RETURN_IF_FAIL (cogl_is_buffer (buffer));
+  _COGL_RETURN_IF_FAIL (buffer->immutable_ref > 0);
 
   buffer->immutable_ref--;
 }

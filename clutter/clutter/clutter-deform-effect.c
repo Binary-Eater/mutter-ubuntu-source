@@ -51,7 +51,9 @@
  * deformation algorithm.
  */
 
+#ifdef HAVE_CONFIG_H
 #include "clutter-build-config.h"
+#endif
 
 #define CLUTTER_ENABLE_EXPERIMENTAL_API
 #include "clutter-deform-effect.h"
@@ -147,7 +149,7 @@ clutter_deform_effect_set_actor (ClutterActorMeta *meta,
       ClutterActor *old_actor = clutter_actor_meta_get_actor (meta);
 
       if (old_actor != NULL)
-        g_clear_signal_handler (&priv->allocation_id, old_actor);
+        g_signal_handler_disconnect (old_actor, priv->allocation_id);
 
       priv->allocation_id = 0;
     }
@@ -166,20 +168,18 @@ clutter_deform_effect_set_actor (ClutterActorMeta *meta,
 }
 
 static void
-clutter_deform_effect_paint_target (ClutterOffscreenEffect *effect,
-                                    ClutterPaintContext    *paint_context)
+clutter_deform_effect_paint_target (ClutterOffscreenEffect *effect)
 {
   ClutterDeformEffect *self= CLUTTER_DEFORM_EFFECT (effect);
   ClutterDeformEffectPrivate *priv = self->priv;
   CoglHandle material;
   CoglPipeline *pipeline;
   CoglDepthState depth_state;
-  CoglFramebuffer *fb =
-    clutter_paint_context_get_framebuffer (paint_context);
+  CoglFramebuffer *fb = cogl_get_draw_framebuffer ();
 
   if (priv->is_dirty)
     {
-      graphene_rect_t rect;
+      ClutterRect rect;
       gboolean mapped_buffer;
       CoglVertexP3T2C4 *verts;
       ClutterActor *actor;
@@ -195,8 +195,8 @@ clutter_deform_effect_paint_target (ClutterOffscreenEffect *effect,
        */
       if (clutter_offscreen_effect_get_target_rect (effect, &rect))
         {
-          width = graphene_rect_get_width (&rect);
-          height = graphene_rect_get_height (&rect);
+          width = clutter_rect_get_width (&rect);
+          height = clutter_rect_get_height (&rect);
         }
       else
         clutter_actor_get_size (actor, &width, &height);
@@ -284,7 +284,6 @@ clutter_deform_effect_paint_target (ClutterOffscreenEffect *effect,
   /* enable depth testing */
   cogl_depth_state_init (&depth_state);
   cogl_depth_state_set_test_enabled (&depth_state, TRUE);
-  cogl_depth_state_set_test_function (&depth_state, COGL_DEPTH_TEST_FUNCTION_LEQUAL);
   cogl_pipeline_set_depth_state (pipeline, &depth_state, NULL);
 
   /* enable backface culling if we have a back material */

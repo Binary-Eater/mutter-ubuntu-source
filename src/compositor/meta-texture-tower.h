@@ -23,7 +23,7 @@
 #ifndef __META_TEXTURE_TOWER_H__
 #define __META_TEXTURE_TOWER_H__
 
-#include "clutter/clutter.h"
+#include <clutter/clutter.h>
 
 G_BEGIN_DECLS
 
@@ -60,8 +60,7 @@ void              meta_texture_tower_update_area       (MetaTextureTower *tower,
                                                         int               y,
                                                         int               width,
                                                         int               height);
-CoglTexture      *meta_texture_tower_get_paint_texture (MetaTextureTower    *tower,
-                                                        ClutterPaintContext *paint_context);
+CoglTexture      *meta_texture_tower_get_paint_texture (MetaTextureTower *tower);
 
 G_END_DECLS
 

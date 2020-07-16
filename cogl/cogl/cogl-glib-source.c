@@ -28,7 +28,9 @@
  *
  */
 
+#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
+#endif
 
 #include "cogl-glib-source.h"
 #include "cogl-poll.h"
@@ -45,7 +47,7 @@ typedef struct _CoglGLibSource
   int64_t expiration_time;
 } CoglGLibSource;
 
-static gboolean
+static CoglBool
 cogl_glib_source_prepare (GSource *source, int *timeout)
 {
   CoglGLibSource *cogl_source = (CoglGLibSource *) source;
@@ -109,7 +111,7 @@ cogl_glib_source_prepare (GSource *source, int *timeout)
   return *timeout == 0;
 }
 
-static gboolean
+static CoglBool
 cogl_glib_source_check (GSource *source)
 {
   CoglGLibSource *cogl_source = (CoglGLibSource *) source;
@@ -129,7 +131,7 @@ cogl_glib_source_check (GSource *source)
   return FALSE;
 }
 
-static gboolean
+static CoglBool
 cogl_glib_source_dispatch (GSource *source,
                            GSourceFunc callback,
                            void *user_data)

@@ -33,13 +33,22 @@
 #ifndef __COGL_CLUTTER_H__
 #define __COGL_CLUTTER_H__
 
-G_BEGIN_DECLS
+COGL_BEGIN_DECLS
+
+#define cogl_clutter_check_extension cogl_clutter_check_extension_CLUTTER
+COGL_DEPRECATED_IN_1_16
+CoglBool
+cogl_clutter_check_extension (const char *name, const char *ext);
 
 #define cogl_clutter_winsys_has_feature cogl_clutter_winsys_has_feature_CLUTTER
 COGL_DEPRECATED_FOR (cogl_has_feature)
-COGL_EXPORT gboolean
+CoglBool
 cogl_clutter_winsys_has_feature (CoglWinsysFeature feature);
 
-G_END_DECLS
+#define cogl_onscreen_clutter_backend_set_size cogl_onscreen_clutter_backend_set_size_CLUTTER
+void
+cogl_onscreen_clutter_backend_set_size (int width, int height);
+
+COGL_END_DECLS
 
 #endif /* __COGL_CLUTTER_H__ */

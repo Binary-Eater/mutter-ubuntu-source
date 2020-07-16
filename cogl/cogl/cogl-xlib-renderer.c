@@ -29,7 +29,9 @@
  *   Robert Bragg <robert@linux.intel.com>
  */
 
+#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
+#endif
 
 #include "cogl-xlib-renderer.h"
 #include "cogl-util.h"
@@ -39,8 +41,9 @@
 #include "cogl-renderer-private.h"
 #include "cogl-xlib-renderer-private.h"
 #include "cogl-x11-renderer-private.h"
+#include "cogl-winsys-private.h"
+#include "cogl-error-private.h"
 #include "cogl-poll-private.h"
-#include "winsys/cogl-winsys-private.h"
 
 #include <X11/Xlib.h>
 #include <X11/extensions/Xdamage.h>
@@ -53,27 +56,41 @@ static char *_cogl_x11_display_name = NULL;
 static GList *_cogl_xlib_renderers = NULL;
 
 static void
-_xlib_renderer_data_free (CoglXlibRenderer *data)
+destroy_xlib_renderer_data (void *user_data)
 {
+  CoglXlibRenderer *data = user_data;
+
   if (data->xvisinfo)
     XFree (data->xvisinfo);
 
-  g_slice_free (CoglXlibRenderer, data);
+  g_slice_free (CoglXlibRenderer, user_data);
 }
 
 CoglXlibRenderer *
 _cogl_xlib_renderer_get_data (CoglRenderer *renderer)
 {
+  static CoglUserDataKey key;
+  CoglXlibRenderer *data;
+
   /* Constructs a CoglXlibRenderer struct on demand and attaches it to
      the object using user data. It's done this way instead of using a
      subclassing hierarchy in the winsys data because all EGL winsys's
      need the EGL winsys data but only one of them wants the Xlib
      data. */
 
-  if (!renderer->custom_winsys_user_data)
-    renderer->custom_winsys_user_data = g_slice_new0 (CoglXlibRenderer);
+  data = cogl_object_get_user_data (COGL_OBJECT (renderer), &key);
 
-  return renderer->custom_winsys_user_data;
+  if (data == NULL)
+    {
+      data = g_slice_new0 (CoglXlibRenderer);
+
+      cogl_object_set_user_data (COGL_OBJECT (renderer),
+                                 &key,
+                                 data,
+                                 destroy_xlib_renderer_data);
+    }
+
+  return data;
 }
 
 static void
@@ -161,7 +178,7 @@ _cogl_xlib_renderer_untrap_errors (CoglRenderer *renderer,
 }
 
 static Display *
-assert_xlib_display (CoglRenderer *renderer, GError **error)
+assert_xlib_display (CoglRenderer *renderer, CoglError **error)
 {
   Display *xdpy = cogl_xlib_renderer_get_foreign_display (renderer);
   CoglXlibRenderer *xlib_renderer = _cogl_xlib_renderer_get_data (renderer);
@@ -176,7 +193,7 @@ assert_xlib_display (CoglRenderer *renderer, GError **error)
   xdpy = XOpenDisplay (_cogl_x11_display_name);
   if (xdpy == NULL)
     {
-      g_set_error (error,
+      _cogl_set_error (error,
                    COGL_RENDERER_ERROR,
                    COGL_RENDERER_ERROR_XLIB_DISPLAY_OPEN,
                    "Failed to open X Display %s", _cogl_x11_display_name);
@@ -213,16 +230,16 @@ static CoglSubpixelOrder subpixel_map[6][6] = {
 
 static void
 update_outputs (CoglRenderer *renderer,
-                gboolean notify)
+                CoglBool notify)
 {
   CoglXlibRenderer *xlib_renderer =
     _cogl_xlib_renderer_get_data (renderer);
   XRRScreenResources *resources;
   CoglXlibTrapState state;
-  gboolean error = FALSE;
+  CoglBool error = FALSE;
   GList *new_outputs = NULL;
   GList *l, *m;
-  gboolean changed = FALSE;
+  CoglBool changed = FALSE;
   int i;
 
   xlib_renderer->outputs_update_serial = XNextRequest (xlib_renderer->xdpy);
@@ -487,8 +504,8 @@ dispatch_xlib_events (void *user_data, int revents)
       }
 }
 
-gboolean
-_cogl_xlib_renderer_connect (CoglRenderer *renderer, GError **error)
+CoglBool
+_cogl_xlib_renderer_connect (CoglRenderer *renderer, CoglError **error)
 {
   CoglXlibRenderer *xlib_renderer =
     _cogl_xlib_renderer_get_data (renderer);
@@ -555,8 +572,6 @@ _cogl_xlib_renderer_disconnect (CoglRenderer *renderer)
   if (!renderer->foreign_xdpy && xlib_renderer->xdpy)
     XCloseDisplay (xlib_renderer->xdpy);
 
-  g_clear_pointer (&renderer->custom_winsys_user_data, _xlib_renderer_data_free);
-
   unregister_xlib_renderer (renderer);
 }
 
@@ -565,7 +580,7 @@ cogl_xlib_renderer_get_display (CoglRenderer *renderer)
 {
   CoglXlibRenderer *xlib_renderer;
 
-  g_return_val_if_fail (cogl_is_renderer (renderer), NULL);
+  _COGL_RETURN_VAL_IF_FAIL (cogl_is_renderer (renderer), NULL);
 
   xlib_renderer = _cogl_xlib_renderer_get_data (renderer);
 
@@ -595,6 +610,22 @@ cogl_xlib_renderer_remove_filter (CoglRenderer *renderer,
 {
   _cogl_renderer_remove_native_filter (renderer,
                                        (CoglNativeFilterFunc)func, data);
+}
+
+int64_t
+_cogl_xlib_renderer_get_dispatch_timeout (CoglRenderer *renderer)
+{
+  CoglXlibRenderer *xlib_renderer = _cogl_xlib_renderer_get_data (renderer);
+
+  if (renderer->xlib_enable_event_retrieval)
+    {
+      if (XPending (xlib_renderer->xdpy))
+        return 0;
+      else
+        return -1;
+    }
+  else
+    return -1;
 }
 
 CoglOutput *
@@ -631,4 +662,16 @@ _cogl_xlib_renderer_output_for_rectangle (CoglRenderer *renderer,
     }
 
   return max_overlapped;
+}
+
+XVisualInfo *
+cogl_xlib_renderer_get_visual_info (CoglRenderer *renderer)
+{
+  CoglXlibRenderer *xlib_renderer;
+
+  _COGL_RETURN_VAL_IF_FAIL (cogl_is_renderer (renderer), NULL);
+
+  xlib_renderer = _cogl_xlib_renderer_get_data (renderer);
+
+  return xlib_renderer->xvisinfo;
 }

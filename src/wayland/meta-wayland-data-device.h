@@ -23,12 +23,11 @@
 #ifndef META_WAYLAND_DATA_DEVICE_H
 #define META_WAYLAND_DATA_DEVICE_H
 
-#include <glib-object.h>
 #include <wayland-server.h>
+#include <glib-object.h>
 
+#include "meta-wayland-types.h"
 #include "clutter/clutter.h"
-#include "meta/meta-selection-source.h"
-#include "wayland/meta-wayland-types.h"
 
 typedef struct _MetaWaylandDragGrab MetaWaylandDragGrab;
 typedef struct _MetaWaylandDataSourceFuncs MetaWaylandDataSourceFuncs;
@@ -63,15 +62,13 @@ struct _MetaWaylandDataDevice
   MetaWaylandDataSource *primary_data_source;
   struct wl_listener selection_data_source_listener;
   struct wl_list resource_list;
-  struct wl_list focus_resource_list;
   struct wl_list primary_resource_list;
-  struct wl_list primary_focus_resource_list;
   MetaWaylandDragGrab *current_grab;
   struct wl_client *focus_client;
 
-  guint selection_owner_signal_id;
-
-  MetaSelectionSource *owners[META_N_SELECTION_TYPES];
+  struct wl_signal selection_ownership_signal;
+  struct wl_signal dnd_ownership_signal;
+  struct wl_signal primary_ownership_signal;
 };
 
 void meta_wayland_data_device_manager_init (MetaWaylandCompositor *compositor);
@@ -109,8 +106,6 @@ gboolean meta_wayland_data_source_has_target     (MetaWaylandDataSource *source)
 void     meta_wayland_data_source_set_has_target (MetaWaylandDataSource *source,
                                                   gboolean               has_target);
 
-void     meta_wayland_data_source_cancel         (MetaWaylandDataSource *source);
-
 void     meta_wayland_data_source_send           (MetaWaylandDataSource *source,
                                                   const gchar           *mime_type,
                                                   gint                   fd);
@@ -123,8 +118,6 @@ uint32_t meta_wayland_data_source_get_current_action (MetaWaylandDataSource *sou
 
 void     meta_wayland_data_source_set_actions        (MetaWaylandDataSource *source,
                                                       uint32_t               dnd_actions);
-void     meta_wayland_data_source_set_user_action    (MetaWaylandDataSource *source,
-                                                      uint32_t               action);
 void     meta_wayland_data_source_set_current_action (MetaWaylandDataSource *source,
                                                       uint32_t               action);
 

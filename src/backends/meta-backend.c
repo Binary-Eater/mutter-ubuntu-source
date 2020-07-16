@@ -22,72 +22,42 @@
  *     Jasper St. Pierre <jstpierre@mecheye.net>
  */
 
-/**
- * SECTION:meta-backend
- * @title: MetaBackend
- * @short_description: Handles monitor config, modesetting, cursor sprites, ...
- *
- * MetaBackend is the abstraction that deals with several things like:
- * - Modesetting (depending on the backend, this can be done either by X or KMS)
- * - Initializing the #MetaSettings
- * - Setting up Monitor configuration
- * - Input device configuration (using the #ClutterDeviceManager)
- * - Creating the #MetaRenderer
- * - Setting up the stage of the scene graph (using #MetaStage)
- * - Creating the object that deals wih the cursor (using #MetaCursorTracker)
- *     and its possible pointer constraint (using #MetaPointerConstraint)
- * - Setting the cursor sprite (using #MetaCursorRenderer)
- * - Interacting with logind (using the appropriate D-Bus interface)
- * - Querying UPower (over D-Bus) to know when the lid is closed
- * - Setup Remote Desktop / Screencasting (#MetaRemoteDesktop)
- * - Setup the #MetaEgl object
- *
- * Note that the #MetaBackend is not a subclass of #ClutterBackend. It is
- * responsible for creating the correct one, based on the backend that is
- * used (#MetaBackendNative or #MetaBackendX11).
- */
-
 #include "config.h"
-
-#include "backends/meta-backend-private.h"
 
 #include <stdlib.h>
 
-#include "backends/meta-cursor-tracker-private.h"
-#include "backends/meta-idle-monitor-private.h"
-#include "backends/meta-input-settings-private.h"
-#include "backends/meta-logical-monitor.h"
-#include "backends/meta-monitor-manager-dummy.h"
-#include "backends/meta-settings-private.h"
-#include "backends/meta-stage-private.h"
+#include <clutter/clutter-mutter.h>
+#include <meta/meta-backend.h>
+#include <meta/main.h>
+#include <meta/util.h>
+#include "meta-backend-private.h"
+#include "meta-input-settings-private.h"
 #include "backends/x11/meta-backend-x11.h"
-#include "clutter/clutter-mutter.h"
-#include "meta/main.h"
-#include "meta/meta-backend.h"
-#include "meta/util.h"
-
-#ifdef HAVE_PROFILER
-#include "backends/meta-profiler.h"
-#endif
+#include "meta-cursor-tracker-private.h"
+#include "meta-stage-private.h"
 
 #ifdef HAVE_REMOTE_DESKTOP
 #include "backends/meta-dbus-session-watcher.h"
-#include "backends/meta-remote-access-controller-private.h"
-#include "backends/meta-remote-desktop.h"
 #include "backends/meta-screen-cast.h"
+#include "backends/meta-remote-desktop.h"
 #endif
 
 #ifdef HAVE_NATIVE_BACKEND
 #include "backends/native/meta-backend-native.h"
 #endif
 
+#include "backends/meta-idle-monitor-private.h"
+#include "backends/meta-logical-monitor.h"
+#include "backends/meta-monitor-manager-dummy.h"
+#include "backends/meta-settings-private.h"
+
+#define META_IDLE_MONITOR_CORE_DEVICE 0
+
 enum
 {
   KEYMAP_CHANGED,
   KEYMAP_LAYOUT_GROUP_CHANGED,
   LAST_DEVICE_CHANGED,
-  LID_IS_CLOSED_CHANGED,
-  GPU_ADDED,
 
   N_SIGNALS
 };
@@ -119,51 +89,32 @@ struct _MetaBackendPrivate
   MetaCursorRenderer *cursor_renderer;
   MetaInputSettings *input_settings;
   MetaRenderer *renderer;
-#ifdef HAVE_EGL
   MetaEgl *egl;
-#endif
   MetaSettings *settings;
 #ifdef HAVE_REMOTE_DESKTOP
-  MetaRemoteAccessController *remote_access_controller;
   MetaDbusSessionWatcher *dbus_session_watcher;
   MetaScreenCast *screen_cast;
   MetaRemoteDesktop *remote_desktop;
 #endif
 
-#ifdef HAVE_PROFILER
-  MetaProfiler *profiler;
-#endif
-
-#ifdef HAVE_LIBWACOM
-  WacomDeviceDatabase *wacom_db;
-#endif
-
   ClutterBackend *clutter_backend;
   ClutterActor *stage;
-
-  GList *gpus;
 
   gboolean is_pointer_position_initialized;
 
   guint device_update_idle_id;
-  gulong keymap_state_changed_id;
 
   GHashTable *device_monitors;
 
-  ClutterInputDevice *current_device;
+  int current_device_id;
 
   MetaPointerConstraint *client_pointer_constraint;
   MetaDnd *dnd;
 
-  guint upower_watch_id;
-  GDBusProxy *upower_proxy;
-  gboolean lid_is_closed;
-
+  UpClient *up_client;
   guint sleep_signal_id;
   GCancellable *cancellable;
   GDBusConnection *system_bus;
-
-  gboolean was_headless;
 };
 typedef struct _MetaBackendPrivate MetaBackendPrivate;
 
@@ -181,18 +132,6 @@ meta_backend_finalize (GObject *object)
   MetaBackend *backend = META_BACKEND (object);
   MetaBackendPrivate *priv = meta_backend_get_instance_private (backend);
 
-  if (priv->keymap_state_changed_id)
-    {
-      ClutterSeat *seat;
-      ClutterKeymap *keymap;
-
-      seat = clutter_backend_get_default_seat (priv->clutter_backend);
-      keymap = clutter_seat_get_keymap (seat);
-      g_clear_signal_handler (&priv->keymap_state_changed_id, keymap);
-    }
-
-  g_list_free_full (priv->gpus, g_object_unref);
-
   g_clear_object (&priv->monitor_manager);
   g_clear_object (&priv->orientation_manager);
   g_clear_object (&priv->input_settings);
@@ -200,31 +139,21 @@ meta_backend_finalize (GObject *object)
   g_clear_object (&priv->remote_desktop);
   g_clear_object (&priv->screen_cast);
   g_clear_object (&priv->dbus_session_watcher);
-  g_clear_object (&priv->remote_access_controller);
 #endif
 
-#ifdef HAVE_LIBWACOM
-  g_clear_pointer (&priv->wacom_db, libwacom_database_destroy);
-#endif
-
+  g_object_unref (priv->up_client);
   if (priv->sleep_signal_id)
     g_dbus_connection_signal_unsubscribe (priv->system_bus, priv->sleep_signal_id);
-  if (priv->upower_watch_id)
-    g_bus_unwatch_name (priv->upower_watch_id);
   g_cancellable_cancel (priv->cancellable);
   g_clear_object (&priv->cancellable);
   g_clear_object (&priv->system_bus);
-  g_clear_object (&priv->upower_proxy);
 
-  g_clear_handle_id (&priv->device_update_idle_id, g_source_remove);
+  if (priv->device_update_idle_id)
+    g_source_remove (priv->device_update_idle_id);
 
   g_hash_table_destroy (priv->device_monitors);
 
   g_clear_object (&priv->settings);
-
-#ifdef HAVE_PROFILER
-  g_clear_object (&priv->profiler);
-#endif
 
   G_OBJECT_CLASS (meta_backend_parent_class)->finalize (object);
 }
@@ -245,7 +174,6 @@ reset_pointer_position (MetaBackend *backend)
 {
   MetaBackendPrivate *priv = meta_backend_get_instance_private (backend);
   MetaMonitorManager *monitor_manager = priv->monitor_manager;
-  ClutterSeat *seat = clutter_backend_get_default_seat (priv->clutter_backend);
   MetaLogicalMonitor *primary;
 
   primary =
@@ -253,7 +181,7 @@ reset_pointer_position (MetaBackend *backend)
 
   /* Move the pointer out of the way to avoid hovering over reactive
    * elements (e.g. users list at login) causing undesired behaviour. */
-  clutter_seat_warp_pointer (seat,
+  meta_backend_warp_pointer (backend,
                              primary->rect.x + primary->rect.width * 0.9,
                              primary->rect.y + primary->rect.height * 0.9);
 }
@@ -264,9 +192,9 @@ meta_backend_monitors_changed (MetaBackend *backend)
   MetaBackendPrivate *priv = meta_backend_get_instance_private (backend);
   MetaMonitorManager *monitor_manager =
     meta_backend_get_monitor_manager (backend);
-  ClutterSeat *seat = clutter_backend_get_default_seat (priv->clutter_backend);
-  ClutterInputDevice *device = clutter_seat_get_pointer (seat);
-  graphene_point_t point;
+  ClutterDeviceManager *manager = clutter_device_manager_get_default ();
+  ClutterInputDevice *device = clutter_device_manager_get_core_device (manager, CLUTTER_POINTER_DEVICE);
+  ClutterPoint point;
 
   meta_backend_sync_screen_size (backend);
 
@@ -284,19 +212,6 @@ meta_backend_monitors_changed (MetaBackend *backend)
     }
 
   meta_cursor_renderer_force_update (priv->cursor_renderer);
-
-  if (meta_monitor_manager_is_headless (priv->monitor_manager) &&
-      !priv->was_headless)
-    {
-      clutter_stage_freeze_updates (CLUTTER_STAGE (priv->stage));
-      priv->was_headless = TRUE;
-    }
-  else if (!meta_monitor_manager_is_headless (priv->monitor_manager) &&
-           priv->was_headless)
-    {
-      clutter_stage_thaw_updates (CLUTTER_STAGE (priv->stage));
-      priv->was_headless = FALSE;
-    }
 }
 
 void
@@ -318,52 +233,55 @@ meta_backend_foreach_device_monitor (MetaBackend *backend,
 }
 
 static MetaIdleMonitor *
-meta_backend_create_idle_monitor (MetaBackend        *backend,
-                                  ClutterInputDevice *device)
+meta_backend_create_idle_monitor (MetaBackend *backend,
+                                  int          device_id)
 {
   return g_object_new (META_TYPE_IDLE_MONITOR,
-                       "device", device,
+                       "device-id", device_id,
                        NULL);
 }
 
 static void
-create_device_monitor (MetaBackend        *backend,
-                       ClutterInputDevice *device)
+create_device_monitor (MetaBackend *backend,
+                       int          device_id)
 {
   MetaBackendPrivate *priv = meta_backend_get_instance_private (backend);
   MetaIdleMonitor *idle_monitor;
 
-  if (g_hash_table_contains (priv->device_monitors, device))
-    return;
+  g_assert (g_hash_table_lookup (priv->device_monitors, &device_id) == NULL);
 
-  idle_monitor = meta_backend_create_idle_monitor (backend, device);
-  g_hash_table_insert (priv->device_monitors, device, idle_monitor);
+  idle_monitor = meta_backend_create_idle_monitor (backend, device_id);
+  g_hash_table_insert (priv->device_monitors, &idle_monitor->device_id, idle_monitor);
 }
 
 static void
-destroy_device_monitor (MetaBackend        *backend,
-                        ClutterInputDevice *device)
+destroy_device_monitor (MetaBackend *backend,
+                        int          device_id)
 {
   MetaBackendPrivate *priv = meta_backend_get_instance_private (backend);
 
-  g_hash_table_remove (priv->device_monitors, device);
+  g_hash_table_remove (priv->device_monitors, &device_id);
 }
 
 static void
 meta_backend_monitor_device (MetaBackend        *backend,
                              ClutterInputDevice *device)
 {
-  create_device_monitor (backend, device);
+  int device_id;
+
+  device_id = clutter_input_device_get_device_id (device);
+  create_device_monitor (backend, device_id);
 }
 
 static void
-on_device_added (ClutterSeat        *seat,
-                 ClutterInputDevice *device,
-                 gpointer            user_data)
+on_device_added (ClutterDeviceManager *device_manager,
+                 ClutterInputDevice   *device,
+                 gpointer              user_data)
 {
   MetaBackend *backend = META_BACKEND (user_data);
+  int device_id = clutter_input_device_get_device_id (device);
 
-  create_device_monitor (backend, device);
+  create_device_monitor (backend, device_id);
 }
 
 static inline gboolean
@@ -374,16 +292,15 @@ device_is_slave_touchscreen (ClutterInputDevice *device)
 }
 
 static inline gboolean
-check_has_pointing_device (ClutterSeat *seat)
+check_has_pointing_device (ClutterDeviceManager *manager)
 {
-  GList *l, *devices;
-  gboolean found = FALSE;
+  const GSList *devices;
 
-  devices = clutter_seat_list_devices (seat);
+  devices = clutter_device_manager_peek_devices (manager);
 
-  for (l = devices; l; l = l->next)
+  for (; devices; devices = devices->next)
     {
-      ClutterInputDevice *device = l->data;
+      ClutterInputDevice *device = devices->data;
 
       if (clutter_input_device_get_device_mode (device) == CLUTTER_INPUT_MODE_MASTER)
         continue;
@@ -391,63 +308,55 @@ check_has_pointing_device (ClutterSeat *seat)
           clutter_input_device_get_device_type (device) == CLUTTER_KEYBOARD_DEVICE)
         continue;
 
-      found = TRUE;
-      break;
+      return TRUE;
     }
 
-  g_list_free (devices);
-
-  return found;
+  return FALSE;
 }
 
 static inline gboolean
-check_has_slave_touchscreen (ClutterSeat *seat)
+check_has_slave_touchscreen (ClutterDeviceManager *manager)
 {
-  GList *l, *devices;
-  gboolean found = FALSE;
+  const GSList *devices;
 
-  devices = clutter_seat_list_devices (seat);
+  devices = clutter_device_manager_peek_devices (manager);
 
-  for (l = devices; l; l = l->next)
+  for (; devices; devices = devices->next)
     {
-      ClutterInputDevice *device = l->data;
+      ClutterInputDevice *device = devices->data;
 
       if (clutter_input_device_get_device_mode (device) != CLUTTER_INPUT_MODE_MASTER &&
           clutter_input_device_get_device_type (device) == CLUTTER_TOUCHSCREEN_DEVICE)
-        {
-          found = TRUE;
-          break;
-        }
+        return TRUE;
     }
 
-  g_list_free (devices);
-
-  return found;
+  return FALSE;
 }
 
 static void
-on_device_removed (ClutterSeat        *seat,
-                   ClutterInputDevice *device,
-                   gpointer            user_data)
+on_device_removed (ClutterDeviceManager *device_manager,
+                   ClutterInputDevice   *device,
+                   gpointer              user_data)
 {
   MetaBackend *backend = META_BACKEND (user_data);
   MetaBackendPrivate *priv = meta_backend_get_instance_private (backend);
+  int device_id = clutter_input_device_get_device_id (device);
 
-  destroy_device_monitor (backend, device);
+  destroy_device_monitor (backend, device_id);
 
   /* If the device the user last interacted goes away, check again pointer
    * visibility.
    */
-  if (priv->current_device == device)
+  if (priv->current_device_id == device_id)
     {
       MetaCursorTracker *cursor_tracker = priv->cursor_tracker;
       gboolean has_touchscreen, has_pointing_device;
       ClutterInputDeviceType device_type;
 
-      priv->current_device = NULL;
+      priv->current_device_id = 0;
 
       device_type = clutter_input_device_get_device_type (device);
-      has_touchscreen = check_has_slave_touchscreen (seat);
+      has_touchscreen = check_has_slave_touchscreen (device_manager);
 
       if (device_type == CLUTTER_TOUCHSCREEN_DEVICE && has_touchscreen)
         {
@@ -456,7 +365,7 @@ on_device_removed (ClutterSeat        *seat,
         }
       else if (device_type != CLUTTER_KEYBOARD_DEVICE)
         {
-          has_pointing_device = check_has_pointing_device (seat);
+          has_pointing_device = check_has_pointing_device (device_manager);
           meta_cursor_tracker_set_pointer_visible (cursor_tracker,
                                                    has_pointing_device &&
                                                    !has_touchscreen);
@@ -465,34 +374,33 @@ on_device_removed (ClutterSeat        *seat,
 }
 
 static void
-create_device_monitors (MetaBackend *backend,
-                        ClutterSeat *seat)
+create_device_monitors (MetaBackend          *backend,
+                        ClutterDeviceManager *device_manager)
 {
-  GList *l, *devices;
+  const GSList *devices;
+  const GSList *l;
 
-  create_device_monitor (backend, clutter_seat_get_pointer (seat));
-  create_device_monitor (backend, clutter_seat_get_keyboard (seat));
+  create_device_monitor (backend, META_IDLE_MONITOR_CORE_DEVICE);
 
-  devices = clutter_seat_list_devices (seat);
+  devices = clutter_device_manager_peek_devices (device_manager);
   for (l = devices; l; l = l->next)
     {
       ClutterInputDevice *device = l->data;
 
       meta_backend_monitor_device (backend, device);
     }
-
-  g_list_free (devices);
 }
 
 static void
-set_initial_pointer_visibility (MetaBackend *backend,
-                                ClutterSeat *seat)
+set_initial_pointer_visibility (MetaBackend          *backend,
+                                ClutterDeviceManager *device_manager)
 {
   MetaBackendPrivate *priv = meta_backend_get_instance_private (backend);
-  GList *l, *devices;
+  const GSList *devices;
+  const GSList *l;
   gboolean has_touchscreen = FALSE;
 
-  devices = clutter_seat_list_devices (seat);
+  devices = clutter_device_manager_peek_devices (device_manager);
   for (l = devices; l; l = l->next)
     {
       ClutterInputDevice *device = l->data;
@@ -500,7 +408,6 @@ set_initial_pointer_visibility (MetaBackend *backend,
       has_touchscreen |= device_is_slave_touchscreen (device);
     }
 
-  g_list_free (devices);
   meta_cursor_tracker_set_pointer_visible (priv->cursor_tracker,
                                            !has_touchscreen);
 }
@@ -511,14 +418,35 @@ meta_backend_create_input_settings (MetaBackend *backend)
   return META_BACKEND_GET_CLASS (backend)->create_input_settings (backend);
 }
 
+#ifdef HAVE_REMOTE_DESKTOP
+static gboolean
+is_screen_cast_enabled (MetaBackend *backend)
+{
+  MetaSettings *settings = meta_backend_get_settings (backend);
+
+  return meta_settings_is_experimental_feature_enabled (
+    settings,
+    META_EXPERIMENTAL_FEATURE_SCREEN_CAST);
+}
+
+static gboolean
+is_remote_desktop_enabled (MetaBackend *backend)
+{
+  MetaSettings *settings = meta_backend_get_settings (backend);
+
+  return meta_settings_is_experimental_feature_enabled (
+    settings,
+    META_EXPERIMENTAL_FEATURE_REMOTE_DESKTOP);
+}
+#endif /* HAVE_REMOTE_DESKTOP */
+
 static void
 meta_backend_real_post_init (MetaBackend *backend)
 {
   MetaBackendPrivate *priv = meta_backend_get_instance_private (backend);
-  ClutterSeat *seat = clutter_backend_get_default_seat (priv->clutter_backend);
-  ClutterKeymap *keymap = clutter_seat_get_keymap (seat);
+  ClutterDeviceManager *device_manager = clutter_device_manager_get_default ();
 
-  priv->stage = meta_stage_new (backend);
+  priv->stage = meta_stage_new ();
   clutter_actor_realize (priv->stage);
   META_BACKEND_GET_CLASS (backend)->select_stage_events (backend);
 
@@ -529,35 +457,26 @@ meta_backend_real_post_init (MetaBackend *backend)
   priv->cursor_renderer = META_BACKEND_GET_CLASS (backend)->create_cursor_renderer (backend);
 
   priv->device_monitors =
-    g_hash_table_new_full (NULL, NULL, NULL, (GDestroyNotify) g_object_unref);
+    g_hash_table_new_full (g_int_hash, g_int_equal,
+                           NULL, (GDestroyNotify) g_object_unref);
 
-  create_device_monitors (backend, seat);
+  create_device_monitors (backend, device_manager);
 
-  g_signal_connect_object (seat, "device-added",
+  g_signal_connect_object (device_manager, "device-added",
                            G_CALLBACK (on_device_added), backend, 0);
-  g_signal_connect_object (seat, "device-removed",
+  g_signal_connect_object (device_manager, "device-removed",
                            G_CALLBACK (on_device_removed), backend, 0);
 
-  set_initial_pointer_visibility (backend, seat);
+  set_initial_pointer_visibility (backend, device_manager);
 
   priv->input_settings = meta_backend_create_input_settings (backend);
 
-  if (priv->input_settings)
-    {
-      priv->keymap_state_changed_id =
-        g_signal_connect_swapped (keymap, "state-changed",
-                                  G_CALLBACK (meta_input_settings_maybe_save_numlock_state),
-                                  priv->input_settings);
-      meta_input_settings_maybe_restore_numlock_state (priv->input_settings);
-    }
-
 #ifdef HAVE_REMOTE_DESKTOP
-  priv->remote_access_controller =
-    g_object_new (META_TYPE_REMOTE_ACCESS_CONTROLLER, NULL);
   priv->dbus_session_watcher = g_object_new (META_TYPE_DBUS_SESSION_WATCHER, NULL);
-  priv->screen_cast = meta_screen_cast_new (backend,
-                                            priv->dbus_session_watcher);
-  priv->remote_desktop = meta_remote_desktop_new (priv->dbus_session_watcher);
+  if (is_screen_cast_enabled (backend))
+    priv->screen_cast = meta_screen_cast_new (priv->dbus_session_watcher);
+  if (is_remote_desktop_enabled (backend))
+    priv->remote_desktop = meta_remote_desktop_new (priv->dbus_session_watcher);
 #endif /* HAVE_REMOTE_DESKTOP */
 
   if (!meta_monitor_manager_is_headless (priv->monitor_manager))
@@ -598,150 +517,14 @@ meta_backend_real_select_stage_events (MetaBackend *backend)
 }
 
 static gboolean
-meta_backend_real_is_lid_closed (MetaBackend *backend)
+meta_backend_real_get_relative_motion_deltas (MetaBackend *backend,
+                                             const         ClutterEvent *event,
+                                             double        *dx,
+                                             double        *dy,
+                                             double        *dx_unaccel,
+                                             double        *dy_unaccel)
 {
-  MetaBackendPrivate *priv = meta_backend_get_instance_private (backend);
-
-  return priv->lid_is_closed;
-}
-
-gboolean
-meta_backend_is_lid_closed (MetaBackend *backend)
-{
-  return META_BACKEND_GET_CLASS (backend)->is_lid_closed (backend);
-}
-
-static void
-upower_properties_changed (GDBusProxy *proxy,
-                           GVariant   *changed_properties,
-                           GStrv       invalidated_properties,
-                           gpointer    user_data)
-{
-  MetaBackend *backend = user_data;
-  MetaBackendPrivate *priv = meta_backend_get_instance_private (backend);
-  GVariant *v;
-  gboolean lid_is_closed;
-
-  v = g_variant_lookup_value (changed_properties,
-                              "LidIsClosed",
-                              G_VARIANT_TYPE_BOOLEAN);
-  if (!v)
-    return;
-
-  lid_is_closed = g_variant_get_boolean (v);
-  g_variant_unref (v);
-
-  if (lid_is_closed == priv->lid_is_closed)
-    return;
-
-  priv->lid_is_closed = lid_is_closed;
-  g_signal_emit (backend, signals[LID_IS_CLOSED_CHANGED], 0,
-                 priv->lid_is_closed);
-
-  if (lid_is_closed)
-    return;
-
-  meta_idle_monitor_reset_idletime (meta_idle_monitor_get_core ());
-}
-
-static void
-upower_ready_cb (GObject      *source_object,
-                 GAsyncResult *res,
-                 gpointer      user_data)
-{
-  MetaBackend *backend;
-  MetaBackendPrivate *priv;
-  GDBusProxy *proxy;
-  GError *error = NULL;
-  GVariant *v;
-
-  proxy = g_dbus_proxy_new_finish (res, &error);
-  if (!proxy)
-    {
-      if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
-        g_warning ("Failed to create UPower proxy: %s", error->message);
-      g_error_free (error);
-      return;
-    }
-
-  backend = META_BACKEND (user_data);
-  priv = meta_backend_get_instance_private (backend);
-
-  priv->upower_proxy = proxy;
-  g_signal_connect (proxy, "g-properties-changed",
-                    G_CALLBACK (upower_properties_changed), backend);
-
-  v = g_dbus_proxy_get_cached_property (proxy, "LidIsClosed");
-  if (!v)
-    return;
-  priv->lid_is_closed = g_variant_get_boolean (v);
-  g_variant_unref (v);
-
-  if (priv->lid_is_closed)
-    {
-      g_signal_emit (backend, signals[LID_IS_CLOSED_CHANGED], 0,
-                     priv->lid_is_closed);
-    }
-}
-
-static void
-upower_appeared (GDBusConnection *connection,
-                 const gchar     *name,
-                 const gchar     *name_owner,
-                 gpointer         user_data)
-{
-  MetaBackend *backend = META_BACKEND (user_data);
-  MetaBackendPrivate *priv = meta_backend_get_instance_private (backend);
-
-  g_dbus_proxy_new (connection,
-                    G_DBUS_PROXY_FLAGS_NONE,
-                    NULL,
-                    "org.freedesktop.UPower",
-                    "/org/freedesktop/UPower",
-                    "org.freedesktop.UPower",
-                    priv->cancellable,
-                    upower_ready_cb,
-                    backend);
-}
-
-static void
-upower_vanished (GDBusConnection *connection,
-                 const gchar     *name,
-                 gpointer         user_data)
-{
-  MetaBackend *backend = META_BACKEND (user_data);
-  MetaBackendPrivate *priv = meta_backend_get_instance_private (backend);
-
-  g_clear_object (&priv->upower_proxy);
-}
-
-static void
-meta_backend_constructed (GObject *object)
-{
-  MetaBackend *backend = META_BACKEND (object);
-  MetaBackendPrivate *priv = meta_backend_get_instance_private (backend);
-  MetaBackendClass *backend_class =
-   META_BACKEND_GET_CLASS (backend);
-
-#ifdef HAVE_LIBWACOM
-  priv->wacom_db = libwacom_database_new ();
-  if (!priv->wacom_db)
-    {
-      g_warning ("Could not create database of Wacom devices, "
-                 "expect tablets to misbehave");
-    }
-#endif
-
-  if (backend_class->is_lid_closed != meta_backend_real_is_lid_closed)
-    return;
-
-  priv->upower_watch_id = g_bus_watch_name (G_BUS_TYPE_SYSTEM,
-                                            "org.freedesktop.UPower",
-                                            G_BUS_NAME_WATCHER_FLAGS_NONE,
-                                            upower_appeared,
-                                            upower_vanished,
-                                            backend,
-                                            NULL);
+  return FALSE;
 }
 
 static void
@@ -751,14 +534,13 @@ meta_backend_class_init (MetaBackendClass *klass)
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
   object_class->finalize = meta_backend_finalize;
-  object_class->constructed = meta_backend_constructed;
 
   klass->post_init = meta_backend_real_post_init;
   klass->create_cursor_renderer = meta_backend_real_create_cursor_renderer;
   klass->grab_device = meta_backend_real_grab_device;
   klass->ungrab_device = meta_backend_real_ungrab_device;
   klass->select_stage_events = meta_backend_real_select_stage_events;
-  klass->is_lid_closed = meta_backend_real_is_lid_closed;
+  klass->get_relative_motion_deltas = meta_backend_real_get_relative_motion_deltas;
 
   signals[KEYMAP_CHANGED] =
     g_signal_new ("keymap-changed",
@@ -780,29 +562,30 @@ meta_backend_class_init (MetaBackendClass *klass)
                   G_SIGNAL_RUN_LAST,
                   0,
                   NULL, NULL, NULL,
-                  G_TYPE_NONE, 1, CLUTTER_TYPE_INPUT_DEVICE);
-  signals[LID_IS_CLOSED_CHANGED] =
-    g_signal_new ("lid-is-closed-changed",
-                  G_TYPE_FROM_CLASS (object_class),
-                  G_SIGNAL_RUN_LAST,
-                  0,
-                  NULL, NULL, NULL,
-                  G_TYPE_NONE, 1, G_TYPE_BOOLEAN);
-  /**
-   * MetaBackend::gpu-added: (skip)
-   * @backend: the #MetaBackend
-   * @gpu: the #MetaGpu
-   */
-  signals[GPU_ADDED] =
-    g_signal_new ("gpu-added",
-                  G_TYPE_FROM_CLASS (klass),
-                  G_SIGNAL_RUN_LAST,
-                  0,
-                  NULL, NULL, NULL,
-                  G_TYPE_NONE, 1, META_TYPE_GPU);
+                  G_TYPE_NONE, 1, G_TYPE_INT);
 
   mutter_stage_views = g_getenv ("MUTTER_STAGE_VIEWS");
   stage_views_disabled = g_strcmp0 (mutter_stage_views, "0") == 0;
+}
+
+static void
+experimental_features_changed (MetaSettings            *settings,
+                               MetaExperimentalFeature  old_experimental_features,
+                               MetaBackend             *backend)
+{
+#ifdef HAVE_REMOTE_DESKTOP
+  MetaBackendPrivate *priv = meta_backend_get_instance_private (backend);
+
+  if (is_screen_cast_enabled (backend) && !priv->screen_cast)
+    priv->screen_cast = meta_screen_cast_new (priv->dbus_session_watcher);
+  else if (!is_screen_cast_enabled (backend))
+    g_clear_object (&priv->screen_cast);
+
+  if (is_remote_desktop_enabled (backend) && !priv->remote_desktop)
+    priv->remote_desktop = meta_remote_desktop_new (priv->dbus_session_watcher);
+  else if (!is_remote_desktop_enabled (backend))
+    g_clear_object (&priv->remote_desktop);
+#endif /* HAVE_REMOTE_DESKTOP */
 }
 
 static MetaMonitorManager *
@@ -821,6 +604,17 @@ meta_backend_create_renderer (MetaBackend *backend,
                               GError     **error)
 {
   return META_BACKEND_GET_CLASS (backend)->create_renderer (backend, error);
+}
+
+static void
+lid_is_closed_changed_cb (UpClient   *client,
+                          GParamSpec *pspec,
+                          gpointer    user_data)
+{
+  if (up_client_get_lid_is_closed (client))
+    return;
+
+  meta_idle_monitor_reset_idletime (meta_idle_monitor_get_core ());
 }
 
 static void
@@ -876,10 +670,11 @@ meta_backend_initable_init (GInitable     *initable,
   MetaBackendPrivate *priv = meta_backend_get_instance_private (backend);
 
   priv->settings = meta_settings_new (backend);
+  g_signal_connect (priv->settings, "experimental-features-changed",
+                    G_CALLBACK (experimental_features_changed),
+                    backend);
 
-#ifdef HAVE_EGL
   priv->egl = g_object_new (META_TYPE_EGL, NULL);
-#endif
 
   priv->orientation_manager = g_object_new (META_TYPE_ORIENTATION_MANAGER, NULL);
 
@@ -895,15 +690,15 @@ meta_backend_initable_init (GInitable     *initable,
 
   priv->dnd = g_object_new (META_TYPE_DND, NULL);
 
+  priv->up_client = up_client_new ();
+  g_signal_connect (priv->up_client, "notify::lid-is-closed",
+                    G_CALLBACK (lid_is_closed_changed_cb), NULL);
+
   priv->cancellable = g_cancellable_new ();
   g_bus_get (G_BUS_TYPE_SYSTEM,
              priv->cancellable,
              system_bus_gotten_cb,
              backend);
-
-#ifdef HAVE_PROFILER
-  priv->profiler = meta_profiler_new ();
-#endif
 
   return TRUE;
 }
@@ -934,12 +729,12 @@ meta_backend_post_init (MetaBackend *backend)
  * meta_backend_get_idle_monitor: (skip)
  */
 MetaIdleMonitor *
-meta_backend_get_idle_monitor (MetaBackend        *backend,
-                               ClutterInputDevice *device)
+meta_backend_get_idle_monitor (MetaBackend *backend,
+                               int          device_id)
 {
   MetaBackendPrivate *priv = meta_backend_get_instance_private (backend);
 
-  return g_hash_table_lookup (priv->device_monitors, device);
+  return g_hash_table_lookup (priv->device_monitors, &device_id);
 }
 
 /**
@@ -994,7 +789,6 @@ meta_backend_get_renderer (MetaBackend *backend)
   return priv->renderer;
 }
 
-#ifdef HAVE_EGL
 /**
  * meta_backend_get_egl: (skip)
  */
@@ -1005,7 +799,6 @@ meta_backend_get_egl (MetaBackend *backend)
 
   return priv->egl;
 }
-#endif /* HAVE_EGL */
 
 /**
  * meta_backend_get_settings: (skip)
@@ -1032,39 +825,6 @@ meta_backend_get_remote_desktop (MetaBackend *backend)
 #endif /* HAVE_REMOTE_DESKTOP */
 
 /**
- * meta_backend_get_remote_access_controller:
- * @backend: A #MetaBackend
- *
- * Return Value: (transfer none): The #MetaRemoteAccessController
- */
-MetaRemoteAccessController *
-meta_backend_get_remote_access_controller (MetaBackend *backend)
-{
-#ifdef HAVE_REMOTE_DESKTOP
-  MetaBackendPrivate *priv = meta_backend_get_instance_private (backend);
-
-  return priv->remote_access_controller;
-#else
-  return NULL;
-#endif
-}
-
-/**
- * meta_backend_is_rendering_hardware_accelerated:
- * @backend: A #MetaBackend
- *
- * Returns: %TRUE if the rendering is hardware accelerated, otherwise
- * %FALSE.
- */
-gboolean
-meta_backend_is_rendering_hardware_accelerated (MetaBackend *backend)
-{
-  MetaRenderer *renderer = meta_backend_get_renderer (backend);
-
-  return meta_renderer_is_hardware_accelerated (renderer);
-}
-
-/**
  * meta_backend_grab_device: (skip)
  */
 gboolean
@@ -1087,17 +847,14 @@ meta_backend_ungrab_device (MetaBackend *backend,
 }
 
 /**
- * meta_backend_finish_touch_sequence: (skip)
+ * meta_backend_warp_pointer: (skip)
  */
 void
-meta_backend_finish_touch_sequence (MetaBackend          *backend,
-                                    ClutterEventSequence *sequence,
-                                    MetaSequenceState     state)
+meta_backend_warp_pointer (MetaBackend *backend,
+                           int          x,
+                           int          y)
 {
-  if (META_BACKEND_GET_CLASS (backend)->finish_touch_sequence)
-    META_BACKEND_GET_CLASS (backend)->finish_touch_sequence (backend,
-                                                             sequence,
-                                                             state);
+  META_BACKEND_GET_CLASS (backend)->warp_pointer (backend, x, y);
 }
 
 MetaLogicalMonitor *
@@ -1161,36 +918,23 @@ meta_backend_get_stage (MetaBackend *backend)
   return priv->stage;
 }
 
-void
-meta_backend_freeze_updates (MetaBackend *backend)
-{
-  ClutterStage *stage;
-
-  stage = CLUTTER_STAGE (meta_backend_get_stage (backend));
-  clutter_stage_freeze_updates (stage);
-}
-
-void
-meta_backend_thaw_updates (MetaBackend *backend)
-{
-  ClutterStage *stage;
-
-  stage = CLUTTER_STAGE (meta_backend_get_stage (backend));
-  clutter_stage_thaw_updates (stage);
-}
-
 static gboolean
 update_last_device (MetaBackend *backend)
 {
   MetaBackendPrivate *priv = meta_backend_get_instance_private (backend);
   MetaCursorTracker *cursor_tracker = priv->cursor_tracker;
   ClutterInputDeviceType device_type;
+  ClutterDeviceManager *manager;
+  ClutterInputDevice *device;
 
   priv->device_update_idle_id = 0;
-  device_type = clutter_input_device_get_device_type (priv->current_device);
+  manager = clutter_device_manager_get_default ();
+  device = clutter_device_manager_get_device (manager,
+                                              priv->current_device_id);
+  device_type = clutter_input_device_get_device_type (device);
 
   g_signal_emit (backend, signals[LAST_DEVICE_CHANGED], 0,
-                 priv->current_device);
+                 priv->current_device_id);
 
   switch (device_type)
     {
@@ -1208,19 +952,24 @@ update_last_device (MetaBackend *backend)
 }
 
 void
-meta_backend_update_last_device (MetaBackend        *backend,
-                                 ClutterInputDevice *device)
+meta_backend_update_last_device (MetaBackend *backend,
+                                 int          device_id)
 {
   MetaBackendPrivate *priv = meta_backend_get_instance_private (backend);
+  ClutterDeviceManager *manager;
+  ClutterInputDevice *device;
 
-  if (priv->current_device == device)
+  if (priv->current_device_id == device_id)
     return;
+
+  manager = clutter_device_manager_get_default ();
+  device = clutter_device_manager_get_device (manager, device_id);
 
   if (!device ||
       clutter_input_device_get_device_mode (device) == CLUTTER_INPUT_MODE_MASTER)
     return;
 
-  priv->current_device = device;
+  priv->current_device_id = device_id;
 
   if (priv->device_update_idle_id == 0)
     {
@@ -1231,6 +980,21 @@ meta_backend_update_last_device (MetaBackend        *backend,
     }
 }
 
+gboolean
+meta_backend_get_relative_motion_deltas (MetaBackend *backend,
+                                         const        ClutterEvent *event,
+                                         double       *dx,
+                                         double       *dy,
+                                         double       *dx_unaccel,
+                                         double       *dy_unaccel)
+{
+  MetaBackendClass *klass = META_BACKEND_GET_CLASS (backend);
+  return klass->get_relative_motion_deltas (backend,
+                                            event,
+                                            dx, dy,
+                                            dx_unaccel, dy_unaccel);
+}
+
 MetaPointerConstraint *
 meta_backend_get_client_pointer_constraint (MetaBackend *backend)
 {
@@ -1239,15 +1003,6 @@ meta_backend_get_client_pointer_constraint (MetaBackend *backend)
   return priv->client_pointer_constraint;
 }
 
-/**
- * meta_backend_set_client_pointer_constraint:
- * @backend: a #MetaBackend object.
- * @constraint: (nullable): the client constraint to follow.
- *
- * Sets the current pointer constraint and removes (and unrefs) the previous
- * one. If @constrant is %NULL, this means that there is no
- * #MetaPointerConstraint active.
- */
 void
 meta_backend_set_client_pointer_constraint (MetaBackend           *backend,
                                             MetaPointerConstraint *constraint)
@@ -1370,14 +1125,6 @@ meta_clutter_init (void)
   meta_backend_post_init (_backend);
 }
 
-/**
- * meta_is_stage_views_enabled:
- *
- * Returns whether the #ClutterStage can be rendered using multiple stage views.
- * In practice, this means we can define a separate framebuffer for each
- * #MetaLogicalMonitor, rather than rendering everything into a single
- * framebuffer. For example: in X11, onle one single framebuffer is allowed.
- */
 gboolean
 meta_is_stage_views_enabled (void)
 {
@@ -1440,32 +1187,3 @@ meta_backend_notify_keymap_layout_group_changed (MetaBackend *backend,
   g_signal_emit (backend, signals[KEYMAP_LAYOUT_GROUP_CHANGED], 0,
                  locked_group);
 }
-
-void
-meta_backend_add_gpu (MetaBackend *backend,
-                      MetaGpu     *gpu)
-{
-  MetaBackendPrivate *priv = meta_backend_get_instance_private (backend);
-
-  priv->gpus = g_list_append (priv->gpus, gpu);
-
-  g_signal_emit (backend, signals[GPU_ADDED], 0, gpu);
-}
-
-GList *
-meta_backend_get_gpus (MetaBackend *backend)
-{
-  MetaBackendPrivate *priv = meta_backend_get_instance_private (backend);
-
-  return priv->gpus;
-}
-
-#ifdef HAVE_LIBWACOM
-WacomDeviceDatabase *
-meta_backend_get_wacom_database (MetaBackend *backend)
-{
-  MetaBackendPrivate *priv = meta_backend_get_instance_private (backend);
-
-  return priv->wacom_db;
-}
-#endif

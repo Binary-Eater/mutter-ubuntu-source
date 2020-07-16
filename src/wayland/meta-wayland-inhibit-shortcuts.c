@@ -24,12 +24,11 @@
 
 #include <wayland-server.h>
 
+#include "keyboard-shortcuts-inhibit-unstable-v1-server-protocol.h"
 #include "wayland/meta-wayland-private.h"
 #include "wayland/meta-wayland-versions.h"
 #include "wayland/meta-wayland-inhibit-shortcuts.h"
 #include "wayland/meta-wayland-inhibit-shortcuts-dialog.h"
-
-#include "keyboard-shortcuts-inhibit-unstable-v1-server-protocol.h"
 
 struct _MetaWaylandKeyboardShotscutsInhibit
 {
@@ -51,14 +50,14 @@ zwp_keyboard_shortcuts_inhibit_destructor (struct wl_resource *resource)
     {
       meta_wayland_surface_cancel_inhibit_shortcuts_dialog (shortcut_inhibit->surface);
 
-      g_clear_signal_handler (&shortcut_inhibit->surface_destroyed_handler,
-                              shortcut_inhibit->surface);
+      g_signal_handler_disconnect (shortcut_inhibit->surface,
+                                   shortcut_inhibit->surface_destroyed_handler);
 
-      g_clear_signal_handler (&shortcut_inhibit->inhibit_shortcut_handler,
-                              shortcut_inhibit->surface);
+      g_signal_handler_disconnect (shortcut_inhibit->surface,
+                                   shortcut_inhibit->inhibit_shortcut_handler);
 
-      g_clear_signal_handler (&shortcut_inhibit->restore_shortcut_handler,
-                              shortcut_inhibit->surface);
+      g_signal_handler_disconnect (shortcut_inhibit->surface,
+                                   shortcut_inhibit->restore_shortcut_handler);
 
       meta_wayland_surface_restore_shortcuts (shortcut_inhibit->surface,
                                               shortcut_inhibit->seat);

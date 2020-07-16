@@ -22,16 +22,6 @@
  *     Jonas Ådahl <jadahl@gmail.com>
  */
 
-/**
- * SECTION:meta-pointer-confinement-wayland
- * @title: MetaPointerConfinementWayland
- * @short_description: A #MetaPointerConstraint implementing pointer confinement
- *
- * A MetaPointerConfinementConstraint implements the client pointer constraint
- * "pointer confinement": the cursor should not be able to "break out" of a
- * certain area defined by the client requesting it.
- */
-
 #include "config.h"
 
 #include "wayland/meta-pointer-confinement-wayland.h"
@@ -40,13 +30,13 @@
 #include <cairo.h>
 
 #include "backends/meta-backend-private.h"
+#include "core/meta-border.h"
+#include "wayland/meta-wayland-seat.h"
+#include "wayland/meta-wayland-pointer.h"
+#include "wayland/meta-wayland-pointer-constraints.h"
+#include "wayland/meta-wayland-surface.h"
 #include "backends/meta-pointer-constraint.h"
 #include "compositor/meta-surface-actor-wayland.h"
-#include "core/meta-border.h"
-#include "wayland/meta-wayland-pointer-constraints.h"
-#include "wayland/meta-wayland-pointer.h"
-#include "wayland/meta-wayland-seat.h"
-#include "wayland/meta-wayland-surface.h"
 
 struct _MetaPointerConfinementWayland
 {
@@ -622,7 +612,7 @@ meta_pointer_confinement_wayland_maybe_warp (MetaPointerConfinementWayland *self
 {
   MetaWaylandSeat *seat;
   MetaWaylandSurface *surface;
-  graphene_point_t point;
+  ClutterPoint point;
   float sx;
   float sy;
   cairo_region_t *region;
@@ -643,7 +633,6 @@ meta_pointer_confinement_wayland_maybe_warp (MetaPointerConfinementWayland *self
       GArray *borders;
       float closest_distance_2 = FLT_MAX;
       MetaBorder *closest_border = NULL;
-      ClutterSeat *seat;
       unsigned int i;
       float x;
       float y;
@@ -668,17 +657,24 @@ meta_pointer_confinement_wayland_maybe_warp (MetaPointerConfinementWayland *self
       warp_to_behind_border (closest_border, &sx, &sy);
 
       meta_wayland_surface_get_absolute_coordinates (surface, sx, sy, &x, &y);
-
-      seat = clutter_backend_get_default_seat (clutter_get_default_backend ());
-      clutter_seat_warp_pointer (seat, (int)x, (int)y);
+      meta_backend_warp_pointer (meta_get_backend (), (int)x, (int)y);
     }
 
   cairo_region_destroy (region);
 }
 
 static void
-surface_geometry_changed (MetaWaylandSurface            *surface,
-                          MetaPointerConfinementWayland *self)
+surface_actor_allocation_notify (MetaSurfaceActorWayland       *surface_actor,
+                                 GParamSpec                    *pspec,
+                                 MetaPointerConfinementWayland *self)
+{
+  meta_pointer_confinement_wayland_maybe_warp (self);
+}
+
+static void
+surface_actor_position_notify (MetaSurfaceActorWayland       *surface_actor,
+                               GParamSpec                    *pspec,
+                               MetaPointerConfinementWayland *self)
 {
   meta_pointer_confinement_wayland_maybe_warp (self);
 }
@@ -696,7 +692,6 @@ meta_pointer_confinement_wayland_new (MetaWaylandPointerConstraint *constraint)
   GObject *object;
   MetaPointerConfinementWayland *confinement;
   MetaWaylandSurface *surface;
-  MetaWindow *window;
 
   object = g_object_new (META_TYPE_POINTER_CONFINEMENT_WAYLAND, NULL);
   confinement = META_POINTER_CONFINEMENT_WAYLAND (object);
@@ -704,16 +699,19 @@ meta_pointer_confinement_wayland_new (MetaWaylandPointerConstraint *constraint)
   confinement->constraint = constraint;
 
   surface = meta_wayland_pointer_constraint_get_surface (constraint);
-  g_signal_connect_object (surface,
-                           "geometry-changed",
-                           G_CALLBACK (surface_geometry_changed),
+  g_signal_connect_object (surface->surface_actor,
+                           "notify::allocation",
+                           G_CALLBACK (surface_actor_allocation_notify),
                            confinement,
                            0);
-
-  window = meta_wayland_surface_get_window (surface);
-  if (window)
+  g_signal_connect_object (surface->surface_actor,
+                           "notify::position",
+                           G_CALLBACK (surface_actor_position_notify),
+                           confinement,
+                           0);
+  if (surface->window)
     {
-      g_signal_connect_object (window,
+      g_signal_connect_object (surface->window,
                                "position-changed",
                                G_CALLBACK (window_position_changed),
                                confinement,

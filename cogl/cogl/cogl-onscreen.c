@@ -28,7 +28,9 @@
  *
  */
 
+#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
+#endif
 
 #include "cogl-util.h"
 #include "cogl-onscreen-private.h"
@@ -41,6 +43,10 @@
 #include "cogl-closure-list-private.h"
 #include "cogl-poll-private.h"
 #include "cogl-gtype-private.h"
+
+#ifdef COGL_HAS_X11_SUPPORT
+#include "cogl-xlib-renderer.h"
+#endif
 
 static void _cogl_onscreen_free (CoglOnscreen *onscreen);
 
@@ -157,8 +163,11 @@ _cogl_onscreen_free (CoglOnscreen *onscreen)
     cogl_object_unref (frame_info);
   g_queue_clear (&onscreen->pending_frame_infos);
 
+  if (framebuffer->context->window_buffer == COGL_FRAMEBUFFER (onscreen))
+    framebuffer->context->window_buffer = NULL;
+
   winsys->onscreen_deinit (onscreen);
-  g_return_if_fail (onscreen->winsys == NULL);
+  _COGL_RETURN_IF_FAIL (onscreen->winsys == NULL);
 
   /* Chain up to parent */
   _cogl_framebuffer_free (framebuffer);
@@ -297,7 +306,7 @@ cogl_onscreen_swap_buffers_with_damage (CoglOnscreen *onscreen,
   const CoglWinsysVtable *winsys;
   CoglFrameInfo *info;
 
-  g_return_if_fail  (framebuffer->type == COGL_FRAMEBUFFER_TYPE_ONSCREEN);
+  _COGL_RETURN_IF_FAIL  (framebuffer->type == COGL_FRAMEBUFFER_TYPE_ONSCREEN);
 
   info = _cogl_frame_info_new ();
   info->frame_counter = onscreen->frame_counter;
@@ -329,6 +338,7 @@ cogl_onscreen_swap_buffers_with_damage (CoglOnscreen *onscreen,
     }
 
   onscreen->frame_counter++;
+  framebuffer->mid_scene = FALSE;
 }
 
 void
@@ -346,7 +356,7 @@ cogl_onscreen_swap_region (CoglOnscreen *onscreen,
   const CoglWinsysVtable *winsys;
   CoglFrameInfo *info;
 
-  g_return_if_fail  (framebuffer->type == COGL_FRAMEBUFFER_TYPE_ONSCREEN);
+  _COGL_RETURN_IF_FAIL  (framebuffer->type == COGL_FRAMEBUFFER_TYPE_ONSCREEN);
 
   info = _cogl_frame_info_new ();
   info->frame_counter = onscreen->frame_counter;
@@ -359,7 +369,7 @@ cogl_onscreen_swap_region (CoglOnscreen *onscreen,
 
   /* This should only be called if the winsys advertises
      COGL_WINSYS_FEATURE_SWAP_REGION */
-  g_return_if_fail (winsys->onscreen_swap_region != NULL);
+  _COGL_RETURN_IF_FAIL (winsys->onscreen_swap_region != NULL);
 
   winsys->onscreen_swap_region (COGL_ONSCREEN (framebuffer),
                                 rectangles,
@@ -385,6 +395,7 @@ cogl_onscreen_swap_region (CoglOnscreen *onscreen,
     }
 
   onscreen->frame_counter++;
+  framebuffer->mid_scene = FALSE;
 }
 
 int
@@ -393,7 +404,7 @@ cogl_onscreen_get_buffer_age (CoglOnscreen *onscreen)
   CoglFramebuffer *framebuffer = COGL_FRAMEBUFFER (onscreen);
   const CoglWinsysVtable *winsys;
 
-  g_return_val_if_fail  (framebuffer->type == COGL_FRAMEBUFFER_TYPE_ONSCREEN, 0);
+  _COGL_RETURN_VAL_IF_FAIL  (framebuffer->type == COGL_FRAMEBUFFER_TYPE_ONSCREEN, 0);
 
   winsys = _cogl_framebuffer_get_winsys (framebuffer);
 
@@ -404,16 +415,54 @@ cogl_onscreen_get_buffer_age (CoglOnscreen *onscreen)
 }
 
 #ifdef COGL_HAS_X11_SUPPORT
+void
+cogl_x11_onscreen_set_foreign_window_xid (CoglOnscreen *onscreen,
+                                          uint32_t xid,
+                                          CoglOnscreenX11MaskCallback update,
+                                          void *user_data)
+{
+  /* We don't wan't applications to get away with being lazy here and not
+   * passing an update callback... */
+  _COGL_RETURN_IF_FAIL (update);
+
+  onscreen->foreign_xid = xid;
+  onscreen->foreign_update_mask_callback = update;
+  onscreen->foreign_update_mask_data = user_data;
+}
+
 uint32_t
 cogl_x11_onscreen_get_window_xid (CoglOnscreen *onscreen)
 {
   CoglFramebuffer *framebuffer = COGL_FRAMEBUFFER (onscreen);
-  const CoglWinsysVtable *winsys = _cogl_framebuffer_get_winsys (framebuffer);
 
-  /* This should only be called for x11 onscreens */
-  g_return_val_if_fail (winsys->onscreen_x11_get_window_xid != NULL, 0);
+  if (onscreen->foreign_xid)
+    return onscreen->foreign_xid;
+  else
+    {
+      const CoglWinsysVtable *winsys = _cogl_framebuffer_get_winsys (framebuffer);
 
-  return winsys->onscreen_x11_get_window_xid (onscreen);
+      /* This should only be called for x11 onscreens */
+      _COGL_RETURN_VAL_IF_FAIL (winsys->onscreen_x11_get_window_xid != NULL, 0);
+
+      return winsys->onscreen_x11_get_window_xid (onscreen);
+    }
+}
+
+uint32_t
+cogl_x11_onscreen_get_visual_xid (CoglOnscreen *onscreen)
+{
+  CoglContext *ctx = COGL_FRAMEBUFFER (onscreen)->context;
+  XVisualInfo *visinfo;
+  uint32_t id;
+
+  /* This should only be called for xlib based onscreens */
+  visinfo = cogl_xlib_renderer_get_visual_info (ctx->display->renderer);
+  if (visinfo == NULL)
+    return 0;
+
+  id = (uint32_t)visinfo->visualid;
+
+  return id;
 }
 #endif /* COGL_HAS_X11_SUPPORT */
 
@@ -433,9 +482,95 @@ void
 cogl_onscreen_remove_frame_callback (CoglOnscreen *onscreen,
                                      CoglFrameClosure *closure)
 {
-  g_return_if_fail (closure);
+  _COGL_RETURN_IF_FAIL (closure);
 
   _cogl_closure_disconnect (closure);
+}
+
+typedef struct _SwapBufferCallbackState
+{
+  CoglSwapBuffersNotify callback;
+  void *user_data;
+} SwapBufferCallbackState;
+
+static void
+destroy_swap_buffers_callback_state (void *user_data)
+{
+  g_slice_free (SwapBufferCallbackState, user_data);
+}
+
+static void
+shim_swap_buffers_callback (CoglOnscreen *onscreen,
+                            CoglFrameEvent event,
+                            CoglFrameInfo *info,
+                            void *user_data)
+{
+  SwapBufferCallbackState *state = user_data;
+
+  /* XXX: Note that technically it is a change in semantics for this
+   * interface to forward _SYNC events here and also makes the api
+   * name somewhat missleading.
+   *
+   * In practice though this interface is currently used by
+   * applications for throttling, not because they are strictly
+   * interested in knowing when a frame has been presented and so
+   * forwarding _SYNC events should serve them better.
+   */
+  if (event == COGL_FRAME_EVENT_SYNC)
+    state->callback (COGL_FRAMEBUFFER (onscreen), state->user_data);
+}
+
+unsigned int
+cogl_onscreen_add_swap_buffers_callback (CoglOnscreen *onscreen,
+                                         CoglSwapBuffersNotify callback,
+                                         void *user_data)
+{
+  CoglContext *ctx = COGL_FRAMEBUFFER (onscreen)->context;
+  SwapBufferCallbackState *state = g_slice_new (SwapBufferCallbackState);
+  CoglFrameClosure *closure;
+  unsigned int id = ctx->next_swap_callback_id++;
+
+  state->callback = callback;
+  state->user_data = user_data;
+
+  closure =
+    cogl_onscreen_add_frame_callback (onscreen,
+                                      shim_swap_buffers_callback,
+                                      state,
+                                      destroy_swap_buffers_callback_state);
+
+  g_hash_table_insert (ctx->swap_callback_closures,
+                       GINT_TO_POINTER (id),
+                       closure);
+
+  return id;
+}
+
+void
+cogl_onscreen_remove_swap_buffers_callback (CoglOnscreen *onscreen,
+                                            unsigned int id)
+{
+  CoglContext *ctx = COGL_FRAMEBUFFER (onscreen)->context;
+  CoglFrameClosure *closure = g_hash_table_lookup (ctx->swap_callback_closures,
+                                                   GINT_TO_POINTER (id));
+
+  _COGL_RETURN_IF_FAIL (closure);
+
+  cogl_onscreen_remove_frame_callback (onscreen, closure);
+}
+
+void
+cogl_onscreen_set_swap_throttled (CoglOnscreen *onscreen,
+                                  CoglBool throttled)
+{
+  CoglFramebuffer *framebuffer = COGL_FRAMEBUFFER (onscreen);
+  framebuffer->config.swap_throttled = throttled;
+  if (framebuffer->allocated)
+    {
+      const CoglWinsysVtable *winsys =
+        _cogl_framebuffer_get_winsys (framebuffer);
+      winsys->onscreen_update_swap_throttled (onscreen);
+    }
 }
 
 void
@@ -512,7 +647,7 @@ _cogl_framebuffer_winsys_update_size (CoglFramebuffer *framebuffer,
 
 void
 cogl_onscreen_set_resizable (CoglOnscreen *onscreen,
-                             gboolean resizable)
+                             CoglBool resizable)
 {
   CoglFramebuffer *framebuffer;
   const CoglWinsysVtable *winsys;
@@ -532,7 +667,7 @@ cogl_onscreen_set_resizable (CoglOnscreen *onscreen,
     }
 }
 
-gboolean
+CoglBool
 cogl_onscreen_get_resizable (CoglOnscreen *onscreen)
 {
   return onscreen->resizable;
@@ -573,7 +708,7 @@ void
 cogl_onscreen_remove_dirty_callback (CoglOnscreen *onscreen,
                                      CoglOnscreenDirtyClosure *closure)
 {
-  g_return_if_fail (closure);
+  _COGL_RETURN_IF_FAIL (closure);
 
   _cogl_closure_disconnect (closure);
 }

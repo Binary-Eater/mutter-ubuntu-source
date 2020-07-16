@@ -42,7 +42,7 @@
 
 #include <glib-object.h>
 
-G_BEGIN_DECLS
+COGL_BEGIN_DECLS
 
 /**
  * SECTION:cogl-index-buffer
@@ -61,7 +61,7 @@ typedef struct _CoglIndexBuffer	      CoglIndexBuffer;
  *
  * Returns: a #GType that can be used with the GLib type system.
  */
-COGL_EXPORT GType cogl_index_buffer_get_gtype (void);
+GType cogl_index_buffer_get_gtype (void);
 
 /**
  * cogl_index_buffer_new:
@@ -78,7 +78,7 @@ COGL_EXPORT GType cogl_index_buffer_get_gtype (void);
  * Since: 1.4
  * Stability: Unstable
  */
-COGL_EXPORT CoglIndexBuffer *
+CoglIndexBuffer *
 cogl_index_buffer_new (CoglContext *context,
                        size_t bytes);
 
@@ -94,10 +94,10 @@ cogl_index_buffer_new (CoglContext *context,
  * Since: 1.4
  * Stability: Unstable
  */
-COGL_EXPORT gboolean
+CoglBool
 cogl_is_index_buffer (void *object);
 
-G_END_DECLS
+COGL_END_DECLS
 
 #endif /* __COGL_INDEX_BUFFER_H__ */
 

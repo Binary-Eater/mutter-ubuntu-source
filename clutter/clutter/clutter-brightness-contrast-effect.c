@@ -37,7 +37,9 @@
 #define CLUTTER_IS_BRIGHTNESS_CONTRAST_EFFECT_CLASS(klass)  (G_TYPE_CHECK_CLASS_TYPE ((klass), CLUTTER_TYPE_BRIGHTNESS_CONTRAST_EFFECT))
 #define CLUTTER_BRIGHTNESS_CONTRAST_EFFECT_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), CLUTTER_TYPE_BRIGHTNESS_CONTRAST_EFFECT, ClutterBrightnessContrastEffectClass))
 
+#ifdef HAVE_CONFIG_H
 #include "clutter-build-config.h"
+#endif
 
 #include <math.h>
 
@@ -121,17 +123,16 @@ G_DEFINE_TYPE (ClutterBrightnessContrastEffect,
 static gboolean
 will_have_no_effect (ClutterBrightnessContrastEffect *self)
 {
-  return (G_APPROX_VALUE (self->brightness_red, no_change, FLT_EPSILON) &&
-          G_APPROX_VALUE (self->brightness_green, no_change, FLT_EPSILON) &&
-          G_APPROX_VALUE (self->brightness_blue, no_change, FLT_EPSILON) &&
-          G_APPROX_VALUE (self->contrast_red, no_change, FLT_EPSILON) &&
-          G_APPROX_VALUE (self->contrast_green, no_change, FLT_EPSILON) &&
-          G_APPROX_VALUE (self->contrast_blue, no_change, FLT_EPSILON));
+  return (self->brightness_red == no_change &&
+          self->brightness_green == no_change &&
+          self->brightness_blue == no_change &&
+          self->contrast_red == no_change &&
+          self->contrast_green == no_change &&
+          self->contrast_blue == no_change);
 }
 
 static gboolean
-clutter_brightness_contrast_effect_pre_paint (ClutterEffect       *effect,
-                                              ClutterPaintContext *paint_context)
+clutter_brightness_contrast_effect_pre_paint (ClutterEffect *effect)
 {
   ClutterBrightnessContrastEffect *self = CLUTTER_BRIGHTNESS_CONTRAST_EFFECT (effect);
   ClutterEffectClass *parent_class;
@@ -157,7 +158,7 @@ clutter_brightness_contrast_effect_pre_paint (ClutterEffect       *effect,
 
   parent_class =
     CLUTTER_EFFECT_CLASS (clutter_brightness_contrast_effect_parent_class);
-  if (parent_class->pre_paint (effect, paint_context))
+  if (parent_class->pre_paint (effect))
     {
       ClutterOffscreenEffect *offscreen_effect =
         CLUTTER_OFFSCREEN_EFFECT (effect);
@@ -176,12 +177,9 @@ clutter_brightness_contrast_effect_pre_paint (ClutterEffect       *effect,
 }
 
 static void
-clutter_brightness_contrast_effect_paint_target (ClutterOffscreenEffect *effect,
-                                                 ClutterPaintContext    *paint_context)
+clutter_brightness_contrast_effect_paint_target (ClutterOffscreenEffect *effect)
 {
   ClutterBrightnessContrastEffect *self = CLUTTER_BRIGHTNESS_CONTRAST_EFFECT (effect);
-  CoglFramebuffer *framebuffer =
-   clutter_paint_context_get_framebuffer (paint_context);
   ClutterActor *actor;
   guint8 paint_opacity;
 
@@ -193,11 +191,11 @@ clutter_brightness_contrast_effect_paint_target (ClutterOffscreenEffect *effect,
                               paint_opacity,
                               paint_opacity,
                               paint_opacity);
+  cogl_push_source (self->pipeline);
 
-  cogl_framebuffer_draw_rectangle (framebuffer,
-                                   self->pipeline,
-                                   0, 0,
-                                   self->tex_width, self->tex_height);
+  cogl_rectangle (0, 0, self->tex_width, self->tex_height);
+
+  cogl_pop_source ();
 }
 
 static void
@@ -441,7 +439,9 @@ clutter_brightness_contrast_effect_init (ClutterBrightnessContrastEffect *self)
       cogl_pipeline_add_snippet (klass->base_pipeline, snippet);
       cogl_object_unref (snippet);
 
-      cogl_pipeline_set_layer_null_texture (klass->base_pipeline, 0);
+      cogl_pipeline_set_layer_null_texture (klass->base_pipeline,
+                                            0, /* layer number */
+                                            COGL_TEXTURE_TYPE_2D);
     }
 
   self->pipeline = cogl_pipeline_copy (klass->base_pipeline);
@@ -497,9 +497,9 @@ clutter_brightness_contrast_effect_set_brightness_full (ClutterBrightnessContras
 {
   g_return_if_fail (CLUTTER_IS_BRIGHTNESS_CONTRAST_EFFECT (effect));
 
-  if (G_APPROX_VALUE (red, effect->brightness_red, FLT_EPSILON) &&
-      G_APPROX_VALUE (green, effect->brightness_green, FLT_EPSILON) &&
-      G_APPROX_VALUE (blue, effect->brightness_blue, FLT_EPSILON))
+  if (red == effect->brightness_red &&
+      green == effect->brightness_green &&
+      blue == effect->brightness_blue)
     return;
 
   effect->brightness_red = red;
@@ -587,9 +587,9 @@ clutter_brightness_contrast_effect_set_contrast_full (ClutterBrightnessContrastE
 {
   g_return_if_fail (CLUTTER_IS_BRIGHTNESS_CONTRAST_EFFECT (effect));
 
-  if (G_APPROX_VALUE (red, effect->contrast_red, FLT_EPSILON) &&
-      G_APPROX_VALUE (green, effect->contrast_green, FLT_EPSILON) &&
-      G_APPROX_VALUE (blue, effect->contrast_blue, FLT_EPSILON))
+  if (red == effect->contrast_red &&
+      green == effect->contrast_green &&
+      blue == effect->contrast_blue)
     return;
 
   effect->contrast_red = red;

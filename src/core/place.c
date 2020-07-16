@@ -22,20 +22,18 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "config.h"
+#include <config.h>
 
-#include "core/place.h"
-
+#include "boxes-private.h"
+#include "place.h"
+#include "backends/meta-backend-private.h"
+#include "backends/meta-logical-monitor.h"
+#include <meta/meta-backend.h>
+#include <meta/workspace.h>
+#include <meta/prefs.h>
 #include <gdk/gdk.h>
 #include <math.h>
 #include <stdlib.h>
-
-#include "backends/meta-backend-private.h"
-#include "backends/meta-logical-monitor.h"
-#include "core/boxes-private.h"
-#include "meta/meta-backend.h"
-#include "meta/prefs.h"
-#include "meta/workspace.h"
 
 typedef enum
 {
@@ -610,52 +608,56 @@ find_first_fit (MetaWindow         *window,
 void
 meta_window_process_placement (MetaWindow        *window,
                                MetaPlacementRule *placement_rule,
-                               int               *rel_x,
-                               int               *rel_y)
+                               int               *x,
+                               int               *y)
 {
+  MetaWindow *parent = meta_window_get_transient_for (window);
+  MetaRectangle parent_rect;
   MetaRectangle anchor_rect;
   int window_width, window_height;
-  int x, y;
 
   window_width = placement_rule->width;
   window_height = placement_rule->height;
+  meta_window_get_frame_rect (parent, &parent_rect);
 
-  anchor_rect = placement_rule->anchor_rect;
+  anchor_rect = (MetaRectangle) {
+    .x = parent_rect.x + placement_rule->anchor_rect.x,
+    .y = parent_rect.y + placement_rule->anchor_rect.y,
+    .width = placement_rule->anchor_rect.width,
+    .height = placement_rule->anchor_rect.height,
+  };
 
   /* Place at anchor point. */
   if (placement_rule->anchor & META_PLACEMENT_ANCHOR_LEFT)
-    x = anchor_rect.x;
+    *x = anchor_rect.x;
   else if (placement_rule->anchor & META_PLACEMENT_ANCHOR_RIGHT)
-    x = anchor_rect.x + anchor_rect.width;
+    *x = anchor_rect.x + anchor_rect.width;
   else
-    x = anchor_rect.x + (anchor_rect.width / 2);
+    *x = anchor_rect.x + (anchor_rect.width / 2);
   if (placement_rule->anchor & META_PLACEMENT_ANCHOR_TOP)
-    y = anchor_rect.y;
+    *y = anchor_rect.y;
   else if (placement_rule->anchor & META_PLACEMENT_ANCHOR_BOTTOM)
-    y = anchor_rect.y + anchor_rect.height;
+    *y = anchor_rect.y + anchor_rect.height;
   else
-    y = anchor_rect.y + (anchor_rect.height / 2);
+    *y = anchor_rect.y + (anchor_rect.height / 2);
 
   /* Shift according to gravity. */
   if (placement_rule->gravity & META_PLACEMENT_GRAVITY_LEFT)
-    x -= window_width;
+    *x -= window_width;
   else if (placement_rule->gravity & META_PLACEMENT_GRAVITY_RIGHT)
-    x = x;
+    *x = *x;
   else
-    x -= window_width / 2;
+    *x -= window_width / 2;
   if (placement_rule->gravity & META_PLACEMENT_GRAVITY_TOP)
-    y -= window_height;
+    *y -= window_height;
   else if (placement_rule->gravity & META_PLACEMENT_GRAVITY_BOTTOM)
-    y = y;
+    *y = *y;
   else
-    y -= window_height / 2;
+    *y -= window_height / 2;
 
   /* Offset according to offset. */
-  x += placement_rule->offset_x;
-  y += placement_rule->offset_y;
-
-  *rel_x = x;
-  *rel_y = y;
+  *x += placement_rule->offset_x;
+  *y += placement_rule->offset_y;
 }
 
 void
@@ -671,7 +673,15 @@ meta_window_place (MetaWindow        *window,
 
   meta_topic (META_DEBUG_PLACEMENT, "Placing window %s\n", window->desc);
 
-  g_return_if_fail (!window->placement.rule);
+  /* If the window has a custom placement rule, always run only that. */
+  if (window->placement_rule)
+    {
+      meta_window_process_placement (window,
+                                     window->placement_rule,
+                                     &x, &y);
+
+      goto done;
+    }
 
   switch (window->type)
     {

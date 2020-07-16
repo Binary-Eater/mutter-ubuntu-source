@@ -45,6 +45,7 @@ typedef enum _CoglMatrixOp
   COGL_MATRIX_OP_LOAD_IDENTITY,
   COGL_MATRIX_OP_TRANSLATE,
   COGL_MATRIX_OP_ROTATE,
+  COGL_MATRIX_OP_ROTATE_QUATERNION,
   COGL_MATRIX_OP_ROTATE_EULER,
   COGL_MATRIX_OP_SCALE,
   COGL_MATRIX_OP_MULTIPLY,
@@ -68,7 +69,9 @@ typedef struct _CoglMatrixEntryTranslate
 {
   CoglMatrixEntry _parent_data;
 
-  graphene_point3d_t translate;
+  float x;
+  float y;
+  float z;
 
 } CoglMatrixEntryTranslate;
 
@@ -77,7 +80,9 @@ typedef struct _CoglMatrixEntryRotate
   CoglMatrixEntry _parent_data;
 
   float angle;
-  graphene_vec3_t axis;
+  float x;
+  float y;
+  float z;
 
 } CoglMatrixEntryRotate;
 
@@ -85,8 +90,21 @@ typedef struct _CoglMatrixEntryRotateEuler
 {
   CoglMatrixEntry _parent_data;
 
-  graphene_euler_t euler;
+  /* This doesn't store an actual CoglEuler in order to avoid the
+   * padding */
+  float heading;
+  float pitch;
+  float roll;
 } CoglMatrixEntryRotateEuler;
+
+typedef struct _CoglMatrixEntryRotateQuaternion
+{
+  CoglMatrixEntry _parent_data;
+
+  /* This doesn't store an actual CoglQuaternion in order to avoid the
+   * padding */
+  float values[4];
+} CoglMatrixEntryRotateQuaternion;
 
 typedef struct _CoglMatrixEntryScale
 {
@@ -119,7 +137,7 @@ typedef struct _CoglMatrixEntrySave
   CoglMatrixEntry _parent_data;
 
   CoglMatrix *cache;
-  gboolean cache_valid;
+  CoglBool cache_valid;
 
 } CoglMatrixEntrySave;
 
@@ -129,6 +147,7 @@ typedef union _CoglMatrixEntryFull
   CoglMatrixEntryTranslate translate;
   CoglMatrixEntryRotate rotate;
   CoglMatrixEntryRotateEuler rotate_euler;
+  CoglMatrixEntryRotateQuaternion rotate_quaternion;
   CoglMatrixEntryScale scale;
   CoglMatrixEntryMultiply multiply;
   CoglMatrixEntryLoad load;
@@ -147,20 +166,33 @@ struct _CoglMatrixStack
 typedef struct _CoglMatrixEntryCache
 {
   CoglMatrixEntry *entry;
-  gboolean flushed_identity;
-  gboolean flipped;
+  CoglBool flushed_identity;
+  CoglBool flipped;
 } CoglMatrixEntryCache;
 
 void
 _cogl_matrix_entry_identity_init (CoglMatrixEntry *entry);
 
+typedef enum {
+  COGL_MATRIX_MODELVIEW,
+  COGL_MATRIX_PROJECTION,
+  COGL_MATRIX_TEXTURE
+} CoglMatrixMode;
+
+void
+_cogl_matrix_entry_flush_to_gl_builtins (CoglContext *ctx,
+                                         CoglMatrixEntry *entry,
+                                         CoglMatrixMode mode,
+                                         CoglFramebuffer *framebuffer,
+                                         CoglBool disable_flip);
+
 void
 _cogl_matrix_entry_cache_init (CoglMatrixEntryCache *cache);
 
-gboolean
+CoglBool
 _cogl_matrix_entry_cache_maybe_update (CoglMatrixEntryCache *cache,
                                        CoglMatrixEntry *entry,
-                                       gboolean flip);
+                                       CoglBool flip);
 
 void
 _cogl_matrix_entry_cache_destroy (CoglMatrixEntryCache *cache);

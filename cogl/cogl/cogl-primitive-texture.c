@@ -30,12 +30,14 @@
  *  Neil Roberts <neil@linux.intel.com>
  */
 
+#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
+#endif
 
 #include "cogl-primitive-texture.h"
 #include "cogl-texture-private.h"
 
-gboolean
+CoglBool
 cogl_is_primitive_texture (void *object)
 {
   return (cogl_is_texture (object) &&
@@ -44,11 +46,11 @@ cogl_is_primitive_texture (void *object)
 
 void
 cogl_primitive_texture_set_auto_mipmap (CoglPrimitiveTexture *primitive_texture,
-                                        gboolean value)
+                                        CoglBool value)
 {
   CoglTexture *texture;
 
-  g_return_if_fail (cogl_is_primitive_texture (primitive_texture));
+  _COGL_RETURN_IF_FAIL (cogl_is_primitive_texture (primitive_texture));
 
   texture = COGL_TEXTURE (primitive_texture);
 

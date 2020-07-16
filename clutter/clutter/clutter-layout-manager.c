@@ -98,11 +98,11 @@
  * |[
  * {
  *   "type" : "ClutterBox",
- *   "layout-manager" : { "type" : "ClutterGridLayout" },
+ *   "layout-manager" : { "type" : "ClutterTableLayout" },
  *   "children" : [
  *     {
- *       "type" : "ClutterText",
- *       "text" : "Some text",
+ *       "type" : "ClutterTexture",
+ *       "filename" : "image-00.png",
  *
  *       "layout::row" : 0,
  *       "layout::column" : 0,
@@ -112,8 +112,8 @@
  *       "layout::y-expand" : true
  *     },
  *     {
- *       "type" : "ClutterText",
- *       "text" : "Some more text",
+ *       "type" : "ClutterTexture",
+ *       "filename" : "image-01.png",
  *
  *       "layout::row" : 0,
  *       "layout::column" : 1,
@@ -129,7 +129,9 @@
  * #ClutterLayoutManager is available since Clutter 1.2
  */
 
+#ifdef HAVE_CONFIG_H
 #include "clutter-build-config.h"
+#endif
 
 #include <glib-object.h>
 #include <gobject/gvaluecollector.h>
@@ -329,6 +331,9 @@ layout_manager_real_begin_animation (ClutterLayoutManager *manager,
   /* let the alpha take ownership of the timeline */
   g_object_unref (timeline);
 
+  g_signal_connect_swapped (timeline, "completed",
+                            G_CALLBACK (clutter_layout_manager_end_animation),
+                            manager);
   g_signal_connect_swapped (timeline, "new-frame",
                             G_CALLBACK (clutter_layout_manager_layout_changed),
                             manager);
@@ -372,6 +377,9 @@ layout_manager_real_end_animation (ClutterLayoutManager *manager)
   if (clutter_timeline_is_playing (timeline))
     clutter_timeline_stop (timeline);
 
+  g_signal_handlers_disconnect_by_func (timeline,
+                                        G_CALLBACK (clutter_layout_manager_end_animation),
+                                        manager);
   g_signal_handlers_disconnect_by_func (timeline,
                                         G_CALLBACK (clutter_layout_manager_layout_changed),
                                         manager);
@@ -438,7 +446,8 @@ clutter_layout_manager_class_init (ClutterLayoutManagerClass *klass)
                   G_SIGNAL_RUN_LAST,
                   G_STRUCT_OFFSET (ClutterLayoutManagerClass,
                                    layout_changed),
-                  NULL, NULL, NULL,
+                  NULL, NULL,
+                  _clutter_marshal_VOID__VOID,
                   G_TYPE_NONE, 0);
 }
 

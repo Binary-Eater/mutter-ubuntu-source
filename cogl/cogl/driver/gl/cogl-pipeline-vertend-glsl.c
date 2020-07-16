@@ -31,23 +31,27 @@
  *   Neil Roberts <neil@linux.intel.com>
  */
 
+#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
+#endif
 
 #include <string.h>
 
 #include <test-fixtures/test-unit.h>
 
 #include "cogl-context-private.h"
+#include "cogl-util-gl-private.h"
 #include "cogl-pipeline-private.h"
-#include "driver/gl/cogl-util-gl-private.h"
-#include "driver/gl/cogl-pipeline-opengl-private.h"
+#include "cogl-pipeline-opengl-private.h"
+
+#ifdef COGL_PIPELINE_VERTEND_GLSL
 
 #include "cogl-context-private.h"
 #include "cogl-object-private.h"
+#include "cogl-program-private.h"
+#include "cogl-pipeline-vertend-glsl-private.h"
 #include "cogl-pipeline-state-private.h"
 #include "cogl-glsl-shader-private.h"
-#include "driver/gl/cogl-pipeline-vertend-glsl-private.h"
-#include "deprecated/cogl-program-private.h"
 
 const CoglPipelineVertend _cogl_pipeline_glsl_vertend;
 
@@ -162,14 +166,20 @@ get_layer_vertex_snippets (CoglPipelineLayer *layer)
   return &layer->big_state->vertex_snippets;
 }
 
-static gboolean
+static CoglBool
 add_layer_declaration_cb (CoglPipelineLayer *layer,
                           void *user_data)
 {
   CoglPipelineShaderState *shader_state = user_data;
+  CoglTextureType texture_type =
+    _cogl_pipeline_layer_get_texture_type (layer);
+  const char *target_string;
+
+  _cogl_gl_util_get_texture_target_string (texture_type, &target_string, NULL);
 
   g_string_append_printf (shader_state->header,
-                          "uniform sampler2D cogl_sampler%i;\n",
+                          "uniform sampler%s cogl_sampler%i;\n",
+                          target_string,
                           layer->index);
 
   return TRUE;
@@ -305,7 +315,8 @@ _cogl_pipeline_vertend_glsl_start (CoglPipeline *pipeline,
   if (cogl_pipeline_get_per_vertex_point_size (pipeline))
     g_string_append (shader_state->header,
                      "attribute float cogl_point_size_in;\n");
-  else
+  else if (!_cogl_has_private_feature
+           (ctx, COGL_PRIVATE_FEATURE_BUILTIN_POINT_SIZE_UNIFORM))
     {
       /* There is no builtin uniform for the point size on GLES2 so we
          need to copy it from the custom uniform in the vertex shader
@@ -323,7 +334,7 @@ _cogl_pipeline_vertend_glsl_start (CoglPipeline *pipeline,
     }
 }
 
-static gboolean
+static CoglBool
 _cogl_pipeline_vertend_glsl_add_layer (CoglPipeline *pipeline,
                                        CoglPipelineLayer *layer,
                                        unsigned long layers_difference,
@@ -396,7 +407,7 @@ _cogl_pipeline_vertend_glsl_add_layer (CoglPipeline *pipeline,
   return TRUE;
 }
 
-static gboolean
+static CoglBool
 _cogl_pipeline_vertend_glsl_end (CoglPipeline *pipeline,
                                  unsigned long pipelines_difference)
 {
@@ -414,7 +425,7 @@ _cogl_pipeline_vertend_glsl_end (CoglPipeline *pipeline,
       GLuint shader;
       CoglPipelineSnippetData snippet_data;
       CoglPipelineSnippetList *vertex_snippets;
-      gboolean has_per_vertex_point_size =
+      CoglBool has_per_vertex_point_size =
         cogl_pipeline_get_per_vertex_point_size (pipeline);
 
       COGL_STATIC_COUNTER (vertend_glsl_compile_counter,
@@ -540,6 +551,19 @@ _cogl_pipeline_vertend_glsl_end (CoglPipeline *pipeline,
       shader_state->gl_shader = shader;
     }
 
+#ifdef HAVE_COGL_GL
+  if (_cogl_has_private_feature
+      (ctx, COGL_PRIVATE_FEATURE_BUILTIN_POINT_SIZE_UNIFORM) &&
+      (pipelines_difference & COGL_PIPELINE_STATE_POINT_SIZE))
+    {
+      CoglPipeline *authority =
+        _cogl_pipeline_get_authority (pipeline, COGL_PIPELINE_STATE_POINT_SIZE);
+
+      if (authority->big_state->point_size > 0.0f)
+        GE( ctx, glPointSize (authority->big_state->point_size) );
+    }
+#endif /* HAVE_COGL_GL */
+
   return TRUE;
 }
 
@@ -637,7 +661,11 @@ UNIT_TEST (check_point_size_shader,
    * size */
   if (shader_states[0])
     {
-      g_assert (shader_states[0] != shader_states[1]);
+      if (_cogl_has_private_feature
+          (test_ctx, COGL_PRIVATE_FEATURE_BUILTIN_POINT_SIZE_UNIFORM))
+        g_assert (shader_states[0] == shader_states[1]);
+      else
+        g_assert (shader_states[0] != shader_states[1]);
     }
 
   /* The second and third pipelines should always have the same shader
@@ -648,3 +676,5 @@ UNIT_TEST (check_point_size_shader,
   /* The fourth pipeline should be exactly the same as the first */
   g_assert (shader_states[0] == shader_states[3]);
 }
+
+#endif /* COGL_PIPELINE_VERTEND_GLSL */

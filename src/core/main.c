@@ -43,60 +43,56 @@
 
 #define _XOPEN_SOURCE /* for putenv() and some signal-related functions */
 
-#include "config.h"
+#include <config.h>
+#include <meta/main.h>
+#include "util-private.h"
+#include "display-private.h"
+#include <meta/errors.h>
+#include "ui.h"
+#include <meta/prefs.h>
+#include <meta/compositor.h>
+#include <meta/meta-backend.h>
+#include "core/main-private.h"
 
-#include "meta/main.h"
-
-#include <errno.h>
-#include <fcntl.h>
 #include <glib-object.h>
 #include <glib-unix.h>
-#include <locale.h>
-#include <signal.h>
-#include <stdio.h>
+
 #include <stdlib.h>
-#include <string.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <stdio.h>
+#include <string.h>
+#include <signal.h>
+#include <unistd.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <locale.h>
 #include <time.h>
 #include <unistd.h>
-#include <unistd.h>
+
+#include <clutter/clutter.h>
 
 #ifdef HAVE_INTROSPECTION
 #include <girepository.h>
 #endif
 
-#if defined(HAVE_NATIVE_BACKEND) && defined(HAVE_WAYLAND)
-#include <systemd/sd-login.h>
-#endif /* HAVE_WAYLAND && HAVE_NATIVE_BACKEND */
-
-#ifdef HAVE_SYS_PRCTL
-#include <sys/prctl.h>
-#endif
-
-#include "backends/meta-backend-private.h"
-#include "backends/x11/cm/meta-backend-x11-cm.h"
-#include "backends/x11/meta-backend-x11.h"
-#include "clutter/clutter.h"
-#include "core/display-private.h"
-#include "core/main-private.h"
-#include "core/util-private.h"
-#include "meta/compositor.h"
-#include "meta/meta-backend.h"
-#include "meta/meta-x11-errors.h"
-#include "meta/prefs.h"
-#include "ui/ui.h"
 #include "x11/session.h"
 
 #ifdef HAVE_WAYLAND
-#include "backends/x11/nested/meta-backend-x11-nested.h"
 #include "wayland/meta-wayland.h"
-#include "wayland/meta-xwayland.h"
-#endif
+#include "backends/x11/nested/meta-backend-x11-nested.h"
+# endif
+
+#include "backends/meta-backend-private.h"
+#include "backends/x11/meta-backend-x11.h"
+#include "backends/x11/cm/meta-backend-x11-cm.h"
 
 #ifdef HAVE_NATIVE_BACKEND
 #include "backends/native/meta-backend-native.h"
-#endif
+#ifdef HAVE_WAYLAND
+#include <systemd/sd-login.h>
+#endif /* HAVE_WAYLAND */
+#endif /* HAVE_NATIVE_BACKEND */
 
 /*
  * The exit code we'll return to our parent process when we eventually die.
@@ -123,6 +119,11 @@ static void prefs_changed_callback (MetaPreference pref,
 static void
 meta_print_compilation_info (void)
 {
+#ifdef HAVE_RANDR
+  meta_verbose ("Compiled with randr extension\n");
+#else
+  meta_verbose ("Compiled without randr extension\n");
+#endif
 #ifdef HAVE_STARTUP_NOTIFICATION
   meta_verbose ("Compiled with startup notification\n");
 #else
@@ -176,7 +177,6 @@ static gboolean  opt_sync;
 #ifdef HAVE_WAYLAND
 static gboolean  opt_wayland;
 static gboolean  opt_nested;
-static gboolean  opt_no_x11;
 #endif
 #ifdef HAVE_NATIVE_BACKEND
 static gboolean  opt_display_server;
@@ -230,12 +230,6 @@ static GOptionEntry meta_options[] = {
     "nested", 0, 0, G_OPTION_ARG_NONE,
     &opt_nested,
     N_("Run as a nested compositor"),
-    NULL
-  },
-  {
-    "no-x11", 0, 0, G_OPTION_ARG_NONE,
-    &opt_no_x11,
-    N_("Run wayland compositor without starting Xwayland"),
     NULL
   },
 #endif
@@ -306,7 +300,7 @@ meta_finalize (void)
 
   if (display)
     meta_display_close (display,
-                        META_CURRENT_TIME); /* I doubt correct timestamps matter here */
+                        CurrentTime); /* I doubt correct timestamps matter here */
 
 #ifdef HAVE_WAYLAND
   if (meta_is_wayland_compositor ())
@@ -423,7 +417,7 @@ check_for_wayland_session_type (void)
  *
  * If no flag is passed that forces the compositor type, the compositor type
  * is determined first from the logind session type, or if that fails, from the
- * XDG_SESSION_TYPE environment variable.
+ * XDG_SESSION_TYPE enviornment variable.
  *
  * If no flag is passed that forces the backend type, the backend type is
  * determined given the compositor type. If the compositor is a Wayland
@@ -458,12 +452,6 @@ calculate_compositor_configuration (MetaCompositorType *compositor_type,
   if (!run_as_wayland_compositor && !opt_x11)
     run_as_wayland_compositor = check_for_wayland_session_type ();
 #endif /* HAVE_NATIVE_BACKEND */
-
-  if (!run_as_wayland_compositor && opt_no_x11)
-    {
-      meta_warning ("Can't disable X11 support on X11 compositor\n");
-      meta_exit (META_EXIT_ERROR);
-    }
 
   if (run_as_wayland_compositor)
     *compositor_type = META_COMPOSITOR_TYPE_WAYLAND;
@@ -535,10 +523,6 @@ meta_init (void)
   sigset_t empty_mask;
   MetaCompositorType compositor_type;
   GType backend_gtype;
-
-#ifdef HAVE_SYS_PRCTL
-  prctl (PR_SET_DUMPABLE, 1);
-#endif
 
   sigemptyset (&empty_mask);
   act.sa_handler = SIG_IGN;
@@ -615,6 +599,10 @@ meta_init (void)
     meta_fatal ("Can't specify both SM save file and SM client id\n");
 
   meta_main_loop = g_main_loop_new (NULL, FALSE);
+
+  meta_ui_init ();
+
+  meta_restart_init ();
 }
 
 /**
@@ -717,55 +705,11 @@ prefs_changed_callback (MetaPreference pref,
   switch (pref)
     {
     case META_PREF_DRAGGABLE_BORDER_WIDTH:
-      meta_display_queue_retheme_all_windows (meta_get_display ());
+      meta_display_retheme_all ();
       break;
 
     default:
       /* handled elsewhere or otherwise */
       break;
     }
-}
-
-MetaDisplayPolicy
-meta_get_x11_display_policy (void)
-{
-  MetaBackend *backend = meta_get_backend ();
-
-  if (META_IS_BACKEND_X11_CM (backend))
-    return META_DISPLAY_POLICY_MANDATORY;
-
-#ifdef HAVE_WAYLAND
-  if (meta_is_wayland_compositor ())
-    {
-      MetaSettings *settings = meta_backend_get_settings (backend);
-
-      if (opt_no_x11)
-        return META_DISPLAY_POLICY_DISABLED;
-
-      if (meta_settings_is_experimental_feature_enabled (settings,
-                                                         META_EXPERIMENTAL_FEATURE_AUTOSTART_XWAYLAND))
-        return META_DISPLAY_POLICY_ON_DEMAND;
-    }
-#endif
-
-  return META_DISPLAY_POLICY_MANDATORY;
-}
-
-void
-meta_test_init (void)
-{
-#if defined(HAVE_WAYLAND)
-  g_autofree char *display_name = g_strdup ("mutter-test-display-XXXXXX");
-  int fd = g_mkstemp (display_name);
-
-  meta_override_compositor_configuration (META_COMPOSITOR_TYPE_WAYLAND,
-                                          META_TYPE_BACKEND_X11_NESTED);
-  meta_wayland_override_display_name (display_name);
-  meta_xwayland_override_display_number (512 + rand() % 512);
-  meta_init ();
-
-  close (fd);
-#else
-  g_warning ("Tests require wayland support");
-#endif
 }

@@ -28,7 +28,9 @@
  *
  */
 
+#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
+#endif
 
 #include "math.h"
 
@@ -79,8 +81,8 @@ _cogl_span_iter_begin (CoglSpanIter *iter,
 {
   /* XXX: If CLAMP_TO_EDGE needs to be emulated then it needs to be
    * done at a higher level than here... */
-  g_return_if_fail (wrap_mode == COGL_PIPELINE_WRAP_MODE_REPEAT ||
-                    wrap_mode == COGL_PIPELINE_WRAP_MODE_MIRRORED_REPEAT);
+  _COGL_RETURN_IF_FAIL (wrap_mode == COGL_PIPELINE_WRAP_MODE_REPEAT ||
+                        wrap_mode == COGL_PIPELINE_WRAP_MODE_MIRRORED_REPEAT);
 
   iter->span = NULL;
 
@@ -171,7 +173,7 @@ _cogl_span_iter_next (CoglSpanIter *iter)
   _cogl_span_iter_update (iter);
 }
 
-gboolean
+CoglBool
 _cogl_span_iter_end (CoglSpanIter *iter)
 {
   /* End reached when whole area covered */

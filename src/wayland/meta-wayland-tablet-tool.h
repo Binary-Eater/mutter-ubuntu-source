@@ -22,12 +22,12 @@
 #ifndef META_WAYLAND_TABLET_TOOL_H
 #define META_WAYLAND_TABLET_TOOL_H
 
-#include <glib.h>
 #include <wayland-server.h>
 
-#include "backends/meta-cursor-renderer.h"
-#include "backends/meta-cursor-sprite-xcursor.h"
-#include "wayland/meta-wayland-types.h"
+#include <glib.h>
+
+#include "meta-wayland-types.h"
+#include "meta-cursor-renderer.h"
 
 struct _MetaWaylandTabletTool
 {
@@ -43,8 +43,8 @@ struct _MetaWaylandTabletTool
   MetaWaylandSurface *cursor_surface;
   struct wl_listener cursor_surface_destroy_listener;
   MetaCursorRenderer *cursor_renderer;
-  MetaCursorSpriteXcursor *default_sprite;
-  gulong prepare_at_signal_id;
+  MetaCursorSprite *default_sprite;
+  guint prepare_at_signal_id;
 
   MetaWaylandSurface *current;
   guint32 pressed_buttons;
@@ -84,8 +84,6 @@ void     meta_wayland_tablet_tool_set_cursor_position (MetaWaylandTabletTool  *t
 
 gboolean meta_wayland_tablet_tool_can_grab_surface (MetaWaylandTabletTool *tool,
                                                     MetaWaylandSurface    *surface,
-                                                    uint32_t               serial);
-gboolean meta_wayland_tablet_tool_can_popup        (MetaWaylandTabletTool *tool,
                                                     uint32_t               serial);
 
 #endif /* META_WAYLAND_TABLET_TOOL_H */

@@ -40,7 +40,7 @@
 #include <cogl/cogl-defines.h>
 #include <cogl/cogl-context.h>
 
-G_BEGIN_DECLS
+COGL_BEGIN_DECLS
 
 /**
  * SECTION:cogl-poll
@@ -157,7 +157,7 @@ typedef struct {
  * Stability: unstable
  * Since: 1.16
  */
-COGL_EXPORT int
+int
 cogl_poll_renderer_get_info (CoglRenderer *renderer,
                              CoglPollFD **poll_fds,
                              int *n_poll_fds,
@@ -185,11 +185,11 @@ cogl_poll_renderer_get_info (CoglRenderer *renderer,
  * Stability: unstable
  * Since: 1.16
  */
-COGL_EXPORT void
+void
 cogl_poll_renderer_dispatch (CoglRenderer *renderer,
                              const CoglPollFD *poll_fds,
                              int n_poll_fds);
 
-G_END_DECLS
+COGL_END_DECLS
 
 #endif /* __COGL_POLL_H__ */

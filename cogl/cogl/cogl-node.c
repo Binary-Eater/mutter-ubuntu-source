@@ -31,7 +31,9 @@
  *   Robert Bragg <robert@linux.intel.com>
  */
 
+#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
+#endif
 
 #include "cogl-util.h"
 #include "cogl-node-private.h"
@@ -47,7 +49,7 @@ void
 _cogl_pipeline_node_set_parent_real (CoglNode *node,
                                      CoglNode *parent,
                                      CoglNodeUnparentVFunc unparent,
-                                     gboolean take_strong_reference)
+                                     CoglBool take_strong_reference)
 {
   /* NB: the old parent may indirectly be keeping the new parent alive
    * so we have to ref the new parent before unrefing the old.
@@ -84,7 +86,7 @@ _cogl_pipeline_node_unparent_real (CoglNode *node)
   if (parent == NULL)
     return;
 
-  g_return_if_fail (!_cogl_list_empty (&parent->children));
+  _COGL_RETURN_IF_FAIL (!_cogl_list_empty (&parent->children));
 
   _cogl_list_remove (&node->link);
 

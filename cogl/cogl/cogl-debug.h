@@ -37,10 +37,9 @@
 
 #include <glib.h>
 
-G_BEGIN_DECLS
+COGL_BEGIN_DECLS
 
-typedef enum
-{
+typedef enum {
   COGL_DEBUG_SLICING,
   COGL_DEBUG_OFFSCREEN,
   COGL_DEBUG_DRAW,
@@ -49,6 +48,7 @@ typedef enum
   COGL_DEBUG_OBJECT,
   COGL_DEBUG_BLEND_STRINGS,
   COGL_DEBUG_DISABLE_BATCHING,
+  COGL_DEBUG_DISABLE_VBOS,
   COGL_DEBUG_DISABLE_PBOS,
   COGL_DEBUG_JOURNAL,
   COGL_DEBUG_BATCHING,
@@ -60,10 +60,14 @@ typedef enum
   COGL_DEBUG_DISABLE_SHARED_ATLAS,
   COGL_DEBUG_OPENGL,
   COGL_DEBUG_DISABLE_TEXTURING,
+  COGL_DEBUG_DISABLE_ARBFP,
+  COGL_DEBUG_DISABLE_FIXED,
+  COGL_DEBUG_DISABLE_GLSL,
   COGL_DEBUG_SHOW_SOURCE,
   COGL_DEBUG_DISABLE_BLENDING,
   COGL_DEBUG_TEXTURE_PIXMAP,
   COGL_DEBUG_BITMAP,
+  COGL_DEBUG_DISABLE_NPOT_TEXTURES,
   COGL_DEBUG_WIREFRAME,
   COGL_DEBUG_DISABLE_SOFTWARE_CLIP,
   COGL_DEBUG_DISABLE_PROGRAM_CACHES,
@@ -75,12 +79,10 @@ typedef enum
   COGL_DEBUG_N_FLAGS
 } CoglDebugFlags;
 
-COGL_EXPORT
-GHashTable *_cogl_debug_instances;
+extern GHashTable *_cogl_debug_instances;
 #define COGL_DEBUG_N_LONGS COGL_FLAGS_N_LONGS_FOR_SIZE (COGL_DEBUG_N_FLAGS)
 
-COGL_EXPORT
-unsigned long _cogl_debug_flags[COGL_DEBUG_N_LONGS];
+extern unsigned long _cogl_debug_flags[COGL_DEBUG_N_LONGS];
 
 #define COGL_DEBUG_ENABLED(flag) \
   COGL_FLAGS_GET (_cogl_debug_flags, flag)
@@ -112,10 +114,10 @@ _cogl_debug_check_environment (void);
 
 void
 _cogl_parse_debug_string (const char *value,
-                          gboolean enable,
-                          gboolean ignore_help);
+                          CoglBool enable,
+                          CoglBool ignore_help);
 
-G_END_DECLS
+COGL_END_DECLS
 
 #endif /* __COGL_DEBUG_H__ */
 

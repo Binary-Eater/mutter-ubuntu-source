@@ -248,7 +248,7 @@ experimental_features_handler (GVariant *features_variant,
 {
   MetaSettings *settings = data;
   GVariantIter features_iter;
-  char *feature_str;
+  char *feature;
   MetaExperimentalFeature features = META_EXPERIMENTAL_FEATURE_NONE;
 
   if (settings->experimental_features_overridden)
@@ -258,25 +258,19 @@ experimental_features_handler (GVariant *features_variant,
     }
 
   g_variant_iter_init (&features_iter, features_variant);
-  while (g_variant_iter_loop (&features_iter, "s", &feature_str))
+  while (g_variant_iter_loop (&features_iter, "s", &feature))
     {
-      MetaExperimentalFeature feature = META_EXPERIMENTAL_FEATURE_NONE;
-
-      if (g_str_equal (feature_str, "scale-monitor-framebuffer"))
-        feature = META_EXPERIMENTAL_FEATURE_SCALE_MONITOR_FRAMEBUFFER;
-      else if (g_str_equal (feature_str, "kms-modifiers"))
-        feature = META_EXPERIMENTAL_FEATURE_KMS_MODIFIERS;
-      else if (g_str_equal (feature_str, "rt-scheduler"))
-        feature = META_EXPERIMENTAL_FEATURE_RT_SCHEDULER;
-      else if (g_str_equal (feature_str, "autostart-xwayland"))
-        feature = META_EXPERIMENTAL_FEATURE_AUTOSTART_XWAYLAND;
-
-      if (feature)
-        g_message ("Enabling experimental feature '%s'", feature_str);
+      /* So far no experimental features defined. */
+      if (g_str_equal (feature, "scale-monitor-framebuffer"))
+        features |= META_EXPERIMENTAL_FEATURE_SCALE_MONITOR_FRAMEBUFFER;
+      else if (g_str_equal (feature, "screen-cast"))
+        features |= META_EXPERIMENTAL_FEATURE_SCREEN_CAST;
+      else if (g_str_equal (feature, "remote-desktop"))
+        features |= META_EXPERIMENTAL_FEATURE_REMOTE_DESKTOP;
+      else if (g_str_equal (feature, "kms-modifiers"))
+        features |= META_EXPERIMENTAL_FEATURE_KMS_MODIFIERS;
       else
-        g_warning ("Unknown experimental feature '%s'", feature_str);
-
-      features |= feature;
+        g_info ("Unknown experimental feature '%s'\n", feature);
     }
 
   if (features != settings->experimental_features)
@@ -413,7 +407,7 @@ meta_settings_get_xwayland_grab_patterns (MetaSettings  *settings,
 }
 
 gboolean
-meta_settings_are_xwayland_grabs_allowed (MetaSettings *settings)
+ meta_settings_are_xwayland_grabs_allowed (MetaSettings *settings)
 {
   return (settings->xwayland_allow_grabs);
 }

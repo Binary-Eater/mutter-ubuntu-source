@@ -29,7 +29,9 @@
  *   Robert Bragg <robert@linux.intel.com>
  */
 
+#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
+#endif
 
 #include <glib.h>
 #include <string.h>
@@ -46,10 +48,16 @@ cogl_object_ref (void *object)
 {
   CoglObject *obj = object;
 
-  g_return_val_if_fail (object != NULL, NULL);
+  _COGL_RETURN_VAL_IF_FAIL (object != NULL, NULL);
 
   obj->ref_count++;
   return object;
+}
+
+CoglHandle
+cogl_handle_ref (CoglHandle handle)
+{
+  return cogl_object_ref (handle);
 }
 
 void
@@ -57,8 +65,8 @@ _cogl_object_default_unref (void *object)
 {
   CoglObject *obj = object;
 
-  g_return_if_fail (object != NULL);
-  g_return_if_fail (obj->ref_count > 0);
+  _COGL_RETURN_IF_FAIL (object != NULL);
+  _COGL_RETURN_IF_FAIL (obj->ref_count > 0);
 
   if (--obj->ref_count < 1)
     {
@@ -103,10 +111,16 @@ cogl_object_unref (void *obj)
 {
   void (* unref_func) (void *);
 
-  g_return_if_fail (obj != NULL);
+  _COGL_RETURN_IF_FAIL (obj != NULL);
 
   unref_func = ((CoglObject *) obj)->klass->virt_unref;
   unref_func (obj);
+}
+
+void
+cogl_handle_unref (CoglHandle handle)
+{
+  cogl_object_unref (handle);
 }
 
 GType

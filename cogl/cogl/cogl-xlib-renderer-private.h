@@ -31,8 +31,6 @@
 #ifndef __COGL_RENDERER_XLIB_PRIVATE_H
 #define __COGL_RENDERER_XLIB_PRIVATE_H
 
-#include <X11/Xutil.h>
-
 #include "cogl-object-private.h"
 #include "cogl-xlib-private.h"
 #include "cogl-x11-renderer-private.h"
@@ -54,8 +52,8 @@ typedef struct _CoglXlibRenderer
   XVisualInfo *xvisinfo;
 } CoglXlibRenderer;
 
-gboolean
-_cogl_xlib_renderer_connect (CoglRenderer *renderer, GError **error);
+CoglBool
+_cogl_xlib_renderer_connect (CoglRenderer *renderer, CoglError **error);
 
 void
 _cogl_xlib_renderer_disconnect (CoglRenderer *renderer);
@@ -91,6 +89,9 @@ _cogl_xlib_renderer_untrap_errors (CoglRenderer *renderer,
 
 CoglXlibRenderer *
 _cogl_xlib_renderer_get_data (CoglRenderer *renderer);
+
+int64_t
+_cogl_xlib_renderer_get_dispatch_timeout (CoglRenderer *renderer);
 
 CoglOutput *
 _cogl_xlib_renderer_output_for_rectangle (CoglRenderer *renderer,

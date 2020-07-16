@@ -20,13 +20,11 @@
  */
 
 #include "config.h"
-
-#include "core/window-private.h"
+#include "window-private.h"
 #include "meta/meta-close-dialog.h"
 #include "meta/meta-enum-types.h"
 
-enum
-{
+enum {
   RESPONSE,
   N_SIGNALS
 };

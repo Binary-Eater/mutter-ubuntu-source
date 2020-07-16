@@ -58,7 +58,9 @@
  * #ClutterDropAction is available since Clutter 1.8
  */
 
+#ifdef HAVE_CONFIG_H
 #include "clutter-build-config.h"
+#endif
 
 #include "clutter-drop-action.h"
 
@@ -107,7 +109,7 @@ drop_target_free (gpointer _data)
 {
   DropTarget *data = _data;
 
-  g_clear_signal_handler (&data->capture_id, data->stage);
+  g_signal_handler_disconnect (data->stage, data->capture_id);
   g_hash_table_destroy (data->actions);
   g_free (data);
 }
@@ -326,10 +328,12 @@ clutter_drop_action_set_actor (ClutterActorMeta *meta,
     {
       drop_action_unregister (CLUTTER_DROP_ACTION (meta));
 
-      g_clear_signal_handler (&priv->mapped_id, priv->actor);
+      if (priv->mapped_id != 0)
+        g_signal_handler_disconnect (priv->actor, priv->mapped_id);
 
       priv->stage = NULL;
       priv->actor = NULL;
+      priv->mapped_id = 0;
     }
 
   priv->actor = actor;
@@ -426,7 +430,8 @@ clutter_drop_action_class_init (ClutterDropActionClass *klass)
                   G_TYPE_FROM_CLASS (klass),
                   G_SIGNAL_RUN_LAST,
                   G_STRUCT_OFFSET (ClutterDropActionClass, over_in),
-                  NULL, NULL, NULL,
+                  NULL, NULL,
+                  _clutter_marshal_VOID__OBJECT,
                   G_TYPE_NONE, 1,
                   CLUTTER_TYPE_ACTOR);
 
@@ -445,7 +450,8 @@ clutter_drop_action_class_init (ClutterDropActionClass *klass)
                   G_TYPE_FROM_CLASS (klass),
                   G_SIGNAL_RUN_LAST,
                   G_STRUCT_OFFSET (ClutterDropActionClass, over_out),
-                  NULL, NULL, NULL,
+                  NULL, NULL,
+                  _clutter_marshal_VOID__OBJECT,
                   G_TYPE_NONE, 1,
                   CLUTTER_TYPE_ACTOR);
 

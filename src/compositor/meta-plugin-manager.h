@@ -22,12 +22,11 @@
 #ifndef META_PLUGIN_MANAGER_H_
 #define META_PLUGIN_MANAGER_H_
 
-#include "core/util-private.h"
-#include "meta/meta-plugin.h"
-#include "meta/types.h"
+#include <meta/types.h>
+#include <meta/screen.h>
+#include <meta/meta-plugin.h>
 
-typedef enum
-{
+typedef enum {
   META_PLUGIN_NONE,
   META_PLUGIN_MINIMIZE,
   META_PLUGIN_MAP,
@@ -45,7 +44,6 @@ typedef struct MetaPluginManager MetaPluginManager;
 
 MetaPluginManager * meta_plugin_manager_new (MetaCompositor *compositor);
 
-META_EXPORT_TEST
 void     meta_plugin_manager_load         (const gchar       *plugin_name);
 
 gboolean meta_plugin_manager_event_simple (MetaPluginManager *mgr,
@@ -99,7 +97,5 @@ MetaCloseDialog * meta_plugin_manager_create_close_dialog (MetaPluginManager *pl
 MetaInhibitShortcutsDialog *
   meta_plugin_manager_create_inhibit_shortcuts_dialog (MetaPluginManager *plugin_mgr,
                                                        MetaWindow        *window);
-
-void meta_plugin_manager_locate_pointer (MetaPluginManager *mgr);
 
 #endif

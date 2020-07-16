@@ -40,15 +40,9 @@ typedef struct _CoglDriverVtable CoglDriverVtable;
 
 struct _CoglDriverVtable
 {
-  gboolean
-  (* context_init) (CoglContext *context);
-
-  void
-  (* context_deinit) (CoglContext *context);
-
   /* TODO: factor this out since this is OpenGL specific and
    * so can be ignored by non-OpenGL drivers. */
-  gboolean
+  CoglBool
   (* pixel_format_from_gl_internal) (CoglContext *context,
                                      GLenum gl_int_format,
                                      CoglPixelFormat *out_format);
@@ -61,14 +55,21 @@ struct _CoglDriverVtable
                           GLenum *out_glintformat,
                           GLenum *out_glformat,
                           GLenum *out_gltype);
+  CoglPixelFormat
+  (* pixel_format_to_gl_with_target) (CoglContext *context,
+                                      CoglPixelFormat format,
+                                      CoglPixelFormat target_format,
+                                      GLenum *out_glintformat,
+                                      GLenum *out_glformat,
+                                      GLenum *out_gltype);
 
-  gboolean
+  CoglBool
   (* update_features) (CoglContext *context,
-                       GError **error);
+                       CoglError **error);
 
-  gboolean
+  CoglBool
   (* offscreen_allocate) (CoglOffscreen *offscreen,
-                          GError **error);
+                          CoglError **error);
 
   void
   (* offscreen_free) (CoglOffscreen *offscreen);
@@ -92,9 +93,6 @@ struct _CoglDriverVtable
 
   void
   (* framebuffer_finish) (CoglFramebuffer *framebuffer);
-
-  void
-  (* framebuffer_flush) (CoglFramebuffer *framebuffer);
 
   void
   (* framebuffer_discard_buffers) (CoglFramebuffer *framebuffer,
@@ -121,13 +119,13 @@ struct _CoglDriverVtable
                                            int n_attributes,
                                            CoglDrawFlags flags);
 
-  gboolean
+  CoglBool
   (* framebuffer_read_pixels_into_bitmap) (CoglFramebuffer *framebuffer,
                                            int x,
                                            int y,
                                            CoglReadPixelsFlags source,
                                            CoglBitmap *bitmap,
-                                           GError **error);
+                                           CoglError **error);
 
   /* Destroys any driver specific resources associated with the given
    * 2D texture. */
@@ -137,7 +135,7 @@ struct _CoglDriverVtable
   /* Returns TRUE if the driver can support creating a 2D texture with
    * the given geometry and specified internal format.
    */
-  gboolean
+  CoglBool
   (* texture_2d_can_create) (CoglContext *ctx,
                              int width,
                              int height,
@@ -153,9 +151,9 @@ struct _CoglDriverVtable
 
   /* Allocates (uninitialized) storage for the given texture according
    * to the configured size and format of the texture */
-  gboolean
+  CoglBool
   (* texture_2d_allocate) (CoglTexture *tex,
-                           GError **error);
+                           CoglError **error);
 
   /* Initialize the specified region of storage of the given texture
    * with the contents of the specified framebuffer region
@@ -189,7 +187,7 @@ struct _CoglDriverVtable
    * Since this may need to create the underlying storage first
    * it may throw a NO_MEMORY error.
    */
-  gboolean
+  CoglBool
   (* texture_2d_copy_from_bitmap) (CoglTexture2D *tex_2d,
                                    int src_x,
                                    int src_y,
@@ -199,10 +197,7 @@ struct _CoglDriverVtable
                                    int dst_x,
                                    int dst_y,
                                    int level,
-                                   GError **error);
-
-  gboolean
-  (* texture_2d_is_get_data_supported) (CoglTexture2D *tex_2d);
+                                   CoglError **error);
 
   /* Reads back the full contents of the given texture and write it to
    * @data in the given @format and with the given @rowstride.
@@ -248,7 +243,7 @@ struct _CoglDriverVtable
                         size_t size,
                         CoglBufferAccess access,
                         CoglBufferMapHint hints,
-                        GError **error);
+                        CoglError **error);
 
   /* Unmaps a buffer */
   void
@@ -256,18 +251,17 @@ struct _CoglDriverVtable
 
   /* Uploads data to the buffer without needing to map it necessarily
    */
-  gboolean
+  CoglBool
   (* buffer_set_data) (CoglBuffer *buffer,
                        unsigned int offset,
                        const void *data,
                        unsigned int size,
-                       GError **error);
+                       CoglError **error);
 };
 
 #define COGL_DRIVER_ERROR (_cogl_driver_error_quark ())
 
-typedef enum /*< prefix=COGL_DRIVER_ERROR >*/
-{
+typedef enum { /*< prefix=COGL_DRIVER_ERROR >*/
   COGL_DRIVER_ERROR_UNKNOWN_VERSION,
   COGL_DRIVER_ERROR_INVALID_VERSION,
   COGL_DRIVER_ERROR_NO_SUITABLE_DRIVER_FOUND,

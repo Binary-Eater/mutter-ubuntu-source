@@ -47,7 +47,7 @@ typedef struct _CoglAttributeBuffer CoglAttributeBuffer;
 
 #include <glib-object.h>
 
-G_BEGIN_DECLS
+COGL_BEGIN_DECLS
 
 /**
  * SECTION:cogl-attribute-buffer
@@ -64,7 +64,6 @@ G_BEGIN_DECLS
  *
  * Returns: a #GType that can be used with the GLib type system.
  */
-COGL_EXPORT
 GType cogl_attribute_buffer_get_gtype (void);
 
 /**
@@ -90,7 +89,7 @@ GType cogl_attribute_buffer_get_gtype (void);
  *
  * Stability: Unstable
  */
-COGL_EXPORT CoglAttributeBuffer *
+CoglAttributeBuffer *
 cogl_attribute_buffer_new_with_size (CoglContext *context,
                                      size_t bytes);
 
@@ -123,7 +122,7 @@ cogl_attribute_buffer_new_with_size (CoglContext *context,
  * Since: 1.4
  * Stability: Unstable
  */
-COGL_EXPORT CoglAttributeBuffer *
+CoglAttributeBuffer *
 cogl_attribute_buffer_new (CoglContext *context,
                            size_t bytes,
                            const void *data);
@@ -140,10 +139,10 @@ cogl_attribute_buffer_new (CoglContext *context,
  * Since: 1.4
  * Stability: Unstable
  */
-COGL_EXPORT gboolean
+CoglBool
 cogl_is_attribute_buffer (void *object);
 
-G_END_DECLS
+COGL_END_DECLS
 
 #endif /* __COGL_ATTRIBUTE_BUFFER_H__ */
 

@@ -15,19 +15,6 @@
  * License along with this library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-/**
- * SECTION:meta-renderer-view
- * @title: MetaRendererView
- * @short_description: Renders (a part of) the global stage.
- *
- * A MetaRendererView object is responsible for rendering (a part of) the
- * global stage, or more precisely: the part that matches what can be seen on a
- * #MetaLogicalMonitor. By splitting up the rendering into different parts and
- * attaching it to a #MetaLogicalMonitor, we can do the rendering so that each
- * renderer view is responsible for applying the right #MetaMonitorTransform
- * and the right scaling.
- */
-
 #include "config.h"
 
 #include "backends/meta-renderer-view.h"
@@ -39,6 +26,7 @@ enum
 {
   PROP_0,
 
+  PROP_MONITOR_INFO,
   PROP_TRANSFORM,
 
   PROP_LAST
@@ -51,10 +39,17 @@ struct _MetaRendererView
   ClutterStageViewCogl parent;
 
   MetaMonitorTransform transform;
+  MetaLogicalMonitor *logical_monitor;
 };
 
 G_DEFINE_TYPE (MetaRendererView, meta_renderer_view,
                CLUTTER_TYPE_STAGE_VIEW_COGL)
+
+MetaLogicalMonitor *
+meta_renderer_view_get_logical_monitor (MetaRendererView *view)
+{
+  return view->logical_monitor;
+}
 
 MetaMonitorTransform
 meta_renderer_view_get_transform (MetaRendererView *view)
@@ -138,6 +133,9 @@ meta_renderer_view_get_property (GObject    *object,
 
   switch (prop_id)
     {
+    case PROP_MONITOR_INFO:
+      g_value_set_pointer (value, view->logical_monitor);
+      break;
     case PROP_TRANSFORM:
       g_value_set_uint (value, view->transform);
       break;
@@ -157,6 +155,9 @@ meta_renderer_view_set_property (GObject      *object,
 
   switch (prop_id)
     {
+    case PROP_MONITOR_INFO:
+      view->logical_monitor = g_value_get_pointer (value);
+      break;
     case PROP_TRANSFORM:
       meta_renderer_view_set_transform (view, g_value_get_uint (value));
       break;
@@ -185,6 +186,13 @@ meta_renderer_view_class_init (MetaRendererViewClass *klass)
   object_class->get_property = meta_renderer_view_get_property;
   object_class->set_property = meta_renderer_view_set_property;
 
+  obj_props[PROP_MONITOR_INFO] =
+    g_param_spec_pointer ("logical-monitor",
+                          "MetaLogicalMonitor",
+                          "The logical monitor of the view",
+                          G_PARAM_READWRITE |
+                          G_PARAM_STATIC_STRINGS |
+                          G_PARAM_CONSTRUCT_ONLY);
   obj_props[PROP_TRANSFORM] =
     g_param_spec_uint ("transform",
                        "Transform",

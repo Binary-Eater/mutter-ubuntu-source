@@ -42,7 +42,7 @@
 
 #include <glib-object.h>
 
-G_BEGIN_DECLS
+COGL_BEGIN_DECLS
 
 /**
  * SECTION:cogl-display
@@ -75,7 +75,6 @@ typedef struct _CoglDisplay	      CoglDisplay;
  *
  * Returns: a #GType that can be used with the GLib type system.
  */
-COGL_EXPORT
 GType cogl_display_get_gtype (void);
 
 /**
@@ -118,7 +117,7 @@ GType cogl_display_get_gtype (void);
  * Since: 1.10
  * Stability: unstable
  */
-COGL_EXPORT CoglDisplay *
+CoglDisplay *
 cogl_display_new (CoglRenderer *renderer,
                   CoglOnscreenTemplate *onscreen_template);
 
@@ -133,7 +132,7 @@ cogl_display_new (CoglRenderer *renderer,
  * Since: 1.10
  * Stability: unstable
  */
-COGL_EXPORT CoglRenderer *
+CoglRenderer *
 cogl_display_get_renderer (CoglDisplay *display);
 
 /**
@@ -152,14 +151,14 @@ cogl_display_get_renderer (CoglDisplay *display);
  * Since: 1.16
  * Stability: unstable
  */
-COGL_EXPORT void
+void
 cogl_display_set_onscreen_template (CoglDisplay *display,
                                     CoglOnscreenTemplate *onscreen_template);
 
 /**
  * cogl_display_setup:
  * @display: a #CoglDisplay
- * @error: return location for a #GError
+ * @error: return location for a #CoglError
  *
  * Explicitly sets up the given @display object. Use of this api is
  * optional since Cogl will internally setup the display if not done
@@ -187,9 +186,9 @@ cogl_display_set_onscreen_template (CoglDisplay *display,
  * Since: 1.10
  * Stability: unstable
  */
-COGL_EXPORT gboolean
+CoglBool
 cogl_display_setup (CoglDisplay *display,
-                    GError **error);
+                    CoglError **error);
 
 /**
  * cogl_is_display:
@@ -202,10 +201,10 @@ cogl_display_setup (CoglDisplay *display,
  * Since: 1.10
  * Stability: unstable
  */
-COGL_EXPORT gboolean
+CoglBool
 cogl_is_display (void *object);
 
-G_END_DECLS
+COGL_END_DECLS
 
 #endif /* __COGL_DISPLAY_H__ */
 

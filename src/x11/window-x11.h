@@ -23,10 +23,9 @@
 #ifndef META_WINDOW_X11_H
 #define META_WINDOW_X11_H
 
+#include <meta/window.h>
+#include <meta/compositor.h>
 #include <X11/Xlib.h>
-
-#include "meta/compositor.h"
-#include "meta/window.h"
 
 G_BEGIN_DECLS
 
@@ -51,12 +50,6 @@ MetaWindow * meta_window_x11_new           (MetaDisplay        *display,
 
 void meta_window_x11_set_net_wm_state            (MetaWindow *window);
 void meta_window_x11_set_wm_state                (MetaWindow *window);
-void meta_window_x11_set_wm_take_focus           (MetaWindow *window,
-                                                  gboolean    take_focus);
-void meta_window_x11_set_wm_ping                 (MetaWindow *window,
-                                                  gboolean    ping);
-void meta_window_x11_set_wm_delete_window        (MetaWindow *window,
-                                                  gboolean    delete_window);
 void meta_window_x11_set_allowed_actions_hint    (MetaWindow *window);
 
 void meta_window_x11_create_sync_request_alarm   (MetaWindow *window);
@@ -81,18 +74,4 @@ void     meta_window_x11_configure_notify        (MetaWindow      *window,
 
 Window   meta_window_x11_get_toplevel_xwindow    (MetaWindow *window);
 
-void     meta_window_x11_freeze_commits          (MetaWindow *window);
-void     meta_window_x11_thaw_commits            (MetaWindow *window);
-
-void     meta_window_x11_set_thaw_after_paint    (MetaWindow *window,
-                                                  gboolean    thaw_after_paint);
-gboolean meta_window_x11_should_thaw_after_paint (MetaWindow *window);
-gboolean meta_window_x11_always_update_shape     (MetaWindow *window);
-
-void meta_window_x11_surface_rect_to_frame_rect  (MetaWindow    *window,
-                                                  MetaRectangle *surface_rect,
-                                                  MetaRectangle *frame_rect);
-void meta_window_x11_surface_rect_to_client_rect (MetaWindow    *window,
-                                                  MetaRectangle *surface_rect,
-                                                  MetaRectangle *client_rect);
 #endif

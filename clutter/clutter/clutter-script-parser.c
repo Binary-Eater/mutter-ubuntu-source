@@ -24,7 +24,9 @@
  *      Emmanuele Bassi <ebassi@linux.intel.com>
  */
 
+#ifdef HAVE_CONFIG_H
 #include "clutter-build-config.h"
+#endif
 
 #include <string.h>
 #include <stdlib.h>
@@ -352,64 +354,63 @@ _clutter_script_parse_knot (ClutterScript *script,
 }
 
 static gboolean
-parse_rect_from_array (JsonArray       *array,
-                       graphene_rect_t *rect)
+parse_geometry_from_array (JsonArray       *array,
+                           ClutterGeometry *geometry)
 {
   if (json_array_get_length (array) != 4)
     return FALSE;
 
-  graphene_rect_init (rect,
-                      json_array_get_int_element (array, 0),
-                      json_array_get_int_element (array, 1),
-                      json_array_get_int_element (array, 2),
-                      json_array_get_int_element (array, 3));
+  geometry->x = json_array_get_int_element (array, 0);
+  geometry->y = json_array_get_int_element (array, 1);
+  geometry->width = json_array_get_int_element (array, 2);
+  geometry->height = json_array_get_int_element (array, 3);
 
   return TRUE;
 }
 
 static gboolean
-parse_rect_from_object (JsonObject      *object,
-                            graphene_rect_t *rect)
+parse_geometry_from_object (JsonObject      *object,
+                            ClutterGeometry *geometry)
 {
   if (json_object_has_member (object, "x"))
-    rect->origin.x = json_object_get_int_member (object, "x");
+    geometry->x = json_object_get_int_member (object, "x");
   else
-    rect->origin.x = 0;
+    geometry->x = 0;
 
   if (json_object_has_member (object, "y"))
-    rect->origin.y = json_object_get_int_member (object, "y");
+    geometry->y = json_object_get_int_member (object, "y");
   else
-    rect->origin.y = 0;
+    geometry->y = 0;
 
   if (json_object_has_member (object, "width"))
-    rect->size.width = json_object_get_int_member (object, "width");
+    geometry->width = json_object_get_int_member (object, "width");
   else
-    rect->size.width = 0;
+    geometry->width = 0;
 
   if (json_object_has_member (object, "height"))
-    rect->size.height = json_object_get_int_member (object, "height");
+    geometry->height = json_object_get_int_member (object, "height");
   else
-    rect->size.height = 0;
+    geometry->height = 0;
 
   return TRUE;
 }
 
 gboolean
-_clutter_script_parse_rect (ClutterScript   *script,
-                            JsonNode        *node,
-                            graphene_rect_t *rect)
+_clutter_script_parse_geometry (ClutterScript   *script,
+                                JsonNode        *node,
+                                ClutterGeometry *geometry)
 {
   g_return_val_if_fail (CLUTTER_IS_SCRIPT (script), FALSE);
   g_return_val_if_fail (node != NULL, FALSE);
-  g_return_val_if_fail (rect != NULL, FALSE);
+  g_return_val_if_fail (geometry != NULL, FALSE);
 
   switch (JSON_NODE_TYPE (node))
     {
     case JSON_NODE_ARRAY:
-      return parse_rect_from_array (json_node_get_array (node), rect);
+      return parse_geometry_from_array (json_node_get_array (node), geometry);
 
     case JSON_NODE_OBJECT:
-      return parse_rect_from_object (json_node_get_object (node), rect);
+      return parse_geometry_from_object (json_node_get_object (node), geometry);
 
     default:
       break;
@@ -493,8 +494,8 @@ _clutter_script_parse_color (ClutterScript *script,
 }
 
 static gboolean
-parse_point_from_array (JsonArray        *array,
-                        graphene_point_t *point)
+parse_point_from_array (JsonArray    *array,
+                        ClutterPoint *point)
 {
   if (json_array_get_length (array) != 2)
     return FALSE;
@@ -506,8 +507,8 @@ parse_point_from_array (JsonArray        *array,
 }
 
 static gboolean
-parse_point_from_object (JsonObject       *object,
-                         graphene_point_t *point)
+parse_point_from_object (JsonObject   *object,
+                         ClutterPoint *point)
 {
   if (json_object_has_member (object, "x"))
     point->x = json_object_get_double_member (object, "x");
@@ -523,9 +524,9 @@ parse_point_from_object (JsonObject       *object,
 }
 
 gboolean
-_clutter_script_parse_point (ClutterScript    *script,
-                             JsonNode         *node,
-                             graphene_point_t *point)
+_clutter_script_parse_point (ClutterScript *script,
+                             JsonNode      *node,
+                             ClutterPoint  *point)
 {
   g_return_val_if_fail (CLUTTER_IS_SCRIPT (script), FALSE);
   g_return_val_if_fail (node != NULL, FALSE);
@@ -547,8 +548,8 @@ _clutter_script_parse_point (ClutterScript    *script,
 }
 
 static gboolean
-parse_size_from_array (JsonArray       *array,
-                       graphene_size_t *size)
+parse_size_from_array (JsonArray   *array,
+                       ClutterSize *size)
 {
   if (json_array_get_length (array) != 2)
     return FALSE;
@@ -560,8 +561,8 @@ parse_size_from_array (JsonArray       *array,
 }
 
 static gboolean
-parse_size_from_object (JsonObject      *object,
-                        graphene_size_t *size)
+parse_size_from_object (JsonObject  *object,
+                        ClutterSize *size)
 {
   if (json_object_has_member (object, "width"))
     size->width = json_object_get_double_member (object, "width");
@@ -577,9 +578,9 @@ parse_size_from_object (JsonObject      *object,
 }
 
 gboolean
-_clutter_script_parse_size (ClutterScript   *script,
-                            JsonNode        *node,
-                            graphene_size_t *size)
+_clutter_script_parse_size (ClutterScript *script,
+                            JsonNode      *node,
+                            ClutterSize   *size)
 {
   g_return_val_if_fail (CLUTTER_IS_SCRIPT (script), FALSE);
   g_return_val_if_fail (node != NULL, FALSE);
@@ -1329,11 +1330,11 @@ _clutter_script_parse_node (ClutterScript *script,
                   return TRUE;
                 }
             }
-          else if (p_type == GRAPHENE_TYPE_RECT)
+          else if (p_type == CLUTTER_TYPE_GEOMETRY)
             {
-              graphene_rect_t rect = GRAPHENE_RECT_INIT_ZERO;
+              ClutterGeometry geom = { 0, };
 
-              /* rect := {
+              /* geometry := {
                *        "x" : (int),
                *        "y" : (int),
                *        "width" : (int),
@@ -1341,9 +1342,9 @@ _clutter_script_parse_node (ClutterScript *script,
                * }
                */
 
-              if (_clutter_script_parse_rect (script, node, &rect))
+              if (_clutter_script_parse_geometry (script, node, &geom))
                 {
-                  g_value_set_boxed (value, &rect);
+                  g_value_set_boxed (value, &geom);
                   return TRUE;
                 }
             }
@@ -1365,9 +1366,9 @@ _clutter_script_parse_node (ClutterScript *script,
                   return TRUE;
                 }
             }
-          else if (p_type == GRAPHENE_TYPE_POINT)
+          else if (p_type == CLUTTER_TYPE_POINT)
             {
-              graphene_point_t point = GRAPHENE_POINT_INIT_ZERO;
+              ClutterPoint point = CLUTTER_POINT_INIT_ZERO;
 
               if (_clutter_script_parse_point (script, node, &point))
                 {
@@ -1375,9 +1376,9 @@ _clutter_script_parse_node (ClutterScript *script,
                   return TRUE;
                 }
             }
-          else if (p_type == GRAPHENE_TYPE_SIZE)
+          else if (p_type == CLUTTER_TYPE_SIZE)
             {
-              graphene_size_t size = GRAPHENE_SIZE_INIT_ZERO;
+              ClutterSize size = CLUTTER_SIZE_INIT_ZERO;
 
               if (_clutter_script_parse_size (script, node, &size))
                 {
@@ -1418,15 +1419,15 @@ _clutter_script_parse_node (ClutterScript *script,
                   return TRUE;
                 }
             }
-          else if (G_VALUE_HOLDS (value, GRAPHENE_TYPE_RECT))
+          else if (G_VALUE_HOLDS (value, CLUTTER_TYPE_GEOMETRY))
             {
-              graphene_rect_t rect = GRAPHENE_RECT_INIT_ZERO;
+              ClutterGeometry geom = { 0, };
 
-              /* rect := [ (int), (int), (int), (int) ] */
+              /* geometry := [ (int), (int), (int), (int) ] */
 
-              if (_clutter_script_parse_rect (script, node, &rect))
+              if (_clutter_script_parse_geometry (script, node, &geom))
                 {
-                  g_value_set_boxed (value, &rect);
+                  g_value_set_boxed (value, &geom);
                   return TRUE;
                 }
             }
@@ -1442,9 +1443,9 @@ _clutter_script_parse_node (ClutterScript *script,
                   return TRUE;
                 }
             }
-          else if (G_VALUE_HOLDS (value, GRAPHENE_TYPE_POINT))
+          else if (G_VALUE_HOLDS (value, CLUTTER_TYPE_POINT))
             {
-              graphene_point_t point = GRAPHENE_POINT_INIT_ZERO;
+              ClutterPoint point = CLUTTER_POINT_INIT_ZERO;
 
               if (_clutter_script_parse_point (script, node, &point))
                 {
@@ -1452,9 +1453,9 @@ _clutter_script_parse_node (ClutterScript *script,
                   return TRUE;
                 }
             }
-          else if (G_VALUE_HOLDS (value, GRAPHENE_TYPE_SIZE))
+          else if (G_VALUE_HOLDS (value, CLUTTER_TYPE_SIZE))
             {
-              graphene_size_t size = GRAPHENE_SIZE_INIT_ZERO;
+              ClutterSize size = CLUTTER_SIZE_INIT_ZERO;
 
               if (_clutter_script_parse_size (script, node, &size))
                 {
@@ -1637,17 +1638,14 @@ clutter_script_translate_parameters (ClutterScript  *script,
                                      GObject        *object,
                                      const gchar    *name,
                                      GList          *properties,
-                                     GPtrArray     **param_names,
-                                     GArray        **param_values)
+                                     GArray        **params)
 {
   ClutterScriptable *scriptable = NULL;
   ClutterScriptableIface *iface = NULL;
   GList *l, *unparsed;
   gboolean parse_custom = FALSE;
 
-  *param_names = g_ptr_array_new_with_free_func (g_free);
-  *param_values = g_array_new (FALSE, FALSE, sizeof (GValue));
-  g_array_set_clear_func (*param_values, (GDestroyNotify) g_value_unset);
+  *params = g_array_new (FALSE, FALSE, sizeof (GParameter));
 
   if (CLUTTER_IS_SCRIPTABLE (object))
     {
@@ -1663,7 +1661,7 @@ clutter_script_translate_parameters (ClutterScript  *script,
   for (l = properties; l != NULL; l = l->next)
     {
       PropertyInfo *pinfo = l->data;
-      GValue value = G_VALUE_INIT;
+      GParameter param = { NULL };
       gboolean res = FALSE;
 
       if (pinfo->is_child || pinfo->is_layout)
@@ -1680,12 +1678,12 @@ clutter_script_translate_parameters (ClutterScript  *script,
                     pinfo->name);
 
       if (parse_custom)
-        res = iface->parse_custom_node (scriptable, script, &value,
+        res = iface->parse_custom_node (scriptable, script, &param.value,
                                         pinfo->name,
                                         pinfo->node);
 
       if (!res)
-        res = _clutter_script_parse_node (script, &value,
+        res = _clutter_script_parse_node (script, &param.value,
                                           pinfo->name,
                                           pinfo->node,
                                           pinfo->pspec);
@@ -1697,8 +1695,9 @@ clutter_script_translate_parameters (ClutterScript  *script,
           continue;
         }
 
-      g_ptr_array_add (*param_names, g_strdup (pinfo->name));
-      g_array_append_val (*param_values, value);
+      param.name = g_strdup (pinfo->name);
+
+      g_array_append_val (*params, param);
 
       property_info_free (pinfo);
     }
@@ -1713,8 +1712,7 @@ clutter_script_construct_parameters (ClutterScript  *script,
                                      GType           gtype,
                                      const gchar    *name,
                                      GList          *properties,
-                                     GPtrArray     **construct_param_names,
-                                     GArray        **construct_param_values)
+                                     GArray        **construct_params)
 {
   GObjectClass *klass;
   GList *l, *unparsed;
@@ -1722,17 +1720,14 @@ clutter_script_construct_parameters (ClutterScript  *script,
   klass = g_type_class_ref (gtype);
   g_assert (klass != NULL);
 
-  *construct_param_names = g_ptr_array_new_with_free_func (g_free);
-  *construct_param_values = g_array_new (FALSE, FALSE, sizeof (GValue));
-  g_array_set_clear_func (*construct_param_values,
-                          (GDestroyNotify) g_value_unset);
+  *construct_params = g_array_new (FALSE, FALSE, sizeof (GParameter));
 
   unparsed = NULL;
 
   for (l = properties; l != NULL; l = l->next)
     {
       PropertyInfo *pinfo = l->data;
-      GValue value = G_VALUE_INIT;
+      GParameter param = { NULL };
       GParamSpec *pspec = NULL;
 
       /* we allow custom property names for classes, so if we
@@ -1756,7 +1751,9 @@ clutter_script_construct_parameters (ClutterScript  *script,
           continue;
         }
 
-      if (!_clutter_script_parse_node (script, &value,
+      param.name = g_strdup (pinfo->name);
+
+      if (!_clutter_script_parse_node (script, &param.value,
                                        pinfo->name,
                                        pinfo->node,
                                        pinfo->pspec))
@@ -1765,8 +1762,7 @@ clutter_script_construct_parameters (ClutterScript  *script,
           continue;
         }
 
-      g_ptr_array_add (*construct_param_names, g_strdup (pinfo->name));
-      g_array_append_val (*construct_param_values, value);
+      g_array_append_val (*construct_params, param);
 
       property_info_free (pinfo);
     }
@@ -2027,7 +2023,8 @@ add_children (ClutterScript *script,
       clutter_container_add_actor (container, CLUTTER_ACTOR (object));
     }
 
-  g_list_free_full (oinfo->children, g_free);
+  g_list_foreach (oinfo->children, (GFunc) g_free, NULL);
+  g_list_free (oinfo->children);
 
   oinfo->children = unresolved;
 }
@@ -2093,8 +2090,7 @@ _clutter_script_apply_properties (ClutterScript *script,
   gboolean set_custom_property = FALSE;
   GObject *object = oinfo->object;
   GList *properties;
-  g_autoptr (GPtrArray) param_names = NULL;
-  g_autoptr (GArray) param_values = NULL;
+  GArray *params;
   guint i;
 
   if (!oinfo->has_unresolved)
@@ -2118,30 +2114,33 @@ _clutter_script_apply_properties (ClutterScript *script,
                                                            object,
                                                            oinfo->id,
                                                            properties,
-                                                           &param_names,
-                                                           &param_values);
+                                                           &params);
 
   /* consume all the properties we could translate in this pass */
-  for (i = 0; i < param_names->len; i++)
+  for (i = 0; i < params->len; i++)
     {
-      char *name = g_ptr_array_index (param_names, i);
-      GValue *value = &g_array_index (param_values, GValue, i);
+      GParameter *param = &g_array_index (params, GParameter, i);
 
       CLUTTER_NOTE (SCRIPT,
                     "Setting %s property '%s' (type:%s) to object '%s' (id:%s)",
                     set_custom_property ? "custom" : "regular",
-                    name,
-                    g_type_name (G_VALUE_TYPE (value)),
+                    param->name,
+                    g_type_name (G_VALUE_TYPE (&param->value)),
                     g_type_name (oinfo->gtype),
                     oinfo->id);
 
       if (set_custom_property)
         iface->set_custom_property (scriptable, script,
-                                    name,
-                                    value);
+                                    param->name,
+                                    &param->value);
       else
-        g_object_set_property (object, name, value);
+        g_object_set_property (object, param->name, &param->value);
+
+      g_free ((gchar *) param->name);
+      g_value_unset (&param->value);
     }
+
+  g_array_free (params, TRUE);
 
   _clutter_script_check_unresolved (script, oinfo);
 }
@@ -2150,8 +2149,8 @@ void
 _clutter_script_construct_object (ClutterScript *script,
                                   ObjectInfo    *oinfo)
 {
-  g_autoptr (GPtrArray) param_names = NULL;
-  g_autoptr (GArray) param_values = NULL;
+  GArray *params = NULL;
+  guint i;
 
   /* we have completely updated the object */
   if (oinfo->object != NULL)
@@ -2194,15 +2193,25 @@ _clutter_script_construct_object (ClutterScript *script,
                                              oinfo->gtype,
                                              oinfo->id,
                                              properties,
-                                             &param_names,
-                                             &param_values);
+                                             &params);
 
       default_stage = clutter_stage_manager_get_default_stage (manager);
       oinfo->object = G_OBJECT (default_stage);
+
+      for (i = 0; i < params->len; i++)
+        {
+          GParameter *param = &g_array_index (params, GParameter, i);
+
+          g_free ((gchar *) param->name);
+          g_value_unset (&param->value);
+        }
+
+      g_array_free (params, TRUE);
     }
   else
     {
       GList *properties = oinfo->properties;
+      GParameter *parameters;
 
       /* every other object: first, we get the construction parameters */
       oinfo->properties =
@@ -2210,19 +2219,28 @@ _clutter_script_construct_object (ClutterScript *script,
                                              oinfo->gtype,
                                              oinfo->id,
                                              properties,
-                                             &param_names,
-                                             &param_values);
+                                             &params);
 
-      oinfo->object = g_object_new_with_properties (oinfo->gtype,
-                                                    param_names->len,
-                                                    (const gchar **) param_names->pdata,
-                                                    (const GValue *) param_values->data);
+      parameters = (GParameter *) (void *) params->data;
+      oinfo->object = g_object_newv (oinfo->gtype,
+                                     params->len,
+                                     parameters);
 
       /* by sinking the floating reference, we make sure that the reference
        * count is correct whether the object is referenced from somewhere
        * else too or only by this ClutterScript object.
        */
       g_object_ref_sink (oinfo->object);
+
+      for (i = 0; i < params->len; i++)
+        {
+          GParameter *param = &g_array_index (params, GParameter, i);
+
+          g_free ((gchar *) param->name);
+          g_value_unset (&param->value);
+        }
+
+      g_array_free (params, TRUE);
    }
 
   g_assert (oinfo->object != NULL);

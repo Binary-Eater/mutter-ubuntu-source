@@ -2,7 +2,6 @@
 
 #include <string.h>
 
-#include "test-declarations.h"
 #include "test-utils.h"
 
 typedef struct _TestState
@@ -55,7 +54,7 @@ paint (TestState *state)
   CoglTexture *tex0, *tex1;
   CoglPipeline *pipeline;
   CoglMatrix matrix;
-  GError *error = NULL;
+  CoglError *error = NULL;
 
   cogl_framebuffer_orthographic (test_fb,
                                  0, 0,

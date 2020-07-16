@@ -35,7 +35,7 @@
 
 #include <glib-object.h>
 
-G_BEGIN_DECLS
+COGL_BEGIN_DECLS
 
 typedef struct _CoglObject      CoglObject;
 
@@ -52,7 +52,6 @@ typedef struct _CoglObject      CoglObject;
  *
  * Returns: a #GType that can be used with the GLib type system.
  */
-COGL_EXPORT
 GType cogl_object_get_gtype (void);
 
 /**
@@ -63,7 +62,7 @@ GType cogl_object_get_gtype (void);
  *
  * Returns: the @object, with its reference count increased
  */
-COGL_EXPORT void *
+void *
 cogl_object_ref (void *object);
 
 /**
@@ -73,22 +72,8 @@ cogl_object_ref (void *object);
  * Drecreases the reference count of @object by 1; if the reference
  * count reaches 0, the resources allocated by @object will be freed
  */
-COGL_EXPORT void
+void
 cogl_object_unref (void *object);
-
-/**
- * cogl_clear_object: (skip)
- * @object_ptr: a pointer to a #CoglObject reference
- *
- * Clears a reference to a #CoglObject.
- *
- * @object_ptr must not be %NULL.
- *
- * If the reference is %NULL then this function does nothing.
- * Otherwise, the reference count of the object is decreased using
- * cogl_object_unref() and the pointer is set to %NULL.
- */
-#define cogl_clear_object(object_ptr) g_clear_pointer ((object_ptr), cogl_object_unref)
 
 /**
  * CoglUserDataKey:
@@ -188,7 +173,7 @@ typedef void
  *
  * Since: 1.4
  */
-COGL_EXPORT void
+void
 cogl_object_set_user_data (CoglObject *object,
                            CoglUserDataKey *key,
                            void *user_data,
@@ -210,7 +195,7 @@ cogl_object_set_user_data (CoglObject *object,
  *
  * Since: 1.4
  */
-COGL_EXPORT void *
+void *
 cogl_object_get_user_data (CoglObject *object,
                            CoglUserDataKey *key);
 
@@ -227,7 +212,7 @@ cogl_object_get_user_data (CoglObject *object,
  * Since: 1.8
  * Stability: unstable
  */
-COGL_EXPORT void
+void
 cogl_debug_object_foreach_type (CoglDebugObjectForeachTypeCallback func,
                                 void *user_data);
 
@@ -242,10 +227,10 @@ cogl_debug_object_foreach_type (CoglDebugObjectForeachTypeCallback func,
  * Since: 1.8
  * Stability: unstable
  */
-COGL_EXPORT void
+void
 cogl_debug_object_print_instances (void);
 
-G_END_DECLS
+COGL_END_DECLS
 
 #endif /* __COGL_OBJECT_H */
 

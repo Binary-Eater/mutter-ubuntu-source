@@ -47,7 +47,7 @@ typedef struct _CoglIndices CoglIndices;
 
 #include <glib-object.h>
 
-G_BEGIN_DECLS
+COGL_BEGIN_DECLS
 
 /**
  * SECTION:cogl-indices
@@ -76,7 +76,7 @@ G_BEGIN_DECLS
  * vertices multiple times.
  *
  * |[
- *   CoglVertexP2 quad_vertices[] = {
+ *   CoglVertex2f quad_vertices[] = {
  *     {x0, y0}, //0 = top left
  *     {x1, y1}, //1 = bottom left
  *     {x2, y2}, //2 = bottom right
@@ -112,34 +112,33 @@ G_BEGIN_DECLS
  *
  * Returns: a #GType that can be used with the GLib type system.
  */
-COGL_EXPORT
 GType cogl_indices_get_gtype (void);
 
-COGL_EXPORT CoglIndices *
+CoglIndices *
 cogl_indices_new (CoglContext *context,
                   CoglIndicesType type,
                   const void *indices_data,
                   int n_indices);
 
-COGL_EXPORT CoglIndices *
+CoglIndices *
 cogl_indices_new_for_buffer (CoglIndicesType type,
                              CoglIndexBuffer *buffer,
                              size_t offset);
 
-COGL_EXPORT CoglIndexBuffer *
+CoglIndexBuffer *
 cogl_indices_get_buffer (CoglIndices *indices);
 
-COGL_EXPORT CoglIndicesType
+CoglIndicesType
 cogl_indices_get_type (CoglIndices *indices);
 
-COGL_EXPORT size_t
+size_t
 cogl_indices_get_offset (CoglIndices *indices);
 
-COGL_EXPORT void
+void
 cogl_indices_set_offset (CoglIndices *indices,
                          size_t offset);
 
-COGL_EXPORT CoglIndices *
+CoglIndices *
 cogl_get_rectangle_indices (CoglContext *context, int n_rectangles);
 
 /**
@@ -153,10 +152,10 @@ cogl_get_rectangle_indices (CoglContext *context, int n_rectangles);
  * Since: 1.10
  * Stability: unstable
  */
-COGL_EXPORT gboolean
+CoglBool
 cogl_is_indices (void *object);
 
-G_END_DECLS
+COGL_END_DECLS
 
 #endif /* __COGL_INDICES_H__ */
 

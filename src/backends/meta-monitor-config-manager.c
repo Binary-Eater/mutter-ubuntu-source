@@ -2,7 +2,6 @@
 
 /*
  * Copyright (C) 2016 Red Hat
- * Copyright (c) 2018 DisplayLink (UK) Ltd.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -24,7 +23,6 @@
 
 #include "backends/meta-monitor-config-manager.h"
 
-#include "backends/meta-backend-private.h"
 #include "backends/meta-monitor-config-migration.h"
 #include "backends/meta-monitor-config-store.h"
 #include "backends/meta-monitor-manager-private.h"
@@ -77,22 +75,6 @@ meta_monitor_config_manager_get_store (MetaMonitorConfigManager *config_manager)
 }
 
 static gboolean
-is_crtc_reserved (MetaCrtc *crtc,
-                  GArray   *reserved_crtcs)
-{
-  unsigned int i;
-
-  for (i = 0; i < reserved_crtcs->len; i++)
-    {
-       glong id = g_array_index (reserved_crtcs, glong, i);
-       if (id == crtc->crtc_id)
-         return TRUE;
-    }
-
-  return FALSE;
-}
-
-static gboolean
 is_crtc_assigned (MetaCrtc  *crtc,
                   GPtrArray *crtc_infos)
 {
@@ -111,34 +93,13 @@ is_crtc_assigned (MetaCrtc  *crtc,
 
 static MetaCrtc *
 find_unassigned_crtc (MetaOutput *output,
-                      GPtrArray  *crtc_infos,
-                      GArray     *reserved_crtcs)
+                      GPtrArray  *crtc_infos)
 {
-  MetaCrtc *crtc;
   unsigned int i;
 
-  crtc = meta_output_get_assigned_crtc (output);
-  if (crtc && !is_crtc_assigned (crtc, crtc_infos))
-    return crtc;
-
-  /* then try to assign a CRTC that wasn't used */
   for (i = 0; i < output->n_possible_crtcs; i++)
     {
-      crtc = output->possible_crtcs[i];
-
-      if (is_crtc_assigned (crtc, crtc_infos))
-        continue;
-
-      if (is_crtc_reserved (crtc, reserved_crtcs))
-        continue;
-
-      return crtc;
-    }
-
-  /* finally just give a CRTC that we haven't assigned */
-  for (i = 0; i < output->n_possible_crtcs; i++)
-    {
-      crtc = output->possible_crtcs[i];
+      MetaCrtc *crtc = output->possible_crtcs[i];
 
       if (is_crtc_assigned (crtc, crtc_infos))
         continue;
@@ -152,12 +113,10 @@ find_unassigned_crtc (MetaOutput *output,
 typedef struct
 {
   MetaMonitorManager *monitor_manager;
-  MetaMonitorsConfig *config;
   MetaLogicalMonitorConfig *logical_monitor_config;
   MetaMonitorConfig *monitor_config;
   GPtrArray *crtc_infos;
   GPtrArray *output_infos;
-  GArray *reserved_crtcs;
 } MonitorAssignmentData;
 
 static gboolean
@@ -172,13 +131,7 @@ assign_monitor_crtc (MetaMonitor         *monitor,
   MetaCrtc *crtc;
   MetaMonitorTransform transform;
   MetaMonitorTransform crtc_transform;
-  MetaMonitorTransform crtc_hw_transform;
   int crtc_x, crtc_y;
-  float x_offset, y_offset;
-  float scale = 0.0;
-  float width, height;
-  MetaCrtcMode *crtc_mode;
-  graphene_rect_t crtc_layout;
   MetaCrtcInfo *crtc_info;
   MetaOutputInfo *output_info;
   MetaMonitorConfig *first_monitor_config;
@@ -187,8 +140,7 @@ assign_monitor_crtc (MetaMonitor         *monitor,
 
   output = monitor_crtc_mode->output;
 
-  crtc = find_unassigned_crtc (output, data->crtc_infos, data->reserved_crtcs);
-
+  crtc = find_unassigned_crtc (output, data->crtc_infos);
   if (!crtc)
     {
       MetaMonitorSpec *monitor_spec = meta_monitor_get_spec (monitor);
@@ -201,56 +153,36 @@ assign_monitor_crtc (MetaMonitor         *monitor,
 
   transform = data->logical_monitor_config->transform;
   crtc_transform = meta_monitor_logical_to_crtc_transform (monitor, transform);
-  if (meta_monitor_manager_is_transform_handled (data->monitor_manager,
-                                                 crtc,
-                                                 crtc_transform))
-    crtc_hw_transform = crtc_transform;
-  else
-    crtc_hw_transform = META_MONITOR_TRANSFORM_NORMAL;
+  if (!meta_monitor_manager_is_transform_handled (data->monitor_manager,
+                                                  crtc,
+                                                  crtc_transform))
+    crtc_transform = META_MONITOR_TRANSFORM_NORMAL;
 
   meta_monitor_calculate_crtc_pos (monitor, mode, output, crtc_transform,
                                    &crtc_x, &crtc_y);
 
-  x_offset = data->logical_monitor_config->layout.x;
-  y_offset = data->logical_monitor_config->layout.y;
-
-  switch (data->config->layout_mode)
-    {
-    case META_LOGICAL_MONITOR_LAYOUT_MODE_LOGICAL:
-      scale = data->logical_monitor_config->scale;
-      break;
-    case META_LOGICAL_MONITOR_LAYOUT_MODE_PHYSICAL:
-      scale = 1.0;
-      break;
-    }
-
-  crtc_mode = monitor_crtc_mode->crtc_mode;
-
-  if (meta_monitor_transform_is_rotated (crtc_transform))
-    {
-      width = crtc_mode->height / scale;
-      height = crtc_mode->width / scale;
-    }
-  else
-    {
-      width = crtc_mode->width / scale;
-      height = crtc_mode->height / scale;
-    }
-
-  crtc_layout = GRAPHENE_RECT_INIT (x_offset + (crtc_x / scale),
-                                    y_offset + (crtc_y / scale),
-                                    width,
-                                    height);
-
   crtc_info = g_slice_new0 (MetaCrtcInfo);
   *crtc_info = (MetaCrtcInfo) {
     .crtc = crtc,
-    .mode = crtc_mode,
-    .layout = crtc_layout,
-    .transform = crtc_hw_transform,
+    .mode = monitor_crtc_mode->crtc_mode,
+    .x = crtc_x,
+    .y = crtc_y,
+    .transform = crtc_transform,
     .outputs = g_ptr_array_new ()
   };
   g_ptr_array_add (crtc_info->outputs, output);
+
+  /*
+   * Currently, MetaCrtcInfo are deliberately offset incorrectly to carry over
+   * logical monitor location inside the MetaCrtc struct, when in fact this
+   * depends on the framebuffer configuration. This will eventually be negated
+   * when setting the actual KMS mode.
+   *
+   * TODO: Remove this hack when we don't need to rely on MetaCrtc to pass
+   * logical monitor state.
+   */
+  crtc_info->x += data->logical_monitor_config->layout.x;
+  crtc_info->y += data->logical_monitor_config->layout.y;
 
   /*
    * Only one output can be marked as primary (due to Xrandr limitation),
@@ -286,12 +218,10 @@ assign_monitor_crtc (MetaMonitor         *monitor,
 
 static gboolean
 assign_monitor_crtcs (MetaMonitorManager       *manager,
-                      MetaMonitorsConfig       *config,
                       MetaLogicalMonitorConfig *logical_monitor_config,
                       MetaMonitorConfig        *monitor_config,
                       GPtrArray                *crtc_infos,
                       GPtrArray                *output_infos,
-                      GArray                   *reserved_crtcs,
                       GError                  **error)
 {
   MetaMonitorSpec *monitor_spec = monitor_config->monitor_spec;
@@ -322,12 +252,10 @@ assign_monitor_crtcs (MetaMonitorManager       *manager,
 
   data = (MonitorAssignmentData) {
     .monitor_manager = manager,
-    .config = config,
     .logical_monitor_config = logical_monitor_config,
     .monitor_config = monitor_config,
     .crtc_infos = crtc_infos,
-    .output_infos = output_infos,
-    .reserved_crtcs = reserved_crtcs
+    .output_infos = output_infos
   };
   if (!meta_monitor_mode_foreach_crtc (monitor, monitor_mode,
                                        assign_monitor_crtc,
@@ -340,11 +268,9 @@ assign_monitor_crtcs (MetaMonitorManager       *manager,
 
 static gboolean
 assign_logical_monitor_crtcs (MetaMonitorManager       *manager,
-                              MetaMonitorsConfig       *config,
                               MetaLogicalMonitorConfig *logical_monitor_config,
                               GPtrArray                *crtc_infos,
                               GPtrArray                *output_infos,
-                              GArray                   *reserved_crtcs,
                               GError                  **error)
 {
   GList *l;
@@ -354,11 +280,10 @@ assign_logical_monitor_crtcs (MetaMonitorManager       *manager,
       MetaMonitorConfig *monitor_config = l->data;
 
       if (!assign_monitor_crtcs (manager,
-                                 config,
                                  logical_monitor_config,
                                  monitor_config,
                                  crtc_infos, output_infos,
-                                 reserved_crtcs, error))
+                                 error))
         return FALSE;
     }
 
@@ -374,72 +299,31 @@ meta_monitor_config_manager_assign (MetaMonitorManager *manager,
 {
   GPtrArray *crtc_infos;
   GPtrArray *output_infos;
-  GArray *reserved_crtcs;
   GList *l;
 
   crtc_infos =
     g_ptr_array_new_with_free_func ((GDestroyNotify) meta_crtc_info_free);
   output_infos =
     g_ptr_array_new_with_free_func ((GDestroyNotify) meta_output_info_free);
-  reserved_crtcs = g_array_new (FALSE, FALSE, sizeof (glong));
-
-  for (l = config->logical_monitor_configs; l; l = l->next)
-    {
-      MetaLogicalMonitorConfig *logical_monitor_config = l->data;
-      GList *k;
-
-      for (k = logical_monitor_config->monitor_configs; k; k = k->next)
-        {
-          MetaMonitorConfig *monitor_config = k->data;
-          MetaMonitorSpec *monitor_spec = monitor_config->monitor_spec;
-          MetaMonitor *monitor;
-          GList *o;
-
-          monitor = meta_monitor_manager_get_monitor_from_spec (manager, monitor_spec);
-
-          for (o = meta_monitor_get_outputs (monitor); o; o = o->next)
-            {
-              MetaOutput *output = o->data;
-              MetaCrtc *crtc;
-
-              crtc = meta_output_get_assigned_crtc (output);
-              if (crtc)
-                g_array_append_val (reserved_crtcs, crtc->crtc_id);
-            }
-        }
-    }
 
   for (l = config->logical_monitor_configs; l; l = l->next)
     {
       MetaLogicalMonitorConfig *logical_monitor_config = l->data;
 
-      if (!assign_logical_monitor_crtcs (manager,
-                                         config, logical_monitor_config,
+      if (!assign_logical_monitor_crtcs (manager, logical_monitor_config,
                                          crtc_infos, output_infos,
-                                         reserved_crtcs, error))
+                                         error))
         {
           g_ptr_array_free (crtc_infos, TRUE);
           g_ptr_array_free (output_infos, TRUE);
-          g_array_free (reserved_crtcs, TRUE);
           return FALSE;
         }
     }
-
-  g_array_free (reserved_crtcs, TRUE);
 
   *out_crtc_infos = crtc_infos;
   *out_output_infos = output_infos;
 
   return TRUE;
-}
-
-static gboolean
-is_lid_closed (MetaMonitorManager *monitor_manager)
-{
-    MetaBackend *backend;
-
-    backend = meta_monitor_manager_get_backend (monitor_manager);
-    return meta_backend_is_lid_closed (backend);
 }
 
 MetaMonitorsConfigKey *
@@ -461,7 +345,7 @@ meta_create_monitors_config_key_for_current_state (MetaMonitorManager *monitor_m
         {
           laptop_monitor_spec = meta_monitor_get_spec (monitor);
 
-          if (is_lid_closed (monitor_manager))
+          if (meta_monitor_manager_is_lid_closed (monitor_manager))
             continue;
         }
 
@@ -583,7 +467,7 @@ find_primary_monitor (MetaMonitorManager *monitor_manager)
 {
   MetaMonitor *monitor;
 
-  if (is_lid_closed (monitor_manager))
+  if (meta_monitor_manager_is_lid_closed (monitor_manager))
     {
       monitor = meta_monitor_manager_get_primary_monitor (monitor_manager);
       if (monitor && !meta_monitor_is_laptop_panel (monitor))
@@ -634,34 +518,6 @@ create_monitor_config (MetaMonitor     *monitor,
   return monitor_config;
 }
 
-static MetaMonitorTransform
-get_monitor_transform (MetaMonitorManager *monitor_manager,
-                       MetaMonitor        *monitor)
-{
-  MetaOrientationManager *orientation_manager;
-  MetaBackend *backend;
-
-  if (!meta_monitor_is_laptop_panel (monitor))
-    return META_MONITOR_TRANSFORM_NORMAL;
-
-  backend = meta_monitor_manager_get_backend (monitor_manager);
-  orientation_manager = meta_backend_get_orientation_manager (backend);
-
-  switch (meta_orientation_manager_get_orientation (orientation_manager))
-    {
-    case META_ORIENTATION_BOTTOM_UP:
-      return META_MONITOR_TRANSFORM_180;
-    case META_ORIENTATION_LEFT_UP:
-      return META_MONITOR_TRANSFORM_90;
-    case META_ORIENTATION_RIGHT_UP:
-      return META_MONITOR_TRANSFORM_270;
-    case META_ORIENTATION_UNDEFINED:
-    case META_ORIENTATION_NORMAL:
-    default:
-      return META_MONITOR_TRANSFORM_NORMAL;
-    }
-}
-
 static MetaLogicalMonitorConfig *
 create_preferred_logical_monitor_config (MetaMonitorManager          *monitor_manager,
                                          MetaMonitor                 *monitor,
@@ -673,7 +529,6 @@ create_preferred_logical_monitor_config (MetaMonitorManager          *monitor_ma
   MetaMonitorMode *mode;
   int width, height;
   float scale;
-  MetaMonitorTransform transform;
   MetaMonitorConfig *monitor_config;
   MetaLogicalMonitorConfig *logical_monitor_config;
 
@@ -692,22 +547,14 @@ create_preferred_logical_monitor_config (MetaMonitorManager          *monitor_ma
   switch (layout_mode)
     {
     case META_LOGICAL_MONITOR_LAYOUT_MODE_LOGICAL:
-      width = (int) roundf (width / scale);
-      height = (int) roundf (height / scale);
+      width /= scale;
+      height /= scale;
       break;
     case META_LOGICAL_MONITOR_LAYOUT_MODE_PHYSICAL:
       break;
     }
 
   monitor_config = create_monitor_config (monitor, mode);
-
-  transform = get_monitor_transform (monitor_manager, monitor);
-  if (meta_monitor_transform_is_rotated (transform))
-    {
-      int temp = width;
-      width = height;
-      height = temp;
-    }
 
   logical_monitor_config = g_new0 (MetaLogicalMonitorConfig, 1);
   *logical_monitor_config = (MetaLogicalMonitorConfig) {
@@ -717,7 +564,6 @@ create_preferred_logical_monitor_config (MetaMonitorManager          *monitor_ma
       .width = width,
       .height = height
     },
-    .transform = transform,
     .scale = scale,
     .monitor_configs = g_list_append (NULL, monitor_config)
   };
@@ -764,7 +610,7 @@ meta_monitor_config_manager_create_linear (MetaMonitorConfigManager *config_mana
         continue;
 
       if (meta_monitor_is_laptop_panel (monitor) &&
-          is_lid_closed (monitor_manager))
+          meta_monitor_manager_is_lid_closed (monitor_manager))
         continue;
 
       logical_monitor_config =
@@ -894,87 +740,6 @@ meta_monitor_config_manager_create_suggested (MetaMonitorConfigManager *config_m
                                    META_MONITORS_CONFIG_FLAG_NONE);
 }
 
-static GList *
-clone_monitor_config_list (GList *monitor_configs_in)
-{
-  MetaMonitorConfig *monitor_config_in;
-  MetaMonitorConfig *monitor_config_out;
-  GList *monitor_configs_out = NULL;
-  GList *l;
-
-  for (l = monitor_configs_in; l; l = l->next)
-    {
-      monitor_config_in = l->data;
-      monitor_config_out = g_new0 (MetaMonitorConfig, 1);
-      *monitor_config_out = (MetaMonitorConfig) {
-        .monitor_spec = meta_monitor_spec_clone (monitor_config_in->monitor_spec),
-        .mode_spec = g_memdup (monitor_config_in->mode_spec,
-                               sizeof (MetaMonitorModeSpec)),
-        .enable_underscanning = monitor_config_in->enable_underscanning
-      };
-      monitor_configs_out =
-        g_list_append (monitor_configs_out, monitor_config_out);
-    }
-
-  return monitor_configs_out;
-}
-
-static GList *
-clone_logical_monitor_config_list (GList *logical_monitor_configs_in)
-{
-  MetaLogicalMonitorConfig *logical_monitor_config_in;
-  MetaLogicalMonitorConfig *logical_monitor_config_out;
-  GList *logical_monitor_configs_out = NULL;
-  GList *l;
-
-  for (l = logical_monitor_configs_in; l; l = l->next)
-    {
-      logical_monitor_config_in = l->data;
-
-      logical_monitor_config_out =
-        g_memdup (logical_monitor_config_in, sizeof (MetaLogicalMonitorConfig));
-      logical_monitor_config_out->monitor_configs =
-        clone_monitor_config_list (logical_monitor_config_in->monitor_configs);
-
-      logical_monitor_configs_out =
-        g_list_append (logical_monitor_configs_out, logical_monitor_config_out);
-    }
-
-  return logical_monitor_configs_out;
-}
-
-static MetaLogicalMonitorConfig *
-find_logical_config_for_builtin_display_rotation (MetaMonitorConfigManager *config_manager,
-                                                  GList                    *logical_monitor_configs)
-{
-  MetaLogicalMonitorConfig *logical_monitor_config;
-  MetaMonitorConfig *monitor_config;
-  MetaMonitor *panel;
-  GList *l;
-
-  panel = meta_monitor_manager_get_laptop_panel (config_manager->monitor_manager);
-  if (panel && meta_monitor_is_active (panel))
-    {
-      for (l = logical_monitor_configs; l; l = l->next)
-        {
-          logical_monitor_config = l->data;
-          /*
-           * We only want to return the config for the panel if it is
-           * configured on its own, so we skip configs which contain clones.
-           */
-          if (g_list_length (logical_monitor_config->monitor_configs) != 1)
-            continue;
-
-          monitor_config = logical_monitor_config->monitor_configs->data;
-          if (meta_monitor_spec_equals (meta_monitor_get_spec (panel),
-                                        monitor_config->monitor_spec))
-            return logical_monitor_config;
-        }
-    }
-
-  return NULL;
-}
-
 static MetaMonitorsConfig *
 create_for_builtin_display_rotation (MetaMonitorConfigManager *config_manager,
                                      gboolean                  rotate,
@@ -983,18 +748,21 @@ create_for_builtin_display_rotation (MetaMonitorConfigManager *config_manager,
   MetaMonitorManager *monitor_manager = config_manager->monitor_manager;
   MetaLogicalMonitorConfig *logical_monitor_config;
   MetaLogicalMonitorConfig *current_logical_monitor_config;
-  GList *logical_monitor_configs, *current_configs;
+  GList *logical_monitor_configs;
   MetaLogicalMonitorLayoutMode layout_mode;
+  MetaMonitorConfig *monitor_config;
+  MetaMonitorConfig *current_monitor_config;
+
+  if (!meta_monitor_manager_get_is_builtin_display_on (config_manager->monitor_manager))
+    return NULL;
 
   if (!config_manager->current_config)
     return NULL;
 
-  current_configs = config_manager->current_config->logical_monitor_configs;
-  current_logical_monitor_config =
-    find_logical_config_for_builtin_display_rotation (config_manager,
-                                                      current_configs);
-  if (!current_logical_monitor_config)
+  if (g_list_length (config_manager->current_config->logical_monitor_configs) != 1)
     return NULL;
+
+  current_logical_monitor_config = config_manager->current_config->logical_monitor_configs->data;
 
   if (rotate)
     transform = (current_logical_monitor_config->transform + 1) % META_MONITOR_TRANSFORM_FLIPPED;
@@ -1016,10 +784,20 @@ create_for_builtin_display_rotation (MetaMonitorConfigManager *config_manager,
   if (current_logical_monitor_config->transform == transform)
     return NULL;
 
-  logical_monitor_configs =
-    clone_logical_monitor_config_list (config_manager->current_config->logical_monitor_configs);
-  logical_monitor_config =
-    find_logical_config_for_builtin_display_rotation (config_manager, logical_monitor_configs);
+  if (g_list_length (current_logical_monitor_config->monitor_configs) != 1)
+    return NULL;
+
+  current_monitor_config = current_logical_monitor_config->monitor_configs->data;
+
+  monitor_config = g_new0 (MetaMonitorConfig, 1);
+  *monitor_config = (MetaMonitorConfig) {
+    .monitor_spec = meta_monitor_spec_clone (current_monitor_config->monitor_spec),
+    .mode_spec = g_memdup (current_monitor_config->mode_spec, sizeof (MetaMonitorModeSpec)),
+    .enable_underscanning = current_monitor_config->enable_underscanning
+  };
+
+  logical_monitor_config = g_memdup (current_logical_monitor_config, sizeof (MetaLogicalMonitorConfig));
+  logical_monitor_config->monitor_configs = g_list_append (NULL, monitor_config);
   logical_monitor_config->transform = transform;
 
   if (meta_monitor_transform_is_rotated (current_logical_monitor_config->transform) !=
@@ -1030,6 +808,7 @@ create_for_builtin_display_rotation (MetaMonitorConfigManager *config_manager,
       logical_monitor_config->layout.height = temp;
     }
 
+  logical_monitor_configs = g_list_append (NULL, logical_monitor_config);
   layout_mode = config_manager->current_config->layout_mode;
   return meta_monitors_config_new (monitor_manager,
                                    logical_monitor_configs,
@@ -1509,7 +1288,7 @@ meta_monitors_config_new (MetaMonitorManager           *monitor_manager,
       MetaMonitor *monitor = l->data;
       MetaMonitorSpec *monitor_spec;
 
-      if (is_lid_closed (monitor_manager) &&
+      if (meta_monitor_manager_is_lid_closed (monitor_manager) &&
           meta_monitor_is_laptop_panel (monitor))
         continue;
 
@@ -1689,7 +1468,7 @@ meta_verify_logical_monitor_config (MetaLogicalMonitorConfig    *logical_monitor
 }
 
 static gboolean
-has_adjacent_neighbour (MetaMonitorsConfig       *config,
+has_adjecent_neighbour (MetaMonitorsConfig       *config,
                         MetaLogicalMonitorConfig *logical_monitor_config)
 {
   GList *l;
@@ -1708,7 +1487,7 @@ has_adjacent_neighbour (MetaMonitorsConfig       *config,
       if (logical_monitor_config == other_logical_monitor_config)
         continue;
 
-      if (meta_rectangle_is_adjacent_to (&logical_monitor_config->layout,
+      if (meta_rectangle_is_adjecent_to (&logical_monitor_config->layout,
                                          &other_logical_monitor_config->layout))
         return TRUE;
     }
@@ -1814,10 +1593,10 @@ meta_verify_monitors_config (MetaMonitorsConfig *config,
           has_primary = TRUE;
         }
 
-      if (!has_adjacent_neighbour (config, logical_monitor_config))
+      if (!has_adjecent_neighbour (config, logical_monitor_config))
         {
           g_set_error (error, G_IO_ERROR, G_IO_ERROR_FAILED,
-                       "Logical monitors not adjacent");
+                       "Logical monitors not adjecent");
           return FALSE;
         }
 

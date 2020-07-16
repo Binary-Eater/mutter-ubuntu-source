@@ -41,7 +41,7 @@
 
 #include <glib-object.h>
 
-G_BEGIN_DECLS
+COGL_BEGIN_DECLS
 
 typedef struct _CoglOnscreenTemplate	      CoglOnscreenTemplate;
 
@@ -52,10 +52,9 @@ typedef struct _CoglOnscreenTemplate	      CoglOnscreenTemplate;
  *
  * Returns: a #GType that can be used with the GLib type system.
  */
-COGL_EXPORT
 GType cogl_onscreen_template_get_gtype (void);
 
-COGL_EXPORT CoglOnscreenTemplate *
+CoglOnscreenTemplate *
 cogl_onscreen_template_new (CoglSwapChain *swap_chain);
 
 /**
@@ -81,10 +80,27 @@ cogl_onscreen_template_new (CoglSwapChain *swap_chain);
  * Since: 1.10
  * Stability: unstable
  */
-COGL_EXPORT void
+void
 cogl_onscreen_template_set_samples_per_pixel (
                                           CoglOnscreenTemplate *onscreen_template,
                                           int n);
+
+/**
+ * cogl_onscreen_template_set_swap_throttled:
+ * @onscreen_template: A #CoglOnscreenTemplate template framebuffer
+ * @throttled: Whether throttling should be enabled
+ *
+ * Requests that any future #CoglOnscreen framebuffers derived from this
+ * template should enable or disable swap throttling according to the given
+ * @throttled argument.
+ *
+ * Since: 1.10
+ * Stability: unstable
+ */
+void
+cogl_onscreen_template_set_swap_throttled (
+                                          CoglOnscreenTemplate *onscreen_template,
+                                          CoglBool throttled);
 
 /**
  * cogl_onscreen_template_set_stereo_enabled:
@@ -100,10 +116,10 @@ cogl_onscreen_template_set_samples_per_pixel (
  * Since: 1.20
  * Stability: unstable
  */
-COGL_EXPORT void
+void
 cogl_onscreen_template_set_stereo_enabled (
 					   CoglOnscreenTemplate *onscreen_template,
-					   gboolean enabled);
+					   CoglBool enabled);
 /**
  * cogl_is_onscreen_template:
  * @object: A #CoglObject pointer
@@ -115,9 +131,9 @@ cogl_onscreen_template_set_stereo_enabled (
  * Since: 1.10
  * Stability: unstable
  */
-COGL_EXPORT gboolean
+CoglBool
 cogl_is_onscreen_template (void *object);
 
-G_END_DECLS
+COGL_END_DECLS
 
 #endif /* __COGL_ONSCREEN_TEMPLATE_H__ */

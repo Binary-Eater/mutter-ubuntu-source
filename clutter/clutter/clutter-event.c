@@ -23,7 +23,9 @@
  *
  */
 
+#ifdef HAVE_CONFIG_H
 #include "clutter-build-config.h"
+#endif
 
 #include "clutter-backend-private.h"
 #include "clutter-debug.h"
@@ -370,7 +372,7 @@ clutter_event_get_coords (const ClutterEvent *event,
                           gfloat             *x,
                           gfloat             *y)
 {
-  graphene_point_t coords;
+  ClutterPoint coords;
 
   g_return_if_fail (event != NULL);
 
@@ -386,15 +388,15 @@ clutter_event_get_coords (const ClutterEvent *event,
 /**
  * clutter_event_get_position:
  * @event: a #ClutterEvent
- * @position: a #graphene_point_t
+ * @position: a #ClutterPoint
  *
- * Retrieves the event coordinates as a #graphene_point_t.
+ * Retrieves the event coordinates as a #ClutterPoint.
  *
  * Since: 1.12
  */
 void
 clutter_event_get_position (const ClutterEvent *event,
-                            graphene_point_t   *position)
+                            ClutterPoint       *position)
 {
   g_return_if_fail (event != NULL);
   g_return_if_fail (position != NULL);
@@ -415,42 +417,42 @@ clutter_event_get_position (const ClutterEvent *event,
     case CLUTTER_PAD_BUTTON_RELEASE:
     case CLUTTER_PAD_STRIP:
     case CLUTTER_PAD_RING:
-      graphene_point_init (position, 0.f, 0.f);
+      clutter_point_init (position, 0.f, 0.f);
       break;
 
     case CLUTTER_ENTER:
     case CLUTTER_LEAVE:
-      graphene_point_init (position, event->crossing.x, event->crossing.y);
+      clutter_point_init (position, event->crossing.x, event->crossing.y);
       break;
 
     case CLUTTER_BUTTON_PRESS:
     case CLUTTER_BUTTON_RELEASE:
-      graphene_point_init (position, event->button.x, event->button.y);
+      clutter_point_init (position, event->button.x, event->button.y);
       break;
 
     case CLUTTER_MOTION:
-      graphene_point_init (position, event->motion.x, event->motion.y);
+      clutter_point_init (position, event->motion.x, event->motion.y);
       break;
 
     case CLUTTER_TOUCH_BEGIN:
     case CLUTTER_TOUCH_UPDATE:
     case CLUTTER_TOUCH_END:
     case CLUTTER_TOUCH_CANCEL:
-      graphene_point_init (position, event->touch.x, event->touch.y);
+      clutter_point_init (position, event->touch.x, event->touch.y);
       break;
 
     case CLUTTER_SCROLL:
-      graphene_point_init (position, event->scroll.x, event->scroll.y);
+      clutter_point_init (position, event->scroll.x, event->scroll.y);
       break;
 
     case CLUTTER_TOUCHPAD_PINCH:
-      graphene_point_init (position, event->touchpad_pinch.x,
-                           event->touchpad_pinch.y);
+      clutter_point_init (position, event->touchpad_pinch.x,
+                          event->touchpad_pinch.y);
       break;
 
     case CLUTTER_TOUCHPAD_SWIPE:
-      graphene_point_init (position, event->touchpad_swipe.x,
-                           event->touchpad_swipe.y);
+      clutter_point_init (position, event->touchpad_swipe.x,
+                          event->touchpad_swipe.y);
       break;
     }
 
@@ -1021,9 +1023,6 @@ clutter_event_get_event_sequence (const ClutterEvent *event)
       event->type == CLUTTER_TOUCH_END ||
       event->type == CLUTTER_TOUCH_CANCEL)
     return event->touch.sequence;
-  else if (event->type == CLUTTER_ENTER ||
-           event->type == CLUTTER_LEAVE)
-    return event->crossing.sequence;
 
   return NULL;
 }
@@ -1096,7 +1095,7 @@ clutter_event_set_device (ClutterEvent       *event,
     {
       ClutterEventPrivate *real_event = (ClutterEventPrivate *) event;
 
-      g_set_object (&real_event->device, device);
+      real_event->device = device;
     }
 
   switch (event->type)
@@ -1365,8 +1364,8 @@ clutter_event_copy (const ClutterEvent *event)
     {
       ClutterEventPrivate *real_event = (ClutterEventPrivate *) event;
 
-      g_set_object (&new_real_event->device, real_event->device);
-      g_set_object (&new_real_event->source_device, real_event->source_device);
+      new_real_event->device = real_event->device;
+      new_real_event->source_device = real_event->source_device;
       new_real_event->delta_x = real_event->delta_x;
       new_real_event->delta_y = real_event->delta_y;
       new_real_event->is_pointer_emulated = real_event->is_pointer_emulated;
@@ -1435,14 +1434,6 @@ clutter_event_free (ClutterEvent *event)
   if (G_LIKELY (event != NULL))
     {
       _clutter_backend_free_event_data (clutter_get_default_backend (), event);
-
-      if (is_event_allocated (event))
-        {
-          ClutterEventPrivate *real_event = (ClutterEventPrivate *) event;
-
-          g_clear_object (&real_event->device);
-          g_clear_object (&real_event->source_device);
-        }
 
       switch (event->type)
         {
@@ -1698,7 +1689,7 @@ clutter_event_set_source_device (ClutterEvent       *event,
     return;
 
   real_event = (ClutterEventPrivate *) event;
-  g_set_object (&real_event->source_device, device);
+  real_event->source_device = device;
 }
 
 /**
@@ -1796,12 +1787,12 @@ float
 clutter_event_get_distance (const ClutterEvent *source,
                             const ClutterEvent *target)
 {
-  graphene_point_t p0, p1;
+  ClutterPoint p0, p1;
 
   clutter_event_get_position (source, &p0);
   clutter_event_get_position (source, &p1);
 
-  return graphene_point_distance (&p0, &p1, NULL, NULL);
+  return clutter_point_distance (&p0, &p1, NULL, NULL);
 }
 
 /**
@@ -1822,17 +1813,17 @@ double
 clutter_event_get_angle (const ClutterEvent *source,
                          const ClutterEvent *target)
 {
-  graphene_point_t p0, p1;
+  ClutterPoint p0, p1;
   float x_distance, y_distance;
   double angle;
 
   clutter_event_get_position (source, &p0);
   clutter_event_get_position (target, &p1);
 
-  if (graphene_point_equal (&p0, &p1))
+  if (clutter_point_equals (&p0, &p1))
     return 0;
 
-  graphene_point_distance (&p0, &p1, &x_distance, &y_distance);
+  clutter_point_distance (&p0, &p1, &x_distance, &y_distance);
 
   angle = atan2 (x_distance, y_distance);
 
@@ -2161,9 +2152,9 @@ clutter_event_get_scroll_source (const ClutterEvent *event)
 ClutterScrollFinishFlags
 clutter_event_get_scroll_finish_flags (const ClutterEvent *event)
 {
-  g_return_val_if_fail (event != NULL, CLUTTER_SCROLL_FINISHED_NONE);
+  g_return_val_if_fail (event != NULL, CLUTTER_SCROLL_SOURCE_UNKNOWN);
   g_return_val_if_fail (event->type == CLUTTER_SCROLL,
-                        CLUTTER_SCROLL_FINISHED_NONE);
+                        CLUTTER_SCROLL_SOURCE_UNKNOWN);
 
   return event->scroll.finish_flags;
 }

@@ -21,9 +21,9 @@
 
 #include "config.h"
 
-#include "backends/meta-orientation-manager.h"
-
 #include <gio/gio.h>
+
+#include "backends/meta-orientation-manager.h"
 
 enum
 {
@@ -100,9 +100,6 @@ read_iio_proxy (MetaOrientationManager *self)
 static void
 sync_state (MetaOrientationManager *self)
 {
-  if (g_settings_get_boolean (self->settings, ORIENTATION_LOCK_KEY))
-    return;
-
   read_iio_proxy (self);
 
   if (self->prev_orientation == self->curr_orientation)
@@ -111,6 +108,9 @@ sync_state (MetaOrientationManager *self)
   self->prev_orientation = self->curr_orientation;
 
   if (self->curr_orientation == META_ORIENTATION_UNDEFINED)
+    return;
+
+  if (g_settings_get_boolean (self->settings, ORIENTATION_LOCK_KEY))
     return;
 
   g_signal_emit (self, signals[ORIENTATION_CHANGED], 0);

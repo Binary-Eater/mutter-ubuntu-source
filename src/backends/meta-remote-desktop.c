@@ -20,6 +20,8 @@
  *
  */
 
+#define _GNU_SOURCE
+
 #include "config.h"
 
 #include "backends/meta-remote-desktop.h"
@@ -30,13 +32,13 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "meta-dbus-remote-desktop.h"
 #include "backends/meta-backend-private.h"
 #include "backends/meta-cursor-renderer.h"
 #include "backends/meta-remote-desktop-session.h"
 #include "backends/native/meta-cursor-renderer-native.h"
+#include "meta/errors.h"
 #include "meta/meta-backend.h"
-
-#include "meta-dbus-remote-desktop.h"
 
 #define META_REMOTE_DESKTOP_DBUS_SERVICE "org.gnome.Mutter.RemoteDesktop"
 #define META_REMOTE_DESKTOP_DBUS_PATH "/org/gnome/Mutter/RemoteDesktop"
@@ -234,14 +236,14 @@ meta_remote_desktop_new (MetaDbusSessionWatcher *session_watcher)
 static MetaRemoteDesktopDeviceTypes
 calculate_supported_device_types (void)
 {
-  ClutterBackend *backend = clutter_get_default_backend ();
-  ClutterSeat *seat = clutter_backend_get_default_seat (backend);
+  ClutterDeviceManager *device_manager =
+    clutter_device_manager_get_default ();
   ClutterVirtualDeviceType device_types;
   MetaRemoteDesktopDeviceTypes supported_devices =
     META_REMOTE_DESKTOP_DEVICE_TYPE_NONE;
 
   device_types =
-    clutter_seat_get_supported_virtual_device_types (seat);
+    clutter_device_manager_get_supported_virtual_device_types (device_manager);
 
   if (device_types & CLUTTER_VIRTUAL_DEVICE_TYPE_KEYBOARD)
     supported_devices |= META_REMOTE_DESKTOP_DEVICE_TYPE_KEYBOARD;

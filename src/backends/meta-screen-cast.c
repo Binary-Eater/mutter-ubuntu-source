@@ -27,12 +27,12 @@
 #include <pipewire/pipewire.h>
 
 #include "backends/meta-backend-private.h"
-#include "backends/meta-remote-desktop-session.h"
 #include "backends/meta-screen-cast-session.h"
+#include "backends/meta-remote-desktop-session.h"
 
 #define META_SCREEN_CAST_DBUS_SERVICE "org.gnome.Mutter.ScreenCast"
 #define META_SCREEN_CAST_DBUS_PATH "/org/gnome/Mutter/ScreenCast"
-#define META_SCREEN_CAST_API_VERSION 3
+#define META_SCREEN_CAST_API_VERSION 1
 
 struct _MetaScreenCast
 {
@@ -43,7 +43,6 @@ struct _MetaScreenCast
   GList *sessions;
 
   MetaDbusSessionWatcher *session_watcher;
-  MetaBackend *backend;
 };
 
 static void
@@ -63,20 +62,12 @@ meta_screen_cast_get_connection (MetaScreenCast *screen_cast)
   return g_dbus_interface_skeleton_get_connection (interface_skeleton);
 }
 
-MetaBackend *
-meta_screen_cast_get_backend (MetaScreenCast *screen_cast)
-{
-  return screen_cast->backend;
-}
-
 static gboolean
 register_remote_desktop_screen_cast_session (MetaScreenCastSession  *session,
                                              const char             *remote_desktop_session_id,
                                              GError                **error)
 {
-  MetaScreenCast *screen_cast =
-    meta_screen_cast_session_get_screen_cast (session);
-  MetaBackend *backend = meta_screen_cast_get_backend (screen_cast);
+  MetaBackend *backend = meta_get_backend ();
   MetaRemoteDesktop *remote_desktop = meta_backend_get_remote_desktop (backend);
   MetaRemoteDesktopSession *remote_desktop_session;
 
@@ -116,7 +107,6 @@ handle_create_session (MetaDBusScreenCast    *skeleton,
   const char *session_path;
   const char *client_dbus_name;
   char *remote_desktop_session_id = NULL;
-  gboolean disable_animations;
   MetaScreenCastSessionType session_type;
 
   g_variant_lookup (properties, "remote-desktop-session-id", "s",
@@ -159,13 +149,6 @@ handle_create_session (MetaDBusScreenCast    *skeleton,
           g_object_unref (session);
           return TRUE;
         }
-    }
-
-  if (g_variant_lookup (properties, "disable-animations", "b",
-                        &disable_animations))
-    {
-      meta_screen_cast_session_set_disable_animations (session,
-                                                       disable_animations);
     }
 
   client_dbus_name = g_dbus_method_invocation_get_sender (invocation);
@@ -261,13 +244,11 @@ meta_screen_cast_finalize (GObject *object)
 }
 
 MetaScreenCast *
-meta_screen_cast_new (MetaBackend            *backend,
-                      MetaDbusSessionWatcher *session_watcher)
+meta_screen_cast_new (MetaDbusSessionWatcher *session_watcher)
 {
   MetaScreenCast *screen_cast;
 
   screen_cast = g_object_new (META_TYPE_SCREEN_CAST, NULL);
-  screen_cast->backend = backend;
   screen_cast->session_watcher = session_watcher;
 
   return screen_cast;

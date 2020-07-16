@@ -26,14 +26,13 @@
 #include "wayland/meta-wayland-wl-shell.h"
 
 #include "core/window-private.h"
+#include "wayland/meta-wayland.h"
 #include "wayland/meta-wayland-popup.h"
 #include "wayland/meta-wayland-private.h"
 #include "wayland/meta-wayland-seat.h"
 #include "wayland/meta-wayland-shell-surface.h"
 #include "wayland/meta-wayland-surface.h"
 #include "wayland/meta-wayland-versions.h"
-#include "wayland/meta-wayland-window-configuration.h"
-#include "wayland/meta-wayland.h"
 #include "wayland/meta-window-wayland.h"
 
 typedef enum
@@ -66,8 +65,6 @@ struct _MetaWaylandWlShellSurface
 
   int x;
   int y;
-
-  uint32_t emulated_ack_configure_serial;
 };
 
 static void
@@ -224,12 +221,10 @@ wl_shell_surface_set_state (MetaWaylandSurface     *surface,
   MetaWaylandWlShellSurface *wl_shell_surface =
     META_WAYLAND_WL_SHELL_SURFACE (surface->role);
   MetaWlShellSurfaceState old_state = wl_shell_surface->state;
-  MetaWindow *window;
 
   wl_shell_surface->state = state;
 
-  window = meta_wayland_surface_get_window (surface);
-  if (window && old_state != state)
+  if (surface->window && old_state != state)
     {
       if (old_state == META_WL_SHELL_SURFACE_STATE_POPUP &&
           wl_shell_surface->popup)
@@ -239,14 +234,14 @@ wl_shell_surface_set_state (MetaWaylandSurface     *surface,
         }
 
       if (state == META_WL_SHELL_SURFACE_STATE_FULLSCREEN)
-        meta_window_make_fullscreen (window);
+        meta_window_make_fullscreen (surface->window);
       else
-        meta_window_unmake_fullscreen (window);
+        meta_window_unmake_fullscreen (surface->window);
 
       if (state == META_WL_SHELL_SURFACE_STATE_MAXIMIZED)
-        meta_window_maximize (window, META_MAXIMIZE_BOTH);
+        meta_window_maximize (surface->window, META_MAXIMIZE_BOTH);
       else
-        meta_window_unmaximize (window, META_MAXIMIZE_BOTH);
+        meta_window_unmaximize (surface->window, META_MAXIMIZE_BOTH);
     }
 }
 
@@ -304,8 +299,7 @@ wl_shell_surface_set_transient (struct wl_client   *client,
   wl_shell_surface->x = x;
   wl_shell_surface->y = y;
 
-  if (meta_wayland_surface_get_window (surface) &&
-      meta_wayland_surface_get_window (parent_surf))
+  if (surface->window && parent_surf->window)
     sync_wl_shell_parent_relationship (surface, parent_surf);
 }
 
@@ -380,8 +374,7 @@ wl_shell_surface_set_popup (struct wl_client   *client,
   wl_shell_surface->y = y;
   wl_shell_surface->pending_popup = TRUE;
 
-  if (meta_wayland_surface_get_window (surface) &&
-      meta_wayland_surface_get_window (parent_surf))
+  if (surface->window && parent_surf->window)
     sync_wl_shell_parent_relationship (surface, parent_surf);
 }
 
@@ -406,7 +399,6 @@ wl_shell_surface_set_title (struct wl_client   *client,
     META_WAYLAND_WL_SHELL_SURFACE (wl_resource_get_user_data (resource));
   MetaWaylandSurface *surface =
     surface_from_wl_shell_surface_resource (resource);
-  MetaWindow *window;
 
   g_clear_pointer (&wl_shell_surface->title, g_free);
 
@@ -415,9 +407,8 @@ wl_shell_surface_set_title (struct wl_client   *client,
 
   wl_shell_surface->title = g_strdup (title);
 
-  window = meta_wayland_surface_get_window (surface);
-  if (window)
-    meta_window_set_title (window, title);
+  if (surface->window)
+    meta_window_set_title (surface->window, title);
 }
 
 static void
@@ -429,7 +420,6 @@ wl_shell_surface_set_class (struct wl_client *client,
     META_WAYLAND_WL_SHELL_SURFACE (wl_resource_get_user_data (resource));
   MetaWaylandSurface *surface =
     surface_from_wl_shell_surface_resource (resource);
-  MetaWindow *window;
 
   g_clear_pointer (&wl_shell_surface->wm_class, g_free);
 
@@ -438,9 +428,8 @@ wl_shell_surface_set_class (struct wl_client *client,
 
   wl_shell_surface->wm_class = g_strdup (class_);
 
-  window = meta_wayland_surface_get_window (surface);
-  if (window)
-    meta_window_set_wm_class (window, class_, class_);
+  if (surface->window)
+    meta_window_set_wm_class (surface->window, class_, class_);
 }
 
 static const struct wl_shell_surface_interface meta_wayland_wl_shell_surface_interface = {
@@ -462,17 +451,13 @@ sync_wl_shell_parent_relationship (MetaWaylandSurface *surface,
 {
   MetaWaylandWlShellSurface *wl_shell_surface =
     META_WAYLAND_WL_SHELL_SURFACE (surface->role);
-  MetaWindow *window;
-  MetaWindow *parent_window;
 
-  window = meta_wayland_surface_get_window (surface);
-  parent_window = meta_wayland_surface_get_window (parent);
-  meta_window_set_transient_for (window, parent_window);
+  meta_window_set_transient_for (surface->window, parent->window);
 
   if (wl_shell_surface->state == META_WL_SHELL_SURFACE_STATE_POPUP ||
       wl_shell_surface->state == META_WL_SHELL_SURFACE_STATE_TRANSIENT)
-    meta_window_wayland_place_relative_to (window,
-                                           parent_window,
+    meta_window_wayland_place_relative_to (surface->window,
+                                           parent->window,
                                            wl_shell_surface->x,
                                            wl_shell_surface->y);
 
@@ -499,21 +484,21 @@ create_wl_shell_surface_window (MetaWaylandSurface *surface)
   meta_wayland_shell_surface_set_window (shell_surface, window);
 
   if (wl_shell_surface->title)
-    meta_window_set_title (window, wl_shell_surface->title);
+    meta_window_set_title (surface->window, wl_shell_surface->title);
   if (wl_shell_surface->wm_class)
-    meta_window_set_wm_class (window,
+    meta_window_set_wm_class (surface->window,
                               wl_shell_surface->wm_class,
                               wl_shell_surface->wm_class);
 
   parent = wl_shell_surface->parent_surface;
-  if (parent && meta_wayland_surface_get_window (parent))
+  if (parent && parent->window)
     sync_wl_shell_parent_relationship (surface, parent);
 
   for (l = wl_shell_surface->children; l; l = l->next)
     {
       MetaWaylandSurface *child = l->data;
 
-      if (meta_wayland_surface_get_window (child))
+      if (child->window)
         sync_wl_shell_parent_relationship (child, surface);
     }
 }
@@ -577,8 +562,8 @@ bind_wl_shell (struct wl_client *client,
 }
 
 static void
-wl_shell_surface_role_apply_state (MetaWaylandSurfaceRole  *surface_role,
-                                   MetaWaylandSurfaceState *pending)
+wl_shell_surface_role_commit (MetaWaylandSurfaceRole  *surface_role,
+                              MetaWaylandPendingState *pending)
 {
   MetaWaylandWlShellSurface *wl_shell_surface =
     META_WAYLAND_WL_SHELL_SURFACE (surface_role);
@@ -587,13 +572,12 @@ wl_shell_surface_role_apply_state (MetaWaylandSurfaceRole  *surface_role,
   MetaWaylandSurfaceRoleClass *surface_role_class;
   MetaWaylandSurface *surface =
     meta_wayland_surface_role_get_surface (surface_role);
-  MetaWindow *window = meta_wayland_surface_get_window (surface);
-  cairo_region_t *input_region;
+  MetaWindow *window = surface->window;
   MetaRectangle geom = { 0 };
 
   surface_role_class =
     META_WAYLAND_SURFACE_ROLE_CLASS (meta_wayland_wl_shell_surface_parent_class);
-  surface_role_class->apply_state (surface_role, pending);
+  surface_role_class->commit (surface_role, pending);
 
   /* For wl_shell, it's equivalent to an unmap. Semantics
    * are poorly defined, so we can choose some that are
@@ -607,7 +591,7 @@ wl_shell_surface_role_apply_state (MetaWaylandSurfaceRole  *surface_role,
       if (wl_shell_surface->popup)
         meta_wayland_popup_dismiss (wl_shell_surface->popup);
       else
-        meta_wayland_shell_surface_destroy_window (shell_surface);
+        meta_wayland_surface_destroy_window (surface);
       return;
     }
 
@@ -617,22 +601,10 @@ wl_shell_surface_role_apply_state (MetaWaylandSurfaceRole  *surface_role,
   if (!pending->newly_attached)
     return;
 
-  input_region = meta_wayland_surface_calculate_input_region (surface);
-  if (!cairo_region_is_empty (input_region))
-    {
-      cairo_region_get_extents (input_region, &geom);
-      cairo_region_destroy (input_region);
-    }
-  else
-    {
-      meta_wayland_shell_surface_calculate_geometry (shell_surface, &geom);
-    }
-
-  pending->has_acked_configure_serial = TRUE;
-  pending->acked_configure_serial =
-    wl_shell_surface->emulated_ack_configure_serial;
-
-  meta_window_wayland_finish_move_resize (window, geom, pending);
+  meta_wayland_shell_surface_calculate_geometry (shell_surface, &geom);
+  meta_window_wayland_move_resize (window,
+                                   NULL,
+                                   geom, pending->dx, pending->dy);
 }
 
 static MetaWaylandSurface *
@@ -649,8 +621,12 @@ wl_shell_surface_role_get_toplevel (MetaWaylandSurfaceRole *surface_role)
 }
 
 static void
-wl_shell_surface_role_configure (MetaWaylandShellSurface        *shell_surface,
-                                 MetaWaylandWindowConfiguration *configuration)
+wl_shell_surface_role_configure (MetaWaylandShellSurface *shell_surface,
+                                 int                      new_x,
+                                 int                      new_y,
+                                 int                      new_width,
+                                 int                      new_height,
+                                 MetaWaylandSerial       *sent_serial)
 {
   MetaWaylandWlShellSurface *wl_shell_surface =
     META_WAYLAND_WL_SHELL_SURFACE (shell_surface);
@@ -660,9 +636,7 @@ wl_shell_surface_role_configure (MetaWaylandShellSurface        *shell_surface,
 
   wl_shell_surface_send_configure (wl_shell_surface->resource,
                                    0,
-                                   configuration->width, configuration->height);
-
-  wl_shell_surface->emulated_ack_configure_serial = configuration->serial;
+                                   new_width, new_height);
 }
 
 static void
@@ -706,12 +680,14 @@ meta_wayland_wl_shell_surface_popup_dismiss (MetaWaylandPopupSurface *popup_surf
 {
   MetaWaylandWlShellSurface *wl_shell_surface =
     META_WAYLAND_WL_SHELL_SURFACE (popup_surface);
-  MetaWaylandShellSurface *shell_surface =
-    META_WAYLAND_SHELL_SURFACE (wl_shell_surface);
+  MetaWaylandSurfaceRole *surface_role =
+    META_WAYLAND_SURFACE_ROLE (popup_surface);
+  MetaWaylandSurface *surface =
+    meta_wayland_surface_role_get_surface (surface_role);
 
   wl_shell_surface->popup = NULL;
 
-  meta_wayland_shell_surface_destroy_window (shell_surface);
+  meta_wayland_surface_destroy_window (surface);
 }
 
 static MetaWaylandSurface *
@@ -761,7 +737,7 @@ meta_wayland_wl_shell_surface_class_init (MetaWaylandWlShellSurfaceClass *klass)
   object_class->finalize = wl_shell_surface_role_finalize;
 
   surface_role_class = META_WAYLAND_SURFACE_ROLE_CLASS (klass);
-  surface_role_class->apply_state = wl_shell_surface_role_apply_state;
+  surface_role_class->commit = wl_shell_surface_role_commit;
   surface_role_class->get_toplevel = wl_shell_surface_role_get_toplevel;
 
   shell_surface_class = META_WAYLAND_SHELL_SURFACE_CLASS (klass);

@@ -19,7 +19,9 @@
  * Author: Stef Walter <stefw@collabora.co.uk>
  */
 
+#ifdef HAVE_CONFIG_H
 #include "clutter-build-config.h"
+#endif
 
 #include "clutter-text-buffer.h"
 #include "clutter-marshal.h"
@@ -50,8 +52,7 @@
 /* Initial size of buffer, in bytes */
 #define MIN_SIZE 16
 
-enum
-{
+enum {
   PROP_0,
   PROP_TEXT,
   PROP_LENGTH,
@@ -61,8 +62,7 @@ enum
 
 static GParamSpec *obj_props[PROP_LAST] = { NULL, };
 
-enum
-{
+enum {
   INSERTED_TEXT,
   DELETED_TEXT,
   LAST_SIGNAL
@@ -171,7 +171,7 @@ clutter_text_buffer_normal_insert_text (ClutterTextBuffer *buffer,
 
   /* Actual text insertion */
   at = g_utf8_offset_to_pointer (pv->normal_text, position) - pv->normal_text;
-  memmove (pv->normal_text + at + n_bytes, pv->normal_text + at, pv->normal_text_bytes - at);
+  g_memmove (pv->normal_text + at + n_bytes, pv->normal_text + at, pv->normal_text_bytes - at);
   memcpy (pv->normal_text + at, chars, n_bytes);
 
   /* Book keeping */
@@ -201,7 +201,7 @@ clutter_text_buffer_normal_delete_text (ClutterTextBuffer *buffer,
       start = g_utf8_offset_to_pointer (pv->normal_text, position) - pv->normal_text;
       end = g_utf8_offset_to_pointer (pv->normal_text, position + n_chars) - pv->normal_text;
 
-      memmove (pv->normal_text + start, pv->normal_text + end, pv->normal_text_bytes + 1 - end);
+      g_memmove (pv->normal_text + start, pv->normal_text + end, pv->normal_text_bytes + 1 - end);
       pv->normal_text_chars -= n_chars;
       pv->normal_text_bytes -= (end - start);
 
@@ -228,8 +228,8 @@ clutter_text_buffer_real_inserted_text (ClutterTextBuffer *buffer,
                                      const gchar    *chars,
                                      guint           n_chars)
 {
-  g_object_notify_by_pspec (G_OBJECT (buffer), obj_props[PROP_TEXT]);
-  g_object_notify_by_pspec (G_OBJECT (buffer), obj_props[PROP_LENGTH]);
+  g_object_notify (G_OBJECT (buffer), "text");
+  g_object_notify (G_OBJECT (buffer), "length");
 }
 
 static void
@@ -237,8 +237,8 @@ clutter_text_buffer_real_deleted_text (ClutterTextBuffer *buffer,
                                     guint           position,
                                     guint           n_chars)
 {
-  g_object_notify_by_pspec (G_OBJECT (buffer), obj_props[PROP_TEXT]);
-  g_object_notify_by_pspec (G_OBJECT (buffer), obj_props[PROP_LENGTH]);
+  g_object_notify (G_OBJECT (buffer), "text");
+  g_object_notify (G_OBJECT (buffer), "length");
 }
 
 /* --------------------------------------------------------------------------------
@@ -598,7 +598,7 @@ clutter_text_buffer_set_max_length (ClutterTextBuffer *buffer,
     clutter_text_buffer_delete_text (buffer, max_length, -1);
 
   buffer->priv->max_length = max_length;
-  g_object_notify_by_pspec (G_OBJECT (buffer), obj_props[PROP_MAX_LENGTH]);
+  g_object_notify (G_OBJECT (buffer), "max-length");
 }
 
 /**

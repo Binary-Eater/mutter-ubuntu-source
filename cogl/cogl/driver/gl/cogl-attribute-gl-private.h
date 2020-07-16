@@ -47,4 +47,7 @@ _cogl_gl_flush_attributes_state (CoglFramebuffer *framebuffer,
                                  CoglAttribute **attributes,
                                  int n_attributes);
 
+void
+_cogl_gl_disable_all_attributes (CoglContext *ctx);
+
 #endif /* _COGL_ATTRIBUTE_GL_PRIVATE_H_ */

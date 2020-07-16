@@ -5,6 +5,12 @@
 #include <clutter/clutter-backend.h>
 #include <clutter/clutter-stage.h>
 
+#ifdef COGL_HAS_X11_SUPPORT
+#include <X11/Xlib.h>
+#include <X11/Xatom.h>
+#include <X11/Xutil.h>
+#endif
+
 #include "clutter/clutter-stage-window.h"
 
 G_BEGIN_DECLS
@@ -22,7 +28,7 @@ typedef struct _ClutterStageCoglClass    ClutterStageCoglClass;
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (ClutterStageCogl, g_object_unref)
 
 #define CLUTTER_TYPE_STAGE_VIEW_COGL (clutter_stage_view_cogl_get_type ())
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_MUTTER
 G_DECLARE_DERIVABLE_TYPE (ClutterStageViewCogl, clutter_stage_view_cogl,
                           CLUTTER, STAGE_VIEW_COGL,
                           ClutterStageView)
@@ -47,15 +53,19 @@ struct _ClutterStageCogl
 
   gint64 last_presentation_time;
   gint64 update_time;
-  int64_t last_update_time;
-  int64_t next_presentation_time;
 
   /* We only enable clipped redraws after 2 frames, since we've seen
    * a lot of drivers can struggle to get going and may output some
    * junk frames to start with. */
   unsigned int frame_count;
 
-  gint last_sync_delay;
+  cairo_rectangle_int_t bounding_redraw_clip;
+
+  guint initialized_redraw_clip : 1;
+
+  /* TRUE if the current paint cycle has a clipped redraw. In that
+     case bounding_redraw_clip specifies the the bounds. */
+  guint using_clipped_redraw : 1;
 };
 
 struct _ClutterStageCoglClass
@@ -63,10 +73,10 @@ struct _ClutterStageCoglClass
   GObjectClass parent_class;
 };
 
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_MUTTER
 GType _clutter_stage_cogl_get_type (void) G_GNUC_CONST;
 
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_MUTTER
 void _clutter_stage_cogl_presented (ClutterStageCogl *stage_cogl,
                                     CoglFrameEvent    frame_event,
                                     ClutterFrameInfo *frame_info);

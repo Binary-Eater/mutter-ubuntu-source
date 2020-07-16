@@ -29,10 +29,8 @@
  */
 
 #include "config.h"
-
-#include "core/meta-gesture-tracker-private.h"
-
-#include "compositor/meta-surface-actor.h"
+#include "meta-gesture-tracker-private.h"
+#include "meta-surface-actor.h"
 
 #define DISTANCE_THRESHOLD 30
 
@@ -54,9 +52,9 @@ struct _GestureActionData
 {
   ClutterGestureAction *gesture;
   MetaSequenceState state;
-  gulong gesture_begin_id;
-  gulong gesture_end_id;
-  gulong gesture_cancel_id;
+  guint gesture_begin_id;
+  guint gesture_end_id;
+  guint gesture_cancel_id;
 };
 
 struct _MetaGestureTrackerPrivate
@@ -69,8 +67,7 @@ struct _MetaGestureTrackerPrivate
   guint autodeny_timeout;
 };
 
-enum
-{
+enum {
   PROP_0,
   PROP_AUTODENY_TIMEOUT,
   PROP_LAST,
@@ -78,8 +75,7 @@ enum
 
 static GParamSpec *obj_props[PROP_LAST];
 
-enum
-{
+enum {
   STATE_CHANGED,
   N_SIGNALS
 };
@@ -215,7 +211,8 @@ meta_sequence_info_new (MetaGestureTracker *tracker,
 static void
 meta_sequence_info_free (MetaSequenceInfo *info)
 {
-  g_clear_handle_id (&info->autodeny_timeout_id, g_source_remove);
+  if (info->autodeny_timeout_id)
+    g_source_remove (info->autodeny_timeout_id);
 
   if (info->state == META_SEQUENCE_NONE)
     meta_gesture_tracker_set_sequence_state (info->tracker, info->sequence,
@@ -333,9 +330,9 @@ cancel_and_unref_gesture_cb (ClutterGestureAction *action)
 static void
 clear_gesture_data (GestureActionData *data)
 {
-  g_clear_signal_handler (&data->gesture_begin_id, data->gesture);
-  g_clear_signal_handler (&data->gesture_end_id, data->gesture);
-  g_clear_signal_handler (&data->gesture_cancel_id, data->gesture);
+  g_signal_handler_disconnect (data->gesture, data->gesture_begin_id);
+  g_signal_handler_disconnect (data->gesture, data->gesture_end_id);
+  g_signal_handler_disconnect (data->gesture, data->gesture_cancel_id);
 
   /* Defer cancellation to an idle, as it may happen within event handling */
   g_idle_add ((GSourceFunc) cancel_and_unref_gesture_cb, data->gesture);
@@ -536,7 +533,11 @@ meta_gesture_tracker_set_sequence_state (MetaGestureTracker   *tracker,
     return FALSE;
 
   /* Unset autodeny timeout */
-  g_clear_handle_id (&info->autodeny_timeout_id, g_source_remove);
+  if (info->autodeny_timeout_id)
+    {
+      g_source_remove (info->autodeny_timeout_id);
+      info->autodeny_timeout_id = 0;
+    }
 
   info->state = state;
   g_signal_emit (tracker, signals[STATE_CHANGED], 0, sequence, info->state);

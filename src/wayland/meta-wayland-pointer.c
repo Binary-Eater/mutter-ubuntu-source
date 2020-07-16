@@ -43,38 +43,39 @@
 
 #include "config.h"
 
+#include <clutter/clutter.h>
+#include <clutter/evdev/clutter-evdev.h>
+#include <cogl/cogl.h>
+#include <cogl/cogl-wayland-server.h>
 #include <linux/input.h>
-#include <string.h>
 
-#include "backends/meta-backend-private.h"
-#include "backends/meta-cursor-renderer.h"
-#include "backends/meta-cursor-tracker-private.h"
-#include "backends/meta-cursor.h"
-#include "clutter/clutter.h"
-#include "cogl/cogl-wayland-server.h"
-#include "cogl/cogl.h"
-#include "compositor/meta-surface-actor-wayland.h"
+#include "meta-wayland-pointer.h"
+#include "meta-wayland-popup.h"
+#include "meta-wayland-private.h"
+#include "meta-wayland-seat.h"
+#include "meta-wayland-surface.h"
+#include "meta-wayland-buffer.h"
+#include "meta-wayland-surface-role-cursor.h"
+#include "meta-xwayland.h"
+#include "meta-cursor.h"
+#include "meta-cursor-tracker-private.h"
+#include "meta-surface-actor-wayland.h"
 #include "meta/meta-cursor-tracker.h"
-#include "wayland/meta-wayland-buffer.h"
-#include "wayland/meta-wayland-cursor-surface.h"
-#include "wayland/meta-wayland-pointer.h"
-#include "wayland/meta-wayland-popup.h"
-#include "wayland/meta-wayland-private.h"
-#include "wayland/meta-wayland-seat.h"
-#include "wayland/meta-wayland-surface.h"
-#include "wayland/meta-xwayland.h"
-
-#ifdef HAVE_NATIVE_BACKEND
-#include "backends/native/meta-backend-native.h"
-#include "backends/native/meta-event-native.h"
-#endif
+#include "backends/meta-backend-private.h"
+#include "backends/meta-cursor-tracker-private.h"
+#include "backends/meta-cursor-renderer.h"
 
 #include "relative-pointer-unstable-v1-server-protocol.h"
 
+#ifdef HAVE_NATIVE_BACKEND
+#include "backends/native/meta-backend-native.h"
+#endif
+
+#include <string.h>
+
 #define DEFAULT_AXIS_STEP_DISTANCE wl_fixed_from_int (10)
 
-enum
-{
+enum {
   FOCUS_SURFACE_CHANGED,
 
   LAST_SIGNAL
@@ -225,17 +226,6 @@ static void
 sync_focus_surface (MetaWaylandPointer *pointer)
 {
   MetaDisplay *display = meta_get_display ();
-  MetaBackend *backend = meta_get_backend ();
-  MetaCursorTracker *cursor_tracker = meta_backend_get_cursor_tracker (backend);
-  ClutterBackend *clutter_backend = clutter_get_default_backend ();
-  ClutterSeat *clutter_seat = clutter_backend_get_default_seat (clutter_backend);
-
-  if (!meta_cursor_tracker_get_pointer_visible (cursor_tracker) &&
-      !clutter_seat_is_unfocus_inhibited (clutter_seat))
-    {
-      meta_wayland_pointer_set_focus (pointer, NULL);
-      return;
-    }
 
   switch (display->event_route)
     {
@@ -286,7 +276,6 @@ void
 meta_wayland_pointer_send_relative_motion (MetaWaylandPointer *pointer,
                                            const ClutterEvent *event)
 {
-#ifdef HAVE_NATIVE_BACKEND
   struct wl_resource *resource;
   double dx, dy;
   double dx_unaccel, dy_unaccel;
@@ -295,19 +284,20 @@ meta_wayland_pointer_send_relative_motion (MetaWaylandPointer *pointer,
   uint32_t time_us_lo;
   wl_fixed_t dxf, dyf;
   wl_fixed_t dx_unaccelf, dy_unaccelf;
-  MetaBackend *backend = meta_get_backend ();
 
   if (!pointer->focus_client)
     return;
 
-  if (!META_IS_BACKEND_NATIVE (backend) ||
-      !meta_event_native_get_relative_motion (event,
-                                              &dx, &dy,
-                                              &dx_unaccel, &dy_unaccel))
+  if (!meta_backend_get_relative_motion_deltas (meta_get_backend (),
+                                                event,
+                                                &dx, &dy,
+                                                &dx_unaccel, &dy_unaccel))
     return;
 
-  time_us = meta_event_native_get_time_usec (event);
+#ifdef HAVE_NATIVE_BACKEND
+  time_us = clutter_evdev_event_get_time_usec (event);
   if (time_us == 0)
+#endif
     time_us = clutter_event_get_time (event) * 1000ULL;
   time_us_hi = (uint32_t) (time_us >> 32);
   time_us_lo = (uint32_t) time_us;
@@ -327,7 +317,6 @@ meta_wayland_pointer_send_relative_motion (MetaWaylandPointer *pointer,
                                                     dx_unaccelf,
                                                     dy_unaccelf);
     }
-#endif
 }
 
 void
@@ -380,7 +369,7 @@ meta_wayland_pointer_send_button (MetaWaylandPointer *pointer,
 #ifdef HAVE_NATIVE_BACKEND
       MetaBackend *backend = meta_get_backend ();
       if (META_IS_BACKEND_NATIVE (backend))
-        button = meta_event_native_get_event_code (event);
+        button = clutter_evdev_event_get_event_code (event);
       else
 #endif
         {
@@ -431,17 +420,6 @@ default_grab_focus (MetaWaylandPointerGrab *grab,
   MetaWaylandPointer *pointer = grab->pointer;
   MetaWaylandSeat *seat = meta_wayland_pointer_get_seat (pointer);
   MetaDisplay *display = meta_get_display ();
-  MetaBackend *backend = meta_get_backend ();
-  MetaCursorTracker *cursor_tracker = meta_backend_get_cursor_tracker (backend);
-  ClutterBackend *clutter_backend = clutter_get_default_backend ();
-  ClutterSeat *clutter_seat = clutter_backend_get_default_seat (clutter_backend);
-
-  if (!meta_wayland_seat_has_pointer (seat))
-    return;
-
-  if (!meta_cursor_tracker_get_pointer_visible (cursor_tracker) &&
-      !clutter_seat_is_unfocus_inhibited (clutter_seat))
-    return;
 
   if (pointer->button_count > 0)
     return;
@@ -459,7 +437,8 @@ default_grab_focus (MetaWaylandPointerGrab *grab,
       break;
     }
 
-  meta_wayland_pointer_set_focus (pointer, surface);
+  if (meta_wayland_seat_has_pointer (seat))
+    meta_wayland_pointer_set_focus (pointer, surface);
 }
 
 static void
@@ -499,7 +478,7 @@ meta_wayland_pointer_enable (MetaWaylandPointer *pointer)
 {
   MetaBackend *backend = meta_get_backend ();
   MetaCursorTracker *cursor_tracker = meta_backend_get_cursor_tracker (backend);
-  ClutterSeat *clutter_seat;
+  ClutterDeviceManager *manager;
 
   pointer->pointer_clients =
     g_hash_table_new_full (NULL, NULL, NULL,
@@ -507,23 +486,13 @@ meta_wayland_pointer_enable (MetaWaylandPointer *pointer)
 
   pointer->cursor_surface = NULL;
 
-  clutter_seat = clutter_backend_get_default_seat (clutter_get_default_backend ());
-  pointer->device = clutter_seat_get_pointer (clutter_seat);
+  manager = clutter_device_manager_get_default ();
+  pointer->device = clutter_device_manager_get_core_device (manager, CLUTTER_POINTER_DEVICE);
 
   g_signal_connect (cursor_tracker,
                     "cursor-changed",
                     G_CALLBACK (meta_wayland_pointer_on_cursor_changed),
                     pointer);
-
-  g_signal_connect_swapped (cursor_tracker,
-                            "visibility-changed",
-                            G_CALLBACK (sync_focus_surface),
-                            pointer);
-
-  g_signal_connect_swapped (clutter_seat,
-                            "is-unfocus-inhibited-changed",
-                            G_CALLBACK (sync_focus_surface),
-                            pointer);
 }
 
 void
@@ -531,25 +500,15 @@ meta_wayland_pointer_disable (MetaWaylandPointer *pointer)
 {
   MetaBackend *backend = meta_get_backend ();
   MetaCursorTracker *cursor_tracker = meta_backend_get_cursor_tracker (backend);
-  ClutterBackend *clutter_backend = clutter_get_default_backend ();
-  ClutterSeat *clutter_seat = clutter_backend_get_default_seat (clutter_backend);
 
   g_signal_handlers_disconnect_by_func (cursor_tracker,
                                         (gpointer) meta_wayland_pointer_on_cursor_changed,
                                         pointer);
 
-  g_signal_handlers_disconnect_by_func (cursor_tracker,
-                                        sync_focus_surface,
-                                        pointer);
-
-  g_signal_handlers_disconnect_by_func (clutter_seat,
-                                        sync_focus_surface,
-                                        pointer);
-
-  if (pointer->cursor_surface)
+  if (pointer->cursor_surface && pointer->cursor_surface_destroy_id)
     {
-      g_clear_signal_handler (&pointer->cursor_surface_destroy_id,
-                              pointer->cursor_surface);
+      g_signal_handler_disconnect (pointer->cursor_surface,
+                                   pointer->cursor_surface_destroy_id);
     }
 
   meta_wayland_pointer_cancel_grab (pointer);
@@ -596,8 +555,8 @@ meta_wayland_pointer_set_current (MetaWaylandPointer *pointer,
 {
   if (pointer->current)
     {
-      g_clear_signal_handler (&pointer->current_surface_destroyed_handler_id,
-                              pointer->current);
+      g_signal_handler_disconnect (pointer->current,
+                                   pointer->current_surface_destroyed_handler_id);
       pointer->current = NULL;
     }
 
@@ -905,14 +864,6 @@ meta_wayland_pointer_set_focus (MetaWaylandPointer *pointer,
                                 MetaWaylandSurface *surface)
 {
   MetaWaylandInputDevice *input_device = META_WAYLAND_INPUT_DEVICE (pointer);
-  MetaBackend *backend = meta_get_backend ();
-  MetaCursorTracker *cursor_tracker = meta_backend_get_cursor_tracker (backend);
-  ClutterBackend *clutter_backend = clutter_get_default_backend ();
-  ClutterSeat *clutter_seat = clutter_backend_get_default_seat (clutter_backend);
-
-  g_return_if_fail (meta_cursor_tracker_get_pointer_visible (cursor_tracker) ||
-                    clutter_seat_is_unfocus_inhibited (clutter_seat) ||
-                    surface == NULL);
 
   if (pointer->focus_surface == surface)
     return;
@@ -931,16 +882,16 @@ meta_wayland_pointer_set_focus (MetaWaylandPointer *pointer,
           pointer->focus_client = NULL;
         }
 
-      g_clear_signal_handler (&pointer->focus_surface_destroyed_handler_id,
-                              pointer->focus_surface);
+      g_signal_handler_disconnect (pointer->focus_surface,
+                                   pointer->focus_surface_destroyed_handler_id);
+      pointer->focus_surface_destroyed_handler_id = 0;
       pointer->focus_surface = NULL;
     }
 
   if (surface != NULL)
     {
       struct wl_client *client = wl_resource_get_client (surface->resource);
-      graphene_point_t pos;
-      MetaWindow *focus_window;
+      ClutterPoint pos;
 
       pointer->focus_surface = surface;
 
@@ -951,9 +902,8 @@ meta_wayland_pointer_set_focus (MetaWaylandPointer *pointer,
 
       clutter_input_device_get_coords (pointer->device, NULL, &pos);
 
-      focus_window = meta_wayland_surface_get_window (pointer->focus_surface);
-      if (focus_window)
-        meta_window_handle_enter (focus_window,
+      if (pointer->focus_surface->window)
+        meta_window_handle_enter (pointer->focus_surface->window,
                                   /* XXX -- can we reliably get a timestamp for setting focus? */
                                   clutter_get_current_event_time (),
                                   pos.x, pos.y);
@@ -1044,7 +994,6 @@ meta_wayland_pointer_start_popup_grab (MetaWaylandPointer      *pointer,
 void
 meta_wayland_pointer_repick (MetaWaylandPointer *pointer)
 {
-  clutter_input_device_update (pointer->device, NULL, FALSE);
   repick_for_event (pointer, NULL);
 }
 
@@ -1055,7 +1004,7 @@ meta_wayland_pointer_get_relative_coordinates (MetaWaylandPointer *pointer,
 					       wl_fixed_t         *sy)
 {
   float xf = 0.0f, yf = 0.0f;
-  graphene_point_t pos;
+  ClutterPoint pos;
 
   clutter_input_device_get_coords (pointer->device, NULL, &pos);
   meta_wayland_surface_get_relative_coordinates (surface, pos.x, pos.y, &xf, &yf);
@@ -1076,10 +1025,10 @@ meta_wayland_pointer_update_cursor_surface (MetaWaylandPointer *pointer)
 
       if (pointer->cursor_surface)
         {
-          MetaWaylandCursorSurface *cursor_surface =
-            META_WAYLAND_CURSOR_SURFACE (pointer->cursor_surface->role);
+          MetaWaylandSurfaceRoleCursor *cursor_role =
+            META_WAYLAND_SURFACE_ROLE_CURSOR (pointer->cursor_surface->role);
 
-          cursor_sprite = meta_wayland_cursor_surface_get_sprite (cursor_surface);
+          cursor_sprite = meta_wayland_surface_role_cursor_get_sprite (cursor_role);
         }
 
       meta_cursor_tracker_set_window_cursor (cursor_tracker, cursor_sprite);
@@ -1117,8 +1066,8 @@ meta_wayland_pointer_set_cursor_surface (MetaWaylandPointer *pointer,
   if (prev_cursor_surface)
     {
       meta_wayland_surface_update_outputs (prev_cursor_surface);
-      g_clear_signal_handler (&pointer->cursor_surface_destroy_id,
-                              prev_cursor_surface);
+      g_signal_handler_disconnect (prev_cursor_surface,
+                                   pointer->cursor_surface_destroy_id);
     }
 
   if (cursor_surface)
@@ -1153,7 +1102,7 @@ pointer_set_cursor (struct wl_client *client,
 
   if (surface &&
       !meta_wayland_surface_assign_role (surface,
-                                         META_TYPE_WAYLAND_CURSOR_SURFACE,
+                                         META_TYPE_WAYLAND_SURFACE_ROLE_CURSOR,
                                          NULL))
     {
       wl_resource_post_error (resource, WL_POINTER_ERROR_ROLE,
@@ -1166,13 +1115,13 @@ pointer_set_cursor (struct wl_client *client,
     {
       MetaCursorRenderer *cursor_renderer =
         meta_backend_get_cursor_renderer (meta_get_backend ());
-      MetaWaylandCursorSurface *cursor_surface;
+      MetaWaylandSurfaceRoleCursor *cursor_role;
 
-      cursor_surface = META_WAYLAND_CURSOR_SURFACE (surface->role);
-      meta_wayland_cursor_surface_set_renderer (cursor_surface,
-                                                cursor_renderer);
-      meta_wayland_cursor_surface_set_hotspot (cursor_surface,
-                                               hot_x, hot_y);
+      cursor_role = META_WAYLAND_SURFACE_ROLE_CURSOR (surface->role);
+      meta_wayland_surface_role_cursor_set_renderer (cursor_role,
+                                                     cursor_renderer);
+      meta_wayland_surface_role_cursor_set_hotspot (cursor_role,
+                                                    hot_x, hot_y);
     }
 
   meta_wayland_pointer_set_cursor_surface (pointer, surface);
@@ -1222,13 +1171,15 @@ static gboolean
 pointer_can_grab_surface (MetaWaylandPointer *pointer,
                           MetaWaylandSurface *surface)
 {
-  MetaWaylandSurface *subsurface;
+  GList *l;
 
   if (pointer->focus_surface == surface)
     return TRUE;
 
-  META_WAYLAND_SURFACE_FOREACH_SUBSURFACE (surface, subsurface)
+  for (l = surface->subsurfaces; l; l = l->next)
     {
+      MetaWaylandSurface *subsurface = l->data;
+
       if (pointer_can_grab_surface (pointer, subsurface))
         return TRUE;
     }

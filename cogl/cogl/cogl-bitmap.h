@@ -43,18 +43,16 @@ typedef struct _CoglBitmap CoglBitmap;
 #include <cogl/cogl-buffer.h>
 #include <cogl/cogl-context.h>
 #include <cogl/cogl-pixel-buffer.h>
-#include <cogl/cogl-pixel-format.h>
 
 #include <glib-object.h>
 
-G_BEGIN_DECLS
+COGL_BEGIN_DECLS
 
 /**
  * cogl_bitmap_get_gtype:
  *
  * Returns: a #GType that can be used with the GLib type system.
  */
-COGL_EXPORT
 GType cogl_bitmap_get_gtype (void);
 
 /**
@@ -71,7 +69,7 @@ GType cogl_bitmap_get_gtype (void);
 /**
  * cogl_bitmap_new_from_file:
  * @filename: the file to load.
- * @error: a #GError or %NULL.
+ * @error: a #CoglError or %NULL.
  *
  * Loads an image file from disk. This function can be safely called from
  * within a thread.
@@ -81,9 +79,9 @@ GType cogl_bitmap_get_gtype (void);
  *
  * Since: 1.0
  */
-COGL_EXPORT CoglBitmap *
+CoglBitmap *
 cogl_bitmap_new_from_file (const char *filename,
-                           GError **error);
+                           CoglError **error);
 
 /**
  * cogl_bitmap_new_from_buffer: (skip)
@@ -104,7 +102,7 @@ cogl_bitmap_new_from_file (const char *filename,
  * Since: 1.8
  * Stability: unstable
  */
-COGL_EXPORT CoglBitmap *
+CoglBitmap *
 cogl_bitmap_new_from_buffer (CoglBuffer *buffer,
                              CoglPixelFormat format,
                              int width,
@@ -141,7 +139,7 @@ cogl_bitmap_new_from_buffer (CoglBuffer *buffer,
  * Since: 1.10
  * Stability: Unstable
  */
-COGL_EXPORT CoglBitmap *
+CoglBitmap *
 cogl_bitmap_new_with_size (CoglContext *context,
                            unsigned int width,
                            unsigned int height,
@@ -167,7 +165,7 @@ cogl_bitmap_new_with_size (CoglContext *context,
  * Since: 1.10
  * Stability: unstable
  */
-COGL_EXPORT CoglBitmap *
+CoglBitmap *
 cogl_bitmap_new_for_data (CoglContext *context,
                           int width,
                           int height,
@@ -183,7 +181,7 @@ cogl_bitmap_new_for_data (CoglContext *context,
  * Since: 1.10
  * Stability: unstable
  */
-COGL_EXPORT CoglPixelFormat
+CoglPixelFormat
 cogl_bitmap_get_format (CoglBitmap *bitmap);
 
 /**
@@ -194,7 +192,7 @@ cogl_bitmap_get_format (CoglBitmap *bitmap);
  * Since: 1.10
  * Stability: unstable
  */
-COGL_EXPORT int
+int
 cogl_bitmap_get_width (CoglBitmap *bitmap);
 
 /**
@@ -205,7 +203,7 @@ cogl_bitmap_get_width (CoglBitmap *bitmap);
  * Since: 1.10
  * Stability: unstable
  */
-COGL_EXPORT int
+int
 cogl_bitmap_get_height (CoglBitmap *bitmap);
 
 /**
@@ -218,7 +216,7 @@ cogl_bitmap_get_height (CoglBitmap *bitmap);
  * Since: 1.10
  * Stability: unstable
  */
-COGL_EXPORT int
+int
 cogl_bitmap_get_rowstride (CoglBitmap *bitmap);
 
 /**
@@ -232,7 +230,7 @@ cogl_bitmap_get_rowstride (CoglBitmap *bitmap);
  * Stability: unstable
  * Since: 1.10
  */
-COGL_EXPORT CoglPixelBuffer *
+CoglPixelBuffer *
 cogl_bitmap_get_buffer (CoglBitmap *bitmap);
 
 /**
@@ -248,7 +246,7 @@ cogl_bitmap_get_buffer (CoglBitmap *bitmap);
  *
  * Since: 1.0
  */
-COGL_EXPORT gboolean
+CoglBool
 cogl_bitmap_get_size_from_file (const char *filename,
                                 int *width,
                                 int *height);
@@ -264,13 +262,13 @@ cogl_bitmap_get_size_from_file (const char *filename,
  *
  * Since: 1.0
  */
-COGL_EXPORT gboolean
+CoglBool
 cogl_is_bitmap (void *object);
 
 /**
  * COGL_BITMAP_ERROR:
  *
- * #GError domain for bitmap errors.
+ * #CoglError domain for bitmap errors.
  *
  * Since: 1.4
  */
@@ -291,16 +289,14 @@ cogl_is_bitmap (void *object);
  *
  * Since: 1.4
  */
-typedef enum
-{
+typedef enum {
   COGL_BITMAP_ERROR_FAILED,
   COGL_BITMAP_ERROR_UNKNOWN_TYPE,
   COGL_BITMAP_ERROR_CORRUPT_IMAGE
 } CoglBitmapError;
 
-COGL_EXPORT
 uint32_t cogl_bitmap_error_quark (void);
 
-G_END_DECLS
+COGL_END_DECLS
 
 #endif /* __COGL_BITMAP_H__ */

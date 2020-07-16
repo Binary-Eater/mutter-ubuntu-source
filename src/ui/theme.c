@@ -17,19 +17,18 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "config.h"
-
-#include "ui/theme-private.h"
-
+#include <config.h>
+#include "theme-private.h"
+#include "frames.h" /* for META_TYPE_FRAMES */
+#include "util-private.h"
+#include <meta/prefs.h>
 #include <gtk/gtk.h>
-#include <math.h>
-#include <stdarg.h>
-#include <stdlib.h>
 #include <string.h>
+#include <stdlib.h>
+#include <stdarg.h>
+#include <math.h>
 
-#include "core/util-private.h"
-#include "meta/prefs.h"
-#include "ui/frames.h"
+#define DEBUG_FILL_STRUCT(s) memset ((s), 0xef, sizeof (*(s)))
 
 static void scale_border (GtkBorder *border, double factor);
 
@@ -56,6 +55,7 @@ meta_frame_layout_free (MetaFrameLayout *layout)
 {
   g_return_if_fail (layout != NULL);
 
+  DEBUG_FILL_STRUCT (layout);
   g_free (layout);
 }
 
@@ -164,6 +164,11 @@ rect_for_function (MetaFrameGeometry *fgeom,
     case META_BUTTON_FUNCTION_MENU:
       if (flags & META_FRAME_ALLOWS_MENU)
         return &fgeom->menu_rect;
+      else
+        return NULL;
+    case META_BUTTON_FUNCTION_APPMENU:
+      if (flags & META_FRAME_ALLOWS_APPMENU)
+        return &fgeom->appmenu_rect;
       else
         return NULL;
     case META_BUTTON_FUNCTION_MINIMIZE:
@@ -514,6 +519,10 @@ meta_frame_layout_calc_geometry (MetaFrameLayout        *layout,
         continue;
       else if (strip_button (left_func_rects, &n_left, &fgeom->menu_rect))
         continue;
+      else if (strip_button (right_func_rects, &n_right, &fgeom->appmenu_rect))
+        continue;
+      else if (strip_button (left_func_rects, &n_left, &fgeom->appmenu_rect))
+        continue;
       else
         {
           meta_bug ("Could not find a button to strip. n_left = %d n_right = %d\n",
@@ -566,7 +575,7 @@ meta_frame_layout_calc_geometry (MetaFrameLayout        *layout,
 
         }
       else
-        memmove (&(rect->clickable), &(rect->visible), sizeof (rect->clickable));
+        g_memmove (&(rect->clickable), &(rect->visible), sizeof(rect->clickable));
 
       x = rect->visible.x - layout->button_margin.left * scale;
 
@@ -613,7 +622,7 @@ meta_frame_layout_calc_geometry (MetaFrameLayout        *layout,
           rect->clickable.height = button_height + button_y;
         }
       else
-        memmove (&(rect->clickable), &(rect->visible), sizeof (rect->clickable));
+        g_memmove (&(rect->clickable), &(rect->visible), sizeof(rect->clickable));
 
       x = rect->visible.x + rect->visible.width + layout->button_margin.right * scale;
       if (i < n_left - 1)
@@ -681,6 +690,10 @@ get_button_rect (MetaButtonType           type,
       *rect = fgeom->menu_rect.visible;
       break;
 
+    case META_BUTTON_TYPE_APPMENU:
+      *rect = fgeom->appmenu_rect.visible;
+      break;
+
     default:
     case META_BUTTON_TYPE_LAST:
       g_assert_not_reached ();
@@ -699,6 +712,8 @@ get_class_from_button_type (MetaButtonType type)
       return "maximize";
     case META_BUTTON_TYPE_MINIMIZE:
       return "minimize";
+    case META_BUTTON_TYPE_APPMENU:
+      return "appmenu";
     default:
       return NULL;
     }
@@ -853,6 +868,9 @@ meta_frame_layout_draw_with_style (MetaFrameLayout         *layout,
             case META_BUTTON_TYPE_MENU:
                icon_name = "open-menu-symbolic";
                break;
+            case META_BUTTON_TYPE_APPMENU:
+               surface = cairo_surface_reference (mini_icon);
+               break;
             default:
                icon_name = NULL;
                break;
@@ -861,8 +879,8 @@ meta_frame_layout_draw_with_style (MetaFrameLayout         *layout,
           if (icon_name)
             {
               GtkIconTheme *theme = gtk_icon_theme_get_default ();
-              g_autoptr (GtkIconInfo) info = NULL;
-              g_autoptr (GdkPixbuf) pixbuf = NULL;
+              GtkIconInfo *info;
+              GdkPixbuf *pixbuf;
 
               info = gtk_icon_theme_lookup_icon_for_scale (theme, icon_name,
                                                            layout->icon_size, scale, 0);
@@ -964,6 +982,7 @@ meta_theme_free (MetaTheme *theme)
     if (theme->layouts[i])
       meta_frame_layout_free (theme->layouts[i]);
 
+  DEBUG_FILL_STRUCT (theme);
   g_free (theme);
 }
 
@@ -1031,23 +1050,6 @@ create_style_context (GType            widget_type,
   return style;
 }
 
-static inline GtkCssProvider *
-get_css_provider_for_theme_name (const gchar *theme_name,
-                                 const gchar *variant)
-{
-  static GtkCssProvider *default_provider = NULL;
-
-  if (!theme_name || *theme_name == '\0')
-    {
-      if (G_UNLIKELY (default_provider == NULL))
-        default_provider = gtk_css_provider_new ();
-
-      return default_provider;
-    }
-
-  return gtk_css_provider_get_named (theme_name, variant);
-}
-
 MetaStyleInfo *
 meta_theme_create_style_info (GdkScreen   *screen,
                               const gchar *variant)
@@ -1060,7 +1062,10 @@ meta_theme_create_style_info (GdkScreen   *screen,
                 "gtk-theme-name", &theme_name,
                 NULL);
 
-  provider = get_css_provider_for_theme_name (theme_name, variant);
+  if (theme_name && *theme_name)
+    provider = gtk_css_provider_get_named (theme_name, variant);
+  else
+    provider = gtk_css_provider_get_default ();
   g_free (theme_name);
 
   style_info = g_new0 (MetaStyleInfo, 1);
@@ -1182,6 +1187,8 @@ meta_style_info_set_flags (MetaStyleInfo  *style_info,
   int i;
 
   backdrop = !(flags & META_FRAME_HAS_FOCUS);
+  if (flags & META_FRAME_IS_FLASHING)
+    backdrop = !backdrop;
 
   if (flags & META_FRAME_MAXIMIZED)
     class_name = "maximized";

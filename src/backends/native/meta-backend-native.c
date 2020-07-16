@@ -22,58 +22,46 @@
  *     Jasper St. Pierre <jstpierre@mecheye.net>
  */
 
-/**
- * SECTION:meta-backend-native
- * @title: MetaBackendNative
- * @short_description: A native (KMS/evdev) MetaBackend
- *
- * MetaBackendNative is an implementation of #MetaBackend that uses "native"
- * technologies like DRM/KMS and libinput/evdev to perform the necessary
- * functions.
- */
-
 #include "config.h"
 
-#include "backends/native/meta-backend-native.h"
-#include "backends/native/meta-backend-native-private.h"
+#include "meta-backend-native.h"
+#include "meta-backend-native-private.h"
 
-#include <sched.h>
-#include <stdlib.h>
+#include <meta/main.h>
+#include <clutter/evdev/clutter-evdev.h>
+#include <libupower-glib/upower.h>
 
+#include "clutter/egl/clutter-egl.h"
+#include "clutter/evdev/clutter-evdev.h"
+#include "meta-barrier-native.h"
+#include "meta-border.h"
+#include "meta-monitor-manager-kms.h"
+#include "meta-cursor-renderer-native.h"
+#include "meta-launcher.h"
 #include "backends/meta-cursor-tracker-private.h"
 #include "backends/meta-idle-monitor-private.h"
 #include "backends/meta-logical-monitor.h"
 #include "backends/meta-monitor-manager-private.h"
 #include "backends/meta-pointer-constraint.h"
-#include "backends/meta-settings-private.h"
 #include "backends/meta-stage-private.h"
-#include "backends/native/meta-barrier-native.h"
 #include "backends/native/meta-clutter-backend-native.h"
-#include "backends/native/meta-cursor-renderer-native.h"
-#include "backends/native/meta-event-native.h"
 #include "backends/native/meta-input-settings-native.h"
-#include "backends/native/meta-kms.h"
-#include "backends/native/meta-kms-device.h"
-#include "backends/native/meta-launcher.h"
-#include "backends/native/meta-monitor-manager-kms.h"
 #include "backends/native/meta-renderer-native.h"
-#include "backends/native/meta-seat-native.h"
 #include "backends/native/meta-stage-native.h"
-#include "cogl/cogl.h"
-#include "core/meta-border.h"
-#include "meta/main.h"
+
+#include <stdlib.h>
 
 struct _MetaBackendNative
 {
   MetaBackend parent;
-
-  MetaLauncher *launcher;
-  MetaUdev *udev;
-  MetaKms *kms;
-  MetaBarrierManagerNative *barrier_manager;
-
-  gulong udev_device_added_handler_id;
 };
+
+struct _MetaBackendNativePrivate
+{
+  MetaLauncher *launcher;
+  MetaBarrierManagerNative *barrier_manager;
+};
+typedef struct _MetaBackendNativePrivate MetaBackendNativePrivate;
 
 static GInitableIface *initable_parent_iface;
 
@@ -81,23 +69,17 @@ static void
 initable_iface_init (GInitableIface *initable_iface);
 
 G_DEFINE_TYPE_WITH_CODE (MetaBackendNative, meta_backend_native, META_TYPE_BACKEND,
+                         G_ADD_PRIVATE (MetaBackendNative)
                          G_IMPLEMENT_INTERFACE (G_TYPE_INITABLE,
                                                 initable_iface_init))
-
-static void
-disconnect_udev_device_added_handler (MetaBackendNative *native);
 
 static void
 meta_backend_native_finalize (GObject *object)
 {
   MetaBackendNative *native = META_BACKEND_NATIVE (object);
+  MetaBackendNativePrivate *priv = meta_backend_native_get_instance_private (native);
 
-  if (native->udev_device_added_handler_id)
-    disconnect_udev_device_added_handler (native);
-
-  g_clear_object (&native->udev);
-  g_clear_object (&native->kms);
-  meta_launcher_free (native->launcher);
+  meta_launcher_free (priv->launcher);
 
   G_OBJECT_CLASS (meta_backend_native_parent_class)->finalize (object);
 }
@@ -109,8 +91,10 @@ constrain_to_barriers (ClutterInputDevice *device,
                        float              *new_y)
 {
   MetaBackendNative *native = META_BACKEND_NATIVE (meta_get_backend ());
+  MetaBackendNativePrivate *priv =
+    meta_backend_native_get_instance_private (native);
 
-  meta_barrier_manager_native_process (native->barrier_manager,
+  meta_barrier_manager_native_process (priv->barrier_manager,
                                        device,
                                        time,
                                        new_x, new_y);
@@ -150,7 +134,7 @@ constrain_all_screen_monitors (ClutterInputDevice *device,
                                float              *x,
                                float              *y)
 {
-  graphene_point_t current;
+  ClutterPoint current;
   float cx, cy;
   GList *logical_monitors, *l;
 
@@ -174,17 +158,17 @@ constrain_all_screen_monitors (ClutterInputDevice *device,
       bottom = top + logical_monitor->rect.height;
 
       if ((cx >= left) && (cx < right) && (cy >= top) && (cy < bottom))
-        {
-          if (*x < left)
-            *x = left;
-          if (*x >= right)
-            *x = right - 1;
-          if (*y < top)
-            *y = top;
-          if (*y >= bottom)
-            *y = bottom - 1;
+	{
+	  if (*x < left)
+	    *x = left;
+	  if (*x >= right)
+	    *x = right - 1;
+	  if (*y < top)
+	    *y = top;
+	  if (*y >= bottom)
+	    *y = bottom - 1;
 
-          return;
+	  return;
         }
     }
 }
@@ -227,9 +211,8 @@ relative_motion_across_outputs (MetaMonitorManager *monitor_manager,
 {
   MetaLogicalMonitor *cur = current;
   float x = cur_x, y = cur_y;
-  float target_x = cur_x, target_y = cur_y;
   float dx = *dx_inout, dy = *dy_inout;
-  MetaDisplayDirection direction = -1;
+  MetaScreenDirection direction = -1;
 
   while (cur)
     {
@@ -237,44 +220,45 @@ relative_motion_across_outputs (MetaMonitorManager *monitor_manager,
       MetaVector2 intersection;
 
       motion = (MetaLine2) {
-          .a = { x, y },
-            .b = { x + (dx * cur->scale), y + (dy * cur->scale) }
+        .a = { x, y },
+        .b = { x + (dx * cur->scale), y + (dy * cur->scale) }
       };
       left = (MetaLine2) {
-            { cur->rect.x, cur->rect.y },
-              { cur->rect.x, cur->rect.y + cur->rect.height }
+        { cur->rect.x, cur->rect.y },
+        { cur->rect.x, cur->rect.y + cur->rect.height }
       };
       right = (MetaLine2) {
-            { cur->rect.x + cur->rect.width, cur->rect.y },
-              { cur->rect.x + cur->rect.width, cur->rect.y + cur->rect.height }
+        { cur->rect.x + cur->rect.width, cur->rect.y },
+        { cur->rect.x + cur->rect.width, cur->rect.y + cur->rect.height }
       };
       top = (MetaLine2) {
-            { cur->rect.x, cur->rect.y },
-              { cur->rect.x + cur->rect.width, cur->rect.y }
+        { cur->rect.x, cur->rect.y },
+        { cur->rect.x + cur->rect.width, cur->rect.y }
       };
       bottom = (MetaLine2) {
-            { cur->rect.x, cur->rect.y + cur->rect.height },
-              { cur->rect.x + cur->rect.width, cur->rect.y + cur->rect.height }
+        { cur->rect.x, cur->rect.y + cur->rect.height },
+        { cur->rect.x + cur->rect.width, cur->rect.y + cur->rect.height }
       };
 
-      target_x = motion.b.x;
-      target_y = motion.b.y;
-
-      if (direction != META_DISPLAY_RIGHT &&
+      if (direction != META_SCREEN_RIGHT &&
           meta_line2_intersects_with (&motion, &left, &intersection))
-        direction = META_DISPLAY_LEFT;
-      else if (direction != META_DISPLAY_LEFT &&
+        direction = META_SCREEN_LEFT;
+      else if (direction != META_SCREEN_LEFT &&
                meta_line2_intersects_with (&motion, &right, &intersection))
-        direction = META_DISPLAY_RIGHT;
-      else if (direction != META_DISPLAY_DOWN &&
+        direction = META_SCREEN_RIGHT;
+      else if (direction != META_SCREEN_DOWN &&
                meta_line2_intersects_with (&motion, &top, &intersection))
-        direction = META_DISPLAY_UP;
-      else if (direction != META_DISPLAY_UP &&
+        direction = META_SCREEN_UP;
+      else if (direction != META_SCREEN_UP &&
                meta_line2_intersects_with (&motion, &bottom, &intersection))
-        direction = META_DISPLAY_DOWN;
+        direction = META_SCREEN_DOWN;
       else
-        /* We reached the dest logical monitor */
-        break;
+        {
+          /* We reached the dest logical monitor */
+          x = motion.b.x;
+          y = motion.b.y;
+          break;
+        }
 
       x = intersection.x;
       y = intersection.y;
@@ -285,8 +269,8 @@ relative_motion_across_outputs (MetaMonitorManager *monitor_manager,
                                                                cur, direction);
     }
 
-  *dx_inout = target_x - cur_x;
-  *dy_inout = target_y - cur_y;
+  *dx_inout = x - cur_x;
+  *dy_inout = y - cur_y;
 }
 
 static void
@@ -340,32 +324,14 @@ meta_backend_native_create_clutter_backend (MetaBackend *backend)
 static void
 meta_backend_native_post_init (MetaBackend *backend)
 {
-  ClutterBackend *clutter_backend = clutter_get_default_backend ();
-  ClutterSeat *seat = clutter_backend_get_default_seat (clutter_backend);
-  MetaSettings *settings = meta_backend_get_settings (backend);
-
-  meta_seat_native_set_pointer_constrain_callback (META_SEAT_NATIVE (seat),
-                                                   pointer_constrain_callback,
-                                                   NULL, NULL);
-  meta_seat_native_set_relative_motion_filter (META_SEAT_NATIVE (seat),
-                                               relative_motion_filter,
-                                               meta_backend_get_monitor_manager (backend));
+  ClutterDeviceManager *manager = clutter_device_manager_get_default ();
 
   META_BACKEND_CLASS (meta_backend_native_parent_class)->post_init (backend);
 
-  if (meta_settings_is_experimental_feature_enabled (settings,
-                                                     META_EXPERIMENTAL_FEATURE_RT_SCHEDULER))
-    {
-      int retval;
-      struct sched_param sp = {
-        .sched_priority = sched_get_priority_min (SCHED_RR)
-      };
-
-      retval = sched_setscheduler (0, SCHED_RR | SCHED_RESET_ON_FORK, &sp);
-
-      if (retval != 0)
-        g_warning ("Failed to set RT scheduler: %m");
-    }
+  clutter_evdev_set_pointer_constrain_callback (manager, pointer_constrain_callback,
+                                                NULL, NULL);
+  clutter_evdev_set_relative_motion_filter (manager, relative_motion_filter,
+                                            meta_backend_get_monitor_manager (backend));
 }
 
 static MetaMonitorManager *
@@ -387,10 +353,13 @@ static MetaRenderer *
 meta_backend_native_create_renderer (MetaBackend *backend,
                                      GError     **error)
 {
-  MetaBackendNative *native = META_BACKEND_NATIVE (backend);
+  MetaMonitorManager *monitor_manager =
+    meta_backend_get_monitor_manager (backend);
+  MetaMonitorManagerKms *monitor_manager_kms =
+    META_MONITOR_MANAGER_KMS (monitor_manager);
   MetaRendererNative *renderer_native;
 
-  renderer_native = meta_renderer_native_new (native, error);
+  renderer_native = meta_renderer_native_new (monitor_manager_kms, error);
   if (!renderer_native)
     return NULL;
 
@@ -401,6 +370,25 @@ static MetaInputSettings *
 meta_backend_native_create_input_settings (MetaBackend *backend)
 {
   return g_object_new (META_TYPE_INPUT_SETTINGS_NATIVE, NULL);
+}
+
+static void
+meta_backend_native_warp_pointer (MetaBackend *backend,
+                                  int          x,
+                                  int          y)
+{
+  ClutterDeviceManager *manager = clutter_device_manager_get_default ();
+  ClutterInputDevice *device = clutter_device_manager_get_core_device (manager, CLUTTER_POINTER_DEVICE);
+  MetaCursorTracker *cursor_tracker = meta_backend_get_cursor_tracker (backend);
+
+  /* XXX */
+  guint32 time_ = 0;
+
+  /* Warp the input device pointer state. */
+  clutter_evdev_warp_pointer (device, time_, x, y);
+
+  /* Warp displayed pointer cursor. */
+  meta_cursor_tracker_update_position (cursor_tracker, x, y);
 }
 
 static MetaLogicalMonitor *
@@ -421,10 +409,10 @@ meta_backend_native_set_keymap (MetaBackend *backend,
                                 const char  *variants,
                                 const char  *options)
 {
+  ClutterDeviceManager *manager = clutter_device_manager_get_default ();
   struct xkb_rule_names names;
   struct xkb_keymap *keymap;
   struct xkb_context *context;
-  ClutterSeat *seat;
 
   names.rules = DEFAULT_XKB_RULES_FILE;
   names.model = DEFAULT_XKB_MODEL;
@@ -436,8 +424,7 @@ meta_backend_native_set_keymap (MetaBackend *backend,
   keymap = xkb_keymap_new_from_names (context, &names, XKB_KEYMAP_COMPILE_NO_FLAGS);
   xkb_context_unref (context);
 
-  seat = clutter_backend_get_default_seat (clutter_get_default_backend ());
-  meta_seat_native_set_keyboard_map (META_SEAT_NATIVE (seat), keymap);
+  clutter_evdev_set_keyboard_map (manager, keymap);
 
   meta_backend_notify_keymap_changed (backend);
 
@@ -447,34 +434,30 @@ meta_backend_native_set_keymap (MetaBackend *backend,
 static struct xkb_keymap *
 meta_backend_native_get_keymap (MetaBackend *backend)
 {
-  ClutterSeat *seat;
-
-  seat = clutter_backend_get_default_seat (clutter_get_default_backend ());
-  return meta_seat_native_get_keyboard_map (META_SEAT_NATIVE (seat));
+  ClutterDeviceManager *manager = clutter_device_manager_get_default ();
+  return clutter_evdev_get_keyboard_map (manager);
 }
 
 static xkb_layout_index_t
 meta_backend_native_get_keymap_layout_group (MetaBackend *backend)
 {
-  ClutterSeat *seat;
+  ClutterDeviceManager *manager = clutter_device_manager_get_default ();
 
-  seat = clutter_backend_get_default_seat (clutter_get_default_backend ());
-  return meta_seat_native_get_keyboard_layout_index (META_SEAT_NATIVE (seat));
+  return clutter_evdev_get_keyboard_layout_index (manager);
 }
 
 static void
 meta_backend_native_lock_layout_group (MetaBackend *backend,
                                        guint        idx)
 {
+  ClutterDeviceManager *manager = clutter_device_manager_get_default ();
   xkb_layout_index_t old_idx;
-  ClutterSeat *seat;
 
   old_idx = meta_backend_native_get_keymap_layout_group (backend);
   if (old_idx == idx)
     return;
 
-  seat = clutter_backend_get_default_seat (clutter_get_default_backend ());
-  meta_seat_native_set_keyboard_layout_index (META_SEAT_NATIVE (seat), idx);
+  clutter_evdev_set_keyboard_layout_index (manager, idx);
   meta_backend_notify_keymap_layout_group_changed (backend, idx);
 }
 
@@ -482,11 +465,21 @@ static void
 meta_backend_native_set_numlock (MetaBackend *backend,
                                  gboolean     numlock_state)
 {
-  ClutterSeat *seat;
+  ClutterDeviceManager *manager = clutter_device_manager_get_default ();
+  clutter_evdev_set_keyboard_numlock (manager, numlock_state);
+}
 
-  seat = clutter_backend_get_default_seat (clutter_get_default_backend ());
-  meta_seat_native_set_keyboard_numlock (META_SEAT_NATIVE (seat),
-                                         numlock_state);
+static gboolean
+meta_backend_native_get_relative_motion_deltas (MetaBackend *backend,
+                                                const        ClutterEvent *event,
+                                                double       *dx,
+                                                double       *dy,
+                                                double       *dx_unaccel,
+                                                double       *dy_unaccel)
+{
+  return clutter_evdev_event_get_relative_motion (event,
+                                                  dx, dy,
+                                                  dx_unaccel, dy_unaccel);
 }
 
 static void
@@ -503,159 +496,17 @@ meta_backend_native_update_screen_size (MetaBackend *backend,
   clutter_actor_set_size (stage, width, height);
 }
 
-static MetaGpuKms *
-create_gpu_from_udev_device (MetaBackendNative  *native,
-                             GUdevDevice        *device,
-                             GError            **error)
-{
-  MetaKmsDeviceFlag flags = META_KMS_DEVICE_FLAG_NONE;
-  const char *device_path;
-  MetaKmsDevice *kms_device;
-
-  if (meta_is_udev_device_platform_device (device))
-    flags |= META_KMS_DEVICE_FLAG_PLATFORM_DEVICE;
-
-  if (meta_is_udev_device_boot_vga (device))
-    flags |= META_KMS_DEVICE_FLAG_BOOT_VGA;
-
-  device_path = g_udev_device_get_device_file (device);
-
-  kms_device = meta_kms_create_device (native->kms, device_path, flags,
-                                       error);
-  if (!kms_device)
-    return NULL;
-
-  return meta_gpu_kms_new (native, kms_device, error);
-}
-
-static void
-on_udev_device_added (MetaUdev          *udev,
-                      GUdevDevice       *device,
-                      MetaBackendNative *native)
-{
-  MetaBackend *backend = META_BACKEND (native);
-  g_autoptr (GError) error = NULL;
-  const char *device_path;
-  MetaGpuKms *new_gpu_kms;
-  GList *gpus, *l;
-
-  if (!meta_udev_is_drm_device (udev, device))
-    return;
-
-  device_path = g_udev_device_get_device_file (device);
-
-  gpus = meta_backend_get_gpus (backend);;
-  for (l = gpus; l; l = l->next)
-    {
-      MetaGpuKms *gpu_kms = l->data;
-
-      if (!g_strcmp0 (device_path, meta_gpu_kms_get_file_path (gpu_kms)))
-        {
-          g_warning ("Failed to hotplug secondary gpu '%s': %s",
-                     device_path, "device already present");
-          return;
-        }
-    }
-
-  new_gpu_kms = create_gpu_from_udev_device (native, device, &error);
-  if (!new_gpu_kms)
-    {
-      g_warning ("Failed to hotplug secondary gpu '%s': %s",
-                 device_path, error->message);
-      return;
-    }
-
-  meta_backend_add_gpu (backend, META_GPU (new_gpu_kms));
-}
-
-static void
-connect_udev_device_added_handler (MetaBackendNative *native)
-{
-  native->udev_device_added_handler_id =
-    g_signal_connect (native->udev, "device-added",
-                      G_CALLBACK (on_udev_device_added), native);
-}
-
-static void
-disconnect_udev_device_added_handler (MetaBackendNative *native)
-{
-  g_clear_signal_handler (&native->udev_device_added_handler_id, native->udev);
-}
-
-static gboolean
-init_gpus (MetaBackendNative  *native,
-           GError            **error)
-{
-  MetaBackend *backend = META_BACKEND (native);
-  MetaUdev *udev = meta_backend_native_get_udev (native);
-  GList *devices;
-  GList *l;
-
-  devices = meta_udev_list_drm_devices (udev, error);
-  if (!devices)
-    return FALSE;
-
-  for (l = devices; l; l = l->next)
-    {
-      GUdevDevice *device = l->data;
-      MetaGpuKms *gpu_kms;
-      GError *local_error = NULL;
-
-      gpu_kms = create_gpu_from_udev_device (native, device, &local_error);
-
-      if (!gpu_kms)
-        {
-          g_warning ("Failed to open gpu '%s': %s",
-                     g_udev_device_get_device_file (device),
-                     local_error->message);
-          g_clear_error (&local_error);
-          continue;
-        }
-
-      meta_backend_add_gpu (backend, META_GPU (gpu_kms));
-    }
-
-  g_list_free_full (devices, g_object_unref);
-
-  if (g_list_length (meta_backend_get_gpus (backend)) == 0)
-    {
-      g_set_error (error, G_IO_ERROR, G_IO_ERROR_NOT_FOUND,
-                   "No GPUs found");
-      return FALSE;
-    }
-
-  connect_udev_device_added_handler (native);
-
-  return TRUE;
-}
-
 static gboolean
 meta_backend_native_initable_init (GInitable     *initable,
                                    GCancellable  *cancellable,
                                    GError       **error)
 {
-  MetaBackendNative *native = META_BACKEND_NATIVE (initable);
-
   if (!meta_is_stage_views_enabled ())
     {
       g_set_error (error, G_IO_ERROR, G_IO_ERROR_FAILED,
                    "The native backend requires stage views");
       return FALSE;
     }
-
-  native->launcher = meta_launcher_new (error);
-  if (!native->launcher)
-    return FALSE;
-
-  native->udev = meta_udev_new (native);
-  native->barrier_manager = meta_barrier_manager_native_new ();
-
-  native->kms = meta_kms_new (META_BACKEND (native), error);
-  if (!native->kms)
-    return FALSE;
-
-  if (!init_gpus (native, error))
-    return FALSE;
 
   return initable_parent_iface->init (initable, cancellable, error);
 }
@@ -685,12 +536,15 @@ meta_backend_native_class_init (MetaBackendNativeClass *klass)
   backend_class->create_renderer = meta_backend_native_create_renderer;
   backend_class->create_input_settings = meta_backend_native_create_input_settings;
 
+  backend_class->warp_pointer = meta_backend_native_warp_pointer;
+
   backend_class->get_current_logical_monitor = meta_backend_native_get_current_logical_monitor;
 
   backend_class->set_keymap = meta_backend_native_set_keymap;
   backend_class->get_keymap = meta_backend_native_get_keymap;
   backend_class->get_keymap_layout_group = meta_backend_native_get_keymap_layout_group;
   backend_class->lock_layout_group = meta_backend_native_lock_layout_group;
+  backend_class->get_relative_motion_deltas = meta_backend_native_get_relative_motion_deltas;
   backend_class->update_screen_size = meta_backend_native_update_screen_size;
   backend_class->set_numlock = meta_backend_native_set_numlock;
 }
@@ -698,24 +552,26 @@ meta_backend_native_class_init (MetaBackendNativeClass *klass)
 static void
 meta_backend_native_init (MetaBackendNative *native)
 {
+  MetaBackendNativePrivate *priv = meta_backend_native_get_instance_private (native);
+  GError *error = NULL;
+
+  priv->launcher = meta_launcher_new (&error);
+  if (priv->launcher == NULL)
+    {
+      g_warning ("Can't initialize KMS backend: %s\n", error->message);
+      exit (1);
+    }
+
+  priv->barrier_manager = meta_barrier_manager_native_new ();
 }
 
 MetaLauncher *
 meta_backend_native_get_launcher (MetaBackendNative *native)
 {
-  return native->launcher;
-}
+  MetaBackendNativePrivate *priv =
+    meta_backend_native_get_instance_private (native);
 
-MetaUdev *
-meta_backend_native_get_udev (MetaBackendNative *native)
-{
-  return native->udev;
-}
-
-MetaKms *
-meta_backend_native_get_kms (MetaBackendNative *native)
-{
-  return native->kms;
+  return priv->launcher;
 }
 
 gboolean
@@ -731,7 +587,10 @@ meta_activate_vt (int vt, GError **error)
 MetaBarrierManagerNative *
 meta_backend_native_get_barrier_manager (MetaBackendNative *native)
 {
-  return native->barrier_manager;
+  MetaBackendNativePrivate *priv =
+    meta_backend_native_get_instance_private (native);
+
+  return priv->barrier_manager;
 }
 
 /**
@@ -752,8 +611,9 @@ meta_activate_session (void)
     return TRUE;
 
   MetaBackendNative *native = META_BACKEND_NATIVE (backend);
+  MetaBackendNativePrivate *priv = meta_backend_native_get_instance_private (native);
 
-  if (!meta_launcher_activate_session (native->launcher, &error))
+  if (!meta_launcher_activate_session (priv->launcher, &error))
     {
       g_warning ("Could not activate session: %s\n", error->message);
       g_error_free (error);
@@ -767,22 +627,13 @@ void
 meta_backend_native_pause (MetaBackendNative *native)
 {
   MetaBackend *backend = META_BACKEND (native);
-  ClutterStage *stage = CLUTTER_STAGE (meta_backend_get_stage (backend));
   MetaMonitorManager *monitor_manager =
     meta_backend_get_monitor_manager (backend);
   MetaMonitorManagerKms *monitor_manager_kms =
     META_MONITOR_MANAGER_KMS (monitor_manager);
-  ClutterBackend *clutter_backend = clutter_get_default_backend ();
-  MetaSeatNative *seat =
-    META_SEAT_NATIVE (clutter_backend_get_default_seat (clutter_backend));
 
-  COGL_TRACE_BEGIN_SCOPED (MetaBackendNativePause,
-                           "Backend (pause)");
-
-  meta_seat_native_release_devices (seat);
-  clutter_stage_freeze_updates (stage);
-
-  disconnect_udev_device_added_handler (native);
+  clutter_evdev_release_devices ();
+  clutter_egl_freeze_master_clock ();
 
   meta_monitor_manager_kms_pause (monitor_manager_kms);
 }
@@ -790,34 +641,27 @@ meta_backend_native_pause (MetaBackendNative *native)
 void meta_backend_native_resume (MetaBackendNative *native)
 {
   MetaBackend *backend = META_BACKEND (native);
-  ClutterStage *stage = CLUTTER_STAGE (meta_backend_get_stage (backend));
   MetaMonitorManager *monitor_manager =
     meta_backend_get_monitor_manager (backend);
   MetaMonitorManagerKms *monitor_manager_kms =
     META_MONITOR_MANAGER_KMS (monitor_manager);
-  MetaInputSettings *input_settings;
+  MetaCursorRenderer *cursor_renderer;
+  MetaCursorRendererNative *cursor_renderer_native;
+  ClutterActor *stage;
   MetaIdleMonitor *idle_monitor;
-  ClutterBackend *clutter_backend = clutter_get_default_backend ();
-  MetaSeatNative *seat =
-    META_SEAT_NATIVE (clutter_backend_get_default_seat (clutter_backend));
-
-  COGL_TRACE_BEGIN_SCOPED (MetaBackendNativeResume,
-                           "Backend (resume)");
 
   meta_monitor_manager_kms_resume (monitor_manager_kms);
 
-  connect_udev_device_added_handler (native);
+  clutter_evdev_reclaim_devices ();
+  clutter_egl_thaw_master_clock ();
 
-  meta_seat_native_reclaim_devices (seat);
-  clutter_stage_thaw_updates (stage);
+  stage = meta_backend_get_stage (backend);
+  clutter_actor_queue_redraw (stage);
 
-  clutter_actor_queue_redraw (CLUTTER_ACTOR (stage));
+  cursor_renderer = meta_backend_get_cursor_renderer (backend);
+  cursor_renderer_native = META_CURSOR_RENDERER_NATIVE (cursor_renderer);
+  meta_cursor_renderer_native_force_update (cursor_renderer_native);
 
-  idle_monitor = meta_idle_monitor_get_core ();
+  idle_monitor = meta_backend_get_idle_monitor (backend, 0);
   meta_idle_monitor_reset_idletime (idle_monitor);
-
-  input_settings = meta_backend_get_input_settings (backend);
-  meta_input_settings_maybe_restore_numlock_state (input_settings);
-
-  clutter_seat_ensure_a11y_state (CLUTTER_SEAT (seat));
 }

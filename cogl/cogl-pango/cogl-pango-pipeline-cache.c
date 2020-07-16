@@ -31,7 +31,9 @@
  *   Neil Roberts <neil@linux.intel.com>
  */
 
+#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
+#endif
 
 #include <glib.h>
 #include "cogl-pango-pipeline-cache.h"
@@ -74,7 +76,7 @@ _cogl_pango_pipeline_cache_value_destroy (void *data)
 
 CoglPangoPipelineCache *
 _cogl_pango_pipeline_cache_new (CoglContext *ctx,
-                                gboolean use_mipmapping)
+                                CoglBool use_mipmapping)
 {
   CoglPangoPipelineCache *cache = g_new (CoglPangoPipelineCache, 1);
 

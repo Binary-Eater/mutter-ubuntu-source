@@ -94,7 +94,9 @@
  * #ClutterBindingPool is available since Clutter 1.0
  */
 
+#ifdef HAVE_CONFIG_H
 #include "clutter-build-config.h"
+#endif
 
 #include "clutter-binding-pool.h"
 #include "clutter-debug.h"
@@ -235,7 +237,8 @@ clutter_binding_pool_finalize (GObject *gobject)
 
   g_hash_table_destroy (pool->entries_hash);
 
-  g_slist_free_full (pool->entries, (GDestroyNotify) binding_entry_free);
+  g_slist_foreach (pool->entries, (GFunc) binding_entry_free, NULL);
+  g_slist_free (pool->entries);
 
   G_OBJECT_CLASS (clutter_binding_pool_parent_class)->finalize (gobject);
 }

@@ -21,12 +21,11 @@
 #ifndef __META_COGL_UTILS_H__
 #define __META_COGL_UTILS_H__
 
-#include "cogl/cogl.h"
+#include <cogl/cogl.h>
 
 CoglPipeline * meta_create_texture_pipeline (CoglTexture *texture);
 
-typedef enum
-{
+typedef enum {
   META_TEXTURE_FLAGS_NONE = 0,
   META_TEXTURE_ALLOW_SLICING = 1 << 1
 } MetaTextureFlags;

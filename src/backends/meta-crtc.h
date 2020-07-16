@@ -22,10 +22,7 @@
 
 #include <glib-object.h>
 
-#include "backends/meta-backend-types.h"
-#include "backends/meta-monitor-transform.h"
-#include "core/util-private.h"
-#include "meta/boxes.h"
+#include "backends/meta-gpu.h"
 
 /* Same as KMS mode flags and X11 randr flags */
 typedef enum _MetaCrtcModeFlag
@@ -49,13 +46,6 @@ typedef enum _MetaCrtcModeFlag
   META_CRTC_MODE_FLAG_MASK = 0x3fff
 } MetaCrtcModeFlag;
 
-typedef struct _MetaCrtcConfig
-{
-  graphene_rect_t layout;
-  MetaMonitorTransform transform;
-  MetaCrtcMode *mode;
-} MetaCrtcConfig;
-
 struct _MetaCrtc
 {
   GObject parent;
@@ -63,9 +53,12 @@ struct _MetaCrtc
   MetaGpu *gpu;
 
   glong crtc_id;
+  MetaRectangle rect;
+  MetaCrtcMode *current_mode;
+  MetaMonitorTransform transform;
   unsigned int all_transforms;
 
-  MetaCrtcConfig *config;
+  MetaLogicalMonitor *logical_monitor;
 
   /* Used when changing configuration */
   gboolean is_dirty;
@@ -95,20 +88,11 @@ struct _MetaCrtcMode
 };
 
 #define META_TYPE_CRTC (meta_crtc_get_type ())
-META_EXPORT_TEST G_DECLARE_FINAL_TYPE (MetaCrtc, meta_crtc, META, CRTC, GObject)
+G_DECLARE_FINAL_TYPE (MetaCrtc, meta_crtc, META, CRTC, GObject)
 
 #define META_TYPE_CRTC_MODE (meta_crtc_mode_get_type ())
-META_EXPORT_TEST G_DECLARE_FINAL_TYPE (MetaCrtcMode, meta_crtc_mode, META, CRTC_MODE, GObject)
+G_DECLARE_FINAL_TYPE (MetaCrtcMode, meta_crtc_mode, META, CRTC_MODE, GObject)
 
 MetaGpu * meta_crtc_get_gpu (MetaCrtc *crtc);
-
-META_EXPORT_TEST
-void meta_crtc_set_config (MetaCrtc             *crtc,
-                           graphene_rect_t      *layout,
-                           MetaCrtcMode         *mode,
-                           MetaMonitorTransform  transform);
-
-META_EXPORT_TEST
-void meta_crtc_unset_config (MetaCrtc *crtc);
 
 #endif /* META_CRTC_H */

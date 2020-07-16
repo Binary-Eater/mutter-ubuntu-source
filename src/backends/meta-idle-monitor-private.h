@@ -23,8 +23,8 @@
 #ifndef META_IDLE_MONITOR_PRIVATE_H
 #define META_IDLE_MONITOR_PRIVATE_H
 
-#include "core/display-private.h"
-#include "meta/meta-idle-monitor.h"
+#include <meta/meta-idle-monitor.h>
+#include "display-private.h"
 
 typedef struct
 {
@@ -45,7 +45,7 @@ struct _MetaIdleMonitor
   GDBusProxy *session_proxy;
   gboolean inhibited;
   GHashTable *watches;
-  ClutterInputDevice *device;
+  int device_id;
   guint64 last_event_time;
 };
 
@@ -54,6 +54,7 @@ struct _MetaIdleMonitorClass
   GObjectClass parent_class;
 };
 
+void _meta_idle_monitor_watch_fire (MetaIdleMonitorWatch *watch);
 void meta_idle_monitor_reset_idletime (MetaIdleMonitor *monitor);
 
 #endif /* META_IDLE_MONITOR_PRIVATE_H */

@@ -21,29 +21,28 @@
  * Author: Carlos Garnacho <carlosg@gnome.org>
  */
 
+#define _GNU_SOURCE
+
 #include "config.h"
 
-#include "wayland/meta-wayland-tablet-tool.h"
-
 #include <glib.h>
-#include <wayland-server.h>
+#include <clutter/evdev/clutter-evdev.h>
 
-#include "wayland/meta-wayland-private.h"
-#include "wayland/meta-wayland-tablet-cursor-surface.h"
-#include "compositor/meta-surface-actor-wayland.h"
-#include "wayland/meta-wayland-tablet.h"
-#include "wayland/meta-wayland-tablet-seat.h"
+#include <wayland-server.h>
+#include "tablet-unstable-v2-server-protocol.h"
+#include "meta-wayland-private.h"
+#include "meta-wayland-surface-role-tablet-cursor.h"
+#include "meta-surface-actor-wayland.h"
+#include "meta-wayland-tablet.h"
+#include "meta-wayland-tablet-seat.h"
+#include "meta-wayland-tablet-tool.h"
 #include "backends/meta-input-settings-private.h"
 #include "backends/meta-logical-monitor.h"
 
 #ifdef HAVE_NATIVE_BACKEND
-#include <linux/input-event-codes.h>
-
 #include "backends/native/meta-backend-native.h"
-#include "backends/native/meta-event-native.h"
+#include <linux/input-event-codes.h>
 #endif
-
-#include "tablet-unstable-v2-server-protocol.h"
 
 #define TABLET_AXIS_MAX 65535
 
@@ -91,16 +90,16 @@ meta_wayland_tablet_tool_update_cursor_surface (MetaWaylandTabletTool *tool)
       if (tool->cursor_surface &&
           meta_wayland_surface_get_buffer (tool->cursor_surface))
         {
-          MetaWaylandCursorSurface *cursor_surface =
-            META_WAYLAND_CURSOR_SURFACE (tool->cursor_surface->role);
+          MetaWaylandSurfaceRoleCursor *cursor_role =
+            META_WAYLAND_SURFACE_ROLE_CURSOR (tool->cursor_surface->role);
 
-          cursor = meta_wayland_cursor_surface_get_sprite (cursor_surface);
+          cursor = meta_wayland_surface_role_cursor_get_sprite (cursor_role);
         }
       else
         cursor = NULL;
     }
   else if (tool->current_tablet)
-    cursor = META_CURSOR_SPRITE (tool->default_sprite);
+    cursor = tool->default_sprite;
   else
     cursor = NULL;
 
@@ -115,24 +114,13 @@ meta_wayland_tablet_tool_set_cursor_surface (MetaWaylandTabletTool *tool,
     return;
 
   if (tool->cursor_surface)
-    {
-      MetaWaylandCursorSurface *cursor_surface;
-
-      cursor_surface = META_WAYLAND_CURSOR_SURFACE (tool->cursor_surface->role);
-      meta_wayland_cursor_surface_set_renderer (cursor_surface, NULL);
-
-      meta_wayland_surface_update_outputs (tool->cursor_surface);
-      wl_list_remove (&tool->cursor_surface_destroy_listener.link);
-    }
+    wl_list_remove (&tool->cursor_surface_destroy_listener.link);
 
   tool->cursor_surface = surface;
 
   if (tool->cursor_surface)
-    {
-      meta_wayland_surface_update_outputs (tool->cursor_surface);
-      wl_resource_add_destroy_listener (tool->cursor_surface->resource,
-                                        &tool->cursor_surface_destroy_listener);
-    }
+    wl_resource_add_destroy_listener (tool->cursor_surface->resource,
+                                      &tool->cursor_surface_destroy_listener);
 
   meta_wayland_tablet_tool_update_cursor_surface (tool);
 }
@@ -394,10 +382,10 @@ tablet_tool_handle_cursor_surface_destroy (struct wl_listener *listener,
 }
 
 static void
-tool_cursor_prepare_at (MetaCursorSpriteXcursor *sprite_xcursor,
-                        int                      x,
-                        int                      y,
-                        MetaWaylandTabletTool   *tool)
+tool_cursor_prepare_at (MetaCursorSprite      *cursor_sprite,
+                        int                    x,
+                        int                    y,
+                        MetaWaylandTabletTool *tool)
 {
   MetaBackend *backend = meta_get_backend ();
   MetaMonitorManager *monitor_manager =
@@ -409,20 +397,7 @@ tool_cursor_prepare_at (MetaCursorSpriteXcursor *sprite_xcursor,
 
   /* Reload the cursor texture if the scale has changed. */
   if (logical_monitor)
-    {
-      MetaCursorSprite *cursor_sprite = META_CURSOR_SPRITE (sprite_xcursor);
-      float ceiled_scale;
-
-      ceiled_scale = ceilf (logical_monitor->scale);
-      meta_cursor_sprite_xcursor_set_theme_scale (sprite_xcursor,
-                                                  (int) ceiled_scale);
-
-      if (meta_is_stage_views_scaled ())
-        meta_cursor_sprite_set_texture_scale (cursor_sprite,
-                                              1.0 / ceiled_scale);
-      else
-        meta_cursor_sprite_set_texture_scale (cursor_sprite, 1.0);
-    }
+    meta_cursor_sprite_set_theme_scale (cursor_sprite, logical_monitor->scale);
 }
 
 MetaWaylandTabletTool *
@@ -442,7 +417,7 @@ meta_wayland_tablet_tool_new (MetaWaylandTabletSeat  *seat,
   tool->focus_surface_destroy_listener.notify = tablet_tool_handle_focus_surface_destroy;
   tool->cursor_surface_destroy_listener.notify = tablet_tool_handle_cursor_surface_destroy;
 
-  tool->default_sprite = meta_cursor_sprite_xcursor_new (META_CURSOR_CROSSHAIR);
+  tool->default_sprite = meta_cursor_sprite_from_theme (META_CURSOR_CROSSHAIR);
   tool->prepare_at_signal_id =
     g_signal_connect (tool->default_sprite, "prepare-at",
                       G_CALLBACK (tool_cursor_prepare_at), tool);
@@ -466,7 +441,7 @@ meta_wayland_tablet_tool_free (MetaWaylandTabletTool *tool)
       wl_list_init (wl_resource_get_link (resource));
     }
 
-  g_clear_signal_handler (&tool->prepare_at_signal_id, tool->default_sprite);
+  g_signal_handler_disconnect (tool->default_sprite, tool->prepare_at_signal_id);
   g_object_unref (tool->default_sprite);
 
   g_slice_free (MetaWaylandTabletTool, tool);
@@ -496,7 +471,7 @@ tool_set_cursor (struct wl_client   *client,
 
   if (surface &&
       !meta_wayland_surface_assign_role (surface,
-                                         META_TYPE_WAYLAND_TABLET_CURSOR_SURFACE,
+                                         META_TYPE_WAYLAND_SURFACE_ROLE_TABLET_CURSOR,
                                          NULL))
     {
       wl_resource_post_error (resource, WL_POINTER_ERROR_ROLE,
@@ -507,13 +482,13 @@ tool_set_cursor (struct wl_client   *client,
 
   if (surface)
     {
-      MetaWaylandCursorSurface *cursor_surface;
+      MetaWaylandSurfaceRoleCursor *cursor_role;
 
-      cursor_surface = META_WAYLAND_CURSOR_SURFACE (surface->role);
-      meta_wayland_cursor_surface_set_renderer (cursor_surface,
-                                                tool->cursor_renderer);
-      meta_wayland_cursor_surface_set_hotspot (cursor_surface,
-                                               hotspot_x, hotspot_y);
+      cursor_role = META_WAYLAND_SURFACE_ROLE_CURSOR (surface->role);
+      meta_wayland_surface_role_cursor_set_renderer (cursor_role,
+                                                     tool->cursor_renderer);
+      meta_wayland_surface_role_cursor_set_hotspot (cursor_role,
+                                                    hotspot_x, hotspot_y);
     }
 
   meta_wayland_tablet_tool_set_cursor_surface (tool, surface);
@@ -660,10 +635,11 @@ meta_wayland_tablet_tool_get_relative_coordinates (MetaWaylandTabletTool *tool,
   float xf, yf;
 
   clutter_event_get_coords (event, &xf, &yf);
-  meta_wayland_surface_get_relative_coordinates (surface, xf, yf, &xf, &yf);
+  clutter_actor_transform_stage_point (CLUTTER_ACTOR (meta_surface_actor_get_texture (surface->surface_actor)),
+                                       xf, yf, &xf, &yf);
 
-  *sx = wl_fixed_from_double (xf);
-  *sy = wl_fixed_from_double (yf);
+  *sx = wl_fixed_from_double (xf) / surface->scale;
+  *sy = wl_fixed_from_double (yf) / surface->scale;
 }
 
 static void
@@ -720,7 +696,7 @@ broadcast_button (MetaWaylandTabletTool *tool,
   MetaBackend *backend = meta_get_backend ();
   if (META_IS_BACKEND_NATIVE (backend))
     {
-      button = meta_event_native_get_event_code (event);
+      button = clutter_evdev_event_get_event_code (event);
     }
   else
 #endif
@@ -989,13 +965,15 @@ static gboolean
 tablet_tool_can_grab_surface (MetaWaylandTabletTool *tool,
                               MetaWaylandSurface    *surface)
 {
-  MetaWaylandSurface *subsurface;
+  GList *l;
 
   if (tool->focus_surface == surface)
     return TRUE;
 
-  META_WAYLAND_SURFACE_FOREACH_SUBSURFACE (surface, subsurface)
+  for (l = surface->subsurfaces; l; l = l->next)
     {
+      MetaWaylandSurface *subsurface = l->data;
+
       if (tablet_tool_can_grab_surface (tool, subsurface))
         return TRUE;
     }
@@ -1010,11 +988,4 @@ meta_wayland_tablet_tool_can_grab_surface (MetaWaylandTabletTool *tool,
 {
   return ((tool->down_serial == serial || tool->button_serial == serial) &&
           tablet_tool_can_grab_surface (tool, surface));
-}
-
-gboolean
-meta_wayland_tablet_tool_can_popup (MetaWaylandTabletTool *tool,
-                                    uint32_t               serial)
-{
-  return tool->down_serial == serial || tool->button_serial == serial;
 }

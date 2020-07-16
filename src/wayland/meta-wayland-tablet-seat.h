@@ -22,16 +22,17 @@
 #ifndef META_WAYLAND_TABLET_SEAT_H
 #define META_WAYLAND_TABLET_SEAT_H
 
-#include <glib.h>
 #include <wayland-server.h>
 
-#include "wayland/meta-wayland-types.h"
+#include <glib.h>
+
+#include "meta-wayland-types.h"
 
 struct _MetaWaylandTabletSeat
 {
   MetaWaylandTabletManager *manager;
   MetaWaylandSeat *seat;
-  ClutterSeat *clutter_seat;
+  ClutterDeviceManager *device_manager;
   struct wl_list resource_list;
 
   GHashTable *tablets;
@@ -75,7 +76,5 @@ MetaWaylandTablet     *meta_wayland_tablet_seat_lookup_paired_tablet (MetaWaylan
                                                                       MetaWaylandTabletPad  *pad);
 GList                 *meta_wayland_tablet_seat_lookup_paired_pads   (MetaWaylandTabletSeat *tablet_seat,
                                                                       MetaWaylandTablet     *tablet);
-gboolean               meta_wayland_tablet_seat_can_popup            (MetaWaylandTabletSeat *tablet_seat,
-                                                                      uint32_t               serial);
 
 #endif /* META_WAYLAND_TABLET_SEAT_H */

@@ -29,9 +29,9 @@
  * of #ClutterMasterClock.
  */
 
+#ifdef HAVE_CONFIG_H
 #include "clutter-build-config.h"
-
-#include <cogl/cogl.h>
+#endif
 
 #include "clutter-master-clock.h"
 #include "clutter-master-clock-default.h"
@@ -66,6 +66,9 @@ struct _ClutterMasterClockDefault
   /* the current state of the clock, in usecs */
   gint64 cur_tick;
 
+  /* the previous state of the clock, in usecs, used to compute the delta */
+  gint64 prev_tick;
+
 #ifdef CLUTTER_ENABLE_DEBUG
   gint64 frame_budget;
   gint64 remaining_budget;
@@ -76,6 +79,12 @@ struct _ClutterMasterClockDefault
    */
   GSource *source;
 
+  /* If the master clock is idle that means it has
+   * fallen back to idle polling for timeline
+   * progressions and it may have been some time since
+   * the last real stage update.
+   */
+  guint idle : 1;
   guint ensure_next_iteration : 1;
 
   guint paused : 1;
@@ -102,8 +111,7 @@ static GSourceFuncs clock_funcs = {
   NULL
 };
 
-static void
-clutter_master_clock_iface_init (ClutterMasterClockInterface *iface);
+static void clutter_master_clock_iface_init (ClutterMasterClockIface *iface);
 
 #define clutter_master_clock_default_get_type   _clutter_master_clock_default_get_type
 
@@ -190,26 +198,6 @@ master_clock_get_swap_wait_time (ClutterMasterClockDefault *master_clock)
     }
 }
 
-static int64_t
-master_clock_get_next_presentation_time (ClutterMasterClockDefault *master_clock)
-{
-  ClutterStageManager *stage_manager = clutter_stage_manager_get_default ();
-  const GSList *stages, *l;
-  int64_t earliest = -1;
-
-  stages = clutter_stage_manager_peek_stages (stage_manager);
-
-  for (l = stages; l != NULL; l = l->next)
-    {
-      gint64 t = _clutter_stage_get_next_presentation_time (l->data);
-
-      if (earliest == -1 || (t != -1 && t < earliest))
-        earliest = t;
-    }
-
-  return earliest;
-}
-
 static void
 master_clock_schedule_stage_updates (ClutterMasterClockDefault *master_clock)
 {
@@ -288,12 +276,78 @@ master_clock_reschedule_stage_updates (ClutterMasterClockDefault *master_clock,
 static gint
 master_clock_next_frame_delay (ClutterMasterClockDefault *master_clock)
 {
+  gint64 now, next;
+  gint swap_delay;
+
   if (!master_clock_is_running (master_clock))
     return -1;
 
   /* If all of the stages are busy waiting for a swap-buffers to complete
    * then we wait for one to be ready.. */
-  return master_clock_get_swap_wait_time (master_clock);
+  swap_delay = master_clock_get_swap_wait_time (master_clock);
+  if (swap_delay != 0)
+    return swap_delay;
+
+  /* When we have sync-to-vblank, we count on swap-buffer requests (or
+   * swap-buffer-complete events if supported in the backend) to throttle our
+   * frame rate so no additional delay is needed to start the next frame.
+   *
+   * If the master-clock has become idle due to no timeline progression causing
+   * redraws then we can no longer rely on vblank synchronization because the
+   * last real stage update/redraw may have happened a long time ago and so we
+   * fallback to polling for timeline progressions every 1/frame_rate seconds.
+   *
+   * (NB: if there aren't even any timelines running then the master clock will
+   * be completely stopped in master_clock_is_running())
+   */
+  if (clutter_feature_available (CLUTTER_FEATURE_SYNC_TO_VBLANK) &&
+      !master_clock->idle)
+    {
+      CLUTTER_NOTE (SCHEDULER, "vblank available and updated stages");
+      return 0;
+    }
+
+  if (master_clock->prev_tick == 0)
+    {
+      /* If we weren't previously running, then draw the next frame
+       * immediately
+       */
+      CLUTTER_NOTE (SCHEDULER, "draw the first frame immediately");
+      return 0;
+    }
+
+  /* Otherwise, wait at least 1/frame_rate seconds since we last
+   * started a frame
+   */
+  now = g_source_get_time (master_clock->source);
+
+  next = master_clock->prev_tick;
+
+  /* If time has gone backwards then there's no way of knowing how
+     long we should wait so let's just dispatch immediately */
+  if (now <= next)
+    {
+      CLUTTER_NOTE (SCHEDULER, "Time has gone backwards");
+
+      return 0;
+    }
+
+  next += (1000000L / clutter_get_default_frame_rate ());
+
+  if (next <= now)
+    {
+      CLUTTER_NOTE (SCHEDULER, "Less than %lu microsecs",
+                    1000000L / (gulong) clutter_get_default_frame_rate ());
+
+      return 0;
+    }
+  else
+    {
+      CLUTTER_NOTE (SCHEDULER, "Waiting %" G_GINT64_FORMAT " msecs",
+                   (next - now) / 1000);
+
+      return (next - now) / 1000;
+    }
 }
 
 static void
@@ -359,7 +413,8 @@ master_clock_advance_timelines (ClutterMasterClockDefault *master_clock)
   for (l = timelines; l != NULL; l = l->next)
     _clutter_timeline_do_tick (l->data, master_clock->cur_tick / 1000);
 
-  g_slist_free_full (timelines, g_object_unref);
+  g_slist_foreach (timelines, (GFunc) g_object_unref, NULL);
+  g_slist_free (timelines);
 
 #ifdef CLUTTER_ENABLE_DEBUG
   if (_clutter_diagnostic_enabled ())
@@ -417,8 +472,6 @@ clutter_clock_source_new (ClutterMasterClockDefault *master_clock)
   ClutterClockSource *clock_source = (ClutterClockSource *) source;
 
   g_source_set_name (source, "Clutter master clock");
-  g_source_set_priority (source, CLUTTER_PRIORITY_REDRAW);
-  g_source_set_can_recurse (source, FALSE);
   clock_source->master_clock = master_clock;
 
   return source;
@@ -477,20 +530,15 @@ clutter_clock_dispatch (GSource     *source,
 {
   ClutterClockSource *clock_source = (ClutterClockSource *) source;
   ClutterMasterClockDefault *master_clock = clock_source->master_clock;
+  gboolean stages_updated = FALSE;
   GSList *stages;
 
   CLUTTER_NOTE (SCHEDULER, "Master clock [tick]");
 
   _clutter_threads_acquire_lock ();
 
-  COGL_TRACE_BEGIN (ClutterMasterClockTick, "Master Clock (tick)");
-
   /* Get the time to use for this frame */
-  master_clock->cur_tick = master_clock_get_next_presentation_time (master_clock);
-
-  /* On the first frame the backend might not have an answer */
-  if (master_clock->cur_tick <= 0)
-    master_clock->cur_tick = g_source_get_time (source);
+  master_clock->cur_tick = g_source_get_time (source);
 
 #ifdef CLUTTER_ENABLE_DEBUG
   master_clock->remaining_budget = master_clock->frame_budget;
@@ -501,6 +549,8 @@ clutter_clock_dispatch (GSource     *source,
    * list of referenced that we'll unref afterwards.
    */
   stages = master_clock_list_ready_stages (master_clock);
+
+  master_clock->idle = FALSE;
 
   /* Each frame is split into three separate phases: */
 
@@ -514,13 +564,19 @@ clutter_clock_dispatch (GSource     *source,
   master_clock_advance_timelines (master_clock);
 
   /* 3. relayout and redraw the stages */
-  master_clock_update_stages (master_clock, stages);
+  stages_updated = master_clock_update_stages (master_clock, stages);
+
+  /* The master clock goes idle if no stages were updated and falls back
+   * to polling for timeline progressions... */
+  if (!stages_updated)
+    master_clock->idle = TRUE;
 
   master_clock_reschedule_stage_updates (master_clock, stages);
 
-  g_slist_free_full (stages, g_object_unref);
+  g_slist_foreach (stages, (GFunc) g_object_unref, NULL);
+  g_slist_free (stages);
 
-  COGL_TRACE_END (ClutterMasterClockTick);
+  master_clock->prev_tick = master_clock->cur_tick;
 
   _clutter_threads_release_lock ();
 
@@ -553,6 +609,7 @@ clutter_master_clock_default_init (ClutterMasterClockDefault *self)
   source = clutter_clock_source_new (self);
   self->source = source;
 
+  self->idle = FALSE;
   self->ensure_next_iteration = FALSE;
   self->paused = FALSE;
 
@@ -560,6 +617,8 @@ clutter_master_clock_default_init (ClutterMasterClockDefault *self)
   self->frame_budget = G_USEC_PER_SEC / 60;
 #endif
 
+  g_source_set_priority (source, CLUTTER_PRIORITY_REDRAW);
+  g_source_set_can_recurse (source, FALSE);
   g_source_attach (source, NULL);
 }
 
@@ -618,21 +677,11 @@ clutter_master_clock_default_set_paused (ClutterMasterClock *clock,
 {
   ClutterMasterClockDefault *master_clock = (ClutterMasterClockDefault *) clock;
 
-  if (paused && !master_clock->paused)
-    {
-      g_clear_pointer (&master_clock->source, g_source_destroy);
-    }
-  else if (!paused && master_clock->paused)
-    {
-      master_clock->source = clutter_clock_source_new (master_clock);
-      g_source_attach (master_clock->source, NULL);
-    }
-
   master_clock->paused = !!paused;
 }
 
 static void
-clutter_master_clock_iface_init (ClutterMasterClockInterface *iface)
+clutter_master_clock_iface_init (ClutterMasterClockIface *iface)
 {
   iface->add_timeline = clutter_master_clock_default_add_timeline;
   iface->remove_timeline = clutter_master_clock_default_remove_timeline;

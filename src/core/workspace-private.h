@@ -31,14 +31,13 @@
 #ifndef META_WORKSPACE_PRIVATE_H
 #define META_WORKSPACE_PRIVATE_H
 
-#include "core/window-private.h"
-#include "meta/workspace.h"
+#include <meta/workspace.h>
+#include "window-private.h"
 
 struct _MetaWorkspace
 {
   GObject parent_instance;
-  MetaDisplay *display;
-  MetaWorkspaceManager *manager;
+  MetaScreen *screen;
 
   GList *windows;
 
@@ -73,7 +72,7 @@ struct _MetaWorkspaceClass
   GObjectClass parent_class;
 };
 
-MetaWorkspace* meta_workspace_new           (MetaWorkspaceManager *workspace_manager);
+MetaWorkspace* meta_workspace_new           (MetaScreen    *screen);
 void           meta_workspace_remove        (MetaWorkspace *workspace);
 void           meta_workspace_add_window    (MetaWorkspace *workspace,
                                              MetaWindow    *window);

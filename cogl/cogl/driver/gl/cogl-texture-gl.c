@@ -27,20 +27,25 @@
  *
  */
 
+#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
+#endif
 
+#ifdef HAVE_STRINGS_H
 #include <strings.h>
+#endif
 
 #include "cogl-context-private.h"
+#include "cogl-util-gl-private.h"
+#include "cogl-texture-gl-private.h"
+#include "cogl-texture-3d-private.h"
 #include "cogl-util.h"
-#include "driver/gl/cogl-util-gl-private.h"
-#include "driver/gl/cogl-texture-gl-private.h"
-#include "driver/gl/cogl-pipeline-opengl-private.h"
+#include "cogl-pipeline-opengl-private.h"
 
 static inline int
 calculate_alignment (int rowstride)
 {
-  int alignment = 1 << (ffs (rowstride) - 1);
+  int alignment = 1 << (_cogl_util_ffs (rowstride) - 1);
 
   return MIN (alignment, 8);
 }
@@ -81,11 +86,13 @@ _cogl_texture_gl_prep_alignment_for_pixels_download (CoglContext *ctx,
 void
 _cogl_texture_gl_flush_legacy_texobj_wrap_modes (CoglTexture *texture,
                                                  unsigned int wrap_mode_s,
-                                                 unsigned int wrap_mode_t)
+                                                 unsigned int wrap_mode_t,
+                                                 unsigned int wrap_mode_p)
 {
   texture->vtable->gl_flush_legacy_texobj_wrap_modes (texture,
                                                       wrap_mode_s,
-                                                      wrap_mode_t);
+                                                      wrap_mode_t,
+                                                      wrap_mode_p);
 }
 
 void
@@ -117,7 +124,8 @@ _cogl_texture_gl_maybe_update_max_level (CoglTexture *texture,
       texture->max_level = max_level;
 
       _cogl_bind_gl_texture_transient (gl_target,
-                                       gl_handle);
+                                       gl_handle,
+                                       _cogl_texture_is_foreign (texture));
 
       GE( ctx, glTexParameteri (gl_target,
                                 GL_TEXTURE_MAX_LEVEL, texture->max_level));
@@ -138,7 +146,8 @@ _cogl_texture_gl_generate_mipmaps (CoglTexture *texture)
   cogl_texture_get_gl_texture (texture, &gl_handle, &gl_target);
 
   _cogl_bind_gl_texture_transient (gl_target,
-                                   gl_handle);
+                                   gl_handle,
+                                   _cogl_texture_is_foreign (texture));
   GE( ctx, glGenerateMipmap (gl_target) );
 }
 

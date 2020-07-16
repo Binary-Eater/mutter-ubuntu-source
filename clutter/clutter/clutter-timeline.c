@@ -93,7 +93,9 @@
  * ]|
  */
 
+#ifdef HAVE_CONFIG_H
 #include "clutter-build-config.h"
+#endif
 
 #include "clutter-timeline.h"
 
@@ -145,8 +147,8 @@ struct _ClutterTimelinePrivate
   ClutterStepMode step_mode;
 
   /* cubic-bezier() parameters */
-  graphene_point_t cb_1;
-  graphene_point_t cb_2;
+  ClutterPoint cb_1;
+  ClutterPoint cb_2;
 
   guint is_playing         : 1;
 
@@ -424,11 +426,6 @@ clutter_timeline_set_custom_property (ClutterScriptable *scriptable,
     g_object_set_property (G_OBJECT (scriptable), name, value);
 }
 
-void
-clutter_timeline_cancel_delay (ClutterTimeline *timeline)
-{
-  g_clear_handle_id (&timeline->priv->delay_id, g_source_remove);
-}
 
 static void
 clutter_scriptable_iface_init (ClutterScriptableIface *iface)
@@ -555,7 +552,11 @@ clutter_timeline_dispose (GObject *object)
 
   priv = self->priv;
 
-  clutter_timeline_cancel_delay (self);
+  if (priv->delay_id)
+    {
+      g_source_remove (priv->delay_id);
+      priv->delay_id = 0;
+    }
 
   if (priv->progress_notify != NULL)
     {
@@ -710,7 +711,8 @@ clutter_timeline_class_init (ClutterTimelineClass *klass)
 		  G_TYPE_FROM_CLASS (object_class),
 		  G_SIGNAL_RUN_LAST,
 		  G_STRUCT_OFFSET (ClutterTimelineClass, new_frame),
-		  NULL, NULL, NULL,
+		  NULL, NULL,
+		  _clutter_marshal_VOID__INT,
 		  G_TYPE_NONE,
 		  1, G_TYPE_INT);
   /**
@@ -733,7 +735,8 @@ clutter_timeline_class_init (ClutterTimelineClass *klass)
 		  G_TYPE_FROM_CLASS (object_class),
 		  G_SIGNAL_RUN_LAST,
 		  G_STRUCT_OFFSET (ClutterTimelineClass, completed),
-		  NULL, NULL, NULL,
+		  NULL, NULL,
+		  _clutter_marshal_VOID__VOID,
 		  G_TYPE_NONE, 0);
   /**
    * ClutterTimeline::started:
@@ -749,7 +752,8 @@ clutter_timeline_class_init (ClutterTimelineClass *klass)
 		  G_TYPE_FROM_CLASS (object_class),
 		  G_SIGNAL_RUN_LAST,
 		  G_STRUCT_OFFSET (ClutterTimelineClass, started),
-		  NULL, NULL, NULL,
+		  NULL, NULL,
+		  _clutter_marshal_VOID__VOID,
 		  G_TYPE_NONE, 0);
   /**
    * ClutterTimeline::paused:
@@ -762,7 +766,8 @@ clutter_timeline_class_init (ClutterTimelineClass *klass)
 		  G_TYPE_FROM_CLASS (object_class),
 		  G_SIGNAL_RUN_LAST,
 		  G_STRUCT_OFFSET (ClutterTimelineClass, paused),
-		  NULL, NULL, NULL,
+		  NULL, NULL,
+		  _clutter_marshal_VOID__VOID,
 		  G_TYPE_NONE, 0);
   /**
    * ClutterTimeline::marker-reached:
@@ -829,7 +834,8 @@ clutter_timeline_class_init (ClutterTimelineClass *klass)
 		  G_TYPE_FROM_CLASS (object_class),
 		  G_SIGNAL_RUN_LAST,
 		  G_STRUCT_OFFSET (ClutterTimelineClass, stopped),
-		  NULL, NULL, NULL,
+		  NULL, NULL,
+		  _clutter_marshal_VOID__BOOLEAN,
 		  G_TYPE_NONE, 1,
                   G_TYPE_BOOLEAN);
 }
@@ -846,8 +852,8 @@ clutter_timeline_init (ClutterTimeline *self)
   self->priv->step_mode = CLUTTER_STEP_MODE_END;
 
   /* default cubic-bezier() paramereters are (0, 0, 1, 1) */
-  graphene_point_init (&self->priv->cb_1, 0, 0);
-  graphene_point_init (&self->priv->cb_2, 1, 1);
+  clutter_point_init (&self->priv->cb_1, 0, 0);
+  clutter_point_init (&self->priv->cb_2, 1, 1);
 }
 
 struct CheckIfMarkerHitClosure
@@ -1038,15 +1044,15 @@ clutter_timeline_do_frame (ClutterTimeline *timeline)
        * to correpondingly reduce elapsed_time_delta to reflect the correct
        * range of times */
       if (priv->direction == CLUTTER_TIMELINE_FORWARD)
-        {
-          elapsed_time_delta -= (priv->elapsed_time - priv->duration);
-          priv->elapsed_time = priv->duration;
-        }
+	{
+	  elapsed_time_delta -= (priv->elapsed_time - priv->duration);
+	  priv->elapsed_time = priv->duration;
+	}
       else if (priv->direction == CLUTTER_TIMELINE_BACKWARD)
-        {
-          elapsed_time_delta -= - priv->elapsed_time;
-          priv->elapsed_time = 0;
-        }
+	{
+	  elapsed_time_delta -= - priv->elapsed_time;
+	  priv->elapsed_time = 0;
+	}
 
       end_msecs = priv->elapsed_time;
 
@@ -1214,10 +1220,14 @@ clutter_timeline_pause (ClutterTimeline *timeline)
 
   priv = timeline->priv;
 
-  clutter_timeline_cancel_delay (timeline);
-
-  if (!priv->is_playing)
+  if (priv->delay_id == 0 && !priv->is_playing)
     return;
+
+  if (priv->delay_id)
+    {
+      g_source_remove (priv->delay_id);
+      priv->delay_id = 0;
+    }
 
   priv->msecs_delta = 0;
   set_is_playing (timeline, FALSE);
@@ -1756,12 +1766,12 @@ _clutter_timeline_do_tick (ClutterTimeline *timeline,
         }
 
       if (msecs != 0)
-        {
-          /* Avoid accumulating error */
+	{
+	  /* Avoid accumulating error */
           priv->last_frame_time += msecs;
-          priv->msecs_delta = msecs;
-          clutter_timeline_do_frame (timeline);
-        }
+	  priv->msecs_delta = msecs;
+	  clutter_timeline_do_frame (timeline);
+	}
     }
 }
 
@@ -2485,9 +2495,9 @@ clutter_timeline_get_step_progress (ClutterTimeline *timeline,
  * Since: 1.12
  */
 void
-clutter_timeline_set_cubic_bezier_progress (ClutterTimeline        *timeline,
-                                            const graphene_point_t *c_1,
-                                            const graphene_point_t *c_2)
+clutter_timeline_set_cubic_bezier_progress (ClutterTimeline    *timeline,
+                                            const ClutterPoint *c_1,
+                                            const ClutterPoint *c_2)
 {
   ClutterTimelinePrivate *priv;
 
@@ -2522,9 +2532,9 @@ clutter_timeline_set_cubic_bezier_progress (ClutterTimeline        *timeline,
  * Since: 1.12
  */
 gboolean
-clutter_timeline_get_cubic_bezier_progress (ClutterTimeline  *timeline,
-                                            graphene_point_t *c_1,
-                                            graphene_point_t *c_2)
+clutter_timeline_get_cubic_bezier_progress (ClutterTimeline *timeline,
+                                            ClutterPoint    *c_1,
+                                            ClutterPoint    *c_2)
 {
   g_return_val_if_fail (CLUTTER_IS_TIMELINE (timeline), FALSE);
 

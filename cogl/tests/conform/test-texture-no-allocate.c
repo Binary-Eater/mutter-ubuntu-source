@@ -1,6 +1,5 @@
 #include <cogl/cogl.h>
 
-#include "test-declarations.h"
 #include "test-utils.h"
 
 /* Tests that the various texture types can be freed without being
@@ -44,7 +43,7 @@ test_texture_no_allocate (void)
    * crash */
 
   if (texture == NULL)
-    g_error_free (error);
+    cogl_error_free (error);
   else
     cogl_object_unref (texture);
 
@@ -60,4 +59,22 @@ test_texture_no_allocate (void)
   texture_2d = cogl_texture_2d_new_with_size (test_ctx,
                                               64, 64);
   cogl_object_unref (texture_2d);
+
+  /* 3D texture */
+  if (cogl_has_feature (test_ctx, COGL_FEATURE_ID_TEXTURE_3D))
+    {
+      CoglTexture3D *texture_3d =
+        cogl_texture_3d_new_with_size (test_ctx,
+                                       64, 64, 64);
+      cogl_object_unref (texture_3d);
+    }
+
+  /* Rectangle texture */
+  if (cogl_has_feature (test_ctx, COGL_FEATURE_ID_TEXTURE_RECTANGLE))
+    {
+      CoglTextureRectangle *texture_rect =
+        cogl_texture_rectangle_new_with_size (test_ctx,
+                                              64, 64);
+      cogl_object_unref (texture_rect);
+    }
 }

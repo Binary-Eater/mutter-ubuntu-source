@@ -27,14 +27,10 @@
 #include <xkbcommon/xkbcommon-x11.h>
 
 #include "backends/meta-backend-private.h"
-#include "backends/meta-dnd-private.h"
 #include "backends/x11/meta-cursor-renderer-x11.h"
-#include "backends/x11/meta-gpu-xrandr.h"
 #include "backends/x11/meta-input-settings-x11.h"
 #include "backends/x11/meta-monitor-manager-xrandr.h"
 #include "backends/x11/cm/meta-renderer-x11-cm.h"
-#include "compositor/meta-compositor-x11.h"
-#include "core/display-private.h"
 
 struct _MetaBackendX11Cm
 {
@@ -70,9 +66,9 @@ take_touch_grab (MetaBackend *backend)
 }
 
 static void
-on_device_added (ClutterSeat        *seat,
-                 ClutterInputDevice *device,
-                 gpointer            user_data)
+on_device_added (ClutterDeviceManager *device_manager,
+                 ClutterInputDevice   *device,
+                 gpointer              user_data)
 {
   MetaBackendX11 *x11 = META_BACKEND_X11 (user_data);
 
@@ -85,12 +81,11 @@ meta_backend_x11_cm_post_init (MetaBackend *backend)
 {
   MetaBackendClass *parent_backend_class =
     META_BACKEND_CLASS (meta_backend_x11_cm_parent_class);
-  ClutterSeat *seat;
 
   parent_backend_class->post_init (backend);
 
-  seat = clutter_backend_get_default_seat (clutter_get_default_backend ());
-  g_signal_connect_object (seat, "device-added",
+  g_signal_connect_object (clutter_device_manager_get_default (),
+                           "device-added",
                            G_CALLBACK (on_device_added), backend, 0);
 
   take_touch_grab (backend);
@@ -100,9 +95,7 @@ static MetaRenderer *
 meta_backend_x11_cm_create_renderer (MetaBackend *backend,
                                      GError     **error)
 {
-  return g_object_new (META_TYPE_RENDERER_X11_CM,
-                       "backend", backend,
-                       NULL);
+  return g_object_new (META_TYPE_RENDERER_X11_CM, NULL);
 }
 
 static MetaMonitorManager *
@@ -334,20 +327,6 @@ meta_backend_x11_cm_handle_host_xevent (MetaBackendX11 *backend_x11,
   MetaMonitorManagerXrandr *monitor_manager_xrandr =
     META_MONITOR_MANAGER_XRANDR (monitor_manager);
   Display *xdisplay = meta_backend_x11_get_xdisplay (x11);
-  gboolean bypass_clutter = FALSE;
-  MetaDisplay *display;
-
-  display = meta_get_display ();
-  if (display)
-    {
-      MetaCompositor *compositor = display->compositor;
-      MetaCompositorX11 *compositor_x11 = META_COMPOSITOR_X11 (compositor);
-      Display *xdisplay = meta_backend_x11_get_xdisplay (x11);
-
-      if (meta_dnd_handle_xdnd_event (backend, compositor_x11,
-                                      xdisplay, event))
-        bypass_clutter = TRUE;
-    }
 
   if (event->type == meta_backend_x11_get_xkb_event_base (x11))
     {
@@ -371,10 +350,8 @@ meta_backend_x11_cm_handle_host_xevent (MetaBackendX11 *backend_x11,
         }
     }
 
-  bypass_clutter |=
-    meta_monitor_manager_xrandr_handle_xevent (monitor_manager_xrandr, event);
-
-  return bypass_clutter;
+  return meta_monitor_manager_xrandr_handle_xevent (monitor_manager_xrandr,
+                                                    event);
 }
 
 static void
@@ -412,16 +389,6 @@ meta_backend_x11_cm_translate_crossing_event (MetaBackendX11 *x11,
 static void
 meta_backend_x11_cm_init (MetaBackendX11Cm *backend_x11_cm)
 {
-  MetaGpuXrandr *gpu_xrandr;
-
-  /*
-   * The X server deals with multiple GPUs for us, so we just see what the X
-   * server gives us as one single GPU, even though it may actually be backed
-   * by multiple.
-   */
-  gpu_xrandr = meta_gpu_xrandr_new (META_BACKEND_X11 (backend_x11_cm));
-  meta_backend_add_gpu (META_BACKEND (backend_x11_cm),
-                        META_GPU (gpu_xrandr));
 }
 
 static void

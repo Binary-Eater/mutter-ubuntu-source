@@ -34,16 +34,16 @@
 #include "cogl-config.h"
 
 #include "cogl-debug.h"
+#include "cogl-util-gl-private.h"
+#include "cogl-pipeline-opengl-private.h"
 #include "cogl-pipeline-private.h"
 #include "cogl-context-private.h"
 #include "cogl-texture-private.h"
 #include "cogl-framebuffer-private.h"
 #include "cogl-offscreen.h"
-#include "driver/gl/cogl-util-gl-private.h"
-#include "driver/gl/cogl-pipeline-opengl-private.h"
-#include "driver/gl/cogl-texture-gl-private.h"
+#include "cogl-texture-gl-private.h"
 
-#include "driver/gl/cogl-pipeline-progend-glsl-private.h"
+#include "cogl-pipeline-progend-glsl-private.h"
 
 #include <test-fixtures/test-unit.h>
 
@@ -64,6 +64,9 @@
 #ifndef GL_CLAMP_TO_BORDER
 #define GL_CLAMP_TO_BORDER 0x812d
 #endif
+#ifndef GL_PROGRAM_POINT_SIZE
+#define GL_PROGRAM_POINT_SIZE 0x8642
+#endif
 
 static void
 texture_unit_init (CoglContext *ctx,
@@ -74,6 +77,7 @@ texture_unit_init (CoglContext *ctx,
   unit->enabled_gl_target = 0;
   unit->gl_texture = 0;
   unit->gl_target = 0;
+  unit->is_foreign = FALSE;
   unit->dirty_gl_texture = FALSE;
   unit->matrix_stack = cogl_matrix_stack_new (ctx);
 
@@ -113,9 +117,11 @@ _cogl_get_texture_unit (int index_)
 }
 
 void
-_cogl_destroy_texture_units (CoglContext *ctx)
+_cogl_destroy_texture_units (void)
 {
   int i;
+
+  _COGL_GET_CONTEXT (ctx, NO_RETVAL);
 
   for (i = 0; i < ctx->texture_units->len; i++)
     {
@@ -160,7 +166,8 @@ _cogl_set_active_texture_unit (int unit_index)
  */
 void
 _cogl_bind_gl_texture_transient (GLenum gl_target,
-                                 GLuint gl_texture)
+                                 GLuint gl_texture,
+                                 CoglBool is_foreign)
 {
   CoglTextureUnit *unit;
 
@@ -176,12 +183,18 @@ _cogl_bind_gl_texture_transient (GLenum gl_target,
   _cogl_set_active_texture_unit (1);
   unit = _cogl_get_texture_unit (1);
 
-  if (unit->gl_texture == gl_texture && !unit->dirty_gl_texture)
+  /* NB: If we have previously bound a foreign texture to this texture
+   * unit we don't know if that texture has since been deleted and we
+   * are seeing the texture name recycled */
+  if (unit->gl_texture == gl_texture &&
+      !unit->dirty_gl_texture &&
+      !unit->is_foreign)
     return;
 
   GE (ctx, glBindTexture (gl_target, gl_texture));
 
   unit->dirty_gl_texture = TRUE;
+  unit->is_foreign = is_foreign;
 }
 
 void
@@ -233,9 +246,156 @@ _cogl_pipeline_texture_storage_change_notify (CoglTexture *texture)
     }
 }
 
+static void
+set_glsl_program (GLuint gl_program)
+{
+  _COGL_GET_CONTEXT (ctx, NO_RETVAL);
+
+  if (ctx->current_gl_program != gl_program)
+    {
+      _cogl_gl_util_clear_gl_errors (ctx);
+      ctx->glUseProgram (gl_program);
+      if (_cogl_gl_util_get_error (ctx) == GL_NO_ERROR)
+        ctx->current_gl_program = gl_program;
+      else
+        {
+          GE( ctx, glUseProgram (0) );
+          ctx->current_gl_program = 0;
+        }
+    }
+}
+
+void
+_cogl_use_fragment_program (GLuint gl_program, CoglPipelineProgramType type)
+{
+  _COGL_GET_CONTEXT (ctx, NO_RETVAL);
+
+  /* If we're changing program type... */
+  if (type != ctx->current_fragment_program_type)
+    {
+      /* ... disable the old type */
+      switch (ctx->current_fragment_program_type)
+        {
+        case COGL_PIPELINE_PROGRAM_TYPE_GLSL:
+          /* If the program contains a vertex shader then we shouldn't
+             disable it */
+          if (ctx->current_vertex_program_type !=
+              COGL_PIPELINE_PROGRAM_TYPE_GLSL)
+            set_glsl_program (0);
+          break;
+
+        case COGL_PIPELINE_PROGRAM_TYPE_ARBFP:
+#ifdef HAVE_COGL_GL
+          GE( ctx, glDisable (GL_FRAGMENT_PROGRAM_ARB) );
+#endif
+          break;
+
+        case COGL_PIPELINE_PROGRAM_TYPE_FIXED:
+          /* don't need to to anything */
+          break;
+        }
+
+      /* ... and enable the new type */
+      switch (type)
+        {
+        case COGL_PIPELINE_PROGRAM_TYPE_ARBFP:
+#ifdef HAVE_COGL_GL
+          GE( ctx, glEnable (GL_FRAGMENT_PROGRAM_ARB) );
+#endif
+          break;
+
+        case COGL_PIPELINE_PROGRAM_TYPE_GLSL:
+        case COGL_PIPELINE_PROGRAM_TYPE_FIXED:
+          /* don't need to to anything */
+          break;
+        }
+    }
+
+  if (type == COGL_PIPELINE_PROGRAM_TYPE_GLSL)
+    {
+#ifdef COGL_PIPELINE_FRAGEND_GLSL
+      set_glsl_program (gl_program);
+
+#else
+
+      g_warning ("Unexpected use of GLSL fragend!");
+
+#endif /* COGL_PIPELINE_FRAGEND_GLSL */
+    }
+#ifndef COGL_PIPELINE_FRAGEND_ARBFP
+  else if (type == COGL_PIPELINE_PROGRAM_TYPE_ARBFP)
+    g_warning ("Unexpected use of ARBFP fragend!");
+#endif /* COGL_PIPELINE_FRAGEND_ARBFP */
+
+  ctx->current_fragment_program_type = type;
+}
+
+void
+_cogl_use_vertex_program (GLuint gl_program, CoglPipelineProgramType type)
+{
+  _COGL_GET_CONTEXT (ctx, NO_RETVAL);
+
+  /* If we're changing program type... */
+  if (type != ctx->current_vertex_program_type)
+    {
+      /* ... disable the old type */
+      switch (ctx->current_vertex_program_type)
+        {
+        case COGL_PIPELINE_PROGRAM_TYPE_GLSL:
+          /* If the program contains a fragment shader then we shouldn't
+             disable it */
+          if (ctx->current_fragment_program_type !=
+              COGL_PIPELINE_PROGRAM_TYPE_GLSL)
+            set_glsl_program (0);
+          break;
+
+        case COGL_PIPELINE_PROGRAM_TYPE_ARBFP:
+          /* It doesn't make sense to enable ARBfp for the vertex program */
+          g_assert_not_reached ();
+          break;
+
+        case COGL_PIPELINE_PROGRAM_TYPE_FIXED:
+          /* don't need to to anything */
+          break;
+        }
+
+      /* ... and enable the new type */
+      switch (type)
+        {
+        case COGL_PIPELINE_PROGRAM_TYPE_ARBFP:
+          /* It doesn't make sense to enable ARBfp for the vertex program */
+          g_assert_not_reached ();
+          break;
+
+        case COGL_PIPELINE_PROGRAM_TYPE_GLSL:
+        case COGL_PIPELINE_PROGRAM_TYPE_FIXED:
+          /* don't need to to anything */
+          break;
+        }
+    }
+
+  if (type == COGL_PIPELINE_PROGRAM_TYPE_GLSL)
+    {
+#ifdef COGL_PIPELINE_VERTEND_GLSL
+      set_glsl_program (gl_program);
+
+#else
+
+      g_warning ("Unexpected use of GLSL vertend!");
+
+#endif /* COGL_PIPELINE_VERTEND_GLSL */
+    }
+#ifndef COGL_PIPELINE_VERTEND_ARBFP
+  else if (type == COGL_PIPELINE_PROGRAM_TYPE_ARBFP)
+    g_warning ("Unexpected use of ARBFP vertend!");
+#endif /* COGL_PIPELINE_VERTEND_ARBFP */
+
+  ctx->current_vertex_program_type = type;
+}
+
 #if defined(HAVE_COGL_GLES2) || defined(HAVE_COGL_GL)
 
-static gboolean
+static CoglBool
 blend_factor_uses_constant (GLenum blend_factor)
 {
   return (blend_factor == GL_CONSTANT_COLOR ||
@@ -250,7 +410,7 @@ static void
 flush_depth_state (CoglContext *ctx,
                    CoglDepthState *depth_state)
 {
-  gboolean depth_writing_enabled = depth_state->write_enabled;
+  CoglBool depth_writing_enabled = depth_state->write_enabled;
 
   if (ctx->current_draw_buffer)
     depth_writing_enabled &= ctx->current_draw_buffer->depth_writing_enabled;
@@ -258,11 +418,7 @@ flush_depth_state (CoglContext *ctx,
   if (ctx->depth_test_enabled_cache != depth_state->test_enabled)
     {
       if (depth_state->test_enabled == TRUE)
-        {
-          GE (ctx, glEnable (GL_DEPTH_TEST));
-          if (ctx->current_draw_buffer)
-            ctx->current_draw_buffer->depth_buffer_clear_needed = TRUE;
-        }
+        GE (ctx, glEnable (GL_DEPTH_TEST));
       else
         GE (ctx, glDisable (GL_DEPTH_TEST));
       ctx->depth_test_enabled_cache = depth_state->test_enabled;
@@ -282,10 +438,11 @@ flush_depth_state (CoglContext *ctx,
       ctx->depth_writing_enabled_cache = depth_writing_enabled;
     }
 
-  if ((ctx->depth_range_near_cache != depth_state->range_near ||
+  if (ctx->driver != COGL_DRIVER_GLES1 &&
+      (ctx->depth_range_near_cache != depth_state->range_near ||
        ctx->depth_range_far_cache != depth_state->range_far))
     {
-      if (ctx->driver == COGL_DRIVER_GLES2)
+      if (_cogl_has_private_feature (ctx, COGL_PRIVATE_FEATURE_GL_EMBEDDED))
         GE (ctx, glDepthRangef (depth_state->range_near,
                                 depth_state->range_far));
       else
@@ -333,9 +490,27 @@ static void
 _cogl_pipeline_flush_color_blend_alpha_depth_state (
                                             CoglPipeline *pipeline,
                                             unsigned long pipelines_difference,
-                                            gboolean      with_color_attrib)
+                                            CoglBool      with_color_attrib)
 {
   _COGL_GET_CONTEXT (ctx, NO_RETVAL);
+
+  /* On GLES2 we'll flush the color later */
+  if (_cogl_has_private_feature (ctx, COGL_PRIVATE_FEATURE_GL_FIXED) &&
+      !with_color_attrib)
+    {
+      if ((pipelines_difference & COGL_PIPELINE_STATE_COLOR) ||
+          /* Assume if we were previously told to skip the color, then
+           * the current color needs updating... */
+          ctx->current_pipeline_with_color_attrib)
+        {
+          CoglPipeline *authority =
+            _cogl_pipeline_get_authority (pipeline, COGL_PIPELINE_STATE_COLOR);
+          GE (ctx, glColor4ub (cogl_color_get_red_byte (&authority->color),
+                               cogl_color_get_green_byte (&authority->color),
+                               cogl_color_get_blue_byte (&authority->color),
+                               cogl_color_get_alpha_byte (&authority->color)));
+        }
+    }
 
   if (pipelines_difference & COGL_PIPELINE_STATE_BLEND)
     {
@@ -344,34 +519,102 @@ _cogl_pipeline_flush_color_blend_alpha_depth_state (
       CoglPipelineBlendState *blend_state =
         &authority->big_state->blend_state;
 
-#if defined(HAVE_COGL_GLES2) || defined(HAVE_COGL_GL)
-      if (blend_factor_uses_constant (blend_state->blend_src_factor_rgb) ||
-          blend_factor_uses_constant (blend_state
-                                      ->blend_src_factor_alpha) ||
-          blend_factor_uses_constant (blend_state->blend_dst_factor_rgb) ||
-          blend_factor_uses_constant (blend_state->blend_dst_factor_alpha))
+      /* GLES 1 only has glBlendFunc */
+      if (ctx->driver == COGL_DRIVER_GLES1)
         {
-          float red =
-            cogl_color_get_red_float (&blend_state->blend_constant);
-          float green =
-            cogl_color_get_green_float (&blend_state->blend_constant);
-          float blue =
-            cogl_color_get_blue_float (&blend_state->blend_constant);
-          float alpha =
-            cogl_color_get_alpha_float (&blend_state->blend_constant);
+          GE (ctx, glBlendFunc (blend_state->blend_src_factor_rgb,
+                                blend_state->blend_dst_factor_rgb));
+        }
+#if defined(HAVE_COGL_GLES2) || defined(HAVE_COGL_GL)
+      else
+        {
+          if (blend_factor_uses_constant (blend_state->blend_src_factor_rgb) ||
+              blend_factor_uses_constant (blend_state
+                                          ->blend_src_factor_alpha) ||
+              blend_factor_uses_constant (blend_state->blend_dst_factor_rgb) ||
+              blend_factor_uses_constant (blend_state->blend_dst_factor_alpha))
+            {
+              float red =
+                cogl_color_get_red_float (&blend_state->blend_constant);
+              float green =
+                cogl_color_get_green_float (&blend_state->blend_constant);
+              float blue =
+                cogl_color_get_blue_float (&blend_state->blend_constant);
+              float alpha =
+                cogl_color_get_alpha_float (&blend_state->blend_constant);
 
 
-          GE (ctx, glBlendColor (red, green, blue, alpha));
+              GE (ctx, glBlendColor (red, green, blue, alpha));
+            }
+
+          if (ctx->glBlendEquationSeparate &&
+              blend_state->blend_equation_rgb !=
+              blend_state->blend_equation_alpha)
+            GE (ctx,
+                glBlendEquationSeparate (blend_state->blend_equation_rgb,
+                                         blend_state->blend_equation_alpha));
+          else
+            GE (ctx, glBlendEquation (blend_state->blend_equation_rgb));
+
+          if (ctx->glBlendFuncSeparate &&
+              (blend_state->blend_src_factor_rgb !=
+               blend_state->blend_src_factor_alpha ||
+               (blend_state->blend_dst_factor_rgb !=
+                blend_state->blend_dst_factor_alpha)))
+            GE (ctx, glBlendFuncSeparate (blend_state->blend_src_factor_rgb,
+                                          blend_state->blend_dst_factor_rgb,
+                                          blend_state->blend_src_factor_alpha,
+                                          blend_state->blend_dst_factor_alpha));
+          else
+            GE (ctx, glBlendFunc (blend_state->blend_src_factor_rgb,
+                                  blend_state->blend_dst_factor_rgb));
+        }
+#endif
+    }
+
+#if defined (HAVE_COGL_GL) || defined (HAVE_COGL_GLES)
+
+  if (_cogl_has_private_feature (ctx, COGL_PRIVATE_FEATURE_ALPHA_TEST))
+    {
+      /* Under GLES2 the alpha function is implemented as part of the
+         fragment shader */
+      if (pipelines_difference & (COGL_PIPELINE_STATE_ALPHA_FUNC |
+                                  COGL_PIPELINE_STATE_ALPHA_FUNC_REFERENCE))
+        {
+          CoglPipeline *authority =
+            _cogl_pipeline_get_authority (pipeline,
+                                          COGL_PIPELINE_STATE_ALPHA_FUNC);
+          CoglPipelineAlphaFuncState *alpha_state =
+            &authority->big_state->alpha_state;
+
+          /* NB: Currently the Cogl defines are compatible with the GL ones: */
+          GE (ctx, glAlphaFunc (alpha_state->alpha_func,
+                                alpha_state->alpha_func_reference));
         }
 
-      GE (ctx, glBlendEquationSeparate (blend_state->blend_equation_rgb,
-                                        blend_state->blend_equation_alpha));
+      /* Under GLES2 the lighting parameters are implemented as uniforms
+         in the progend */
+      if (pipelines_difference & COGL_PIPELINE_STATE_LIGHTING)
+        {
+          CoglPipeline *authority =
+            _cogl_pipeline_get_authority (pipeline,
+                                          COGL_PIPELINE_STATE_LIGHTING);
+          CoglPipelineLightingState *lighting_state =
+            &authority->big_state->lighting_state;
 
-      GE (ctx, glBlendFuncSeparate (blend_state->blend_src_factor_rgb,
-                                    blend_state->blend_dst_factor_rgb,
-                                    blend_state->blend_src_factor_alpha,
-                                    blend_state->blend_dst_factor_alpha));
+          GE (ctx, glMaterialfv (GL_FRONT_AND_BACK, GL_AMBIENT,
+                                 lighting_state->ambient));
+          GE (ctx, glMaterialfv (GL_FRONT_AND_BACK, GL_DIFFUSE,
+                                 lighting_state->diffuse));
+          GE (ctx, glMaterialfv (GL_FRONT_AND_BACK, GL_SPECULAR,
+                                 lighting_state->specular));
+          GE (ctx, glMaterialfv (GL_FRONT_AND_BACK, GL_EMISSION,
+                                 lighting_state->emission));
+          GE (ctx, glMaterialfv (GL_FRONT_AND_BACK, GL_SHININESS,
+                                 &lighting_state->shininess));
+        }
     }
+
 #endif
 
   if (pipelines_difference & COGL_PIPELINE_STATE_DEPTH)
@@ -381,6 +624,23 @@ _cogl_pipeline_flush_color_blend_alpha_depth_state (
       CoglDepthState *depth_state = &authority->big_state->depth_state;
 
       flush_depth_state (ctx, depth_state);
+    }
+
+  if (pipelines_difference & COGL_PIPELINE_STATE_LOGIC_OPS)
+    {
+      CoglPipeline *authority =
+        _cogl_pipeline_get_authority (pipeline, COGL_PIPELINE_STATE_LOGIC_OPS);
+      CoglPipelineLogicOpsState *logic_ops_state = &authority->big_state->logic_ops_state;
+      CoglColorMask color_mask = logic_ops_state->color_mask;
+
+      if (ctx->current_draw_buffer)
+        color_mask &= ctx->current_draw_buffer->color_mask;
+
+      GE (ctx, glColorMask (!!(color_mask & COGL_COLOR_MASK_RED),
+                            !!(color_mask & COGL_COLOR_MASK_GREEN),
+                            !!(color_mask & COGL_COLOR_MASK_BLUE),
+                            !!(color_mask & COGL_COLOR_MASK_ALPHA)));
+      ctx->current_gl_color_mask = color_mask;
     }
 
   if (pipelines_difference & COGL_PIPELINE_STATE_CULL_FACE)
@@ -394,7 +654,7 @@ _cogl_pipeline_flush_color_blend_alpha_depth_state (
         GE( ctx, glDisable (GL_CULL_FACE) );
       else
         {
-          gboolean invert_winding;
+          CoglBool invert_winding;
 
           GE( ctx, glEnable (GL_CULL_FACE) );
 
@@ -434,6 +694,21 @@ _cogl_pipeline_flush_color_blend_alpha_depth_state (
         }
     }
 
+#ifdef HAVE_COGL_GL
+  if (_cogl_has_private_feature
+      (ctx, COGL_PRIVATE_FEATURE_ENABLE_PROGRAM_POINT_SIZE) &&
+      (pipelines_difference & COGL_PIPELINE_STATE_PER_VERTEX_POINT_SIZE))
+    {
+      unsigned long state = COGL_PIPELINE_STATE_PER_VERTEX_POINT_SIZE;
+      CoglPipeline *authority = _cogl_pipeline_get_authority (pipeline, state);
+
+      if (authority->big_state->per_vertex_point_size)
+        GE( ctx, glEnable (GL_PROGRAM_POINT_SIZE) );
+      else
+        GE( ctx, glDisable (GL_PROGRAM_POINT_SIZE) );
+    }
+#endif
+
   if (pipeline->real_blend_enable != ctx->gl_blend_enable_cache)
     {
       if (pipeline->real_blend_enable)
@@ -458,20 +733,31 @@ get_max_activateable_texture_units (void)
       int i;
 
 #ifdef HAVE_COGL_GL
-      if (ctx->driver != COGL_DRIVER_GLES2)
+      if (!_cogl_has_private_feature (ctx, COGL_PRIVATE_FEATURE_GL_EMBEDDED))
         {
-          /* GL_MAX_TEXTURE_COORDS defines the number of texture coordinates
-           * that can be uploaded (but doesn't necessarily relate to how many
-           * texture images can be sampled) */
-          GE (ctx, glGetIntegerv (GL_MAX_TEXTURE_COORDS, values + n_values++));
+          /* GL_MAX_TEXTURE_COORDS is provided for both GLSL and ARBfp. It
+             defines the number of texture coordinates that can be
+             uploaded (but doesn't necessarily relate to how many texture
+             images can be sampled) */
+          if (cogl_has_feature (ctx, COGL_FEATURE_ID_GLSL) ||
+              cogl_has_feature (ctx, COGL_FEATURE_ID_ARBFP))
+            /* Previously this code subtracted the value by one but there
+               was no explanation for why it did this and it doesn't seem
+               to make sense so it has been removed */
+            GE (ctx, glGetIntegerv (GL_MAX_TEXTURE_COORDS,
+                                    values + n_values++));
 
-          GE (ctx, glGetIntegerv (GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS,
-                                  values + n_values++));
+          /* GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS is defined for GLSL but
+             not ARBfp */
+          if (cogl_has_feature (ctx, COGL_FEATURE_ID_GLSL))
+            GE (ctx, glGetIntegerv (GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS,
+                                    values + n_values++));
         }
 #endif /* HAVE_COGL_GL */
 
 #ifdef HAVE_COGL_GLES2
-      if (ctx->driver == COGL_DRIVER_GLES2)
+      if (_cogl_has_private_feature (ctx, COGL_PRIVATE_FEATURE_GL_EMBEDDED) &&
+          _cogl_has_private_feature (ctx, COGL_PRIVATE_FEATURE_GL_PROGRAMMABLE))
         {
           GE (ctx, glGetIntegerv (GL_MAX_VERTEX_ATTRIBS, values + n_values));
           /* Two of the vertex attribs need to be used for the position
@@ -483,8 +769,8 @@ get_max_activateable_texture_units (void)
         }
 #endif
 
-#ifdef HAVE_COGL_GL
-      if (ctx->driver == COGL_DRIVER_GL)
+#if defined (HAVE_COGL_GL) || defined (HAVE_COGL_GLES)
+      if (_cogl_has_private_feature (ctx, COGL_PRIVATE_FEATURE_GL_FIXED))
         {
           /* GL_MAX_TEXTURE_UNITS defines the number of units that are
              usable from the fixed function pipeline, therefore it isn't
@@ -516,7 +802,7 @@ typedef struct
   unsigned long *layer_differences;
 } CoglPipelineFlushLayerState;
 
-static gboolean
+static CoglBool
 flush_layers_common_gl_state_cb (CoglPipelineLayer *layer, void *user_data)
 {
   CoglPipelineFlushLayerState *flush_state = user_data;
@@ -532,7 +818,7 @@ flush_layers_common_gl_state_cb (CoglPipelineLayer *layer, void *user_data)
    */
   if (G_UNLIKELY (unit_index >= get_max_activateable_texture_units ()))
     {
-      static gboolean shown_warning = FALSE;
+      static CoglBool shown_warning = FALSE;
 
       if (!shown_warning)
         {
@@ -550,7 +836,18 @@ flush_layers_common_gl_state_cb (CoglPipelineLayer *layer, void *user_data)
       GLenum gl_target;
 
       if (texture == NULL)
-        texture = COGL_TEXTURE (ctx->default_gl_texture_2d_tex);
+        switch (_cogl_pipeline_layer_get_texture_type (layer))
+          {
+          case COGL_TEXTURE_TYPE_2D:
+            texture = COGL_TEXTURE (ctx->default_gl_texture_2d_tex);
+            break;
+          case COGL_TEXTURE_TYPE_3D:
+            texture = COGL_TEXTURE (ctx->default_gl_texture_3d_tex);
+            break;
+          case COGL_TEXTURE_TYPE_RECTANGLE:
+            texture = COGL_TEXTURE (ctx->default_gl_texture_rect_tex);
+            break;
+          }
 
       cogl_texture_get_gl_texture (texture,
                                    &gl_texture,
@@ -583,7 +880,7 @@ flush_layers_common_gl_state_cb (CoglPipelineLayer *layer, void *user_data)
        * associated with the texture unit then we can't assume that we
        * aren't seeing a recycled texture name so we have to bind.
        */
-      if (unit->gl_texture != gl_texture)
+      if (unit->gl_texture != gl_texture || unit->is_foreign)
         {
           if (unit_index == 1)
             unit->dirty_gl_texture = TRUE;
@@ -592,6 +889,8 @@ flush_layers_common_gl_state_cb (CoglPipelineLayer *layer, void *user_data)
           unit->gl_texture = gl_texture;
           unit->gl_target = gl_target;
         }
+
+      unit->is_foreign = _cogl_texture_is_foreign (texture);
 
       /* The texture_storage_changed boolean indicates if the
        * CoglTexture's underlying GL texture storage has changed since
@@ -610,6 +909,27 @@ flush_layers_common_gl_state_cb (CoglPipelineLayer *layer, void *user_data)
       GE( ctx, glBindSampler (unit_index, sampler_state->sampler_object) );
     }
 
+  /* FIXME: If using GLSL the progend we will use gl_PointCoord
+   * instead of us needing to replace the texture coordinates but at
+   * this point we can't currently tell if we are using the fixed or
+   * glsl progend.
+   */
+#if defined (HAVE_COGL_GLES) || defined (HAVE_COGL_GL)
+  if (_cogl_has_private_feature (ctx, COGL_PRIVATE_FEATURE_GL_FIXED) &&
+      (layers_difference & COGL_PIPELINE_LAYER_STATE_POINT_SPRITE_COORDS))
+    {
+      CoglPipelineState change = COGL_PIPELINE_LAYER_STATE_POINT_SPRITE_COORDS;
+      CoglPipelineLayer *authority =
+        _cogl_pipeline_layer_get_authority (layer, change);
+      CoglPipelineLayerBigState *big_state = authority->big_state;
+
+      _cogl_set_active_texture_unit (unit_index);
+
+      GE (ctx, glTexEnvi (GL_POINT_SPRITE, GL_COORD_REPLACE,
+                          big_state->point_sprite_coords));
+    }
+#endif
+
   cogl_object_ref (layer);
   if (unit->layer != NULL)
     cogl_object_unref (unit->layer);
@@ -626,7 +946,7 @@ static void
 _cogl_pipeline_flush_common_gl_state (CoglPipeline  *pipeline,
                                       unsigned long  pipelines_difference,
                                       unsigned long *layer_differences,
-                                      gboolean       with_color_attrib)
+                                      CoglBool       with_color_attrib)
 {
   CoglPipelineFlushLayerState state;
 
@@ -652,15 +972,16 @@ static void
 _cogl_pipeline_layer_forward_wrap_modes (CoglPipelineLayer *layer,
                                          CoglTexture *texture)
 {
-  CoglSamplerCacheWrapMode wrap_mode_s, wrap_mode_t;
-  GLenum gl_wrap_mode_s, gl_wrap_mode_t;
+  CoglSamplerCacheWrapMode wrap_mode_s, wrap_mode_t, wrap_mode_p;
+  GLenum gl_wrap_mode_s, gl_wrap_mode_t, gl_wrap_mode_p;
 
   if (texture == NULL)
     return;
 
   _cogl_pipeline_layer_get_wrap_modes (layer,
                                        &wrap_mode_s,
-                                       &wrap_mode_t);
+                                       &wrap_mode_t,
+                                       &wrap_mode_p);
 
   /* Update the wrap mode on the texture object. The texture backend
      should cache the value so that it will be a no-op if the object
@@ -683,9 +1004,15 @@ _cogl_pipeline_layer_forward_wrap_modes (CoglPipelineLayer *layer,
   else
     gl_wrap_mode_t = wrap_mode_t;
 
+  if (wrap_mode_p == COGL_SAMPLER_CACHE_WRAP_MODE_AUTOMATIC)
+    gl_wrap_mode_p = GL_CLAMP_TO_EDGE;
+  else
+    gl_wrap_mode_p = wrap_mode_p;
+
   _cogl_texture_gl_flush_legacy_texobj_wrap_modes (texture,
                                                    gl_wrap_mode_s,
-                                                   gl_wrap_mode_t);
+                                                   gl_wrap_mode_t,
+                                                   gl_wrap_mode_p);
 }
 
 /* OpenGL associates the min/mag filters and repeat modes with the
@@ -734,7 +1061,7 @@ typedef struct
   unsigned long *layer_differences;
 } CoglPipelineCompareLayersState;
 
-static gboolean
+static CoglBool
 compare_layer_differences_cb (CoglPipelineLayer *layer, void *user_data)
 {
   CoglPipelineCompareLayersState *state = user_data;
@@ -775,11 +1102,11 @@ typedef struct
   const CoglPipelineFragend *fragend;
   CoglPipeline *pipeline;
   unsigned long *layer_differences;
-  gboolean error_adding_layer;
-  gboolean added_layer;
+  CoglBool error_adding_layer;
+  CoglBool added_layer;
 } CoglPipelineAddLayerState;
 
-static gboolean
+static CoglBool
 vertend_add_layer_cb (CoglPipelineLayer *layer,
                       void *user_data)
 {
@@ -804,7 +1131,7 @@ vertend_add_layer_cb (CoglPipelineLayer *layer,
   return TRUE;
 }
 
-static gboolean
+static CoglBool
 fragend_add_layer_cb (CoglPipelineLayer *layer,
                       void *user_data)
 {
@@ -876,19 +1203,20 @@ fragend_add_layer_cb (CoglPipelineLayer *layer,
  *
  *    Currently for textured rectangles we manually calculate the texture
  *    coords for each slice based on the users given coords, but this solution
- *    isn't ideal.
+ *    isn't ideal, and can't be used with CoglVertexBuffers.
  */
 void
 _cogl_pipeline_flush_gl_state (CoglContext *ctx,
                                CoglPipeline *pipeline,
                                CoglFramebuffer *framebuffer,
-                               gboolean with_color_attrib,
-                               gboolean unknown_color_alpha)
+                               CoglBool with_color_attrib,
+                               CoglBool unknown_color_alpha)
 {
   CoglPipeline *current_pipeline = ctx->current_pipeline;
   unsigned long pipelines_difference;
   int n_layers;
   unsigned long *layer_differences;
+  int i;
   CoglTextureUnit *unit1;
   const CoglPipelineProgend *progend;
 
@@ -925,7 +1253,7 @@ _cogl_pipeline_flush_gl_state (CoglContext *ctx,
           if (pipelines_difference & COGL_PIPELINE_STATE_AFFECTS_BLENDING ||
               pipeline->unknown_color_alpha != unknown_color_alpha)
             {
-              gboolean save_real_blend_enable = pipeline->real_blend_enable;
+              CoglBool save_real_blend_enable = pipeline->real_blend_enable;
 
               _cogl_pipeline_update_real_blend_enable (pipeline,
                                                        unknown_color_alpha);
@@ -1003,19 +1331,23 @@ _cogl_pipeline_flush_gl_state (CoglContext *ctx,
    * with the given progend so we will simply use that to avoid
    * fallback code paths.
    */
+  if (pipeline->progend == COGL_PIPELINE_PROGEND_UNDEFINED)
+    _cogl_pipeline_set_progend (pipeline, COGL_PIPELINE_PROGEND_DEFAULT);
 
-  do
+  for (i = pipeline->progend;
+       i < COGL_PIPELINE_N_PROGENDS;
+       i++, _cogl_pipeline_set_progend (pipeline, i))
     {
       const CoglPipelineVertend *vertend;
       const CoglPipelineFragend *fragend;
       CoglPipelineAddLayerState state;
 
-      progend = _cogl_pipeline_progend;
+      progend = _cogl_pipeline_progends[i];
 
       if (G_UNLIKELY (!progend->start (pipeline)))
         continue;
 
-      vertend = _cogl_pipeline_vertend;
+      vertend = _cogl_pipeline_vertends[progend->vertend];
 
       vertend->start (pipeline,
                       n_layers,
@@ -1045,7 +1377,7 @@ _cogl_pipeline_flush_gl_state (CoglContext *ctx,
        * ctx->codegen_source_buffer as a scratch buffer.
        */
 
-      fragend = _cogl_pipeline_fragend;
+      fragend = _cogl_pipeline_fragends[progend->fragend];
       state.fragend = fragend;
 
       fragend->start (pipeline,
@@ -1059,6 +1391,13 @@ _cogl_pipeline_flush_gl_state (CoglContext *ctx,
       if (G_UNLIKELY (state.error_adding_layer))
         continue;
 
+      if (!state.added_layer)
+        {
+          if (fragend->passthrough &&
+              G_UNLIKELY (!fragend->passthrough (pipeline)))
+            continue;
+        }
+
       if (G_UNLIKELY (!fragend->end (pipeline, pipelines_difference)))
         continue;
 
@@ -1066,7 +1405,6 @@ _cogl_pipeline_flush_gl_state (CoglContext *ctx,
         progend->end (pipeline, pipelines_difference);
       break;
     }
-  while (0);
 
   /* FIXME: This reference is actually resulting in lots of
    * copy-on-write reparenting because one-shot pipelines end up
@@ -1087,13 +1425,13 @@ _cogl_pipeline_flush_gl_state (CoglContext *ctx,
 
 done:
 
-  progend = _cogl_pipeline_progend;
+  progend = _cogl_pipeline_progends[pipeline->progend];
 
   /* We can't assume the color will be retained between flushes when
    * using the glsl progend because the generic attribute values are
    * not stored as part of the program object so they could be
    * overridden by any attribute changes in another program */
-  if (!with_color_attrib)
+  if (pipeline->progend == COGL_PIPELINE_PROGEND_GLSL && !with_color_attrib)
     {
       int attribute;
       CoglPipeline *authority =

@@ -2,7 +2,6 @@
 
 /*
  * Copyright (C) 2017 Red Hat
- * Copyright (C) 2018 DisplayLink (UK) Ltd.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -25,26 +24,20 @@
 
 #include "backends/meta-output.h"
 #include "backends/native/meta-gpu-kms.h"
-#include "backends/native/meta-kms-types.h"
 
-void meta_output_kms_set_power_save_mode (MetaOutput    *output,
-                                          uint64_t       dpms_state,
-                                          MetaKmsUpdate *kms_update);
+void meta_output_kms_set_underscan (MetaOutput *output);
 
-void meta_output_kms_set_underscan (MetaOutput    *output,
-                                    MetaKmsUpdate *kms_update);
+void meta_output_kms_set_power_save_mode (MetaOutput *output,
+                                          uint64_t    state);
 
 gboolean meta_output_kms_can_clone (MetaOutput *output,
                                     MetaOutput *other_output);
 
-MetaKmsConnector * meta_output_kms_get_kms_connector (MetaOutput *output);
-
-uint32_t meta_output_kms_get_connector_id (MetaOutput *output);
-
 GBytes * meta_output_kms_read_edid (MetaOutput *output);
 
 MetaOutput * meta_create_kms_output (MetaGpuKms        *gpu_kms,
-                                     MetaKmsConnector  *kms_connector,
+                                     drmModeConnector  *connector,
+                                     MetaKmsResources  *resources,
                                      MetaOutput        *old_output,
                                      GError           **error);
 

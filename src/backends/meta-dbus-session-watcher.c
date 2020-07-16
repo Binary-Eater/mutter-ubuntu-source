@@ -214,8 +214,6 @@ meta_dbus_session_watcher_finalize (GObject *object)
   MetaDbusSessionWatcher *session_watcher = META_DBUS_SESSION_WATCHER (object);
 
   g_hash_table_destroy (session_watcher->clients);
-
-  G_OBJECT_CLASS (meta_dbus_session_watcher_parent_class)->finalize (object);
 }
 
 static void

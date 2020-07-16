@@ -58,7 +58,9 @@
  * Since: 1.10
  */
 
+#ifdef HAVE_CONFIG_H
 #include "clutter-build-config.h"
+#endif
 
 #define CLUTTER_ENABLE_EXPERIMENTAL_API
 
@@ -171,6 +173,8 @@ clutter_paint_node_real_finalize (ClutterPaintNode *node)
 {
   ClutterPaintNode *iter;
 
+  g_free (node->name);
+
   if (node->operations != NULL)
     {
       guint i;
@@ -200,21 +204,18 @@ clutter_paint_node_real_finalize (ClutterPaintNode *node)
 }
 
 static gboolean
-clutter_paint_node_real_pre_draw (ClutterPaintNode    *node,
-                                  ClutterPaintContext *paint_context)
+clutter_paint_node_real_pre_draw (ClutterPaintNode *node)
 {
   return FALSE;
 }
 
 static void
-clutter_paint_node_real_draw (ClutterPaintNode    *node,
-                              ClutterPaintContext *paint_context)
+clutter_paint_node_real_draw (ClutterPaintNode *node)
 {
 }
 
 static void
-clutter_paint_node_real_post_draw (ClutterPaintNode    *node,
-                                   ClutterPaintContext *paint_context)
+clutter_paint_node_real_post_draw (ClutterPaintNode *node)
 {
 }
 
@@ -295,8 +296,7 @@ clutter_paint_node_get_type (void)
  *
  * The @name will be used for debugging purposes.
  *
- * The @node will intern @name using g_intern_string(). If you have access to a
- * static string, use clutter_paint_node_set_static_name() instead.
+ * The @node will copy the passed string.
  *
  * Since: 1.10
  */
@@ -306,22 +306,8 @@ clutter_paint_node_set_name (ClutterPaintNode *node,
 {
   g_return_if_fail (CLUTTER_IS_PAINT_NODE (node));
 
-  node->name = g_intern_string (name);
-}
-
-/**
- * clutter_paint_node_set_static_name: (skip)
- *
- * Like clutter_paint_node_set_name() but uses a static or interned string
- * containing the name.
- */
-void
-clutter_paint_node_set_static_name (ClutterPaintNode *node,
-                                    const char       *name)
-{
-  g_return_if_fail (CLUTTER_IS_PAINT_NODE (node));
-
-  node->name = name;
+  g_free (node->name);
+  node->name = g_strdup (name);
 }
 
 /**
@@ -777,11 +763,6 @@ clutter_paint_operation_clear (ClutterPaintOperation *op)
     case PAINT_OP_TEX_RECT:
       break;
 
-    case PAINT_OP_MULTITEX_RECT:
-      if (op->multitex_coords != NULL)
-        g_array_unref (op->multitex_coords);
-      break;
-
     case PAINT_OP_PATH:
       if (op->op.path != NULL)
         cogl_object_unref (op->op.path);
@@ -813,27 +794,6 @@ clutter_paint_op_init_tex_rect (ClutterPaintOperation *op,
   op->op.texrect[5] = y_1;
   op->op.texrect[6] = x_2;
   op->op.texrect[7] = y_2;
-}
-
-static inline void
-clutter_paint_op_init_multitex_rect (ClutterPaintOperation *op,
-                                     const ClutterActorBox *rect,
-                                     const float           *tex_coords,
-                                     unsigned int           tex_coords_len)
-{
-  clutter_paint_operation_clear (op);
-
-  op->opcode = PAINT_OP_MULTITEX_RECT;
-  op->multitex_coords = g_array_sized_new (FALSE, FALSE,
-                                           sizeof (float),
-                                           tex_coords_len);
-
-  g_array_append_vals (op->multitex_coords, tex_coords, tex_coords_len);
-
-  op->op.texrect[0] = rect->x1;
-  op->op.texrect[1] = rect->y1;
-  op->op.texrect[2] = rect->x2;
-  op->op.texrect[3] = rect->y2;
 }
 
 static inline void
@@ -923,33 +883,6 @@ clutter_paint_node_add_texture_rectangle (ClutterPaintNode      *node,
   g_array_append_val (node->operations, operation);
 }
 
-
-/**
- * clutter_paint_node_add_multitexture_rectangle:
- * @node: a #ClutterPaintNode
- * @rect: a #ClutterActorBox
- * @text_coords: array of multitexture values
- * @text_coords_len: number of items of @text_coords
- *
- * Adds a rectangle region to the @node, with multitexture coordinates.
- */
-void
-clutter_paint_node_add_multitexture_rectangle (ClutterPaintNode      *node,
-                                               const ClutterActorBox *rect,
-                                               const float           *text_coords,
-                                               unsigned int           text_coords_len)
-{
-  ClutterPaintOperation operation = PAINT_OP_INIT;
-
-  g_return_if_fail (CLUTTER_IS_PAINT_NODE (node));
-  g_return_if_fail (rect != NULL);
-
-  clutter_paint_node_maybe_init_operations (node);
-
-  clutter_paint_op_init_multitex_rect (&operation, rect, text_coords, text_coords_len);
-  g_array_append_val (node->operations, operation);
-}
-
 /**
  * clutter_paint_node_add_path: (skip)
  * @node: a #ClutterPaintNode
@@ -1005,38 +938,37 @@ clutter_paint_node_add_primitive (ClutterPaintNode *node,
   g_array_append_val (node->operations, operation);
 }
 
-/**
- * clutter_paint_node_paint:
+/*< private >
+ * _clutter_paint_node_paint:
  * @node: a #ClutterPaintNode
  *
  * Paints the @node using the class implementation, traversing
  * its children, if any.
  */
 void
-clutter_paint_node_paint (ClutterPaintNode    *node,
-                          ClutterPaintContext *paint_context)
+_clutter_paint_node_paint (ClutterPaintNode *node)
 {
   ClutterPaintNodeClass *klass = CLUTTER_PAINT_NODE_GET_CLASS (node);
   ClutterPaintNode *iter;
   gboolean res;
 
-  res = klass->pre_draw (node, paint_context);
+  res = klass->pre_draw (node);
 
   if (res)
     {
-      klass->draw (node, paint_context);
+      klass->draw (node);
     }
 
   for (iter = node->first_child;
        iter != NULL;
        iter = iter->next_sibling)
     {
-      clutter_paint_node_paint (iter, paint_context);
+      _clutter_paint_node_paint (iter);
     }
 
   if (res)
     {
-      klass->post_draw (node, paint_context);
+      klass->post_draw (node);
     }
 }
 
@@ -1076,7 +1008,7 @@ clutter_paint_node_to_json (ClutterPaintNode *node)
 
   if (node->operations != NULL)
     {
-      guint i, j;
+      guint i;
 
       for (i = 0; i < node->operations->len; i++)
         {
@@ -1101,27 +1033,14 @@ clutter_paint_node_to_json (ClutterPaintNode *node)
               json_builder_end_array (builder);
               break;
 
-            case PAINT_OP_MULTITEX_RECT:
-              json_builder_set_member_name (builder, "texrect");
-              json_builder_begin_array (builder);
-
-              for (j = 0; i < op->multitex_coords->len; j++)
-                {
-                  float coord = g_array_index (op->multitex_coords, float, j);
-                  json_builder_add_double_value (builder, coord);
-                }
-
-              json_builder_end_array (builder);
-              break;
-
             case PAINT_OP_PATH:
               json_builder_set_member_name (builder, "path");
-              json_builder_add_int_value (builder, (intptr_t) op->op.path);
+              json_builder_add_int_value (builder, (gint64) op->op.path);
               break;
 
             case PAINT_OP_PRIMITIVE:
               json_builder_set_member_name (builder, "primitive");
-              json_builder_add_int_value (builder, (intptr_t) op->op.primitive);
+              json_builder_add_int_value (builder, (gint64) op->op.primitive);
               break;
 
             case PAINT_OP_INVALID:
@@ -1194,6 +1113,8 @@ _clutter_paint_node_create (GType gtype)
 {
   g_return_val_if_fail (g_type_is_a (gtype, CLUTTER_TYPE_PAINT_NODE), NULL);
 
+  _clutter_paint_node_init_types ();
+
   return (gpointer) g_type_create_instance (gtype);
 }
 
@@ -1209,25 +1130,18 @@ clutter_paint_node_get_root (ClutterPaintNode *node)
   return iter;
 }
 
-/**
- * clutter_paint_node_get_framebuffer:
- * @node: a #ClutterPaintNode
- *
- * Retrieves the #CoglFramebuffer that @node will draw
- * into, if it the root node has a custom framebuffer set.
- *
- * Returns: (transfer none): a #CoglFramebuffer or %NULL if no custom one is
- * set.
- */
 CoglFramebuffer *
 clutter_paint_node_get_framebuffer (ClutterPaintNode *node)
 {
   ClutterPaintNode *root = clutter_paint_node_get_root (node);
   ClutterPaintNodeClass *klass;
 
+  if (root == NULL)
+    return NULL;
+
   klass = CLUTTER_PAINT_NODE_GET_CLASS (root);
   if (klass->get_framebuffer != NULL)
     return klass->get_framebuffer (root);
-  else
-    return NULL;
+
+  return cogl_get_draw_framebuffer ();
 }

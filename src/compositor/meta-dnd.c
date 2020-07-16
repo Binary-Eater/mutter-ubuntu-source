@@ -26,10 +26,7 @@
 #include "compositor/compositor-private.h"
 #include "core/display-private.h"
 #include "backends/meta-dnd-private.h"
-#include "backends/x11/meta-backend-x11.h"
-#include "backends/x11/meta-stage-x11.h"
 #include "meta/meta-dnd.h"
-#include "x11/meta-x11-display-private.h"
 
 struct _MetaDndClass
 {
@@ -111,35 +108,6 @@ meta_dnd_init (MetaDnd *dnd)
 {
 }
 
-void
-meta_dnd_init_xdnd (MetaX11Display *x11_display)
-{
-  MetaBackend *backend = meta_get_backend ();
-  Display *xdisplay = x11_display->xdisplay;
-  Window xwindow, overlay_xwindow;
-  long xdnd_version = 5;
-
-  overlay_xwindow = x11_display->composite_overlay_window;
-  xwindow = meta_backend_x11_get_xwindow (META_BACKEND_X11 (backend));
-
-  XChangeProperty (xdisplay, xwindow,
-                   XInternAtom (xdisplay, "XdndAware", TRUE), XA_ATOM,
-                   32, PropModeReplace,
-                   (const unsigned char *) &xdnd_version, 1);
-
-  XChangeProperty (xdisplay, overlay_xwindow,
-                   XInternAtom (xdisplay, "XdndProxy", TRUE), XA_WINDOW,
-                   32, PropModeReplace, (const unsigned char *) &xwindow, 1);
-
-  /*
-   * XdndProxy is additionally set on the proxy window as verification that the
-   * XdndProxy property on the target window isn't a left-over
-   */
-  XChangeProperty (xdisplay, xwindow,
-                   XInternAtom (xdisplay, "XdndProxy", TRUE), XA_WINDOW,
-                   32, PropModeReplace, (const unsigned char *) &xwindow, 1);
-}
-
 static void
 meta_dnd_notify_dnd_enter (MetaDnd *dnd)
 {
@@ -169,42 +137,38 @@ meta_dnd_notify_dnd_leave (MetaDnd *dnd)
  * http://www.freedesktop.org/wiki/Specifications/XDND
  */
 gboolean
-meta_dnd_handle_xdnd_event (MetaBackend       *backend,
-                            MetaCompositorX11 *compositor_x11,
-                            Display           *xdisplay,
-                            XEvent            *xev)
+meta_dnd_handle_xdnd_event (MetaBackend    *backend,
+                            MetaCompositor *compositor,
+                            MetaDisplay    *display,
+                            XEvent         *xev)
 {
   MetaDnd *dnd = meta_backend_get_dnd (backend);
-  MetaCompositor *compositor = META_COMPOSITOR (compositor_x11);
-  Window output_window;
-  ClutterStage *stage;
+  Window output_window = compositor->output;
 
   if (xev->xany.type != ClientMessage)
     return FALSE;
 
-  output_window = meta_compositor_x11_get_output_xwindow (compositor_x11);
-  stage = meta_compositor_get_stage (compositor);
   if (xev->xany.window != output_window &&
-      xev->xany.window != meta_x11_get_stage_window (stage))
+      xev->xany.window != clutter_x11_get_stage_window (CLUTTER_STAGE (compositor->stage)))
     return FALSE;
 
-  if (xev->xclient.message_type == XInternAtom (xdisplay, "XdndPosition", TRUE))
+  if (xev->xclient.message_type == gdk_x11_get_xatom_by_name ("XdndPosition"))
     {
       XEvent xevent;
       Window src = xev->xclient.data.l[0];
 
       memset (&xevent, 0, sizeof(xevent));
       xevent.xany.type = ClientMessage;
-      xevent.xany.display = xdisplay;
+      xevent.xany.display = display->xdisplay;
       xevent.xclient.window = src;
-      xevent.xclient.message_type = XInternAtom (xdisplay, "XdndStatus", TRUE);
+      xevent.xclient.message_type = gdk_x11_get_xatom_by_name ("XdndStatus");
       xevent.xclient.format = 32;
       xevent.xclient.data.l[0] = output_window;
       /* flags: bit 0: will we accept the drop? bit 1: do we want more position messages */
       xevent.xclient.data.l[1] = 2;
       xevent.xclient.data.l[4] = None;
 
-      XSendEvent (xdisplay, src, False, 0, &xevent);
+      XSendEvent (display->xdisplay, src, False, 0, &xevent);
 
       meta_dnd_notify_dnd_position_change (dnd,
                                             (int)(xev->xclient.data.l[2] >> 16),
@@ -212,13 +176,13 @@ meta_dnd_handle_xdnd_event (MetaBackend       *backend,
 
       return TRUE;
     }
-  else if (xev->xclient.message_type == XInternAtom (xdisplay, "XdndLeave", TRUE))
+  else if (xev->xclient.message_type == gdk_x11_get_xatom_by_name ("XdndLeave"))
     {
       meta_dnd_notify_dnd_leave (dnd);
 
       return TRUE;
     }
-  else if (xev->xclient.message_type == XInternAtom (xdisplay, "XdndEnter", TRUE))
+  else if (xev->xclient.message_type == gdk_x11_get_xatom_by_name ("XdndEnter"))
     {
       meta_dnd_notify_dnd_enter (dnd);
 
@@ -290,22 +254,20 @@ meta_dnd_wayland_handle_begin_modal (MetaCompositor *compositor)
   if (priv->handler_id[0] == 0 &&
       meta_wayland_data_device_get_current_grab (&wl_compositor->seat->data_device) != NULL)
     {
-      ClutterStage *stage = meta_compositor_get_stage (compositor);
-
       priv->compositor = compositor;
       priv->wl_compositor = wl_compositor;
 
-      priv->handler_id[0] = g_signal_connect (stage,
+      priv->handler_id[0] = g_signal_connect (compositor->stage,
                                               "motion-event",
                                               G_CALLBACK (meta_dnd_wayland_on_motion_event),
                                               dnd);
 
-      priv->handler_id[1] = g_signal_connect (stage,
+      priv->handler_id[1] = g_signal_connect (compositor->stage,
                                               "button-release-event",
                                               G_CALLBACK (meta_dnd_wayland_on_button_released),
                                               dnd);
 
-      priv->handler_id[2] = g_signal_connect (stage,
+      priv->handler_id[2] = g_signal_connect (compositor->stage,
                                               "key-press-event",
                                               G_CALLBACK (meta_dnd_wayland_on_key_pressed),
                                               dnd);
@@ -319,14 +281,16 @@ meta_dnd_wayland_handle_end_modal (MetaCompositor *compositor)
 {
   MetaDnd *dnd = meta_backend_get_dnd (meta_get_backend ());
   MetaDndPrivate *priv = meta_dnd_get_instance_private (dnd);
-  ClutterStage *stage = meta_compositor_get_stage (compositor);
   unsigned int i;
 
   if (!priv->compositor)
     return;
 
   for (i = 0; i < G_N_ELEMENTS (priv->handler_id); i++)
-    g_clear_signal_handler (&priv->handler_id[i], stage);
+    {
+      g_signal_handler_disconnect (priv->compositor->stage, priv->handler_id[i]);
+      priv->handler_id[i] = 0;
+    }
 
   priv->compositor = NULL;
   priv->wl_compositor = NULL;

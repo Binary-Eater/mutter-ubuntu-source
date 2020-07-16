@@ -50,14 +50,13 @@
 
 #include <glib-object.h>
 
-G_BEGIN_DECLS
+COGL_BEGIN_DECLS
 
 /**
  * cogl_color_get_gtype:
  *
  * Returns: a #GType that can be used with the GLib type system.
  */
-COGL_EXPORT
 GType cogl_color_get_gtype (void);
 
 /**
@@ -70,7 +69,7 @@ GType cogl_color_get_gtype (void);
  *
  * Since: 1.0
  */
-COGL_EXPORT CoglColor *
+CoglColor *
 cogl_color_new (void);
 
 /**
@@ -84,7 +83,7 @@ cogl_color_new (void);
  *
  * Since: 1.0
  */
-COGL_EXPORT CoglColor *
+CoglColor *
 cogl_color_copy (const CoglColor *color);
 
 /**
@@ -95,7 +94,7 @@ cogl_color_copy (const CoglColor *color);
  *
  * Since: 1.0
  */
-COGL_EXPORT void
+void
 cogl_color_free (CoglColor *color);
 
 /**
@@ -110,12 +109,33 @@ cogl_color_free (CoglColor *color);
  *
  * Since: 1.4
  */
-COGL_EXPORT void
+void
 cogl_color_init_from_4ub (CoglColor *color,
                           uint8_t red,
                           uint8_t green,
                           uint8_t blue,
                           uint8_t alpha);
+
+/**
+ * cogl_color_set_from_4ub:
+ * @color: A pointer to a #CoglColor to initialize
+ * @red: value of the red channel, between 0 and 255
+ * @green: value of the green channel, between 0 and 255
+ * @blue: value of the blue channel, between 0 and 255
+ * @alpha: value of the alpha channel, between 0 and 255
+ *
+ * Sets the values of the passed channels into a #CoglColor.
+ *
+ * Since: 1.0
+ * Deprecated: 1.4: Use cogl_color_init_from_4ub instead.
+ */
+COGL_DEPRECATED_IN_1_4_FOR (cogl_color_init_from_4ub)
+void
+cogl_color_set_from_4ub (CoglColor *color,
+                         uint8_t red,
+                         uint8_t green,
+                         uint8_t blue,
+                         uint8_t alpha);
 
 /**
  * cogl_color_init_from_4f:
@@ -129,12 +149,33 @@ cogl_color_init_from_4ub (CoglColor *color,
  *
  * Since: 1.4
  */
-COGL_EXPORT void
+void
 cogl_color_init_from_4f (CoglColor *color,
                          float red,
                          float green,
                          float blue,
                          float alpha);
+
+/**
+ * cogl_color_set_from_4f:
+ * @color: A pointer to a #CoglColor to initialize
+ * @red: value of the red channel, between 0 and %1.0
+ * @green: value of the green channel, between 0 and %1.0
+ * @blue: value of the blue channel, between 0 and %1.0
+ * @alpha: value of the alpha channel, between 0 and %1.0
+ *
+ * Sets the values of the passed channels into a #CoglColor
+ *
+ * Since: 1.0
+ * Deprecated: 1.4: Use cogl_color_init_from_4f instead.
+ */
+COGL_DEPRECATED_IN_1_4_FOR (cogl_color_init_from_4f)
+void
+cogl_color_set_from_4f (CoglColor *color,
+                        float red,
+                        float green,
+                        float blue,
+                        float alpha);
 
 /**
  * cogl_color_init_from_4fv:
@@ -145,7 +186,7 @@ cogl_color_init_from_4f (CoglColor *color,
  *
  * Since: 1.4
  */
-COGL_EXPORT void
+void
 cogl_color_init_from_4fv (CoglColor *color,
                           const float *color_array);
 
@@ -160,7 +201,7 @@ cogl_color_init_from_4fv (CoglColor *color,
  *
  * Since: 1.0
  */
-COGL_EXPORT unsigned char
+unsigned char
 cogl_color_get_red_byte (const CoglColor *color);
 
 /**
@@ -174,7 +215,7 @@ cogl_color_get_red_byte (const CoglColor *color);
  *
  * Since: 1.0
  */
-COGL_EXPORT unsigned char
+unsigned char
 cogl_color_get_green_byte (const CoglColor *color);
 
 /**
@@ -188,7 +229,7 @@ cogl_color_get_green_byte (const CoglColor *color);
  *
  * Since: 1.0
  */
-COGL_EXPORT unsigned char
+unsigned char
 cogl_color_get_blue_byte (const CoglColor *color);
 
 /**
@@ -202,7 +243,7 @@ cogl_color_get_blue_byte (const CoglColor *color);
  *
  * Since: 1.0
  */
-COGL_EXPORT unsigned char
+unsigned char
 cogl_color_get_alpha_byte (const CoglColor *color);
 
 /**
@@ -216,7 +257,7 @@ cogl_color_get_alpha_byte (const CoglColor *color);
  *
  * Since: 1.0
  */
-COGL_EXPORT float
+float
 cogl_color_get_red_float (const CoglColor *color);
 
 /**
@@ -230,7 +271,7 @@ cogl_color_get_red_float (const CoglColor *color);
  *
  * Since: 1.0
  */
-COGL_EXPORT float
+float
 cogl_color_get_green_float (const CoglColor *color);
 
 /**
@@ -244,7 +285,7 @@ cogl_color_get_green_float (const CoglColor *color);
  *
  * Since: 1.0
  */
-COGL_EXPORT float
+float
 cogl_color_get_blue_float (const CoglColor *color);
 
 /**
@@ -258,7 +299,7 @@ cogl_color_get_blue_float (const CoglColor *color);
  *
  * Since: 1.0
  */
-COGL_EXPORT float
+float
 cogl_color_get_alpha_float (const CoglColor *color);
 
 /**
@@ -272,7 +313,7 @@ cogl_color_get_alpha_float (const CoglColor *color);
  *
  * Since: 1.0
  */
-COGL_EXPORT float
+float
 cogl_color_get_red (const CoglColor *color);
 
 /**
@@ -286,7 +327,7 @@ cogl_color_get_red (const CoglColor *color);
  *
  * Since: 1.0
  */
-COGL_EXPORT float
+float
 cogl_color_get_green (const CoglColor *color);
 
 /**
@@ -300,7 +341,7 @@ cogl_color_get_green (const CoglColor *color);
  *
  * Since: 1.0
  */
-COGL_EXPORT float
+float
 cogl_color_get_blue (const CoglColor *color);
 
 /**
@@ -314,7 +355,7 @@ cogl_color_get_blue (const CoglColor *color);
  *
  * Since: 1.0
  */
-COGL_EXPORT float
+float
 cogl_color_get_alpha (const CoglColor *color);
 
 /**
@@ -326,7 +367,7 @@ cogl_color_get_alpha (const CoglColor *color);
  *
  * Since: 1.4
  */
-COGL_EXPORT void
+void
 cogl_color_set_red_byte (CoglColor     *color,
                          unsigned char  red);
 
@@ -339,7 +380,7 @@ cogl_color_set_red_byte (CoglColor     *color,
  *
  * Since: 1.4
  */
-COGL_EXPORT void
+void
 cogl_color_set_green_byte (CoglColor     *color,
                            unsigned char  green);
 
@@ -352,7 +393,7 @@ cogl_color_set_green_byte (CoglColor     *color,
  *
  * Since: 1.4
  */
-COGL_EXPORT void
+void
 cogl_color_set_blue_byte (CoglColor     *color,
                           unsigned char  blue);
 
@@ -365,7 +406,7 @@ cogl_color_set_blue_byte (CoglColor     *color,
  *
  * Since: 1.4
  */
-COGL_EXPORT void
+void
 cogl_color_set_alpha_byte (CoglColor     *color,
                            unsigned char  alpha);
 
@@ -378,7 +419,7 @@ cogl_color_set_alpha_byte (CoglColor     *color,
  *
  * since: 1.4
  */
-COGL_EXPORT void
+void
 cogl_color_set_red_float (CoglColor *color,
                           float      red);
 
@@ -391,7 +432,7 @@ cogl_color_set_red_float (CoglColor *color,
  *
  * since: 1.4
  */
-COGL_EXPORT void
+void
 cogl_color_set_green_float (CoglColor *color,
                             float      green);
 
@@ -404,7 +445,7 @@ cogl_color_set_green_float (CoglColor *color,
  *
  * since: 1.4
  */
-COGL_EXPORT void
+void
 cogl_color_set_blue_float (CoglColor *color,
                            float      blue);
 
@@ -417,7 +458,7 @@ cogl_color_set_blue_float (CoglColor *color,
  *
  * since: 1.4
  */
-COGL_EXPORT void
+void
 cogl_color_set_alpha_float (CoglColor *color,
                             float      alpha);
 
@@ -430,7 +471,7 @@ cogl_color_set_alpha_float (CoglColor *color,
  *
  * Since: 1.4
  */
-COGL_EXPORT void
+void
 cogl_color_set_red (CoglColor *color,
                     float      red);
 
@@ -443,7 +484,7 @@ cogl_color_set_red (CoglColor *color,
  *
  * Since: 1.4
  */
-COGL_EXPORT void
+void
 cogl_color_set_green (CoglColor *color,
                       float green);
 
@@ -456,7 +497,7 @@ cogl_color_set_green (CoglColor *color,
  *
  * Since: 1.4
  */
-COGL_EXPORT void
+void
 cogl_color_set_blue (CoglColor *color,
                      float blue);
 
@@ -469,7 +510,7 @@ cogl_color_set_blue (CoglColor *color,
  *
  * Since: 1.4
  */
-COGL_EXPORT void
+void
 cogl_color_set_alpha (CoglColor *color,
                       float alpha);
 
@@ -483,7 +524,7 @@ cogl_color_set_alpha (CoglColor *color,
  *
  * Since: 1.0
  */
-COGL_EXPORT void
+void
 cogl_color_premultiply (CoglColor *color);
 
 /**
@@ -496,7 +537,7 @@ cogl_color_premultiply (CoglColor *color);
  *
  * Since: 1.4
  */
-COGL_EXPORT void
+void
 cogl_color_unpremultiply (CoglColor *color);
 
 /**
@@ -513,7 +554,7 @@ cogl_color_unpremultiply (CoglColor *color);
  *
  * Since: 1.0
  */
-COGL_EXPORT gboolean
+CoglBool
 cogl_color_equal (const void *v1, const void *v2);
 
 /**
@@ -530,7 +571,7 @@ cogl_color_equal (const void *v1, const void *v2);
  *
  * Since: 1.16
  */
-COGL_EXPORT void
+void
 cogl_color_to_hsl (const CoglColor *color,
                    float           *hue,
                    float           *saturation,
@@ -548,12 +589,12 @@ cogl_color_to_hsl (const CoglColor *color,
  *
  * Since: 1.16
  */
-COGL_EXPORT void
+void
 cogl_color_init_from_hsl (CoglColor *color,
                           float      hue,
                           float      saturation,
                           float      luminance);
 
-G_END_DECLS
+COGL_END_DECLS
 
 #endif /* __COGL_COLOR_H__ */

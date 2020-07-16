@@ -23,22 +23,20 @@
 
 #include "config.h"
 
-#include "backends/x11/meta-input-settings-x11.h"
+#include "meta-backend-x11.h"
+#include "meta-input-settings-x11.h"
 
-#include <gdk/gdkx.h>
 #include <string.h>
+#include <gdk/gdkx.h>
 #include <X11/Xatom.h>
 #include <X11/extensions/XInput2.h>
 #include <X11/XKBlib.h>
-
 #ifdef HAVE_LIBGUDEV
 #include <gudev/gudev.h>
 #endif
 
+#include <meta/errors.h>
 #include "backends/meta-logical-monitor.h"
-#include "backends/x11/meta-backend-x11.h"
-#include "core/display-private.h"
-#include "meta/meta-x11-errors.h"
 
 typedef struct _MetaInputSettingsX11Private
 {
@@ -50,8 +48,7 @@ typedef struct _MetaInputSettingsX11Private
 G_DEFINE_TYPE_WITH_PRIVATE (MetaInputSettingsX11, meta_input_settings_x11,
                             META_TYPE_INPUT_SETTINGS)
 
-enum
-{
+enum {
   SCROLL_METHOD_FIELD_2FG,
   SCROLL_METHOD_FIELD_EDGE,
   SCROLL_METHOD_FIELD_BUTTON,
@@ -66,9 +63,9 @@ device_free_xdevice (gpointer user_data)
   Display *xdisplay = meta_backend_x11_get_xdisplay (META_BACKEND_X11 (backend));
   XDevice *xdev = user_data;
 
-  meta_x11_error_trap_push (display->x11_display);
+  meta_error_trap_push (display);
   XCloseDevice (xdisplay, xdev);
-  meta_x11_error_trap_pop (display->x11_display);
+  meta_error_trap_pop (display);
 }
 
 static XDevice *
@@ -84,9 +81,9 @@ device_ensure_xdevice (ClutterInputDevice *device)
   if (xdev)
     return xdev;
 
-  meta_x11_error_trap_push (display->x11_display);
+  meta_error_trap_push (display);
   xdev = XOpenDevice (xdisplay, device_id);
-  meta_x11_error_trap_pop (display->x11_display);
+  meta_error_trap_pop (display);
 
   if (xdev)
     {
@@ -118,12 +115,9 @@ get_property (ClutterInputDevice *device,
 
   device_id = clutter_input_device_get_device_id (device);
 
-  clutter_x11_trap_x_errors ();
   rc = XIGetProperty (xdisplay, device_id, property_atom,
                       0, 10, False, type, &type_ret, &format_ret,
                       &nitems_ret, &bytes_after_ret, &data_ret);
-  clutter_x11_untrap_x_errors ();
-
   if (rc == Success && type_ret == type && format_ret == format && nitems_ret >= nitems)
     {
       if (nitems_ret > nitems)
@@ -492,14 +486,7 @@ has_udev_property (MetaInputSettings  *settings,
   g_object_unref (parent_udev_device);
   return FALSE;
 #else
-  static gboolean warned_once = FALSE;
-
-  if (!warned_once)
-    {
-      g_warning ("Failed to query property: no udev support");
-      warned_once = TRUE;
-    }
-
+  g_warning ("Failed to set acceleration profile: no udev support");
   return FALSE;
 #endif
 }
@@ -513,17 +500,10 @@ is_mouse (MetaInputSettings  *settings,
 }
 
 static gboolean
-meta_input_settings_x11_is_touchpad_device (MetaInputSettings  *settings,
-                                            ClutterInputDevice *device)
+is_trackball (MetaInputSettings  *settings,
+              ClutterInputDevice *device)
 {
-  return has_udev_property (settings, device, "ID_INPUT_TOUCHPAD");
-}
-
-static gboolean
-meta_input_settings_x11_is_trackball_device (MetaInputSettings  *settings,
-                                             ClutterInputDevice *device)
-{
-  return has_udev_property (settings, device, "ID_INPUT_TRACKBALL");
+  return meta_input_device_is_trackball (device);
 }
 
 static void
@@ -586,7 +566,7 @@ meta_input_settings_x11_set_trackball_accel_profile (MetaInputSettings          
                                                      ClutterInputDevice         *device,
                                                      GDesktopPointerAccelProfile profile)
 {
-  if (!meta_input_settings_x11_is_trackball_device (settings, device))
+  if (!is_trackball (settings, device))
     return;
 
   set_device_accel_profile (device, profile);
@@ -606,7 +586,7 @@ meta_input_settings_x11_set_tablet_mapping (MetaInputSettings     *settings,
     return;
 
   /* Grab the puke bucket! */
-  meta_x11_error_trap_push (display->x11_display);
+  meta_error_trap_push (display);
   xdev = device_ensure_xdevice (device);
   if (xdev)
     {
@@ -615,7 +595,7 @@ meta_input_settings_x11_set_tablet_mapping (MetaInputSettings     *settings,
                       Absolute : Relative);
     }
 
-  if (meta_x11_error_trap_pop_with_return (display->x11_display))
+  if (meta_error_trap_pop_with_return (display))
     {
       g_warning ("Could not set tablet mapping for %s",
                  clutter_input_device_get_device_name (device));
@@ -802,7 +782,7 @@ meta_input_settings_x11_set_stylus_button_map (MetaInputSettings          *setti
     return;
 
   /* Grab the puke bucket! */
-  meta_x11_error_trap_push (display->x11_display);
+  meta_error_trap_push (display);
   xdev = device_ensure_xdevice (device);
   if (xdev)
     {
@@ -820,53 +800,11 @@ meta_input_settings_x11_set_stylus_button_map (MetaInputSettings          *setti
       XSetDeviceButtonMapping (xdisplay, xdev, map, G_N_ELEMENTS (map));
     }
 
-  if (meta_x11_error_trap_pop_with_return (display->x11_display))
+  if (meta_error_trap_pop_with_return (display))
     {
       g_warning ("Could not set stylus button map for %s",
                  clutter_input_device_get_device_name (device));
     }
-}
-
-static void
-meta_input_settings_x11_set_mouse_middle_click_emulation (MetaInputSettings  *settings,
-                                                          ClutterInputDevice *device,
-                                                          gboolean            enabled)
-{
-  guchar value = enabled ? 1 : 0;
-
-  if (!is_mouse (settings, device))
-    return;
-
-  change_property (device, "libinput Middle Click Emulation Enabled",
-                   XA_INTEGER, 8, &value, 1);
-}
-
-static void
-meta_input_settings_x11_set_touchpad_middle_click_emulation (MetaInputSettings  *settings,
-                                                             ClutterInputDevice *device,
-                                                             gboolean            enabled)
-{
-  guchar value = enabled ? 1 : 0;
-
-  if (!meta_input_settings_x11_is_touchpad_device (settings, device))
-    return;
-
-  change_property (device, "libinput Middle Click Emulation Enabled",
-                   XA_INTEGER, 8, &value, 1);
-}
-
-static void
-meta_input_settings_x11_set_trackball_middle_click_emulation (MetaInputSettings  *settings,
-                                                              ClutterInputDevice *device,
-                                                              gboolean            enabled)
-{
-  guchar value = enabled ? 1 : 0;
-
-  if (!meta_input_settings_x11_is_trackball_device (settings, device))
-    return;
-
-  change_property (device, "libinput Middle Click Emulation Enabled",
-                   XA_INTEGER, 8, &value, 1);
 }
 
 static void
@@ -913,12 +851,7 @@ meta_input_settings_x11_class_init (MetaInputSettingsX11Class *klass)
   input_settings_class->set_stylus_pressure = meta_input_settings_x11_set_stylus_pressure;
   input_settings_class->set_stylus_button_map = meta_input_settings_x11_set_stylus_button_map;
 
-  input_settings_class->set_mouse_middle_click_emulation = meta_input_settings_x11_set_mouse_middle_click_emulation;
-  input_settings_class->set_touchpad_middle_click_emulation = meta_input_settings_x11_set_touchpad_middle_click_emulation;
-  input_settings_class->set_trackball_middle_click_emulation = meta_input_settings_x11_set_trackball_middle_click_emulation;
-
   input_settings_class->has_two_finger_scroll = meta_input_settings_x11_has_two_finger_scroll;
-  input_settings_class->is_trackball_device = meta_input_settings_x11_is_trackball_device;
 }
 
 static void

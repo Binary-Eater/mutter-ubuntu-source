@@ -53,7 +53,9 @@
  * Since: 1.12
  */
 
+#ifdef HAVE_CONFIG_H
 #include "clutter-build-config.h"
+#endif
 
 #include "clutter-pan-action.h"
 
@@ -579,7 +581,8 @@ clutter_pan_action_class_init (ClutterPanActionClass *klass)
                   G_TYPE_FROM_CLASS (klass),
                   G_SIGNAL_RUN_LAST,
                   G_STRUCT_OFFSET (ClutterPanActionClass, pan_stopped),
-                  NULL, NULL, NULL,
+                  NULL, NULL,
+                  _clutter_marshal_VOID__OBJECT,
                   G_TYPE_NONE, 1,
                   CLUTTER_TYPE_ACTOR);
 }
@@ -960,7 +963,6 @@ clutter_pan_action_get_motion_delta (ClutterPanAction *self,
       return clutter_pan_action_get_interpolated_delta (self, delta_x, delta_y);
     default:
       g_assert_not_reached ();
-      return 0.0f;
     }
 }
 

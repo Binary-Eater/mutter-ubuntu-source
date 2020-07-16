@@ -121,7 +121,6 @@
       <arg name="dy" type="d" direction="in" />
       <arg name="flags" type="u" direction="in" />
     </method>
-
     <!--
 	NotifyPointerAxisDiscrete:
 
@@ -135,7 +134,7 @@
     <!--
 	NotifyPointerMotionRelative:
 
-	A relative pointer motion event notification
+	A absolute pointer motion event notification
      -->
     <method name="NotifyPointerMotionRelative">
       <arg name="dx" type="d" direction="in" />

@@ -48,16 +48,10 @@ struct _MetaBarrierClass
   GObjectClass parent_class;
 };
 
-META_EXPORT
 GType meta_barrier_get_type (void) G_GNUC_CONST;
 
-META_EXPORT
 gboolean meta_barrier_is_active (MetaBarrier *barrier);
-
-META_EXPORT
 void meta_barrier_destroy (MetaBarrier *barrier);
-
-META_EXPORT
 void meta_barrier_release (MetaBarrier      *barrier,
                            MetaBarrierEvent *event);
 
@@ -70,8 +64,7 @@ void meta_barrier_release (MetaBarrier      *barrier,
  */
 
 /* Keep in sync with XFixes */
-typedef enum
-{
+typedef enum {
   META_BARRIER_DIRECTION_POSITIVE_X = 1 << 0,
   META_BARRIER_DIRECTION_POSITIVE_Y = 1 << 1,
   META_BARRIER_DIRECTION_NEGATIVE_X = 1 << 2,
@@ -115,8 +108,6 @@ struct _MetaBarrierEvent {
 };
 
 #define META_TYPE_BARRIER_EVENT (meta_barrier_event_get_type ())
-
-META_EXPORT
 GType meta_barrier_event_get_type (void) G_GNUC_CONST;
 
 G_END_DECLS

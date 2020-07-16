@@ -45,10 +45,10 @@
 #ifndef META_WAYLAND_KEYBOARD_H
 #define META_WAYLAND_KEYBOARD_H
 
+#include <clutter/clutter.h>
 #include <wayland-server.h>
 #include <xkbcommon/xkbcommon.h>
 
-#include "clutter/clutter.h"
 #include "wayland/meta-wayland-types.h"
 
 #define META_TYPE_WAYLAND_KEYBOARD (meta_wayland_keyboard_get_type ())
@@ -88,12 +88,7 @@ struct _MetaWaylandKeyboard
   MetaWaylandSurface *focus_surface;
   struct wl_listener focus_surface_listener;
   uint32_t focus_serial;
-
-  uint32_t key_down_keycode;
-  uint32_t key_down_serial;
-
-  uint32_t key_up_keycode;
-  uint32_t key_up_serial;
+  uint32_t key_serial;
 
   MetaWaylandXkbInfo xkb_info;
   enum xkb_state_component mods_changed;
@@ -104,6 +99,7 @@ struct _MetaWaylandKeyboard
   MetaWaylandKeyboardGrab default_grab;
 
   GSettings *settings;
+  GSettings *gsd_settings;
 };
 
 void meta_wayland_keyboard_enable (MetaWaylandKeyboard *keyboard);

@@ -22,10 +22,6 @@
 					   Remote desktop driven screen casts
 					   are started and stopped by the remote
 					   desktop session.
-	* "disable-animations" (b): Set to "true" if the screen cast application
-				    would prefer animations to be globally
-				    disabled, while the session is running. Default
-				    is "false". Available since version 3.
     -->
     <method name="CreateSession">
       <arg name="properties" type="a{sv}" direction="in" />
@@ -75,16 +71,7 @@
 
 	Record a single monitor.
 
-	Available @properties include:
-
-	* "cursor-mode" (u): Cursor mode. Default: 'hidden' (see below)
-	                     Available since API version 2.
-
-	Available cursor mode values:
-
-	0: hidden - cursor is not included in the stream
-	1: embedded - cursor is included in the framebuffer
-	2: metadata - cursor is included as metadata in the PipeWire stream
+	Available @properties include: (none)
     -->
     <method name="RecordMonitor">
       <arg name="connector" type="s" direction="in" />
@@ -97,15 +84,9 @@
 	@properties: Properties used determining what window to select
 	@stream_path: Path to the new stream object
 
-	Supported since API version 2.
+	Record a single window.
 
-	Record a single window. The cursor will not be included.
-
-	Available @properties include:
-
-	* "window-id" (t): Id of the window to record.
-	* "cursor-mode" (u): Cursor mode. Default: 'hidden' (see RecordMonitor).
-
+	Available @properties include: (none)
     -->
     <method name="RecordWindow">
       <arg name="properties" type="a{sv}" direction="in" />

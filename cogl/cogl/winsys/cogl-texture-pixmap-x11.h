@@ -52,7 +52,7 @@
 
 #include <glib-object.h>
 
-G_BEGIN_DECLS
+COGL_BEGIN_DECLS
 
 /**
  * SECTION:cogl-texture-pixmap-x11
@@ -73,7 +73,6 @@ typedef struct _CoglTexturePixmapX11 CoglTexturePixmapX11;
  *
  * Returns: a #GType that can be used with the GLib type system.
  */
-COGL_EXPORT
 GType cogl_texture_pixmap_x11_get_gtype (void);
 
 typedef enum
@@ -87,7 +86,7 @@ typedef enum
 /**
  * COGL_TEXTURE_PIXMAP_X11_ERROR:
  *
- * #GError domain for texture-pixmap-x11 errors.
+ * #CoglError domain for texture-pixmap-x11 errors.
  *
  * Since: 1.10
  */
@@ -102,12 +101,10 @@ typedef enum
  *
  * Since: 1.10
  */
-typedef enum
-{
+typedef enum {
   COGL_TEXTURE_PIXMAP_X11_ERROR_X11,
 } CoglTexturePixmapX11Error;
 
-COGL_EXPORT
 uint32_t cogl_texture_pixmap_x11_error_quark (void);
 
 /**
@@ -116,7 +113,7 @@ uint32_t cogl_texture_pixmap_x11_error_quark (void);
  * @pixmap: A X11 pixmap ID
  * @automatic_updates: Whether to automatically copy the contents of
  * the pixmap to the texture.
- * @error: A #GError for exceptions
+ * @error: A #CoglError for exceptions
  *
  * Creates a texture that contains the contents of @pixmap. If
  * @automatic_updates is %TRUE then Cogl will attempt to listen for
@@ -128,11 +125,11 @@ uint32_t cogl_texture_pixmap_x11_error_quark (void);
  * Since: 1.10
  * Stability: Unstable
  */
-COGL_EXPORT CoglTexturePixmapX11 *
+CoglTexturePixmapX11 *
 cogl_texture_pixmap_x11_new (CoglContext *context,
                              uint32_t pixmap,
-                             gboolean automatic_updates,
-                             GError **error);
+                             CoglBool automatic_updates,
+                             CoglError **error);
 
 /**
  * cogl_texture_pixmap_x11_new_left:
@@ -140,7 +137,7 @@ cogl_texture_pixmap_x11_new (CoglContext *context,
  * @pixmap: A X11 pixmap ID
  * @automatic_updates: Whether to automatically copy the contents of
  * the pixmap to the texture.
- * @error: A #GError for exceptions
+ * @error: A #CoglError for exceptions
  *
  * Creates one of a pair of textures to contain the contents of @pixmap,
  * which has stereo content. (Different images for the right and left eyes.)
@@ -167,11 +164,11 @@ cogl_texture_pixmap_x11_new (CoglContext *context,
  * Since: 1.20
  * Stability: Unstable
  */
-COGL_EXPORT CoglTexturePixmapX11 *
+CoglTexturePixmapX11 *
 cogl_texture_pixmap_x11_new_left (CoglContext *context,
                                   uint32_t pixmap,
-                                  gboolean automatic_updates,
-                                  GError **error);
+                                  CoglBool automatic_updates,
+                                  CoglError **error);
 
 /**
  * cogl_texture_pixmap_x11_new_right:
@@ -187,7 +184,7 @@ cogl_texture_pixmap_x11_new_left (CoglContext *context,
  * Since: 1.20
  * Stability: Unstable
  */
-COGL_EXPORT CoglTexturePixmapX11 *
+CoglTexturePixmapX11 *
 cogl_texture_pixmap_x11_new_right (CoglTexturePixmapX11 *left_texture);
 
 /**
@@ -205,7 +202,7 @@ cogl_texture_pixmap_x11_new_right (CoglTexturePixmapX11 *left_texture);
  * Since: 1.4
  * Stability: Unstable
  */
-COGL_EXPORT void
+void
 cogl_texture_pixmap_x11_update_area (CoglTexturePixmapX11 *texture,
                                      int x,
                                      int y,
@@ -228,8 +225,33 @@ cogl_texture_pixmap_x11_update_area (CoglTexturePixmapX11 *texture,
  * Since: 1.4
  * Stability: Unstable
  */
-COGL_EXPORT gboolean
+CoglBool
 cogl_texture_pixmap_x11_is_using_tfp_extension (CoglTexturePixmapX11 *texture);
+
+/**
+ * cogl_texture_pixmap_x11_set_damage_object:
+ * @texture: A #CoglTexturePixmapX11 instance
+ * @damage: A X11 Damage object or 0
+ * @report_level: The report level which describes how to interpret
+ *   the damage events. This should match the level that the damage
+ *   object was created with.
+ *
+ * Sets the damage object that will be used to track automatic updates
+ * to the @texture. Damage tracking can be disabled by passing 0 for
+ * @damage. Otherwise this damage will replace the one used if %TRUE
+ * was passed for automatic_updates to cogl_texture_pixmap_x11_new().
+ *
+ * Note that Cogl will subtract from the damage region as it processes
+ * damage events.
+ *
+ * Since: 1.4
+ * Stability: Unstable
+ */
+void
+cogl_texture_pixmap_x11_set_damage_object (CoglTexturePixmapX11 *texture,
+                                           uint32_t damage,
+                                           CoglTexturePixmapX11ReportLevel
+                                                                  report_level);
 
 /**
  * cogl_is_texture_pixmap_x11:
@@ -243,10 +265,10 @@ cogl_texture_pixmap_x11_is_using_tfp_extension (CoglTexturePixmapX11 *texture);
  * Since: 1.4
  * Stability: Unstable
  */
-COGL_EXPORT gboolean
+CoglBool
 cogl_is_texture_pixmap_x11 (void *object);
 
-G_END_DECLS
+COGL_END_DECLS
 
 /* The gobject introspection scanner seems to parse public headers in
  * isolation which means we need to be extra careful about how we

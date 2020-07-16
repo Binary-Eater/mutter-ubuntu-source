@@ -42,6 +42,7 @@
 #include <X11/Xatom.h>
 #include <X11/Xutil.h>
 #include <clutter/clutter.h>
+#include <clutter/x11/clutter-x11-texture-pixmap.h>
 
 G_BEGIN_DECLS
 
@@ -57,14 +58,13 @@ G_BEGIN_DECLS
  *
  * Since: 0.6
  */
-typedef enum
-{
+typedef enum {
   CLUTTER_X11_FILTER_CONTINUE,
   CLUTTER_X11_FILTER_TRANSLATE,
   CLUTTER_X11_FILTER_REMOVE
 } ClutterX11FilterReturn;
 
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_ALL
 GType clutter_x11_filter_return_get_type (void) G_GNUC_CONST;
 
 /*
@@ -88,39 +88,78 @@ typedef ClutterX11FilterReturn (*ClutterX11FilterFunc) (XEvent        *xev,
                                                         ClutterEvent  *cev,
                                                         gpointer       data);
 
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_ALL
 void     clutter_x11_trap_x_errors       (void);
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_ALL
 gint     clutter_x11_untrap_x_errors     (void);
 
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_ALL
 Display *clutter_x11_get_default_display (void);
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_ALL
 int      clutter_x11_get_default_screen  (void);
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_ALL
 Window   clutter_x11_get_root_window     (void);
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_ALL
+XVisualInfo *clutter_x11_get_visual_info (void);
+CLUTTER_AVAILABLE_IN_ALL
 void     clutter_x11_set_display         (Display * xdpy);
 
-CLUTTER_EXPORT
+CLUTTER_DEPRECATED_FOR(clutter_x11_get_visual_info)
+XVisualInfo *clutter_x11_get_stage_visual  (ClutterStage *stage);
+
+CLUTTER_AVAILABLE_IN_ALL
+Window       clutter_x11_get_stage_window  (ClutterStage *stage);
+CLUTTER_AVAILABLE_IN_ALL
+gboolean     clutter_x11_set_stage_foreign (ClutterStage *stage,
+                                            Window        xwindow);
+
+CLUTTER_AVAILABLE_IN_ALL
 void         clutter_x11_add_filter    (ClutterX11FilterFunc func,
                                         gpointer             data);
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_ALL
 void         clutter_x11_remove_filter (ClutterX11FilterFunc func,
                                         gpointer             data);
 
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_ALL
+ClutterX11FilterReturn clutter_x11_handle_event (XEvent *xevent);
+
+CLUTTER_AVAILABLE_IN_ALL
+void     clutter_x11_disable_event_retrieval (void);
+CLUTTER_AVAILABLE_IN_ALL
+gboolean clutter_x11_has_event_retrieval (void);
+
+CLUTTER_AVAILABLE_IN_ALL
+ClutterStage *clutter_x11_get_stage_from_window (Window win);
+
+CLUTTER_DEPRECATED_FOR(clutter_device_manager_peek_devices)
+const GSList* clutter_x11_get_input_devices (void);
+
+CLUTTER_DEPRECATED_IN_1_14
+void     clutter_x11_enable_xinput (void);
+CLUTTER_AVAILABLE_IN_ALL
+gboolean clutter_x11_has_xinput (void);
+
+CLUTTER_AVAILABLE_IN_ALL
 gboolean clutter_x11_has_composite_extension (void);
 
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_ALL
 void     clutter_x11_set_use_argb_visual (gboolean use_argb);
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_ALL
 gboolean clutter_x11_get_use_argb_visual (void);
 
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_1_22
 void     clutter_x11_set_use_stereo_stage (gboolean use_stereo);
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_1_22
 gboolean clutter_x11_get_use_stereo_stage (void);
+
+CLUTTER_AVAILABLE_IN_ALL
+Time clutter_x11_get_current_event_time (void);
+
+CLUTTER_AVAILABLE_IN_ALL
+gint clutter_x11_event_get_key_group (const ClutterEvent *event);
+
+CLUTTER_AVAILABLE_IN_ALL
+guint clutter_x11_event_sequence_get_touch_detail (const ClutterEventSequence *sequence);
 
 G_END_DECLS
 

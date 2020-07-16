@@ -41,7 +41,6 @@
 #include <X11/Xlib-xcb.h>
 #include <xcb/randr.h>
 
-#include "backends/meta-backend-private.h"
 #include "backends/meta-crtc.h"
 #include "backends/x11/meta-monitor-manager-xrandr.h"
 #include "meta/util.h"
@@ -50,9 +49,7 @@ static Display *
 xdisplay_from_output (MetaOutput *output)
 {
   MetaGpu *gpu = meta_output_get_gpu (output);
-  MetaBackend *backend = meta_gpu_get_backend (gpu);
-  MetaMonitorManager *monitor_manager =
-    meta_backend_get_monitor_manager (backend);
+  MetaMonitorManager *monitor_manager = meta_gpu_get_monitor_manager (gpu);
   MetaMonitorManagerXrandr *monitor_manager_xrandr =
     META_MONITOR_MANAGER_XRANDR (monitor_manager);
 
@@ -101,14 +98,12 @@ output_set_underscanning_xrandr (MetaOutput *output,
   if (underscanning)
     {
       MetaCrtc *crtc;
-      MetaCrtcConfig *crtc_config;
       uint32_t border_value;
 
       crtc = meta_output_get_assigned_crtc (output);
-      crtc_config = crtc->config;
 
       prop = XInternAtom (xdisplay, "underscan hborder", False);
-      border_value = crtc_config->mode->width * 0.05;
+      border_value = crtc->current_mode->width * 0.05;
 
       xcb_randr_change_output_property (XGetXCBConnection (xdisplay),
                                         (XID) output->winsys_id,
@@ -117,7 +112,7 @@ output_set_underscanning_xrandr (MetaOutput *output,
                                         1, &border_value);
 
       prop = XInternAtom (xdisplay, "underscan vborder", False);
-      border_value = crtc_config->mode->height * 0.05;
+      border_value = crtc->current_mode->height * 0.05;
 
       xcb_randr_change_output_property (XGetXCBConnection (xdisplay),
                                         (XID) output->winsys_id,
@@ -648,9 +643,7 @@ static void
 output_get_tile_info (MetaOutput *output)
 {
   MetaGpu *gpu = meta_output_get_gpu (output);
-  MetaBackend *backend = meta_gpu_get_backend (gpu);
-  MetaMonitorManager *monitor_manager =
-    meta_backend_get_monitor_manager (backend);
+  MetaMonitorManager *monitor_manager = meta_gpu_get_monitor_manager (gpu);
   MetaMonitorManagerXrandr *monitor_manager_xrandr =
     META_MONITOR_MANAGER_XRANDR (monitor_manager);
   Display *xdisplay = xdisplay_from_output (output);

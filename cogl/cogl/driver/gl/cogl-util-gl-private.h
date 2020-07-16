@@ -76,20 +76,19 @@ _cogl_gl_error_to_string (GLenum error_code);
 
 #endif /* COGL_GL_DEBUG */
 
-gboolean
-_cogl_driver_gl_context_init (CoglContext *context);
-
-void
-_cogl_driver_gl_context_deinit (CoglContext *context);
-
 GLenum
 _cogl_gl_util_get_error (CoglContext *ctx);
 
 void
 _cogl_gl_util_clear_gl_errors (CoglContext *ctx);
 
-gboolean
-_cogl_gl_util_catch_out_of_memory (CoglContext *ctx, GError **error);
+CoglBool
+_cogl_gl_util_catch_out_of_memory (CoglContext *ctx, CoglError **error);
+
+void
+_cogl_gl_util_get_texture_target_string (CoglTextureType texture_type,
+                                         const char **target_string_out,
+                                         const char **swizzle_out);
 
 /* Parses a GL version number stored in a string. @version_string must
  * point to the beginning of the version number (ie, it can't point to
@@ -97,7 +96,7 @@ _cogl_gl_util_catch_out_of_memory (CoglContext *ctx, GError **error);
  * by the end of the string, a space or a full stop. Anything else
  * will be treated as invalid. Returns TRUE and sets major_out and
  * minor_out if it is succesfully parsed or FALSE otherwise. */
-gboolean
+CoglBool
 _cogl_gl_util_parse_gl_version (const char *version_string,
                                 int *major_out,
                                 int *minor_out);

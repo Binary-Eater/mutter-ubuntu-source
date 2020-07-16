@@ -26,9 +26,12 @@
 
 #define _POSIX_C_SOURCE 200112L /* for fdopen() */
 
-#include "config.h"
+#include <config.h>
+#include <meta/common.h>
+#include "util-private.h"
+#include <meta/main.h>
 
-#include "core/util-private.h"
+#include <clutter/clutter.h> /* For clutter_threads_add_repaint_func() */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -37,11 +40,6 @@
 #include <string.h>
 #include <X11/Xlib.h>   /* must explicitly be included for Solaris; #326746 */
 #include <X11/Xutil.h>  /* Just for the definition of the various gravities */
-
-#include "clutter/clutter.h"
-#include "cogl/cogl.h"
-#include "meta/common.h"
-#include "meta/main.h"
 
 #ifdef WITH_VERBOSE_MODE
 static void
@@ -242,6 +240,20 @@ utf8_fputs (const char *str,
   return retval;
 }
 
+/**
+ * meta_free_gslist_and_elements: (skip)
+ * @list_to_deep_free: list to deep free
+ *
+ */
+void
+meta_free_gslist_and_elements (GSList *list_to_deep_free)
+{
+  g_slist_foreach (list_to_deep_free,
+                   (void (*)(gpointer,gpointer))&g_free, /* ew, for ugly */
+                   NULL);
+  g_slist_free (list_to_deep_free);
+}
+
 #ifdef WITH_VERBOSE_MODE
 void
 meta_debug_spew_real (const char *format, ...)
@@ -335,8 +347,6 @@ topic_name (MetaDebugTopic topic)
       return "EDGE_RESISTANCE";
     case META_DEBUG_DBUS:
       return "DBUS";
-    case META_DEBUG_INPUT:
-      return "INPUT";
     case META_DEBUG_VERBOSE:
       return "VERBOSE";
     }
@@ -527,42 +537,42 @@ meta_unsigned_long_hash  (gconstpointer v)
 }
 
 const char*
-meta_gravity_to_string (MetaGravity gravity)
+meta_gravity_to_string (int gravity)
 {
   switch (gravity)
     {
-    case META_GRAVITY_NORTH_WEST:
-      return "META_GRAVITY_NORTH_WEST";
+    case NorthWestGravity:
+      return "NorthWestGravity";
       break;
-    case META_GRAVITY_NORTH:
-      return "META_GRAVITY_NORTH";
+    case NorthGravity:
+      return "NorthGravity";
       break;
-    case META_GRAVITY_NORTH_EAST:
-      return "META_GRAVITY_NORTH_EAST";
+    case NorthEastGravity:
+      return "NorthEastGravity";
       break;
-    case META_GRAVITY_WEST:
-      return "META_GRAVITY_WEST";
+    case WestGravity:
+      return "WestGravity";
       break;
-    case META_GRAVITY_CENTER:
-      return "META_GRAVITY_CENTER";
+    case CenterGravity:
+      return "CenterGravity";
       break;
-    case META_GRAVITY_EAST:
-      return "META_GRAVITY_EAST";
+    case EastGravity:
+      return "EastGravity";
       break;
-    case META_GRAVITY_SOUTH_WEST:
-      return "META_GRAVITY_SOUTH_WEST";
+    case SouthWestGravity:
+      return "SouthWestGravity";
       break;
-    case META_GRAVITY_SOUTH:
-      return "META_GRAVITY_SOUTH";
+    case SouthGravity:
+      return "SouthGravity";
       break;
-    case META_GRAVITY_SOUTH_EAST:
-      return "META_GRAVITY_SOUTH_EAST";
+    case SouthEastGravity:
+      return "SouthEastGravity";
       break;
-    case META_GRAVITY_STATIC:
-      return "META_GRAVITY_STATIC";
+    case StaticGravity:
+      return "StaticGravity";
       break;
     default:
-      return "META_GRAVITY_NORTH_WEST";
+      return "NorthWestGravity";
       break;
     }
 }
@@ -764,40 +774,13 @@ unref_later (MetaLater *later)
 static void
 destroy_later (MetaLater *later)
 {
-  g_clear_handle_id (&later->source, g_source_remove);
+  if (later->source)
+    {
+      g_source_remove (later->source);
+      later->source = 0;
+    }
   later->func = NULL;
   unref_later (later);
-}
-
-#ifdef COGL_HAS_TRACING
-static const char *
-later_type_to_string (MetaLaterType when)
-{
-  switch (when)
-    {
-    case META_LATER_RESIZE:
-      return "Later (resize)";
-    case META_LATER_CALC_SHOWING:
-      return "Later (calc-showing)";
-    case META_LATER_CHECK_FULLSCREEN:
-      return "Later (check-fullscreen)";
-    case META_LATER_SYNC_STACK:
-      return "Later (sync-stack)";
-    case META_LATER_BEFORE_REDRAW:
-      return "Later (before-redraw)";
-    case META_LATER_IDLE:
-      return "Later (idle)";
-    }
-
-  return "unknown";
-}
-#endif
-
-static gboolean
-call_later_func (MetaLater *later)
-{
-  COGL_TRACE_BEGIN_SCOPED (later, later_type_to_string (later->when));
-  return later->func (later->data);
 }
 
 static void
@@ -823,7 +806,7 @@ run_repaint_laters (GSList **laters_list)
     {
       MetaLater *later = l->data;
 
-      if (!later->func || !call_later_func (later))
+      if (!later->func || !later->func (later->data))
         meta_later_remove_from_list (later->id, laters_list);
       unref_later (later);
     }
@@ -1008,7 +991,6 @@ meta_get_locale_direction (void)
       return META_LOCALE_DIRECTION_RTL;
     default:
       g_assert_not_reached ();
-      return 0;
     }
 }
 
@@ -1026,23 +1008,6 @@ meta_generate_random_id (GRand *rand,
     id[i] = (char) g_rand_int_range (rand, 32, 127);
 
   return id;
-}
-
-
-void
-meta_add_clutter_debug_flags (ClutterDebugFlag     debug_flags,
-                              ClutterDrawDebugFlag draw_flags,
-                              ClutterPickDebugFlag pick_flags)
-{
-  clutter_add_debug_flags (debug_flags, draw_flags, pick_flags);
-}
-
-void
-meta_remove_clutter_debug_flags (ClutterDebugFlag     debug_flags,
-                                 ClutterDrawDebugFlag draw_flags,
-                                 ClutterPickDebugFlag pick_flags)
-{
-  clutter_remove_debug_flags (debug_flags, draw_flags, pick_flags);
 }
 
 /* eof util.c */

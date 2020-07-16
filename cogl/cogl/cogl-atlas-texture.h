@@ -39,7 +39,7 @@
 
 #include <glib-object.h>
 
-G_BEGIN_DECLS
+COGL_BEGIN_DECLS
 
 /**
  * SECTION:cogl-atlas-texture
@@ -74,7 +74,6 @@ typedef struct _CoglAtlasTexture CoglAtlasTexture;
  *
  * Returns: a #GType that can be used with the GLib type system.
  */
-COGL_EXPORT
 GType cogl_atlas_texture_get_gtype (void);
 
 /**
@@ -109,7 +108,7 @@ GType cogl_atlas_texture_get_gtype (void);
  * Since: 1.16
  * Stability: unstable
  */
-COGL_EXPORT CoglAtlasTexture *
+CoglAtlasTexture *
 cogl_atlas_texture_new_with_size (CoglContext *ctx,
                                   int width,
                                   int height);
@@ -118,7 +117,7 @@ cogl_atlas_texture_new_with_size (CoglContext *ctx,
  * cogl_atlas_texture_new_from_file:
  * @ctx: A #CoglContext
  * @filename: the file to load
- * @error: A #GError to catch exceptional errors or %NULL
+ * @error: A #CoglError to catch exceptional errors or %NULL
  *
  * Creates a #CoglAtlasTexture from an image file. A #CoglAtlasTexture
  * represents a sub-region within one of Cogl's shared texture
@@ -147,10 +146,10 @@ cogl_atlas_texture_new_with_size (CoglContext *ctx,
  * Since: 1.16
  * Stability: unstable
  */
-COGL_EXPORT CoglAtlasTexture *
+CoglAtlasTexture *
 cogl_atlas_texture_new_from_file (CoglContext *ctx,
                                   const char *filename,
-                                  GError **error);
+                                  CoglError **error);
 
 /**
  * cogl_atlas_texture_new_from_data:
@@ -162,7 +161,7 @@ cogl_atlas_texture_new_from_file (CoglContext *ctx,
  *    row in @data. A value of 0 will make Cogl automatically
  *    calculate @rowstride from @width and @format.
  * @data: pointer to the memory region where the source buffer resides
- * @error: A #GError to catch exceptional errors or %NULL
+ * @error: A #CoglError to catch exceptional errors or %NULL
  *
  * Creates a new #CoglAtlasTexture texture based on data residing in
  * memory. A #CoglAtlasTexture represents a sub-region within one of
@@ -192,14 +191,14 @@ cogl_atlas_texture_new_from_file (CoglContext *ctx,
  * Since: 1.16
  * Stability: unstable
  */
-COGL_EXPORT CoglAtlasTexture *
+CoglAtlasTexture *
 cogl_atlas_texture_new_from_data (CoglContext *ctx,
                                   int width,
                                   int height,
                                   CoglPixelFormat format,
                                   int rowstride,
                                   const uint8_t *data,
-                                  GError **error);
+                                  CoglError **error);
 
 /**
  * cogl_atlas_texture_new_from_bitmap:
@@ -232,7 +231,7 @@ cogl_atlas_texture_new_from_data (CoglContext *ctx,
  * Since: 1.16
  * Stability: unstable
  */
-COGL_EXPORT CoglAtlasTexture *
+CoglAtlasTexture *
 cogl_atlas_texture_new_from_bitmap (CoglBitmap *bmp);
 
 /**
@@ -247,9 +246,9 @@ cogl_atlas_texture_new_from_bitmap (CoglBitmap *bmp);
  * Since: 1.16
  * Stability: Unstable
  */
-COGL_EXPORT gboolean
+CoglBool
 cogl_is_atlas_texture (void *object);
 
-G_END_DECLS
+COGL_END_DECLS
 
 #endif /* _COGL_ATLAS_TEXTURE_H_ */

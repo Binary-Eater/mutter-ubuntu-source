@@ -38,7 +38,7 @@
 #ifndef __COGL_SNIPPET_H__
 #define __COGL_SNIPPET_H__
 
-G_BEGIN_DECLS
+COGL_BEGIN_DECLS
 
 /**
  * SECTION:cogl-snippet
@@ -294,7 +294,8 @@ G_BEGIN_DECLS
  *    will be the bottom right. Note that there is currently a bug in
  *    Cogl where when rendering to an offscreen buffer these
  *    coordinates will be upside-down. The value is undefined when not
- *    rendering points.
+ *    rendering points. This builtin can only be used if the
+ *    %COGL_FEATURE_ID_POINT_SPRITE feature is available.
  *   </para></glossdef>
  *  </glossentry>
  * </glosslist>
@@ -345,7 +346,6 @@ typedef struct _CoglSnippet CoglSnippet;
  *
  * Returns: a #GType that can be used with the GLib type system.
  */
-COGL_EXPORT
 GType cogl_snippet_get_gtype (void);
 
 /* Enumeration of all the hook points that a snippet can be attached
@@ -655,8 +655,7 @@ GType cogl_snippet_get_gtype (void);
  * Since: 1.10
  * Stability: Unstable
  */
-typedef enum
-{
+typedef enum {
   /* Per pipeline vertex hooks */
   COGL_SNIPPET_HOOK_VERTEX = 0,
   COGL_SNIPPET_HOOK_VERTEX_TRANSFORM,
@@ -691,7 +690,7 @@ typedef enum
  * Since: 1.10
  * Stability: Unstable
  */
-COGL_EXPORT CoglSnippet *
+CoglSnippet *
 cogl_snippet_new (CoglSnippetHook hook,
                   const char *declarations,
                   const char *post);
@@ -705,7 +704,7 @@ cogl_snippet_new (CoglSnippetHook hook,
  * Since: 1.10
  * Stability: Unstable
  */
-COGL_EXPORT CoglSnippetHook
+CoglSnippetHook
 cogl_snippet_get_hook (CoglSnippet *snippet);
 
 /**
@@ -720,7 +719,7 @@ cogl_snippet_get_hook (CoglSnippet *snippet);
  * Since: 1.10
  * Stability: Unstable
  */
-COGL_EXPORT gboolean
+CoglBool
 cogl_is_snippet (void *object);
 
 /**
@@ -741,7 +740,7 @@ cogl_is_snippet (void *object);
  * Since: 1.10
  * Stability: Unstable
  */
-COGL_EXPORT void
+void
 cogl_snippet_set_declarations (CoglSnippet *snippet,
                                const char *declarations);
 
@@ -755,7 +754,7 @@ cogl_snippet_set_declarations (CoglSnippet *snippet,
  * Since: 1.10
  * Stability: Unstable
  */
-COGL_EXPORT const char *
+const char *
 cogl_snippet_get_declarations (CoglSnippet *snippet);
 
 /**
@@ -775,7 +774,7 @@ cogl_snippet_get_declarations (CoglSnippet *snippet);
  * Since: 1.10
  * Stability: Unstable
  */
-COGL_EXPORT void
+void
 cogl_snippet_set_pre (CoglSnippet *snippet,
                       const char *pre);
 
@@ -789,7 +788,7 @@ cogl_snippet_set_pre (CoglSnippet *snippet,
  * Since: 1.10
  * Stability: Unstable
  */
-COGL_EXPORT const char *
+const char *
 cogl_snippet_get_pre (CoglSnippet *snippet);
 
 /**
@@ -809,7 +808,7 @@ cogl_snippet_get_pre (CoglSnippet *snippet);
  * Since: 1.10
  * Stability: Unstable
  */
-COGL_EXPORT void
+void
 cogl_snippet_set_replace (CoglSnippet *snippet,
                           const char *replace);
 
@@ -823,7 +822,7 @@ cogl_snippet_set_replace (CoglSnippet *snippet,
  * Since: 1.10
  * Stability: Unstable
  */
-COGL_EXPORT const char *
+const char *
 cogl_snippet_get_replace (CoglSnippet *snippet);
 
 /**
@@ -843,7 +842,7 @@ cogl_snippet_get_replace (CoglSnippet *snippet);
  * Since: 1.10
  * Stability: Unstable
  */
-COGL_EXPORT void
+void
 cogl_snippet_set_post (CoglSnippet *snippet,
                        const char *post);
 
@@ -857,9 +856,9 @@ cogl_snippet_set_post (CoglSnippet *snippet,
  * Since: 1.10
  * Stability: Unstable
  */
-COGL_EXPORT const char *
+const char *
 cogl_snippet_get_post (CoglSnippet *snippet);
 
-G_END_DECLS
+COGL_END_DECLS
 
 #endif /* __COGL_SNIPPET_H__ */

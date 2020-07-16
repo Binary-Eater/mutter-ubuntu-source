@@ -37,7 +37,7 @@
 
 #include <glib-object.h>
 
-G_BEGIN_DECLS
+COGL_BEGIN_DECLS
 
 typedef struct _CoglSwapChain CoglSwapChain;
 
@@ -46,23 +46,22 @@ typedef struct _CoglSwapChain CoglSwapChain;
  *
  * Returns: a #GType that can be used with the GLib type system.
  */
-COGL_EXPORT
 GType cogl_swap_chain_get_gtype (void);
 
-COGL_EXPORT CoglSwapChain *
+CoglSwapChain *
 cogl_swap_chain_new (void);
 
-COGL_EXPORT void
+void
 cogl_swap_chain_set_has_alpha (CoglSwapChain *swap_chain,
-                               gboolean has_alpha);
+                               CoglBool has_alpha);
 
-COGL_EXPORT void
+void
 cogl_swap_chain_set_length (CoglSwapChain *swap_chain,
                             int length);
 
-COGL_EXPORT gboolean
+CoglBool
 cogl_is_swap_chain (void *object);
 
-G_END_DECLS
+COGL_END_DECLS
 
 #endif /* __COGL_SWAP_CHAIN_H__ */

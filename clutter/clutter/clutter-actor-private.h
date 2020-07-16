@@ -53,8 +53,7 @@ typedef enum
  * Controls some options for how clutter_actor_traverse() iterates
  * through the graph.
  */
-typedef enum
-{
+typedef enum {
   CLUTTER_ACTOR_TRAVERSE_DEPTH_FIRST   = 1L<<0,
   CLUTTER_ACTOR_TRAVERSE_BREADTH_FIRST = 1L<<1
 } ClutterActorTraverseFlags;
@@ -75,8 +74,7 @@ typedef enum
  * the continuing traversal. It may stop traversal completely, just
  * skip over children for the current actor or continue as normal.
  */
-typedef enum
-{
+typedef enum {
   CLUTTER_ACTOR_TRAVERSE_VISIT_CONTINUE       = 1L<<0,
   CLUTTER_ACTOR_TRAVERSE_VISIT_SKIP_CHILDREN  = 1L<<1,
   CLUTTER_ACTOR_TRAVERSE_VISIT_BREAK          = 1L<<2
@@ -135,7 +133,7 @@ struct _AnchorCoord
     } fraction;
 
     /* Use when is_fractional == FALSE */
-    graphene_point3d_t units;
+    ClutterVertex units;
   } v;
 };
 
@@ -163,7 +161,7 @@ struct _SizeRequest
 struct _ClutterLayoutInfo
 {
   /* fixed position coordinates */
-  graphene_point_t fixed_pos;
+  ClutterPoint fixed_pos;
 
   ClutterMargin margin;
 
@@ -173,8 +171,8 @@ struct _ClutterLayoutInfo
   guint x_expand : 1;
   guint y_expand : 1;
 
-  graphene_size_t minimum;
-  graphene_size_t natural;
+  ClutterSize minimum;
+  ClutterSize natural;
 };
 
 const ClutterLayoutInfo *       _clutter_actor_get_layout_info_or_defaults      (ClutterActor *self);
@@ -203,13 +201,13 @@ struct _ClutterTransformInfo
   AnchorCoord anchor;
 
   /* translation */
-  graphene_point3d_t translation;
+  ClutterVertex translation;
 
   /* z_position */
   gfloat z_position;
 
   /* transformation center */
-  graphene_point_t pivot;
+  ClutterPoint pivot;
   gfloat pivot_z;
 
   CoglMatrix transform;
@@ -242,6 +240,9 @@ ClutterAnimationInfo *          _clutter_actor_get_animation_info               
 ClutterTransition *             _clutter_actor_create_transition                        (ClutterActor *self,
                                                                                          GParamSpec   *pspec,
                                                                                          ...);
+ClutterTransition *             _clutter_actor_get_transition                           (ClutterActor *self,
+                                                                                         GParamSpec   *pspec);
+
 gboolean                        _clutter_actor_foreach_child                            (ClutterActor *self,
                                                                                          ClutterForeachCallback callback,
                                                                                          gpointer user_data);
@@ -274,17 +275,17 @@ void                            _clutter_actor_set_enable_paint_unmapped        
 void                            _clutter_actor_set_has_pointer                          (ClutterActor *self,
                                                                                          gboolean      has_pointer);
 
-void                            _clutter_actor_set_has_key_focus                        (ClutterActor *self,
-                                                                                         gboolean      has_key_focus);
+void                            _clutter_actor_queue_redraw_with_clip                   (ClutterActor       *self,
+                                                                                         ClutterRedrawFlags  flags,
+                                                                                         ClutterPaintVolume *clip_volume);
+void                            _clutter_actor_queue_redraw_full                        (ClutterActor       *self,
+                                                                                         ClutterRedrawFlags  flags,
+                                                                                         ClutterPaintVolume *volume,
+                                                                                         ClutterEffect      *effect);
 
-void                            _clutter_actor_queue_redraw_with_clip                   (ClutterActor             *self,
-                                                                                         ClutterRedrawFlags        flags,
-                                                                                         const ClutterPaintVolume *clip_volume);
-void                            _clutter_actor_queue_redraw_full                        (ClutterActor             *self,
-                                                                                         ClutterRedrawFlags        flags,
-                                                                                         const ClutterPaintVolume *volume,
-                                                                                         ClutterEffect            *effect);
-
+ClutterPaintVolume *            _clutter_actor_get_queue_redraw_clip                    (ClutterActor       *self);
+void                            _clutter_actor_set_queue_redraw_clip                    (ClutterActor       *self,
+                                                                                         ClutterPaintVolume *clip_volume);
 void                            _clutter_actor_finish_queue_redraw                      (ClutterActor       *self,
                                                                                          ClutterPaintVolume *clip);
 
@@ -296,6 +297,8 @@ const gchar *                   _clutter_actor_get_debug_name                   
 
 void                            _clutter_actor_push_clone_paint                         (void);
 void                            _clutter_actor_pop_clone_paint                          (void);
+
+guint32                         _clutter_actor_get_pick_id                              (ClutterActor *self);
 
 void                            _clutter_actor_shader_pre_paint                         (ClutterActor *actor,
                                                                                          gboolean      repeat);
@@ -313,10 +316,8 @@ void                            _clutter_actor_detach_clone                     
 void                            _clutter_actor_queue_redraw_on_clones                   (ClutterActor *actor);
 void                            _clutter_actor_queue_relayout_on_clones                 (ClutterActor *actor);
 void                            _clutter_actor_queue_only_relayout                      (ClutterActor *actor);
-void                            _clutter_actor_queue_update_resource_scale_recursive    (ClutterActor *actor);
 
-gboolean                        _clutter_actor_get_real_resource_scale                  (ClutterActor *actor,
-                                                                                         float        *resource_scale);
+CoglFramebuffer *               _clutter_actor_get_active_framebuffer                   (ClutterActor *actor);
 
 ClutterPaintNode *              clutter_actor_create_texture_paint_node                 (ClutterActor *self,
                                                                                          CoglTexture  *texture);

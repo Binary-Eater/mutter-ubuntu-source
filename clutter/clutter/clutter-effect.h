@@ -30,8 +30,6 @@
 #endif
 
 #include <clutter/clutter-actor-meta.h>
-#include <clutter/clutter-paint-context.h>
-#include <clutter/clutter-pick-context.h>
 
 G_BEGIN_DECLS
 
@@ -62,7 +60,7 @@ struct _ClutterEffect
  * ClutterEffectClass:
  * @pre_paint: virtual function
  * @post_paint: virtual function
- * @modify_paint_volume: virtual function
+ * @get_paint_volume: virtual function
  * @paint: virtual function
  * @pick: virtual function
  *
@@ -76,19 +74,16 @@ struct _ClutterEffectClass
   ClutterActorMetaClass parent_class;
 
   /*< public >*/
-  gboolean (* pre_paint)           (ClutterEffect           *effect,
-                                    ClutterPaintContext     *paint_context);
-  void     (* post_paint)          (ClutterEffect           *effect,
-                                    ClutterPaintContext     *paint_context);
+  gboolean (* pre_paint)        (ClutterEffect           *effect);
+  void     (* post_paint)       (ClutterEffect           *effect);
 
-  gboolean (* modify_paint_volume) (ClutterEffect           *effect,
-                                    ClutterPaintVolume      *volume);
+  gboolean (* get_paint_volume) (ClutterEffect           *effect,
+                                 ClutterPaintVolume      *volume);
 
-  void     (* paint)               (ClutterEffect           *effect,
-                                    ClutterPaintContext     *paint_context,
-                                    ClutterEffectPaintFlags  flags);
-  void     (* pick)                (ClutterEffect           *effect,
-                                    ClutterPickContext      *pick_context);
+  void     (* paint)            (ClutterEffect           *effect,
+                                 ClutterEffectPaintFlags  flags);
+  void     (* pick)             (ClutterEffect           *effect,
+                                 ClutterEffectPaintFlags  flags);
 
   /*< private >*/
   void (* _clutter_effect4) (void);
@@ -96,38 +91,38 @@ struct _ClutterEffectClass
   void (* _clutter_effect6) (void);
 };
 
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_1_4
 GType clutter_effect_get_type (void) G_GNUC_CONST;
 
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_1_8
 void    clutter_effect_queue_repaint    (ClutterEffect *effect);
 
 /*
  * ClutterActor API
  */
 
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_1_4
 void           clutter_actor_add_effect            (ClutterActor  *self,
                                                     ClutterEffect *effect);
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_1_4
 void           clutter_actor_add_effect_with_name  (ClutterActor  *self,
                                                     const gchar   *name,
                                                     ClutterEffect *effect);
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_1_4
 void           clutter_actor_remove_effect         (ClutterActor  *self,
                                                     ClutterEffect *effect);
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_1_4
 void           clutter_actor_remove_effect_by_name (ClutterActor  *self,
                                                     const gchar   *name);
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_1_4
 GList *        clutter_actor_get_effects           (ClutterActor  *self);
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_1_4
 ClutterEffect *clutter_actor_get_effect            (ClutterActor  *self,
                                                     const gchar   *name);
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_1_4
 void           clutter_actor_clear_effects         (ClutterActor  *self);
 
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_1_10
 gboolean       clutter_actor_has_effects           (ClutterActor  *self);
 
 G_END_DECLS

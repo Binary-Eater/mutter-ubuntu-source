@@ -33,9 +33,13 @@
  *
  * It is possible to ask whether Clutter has support for specific features at
  * run-time.
+ *
+ * See also cogl_get_features() and #CoglFeatureFlags
  */
 
+#ifdef HAVE_CONFIG_H
 #include "clutter-build-config.h"
+#endif
 
 #include <stdlib.h>
 #include <string.h>
@@ -58,13 +62,24 @@ typedef struct ClutterFeatures
 static ClutterFeatures* __features = NULL;
 
 static ClutterFeatureFlags
-clutter_features_from_cogl (void)
+clutter_features_from_cogl (guint cogl_flags)
 {
   ClutterFeatureFlags clutter_flags = 0;
   
-  clutter_flags |= CLUTTER_FEATURE_SHADERS_GLSL;
+  if (cogl_flags & COGL_FEATURE_TEXTURE_NPOT)
+    clutter_flags |= CLUTTER_FEATURE_TEXTURE_NPOT;
+
+  if (cogl_flags & COGL_FEATURE_TEXTURE_YUV)
+    clutter_flags |= CLUTTER_FEATURE_TEXTURE_YUV;
   
-  clutter_flags |= CLUTTER_FEATURE_OFFSCREEN;
+  if (cogl_flags & COGL_FEATURE_TEXTURE_READ_PIXELS)
+    clutter_flags |= CLUTTER_FEATURE_TEXTURE_READ_PIXELS;
+  
+  if (cogl_flags & COGL_FEATURE_SHADERS_GLSL)
+    clutter_flags |= CLUTTER_FEATURE_SHADERS_GLSL;
+  
+  if (cogl_flags & COGL_FEATURE_OFFSCREEN)
+    clutter_flags |= CLUTTER_FEATURE_OFFSCREEN;
   
   return clutter_flags;
 }
@@ -92,7 +107,7 @@ _clutter_feature_init (GError **error)
   if (!_clutter_backend_create_context (context->backend, error))
     return FALSE;
 
-  __features->flags = (clutter_features_from_cogl ()
+  __features->flags = (clutter_features_from_cogl (cogl_get_features ())
                     | _clutter_backend_get_features (context->backend));
 
   __features->features_set = TRUE;

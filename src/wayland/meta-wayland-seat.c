@@ -21,12 +21,12 @@
 
 #include "config.h"
 
-#include "wayland/meta-wayland-seat.h"
+#include "meta-wayland-seat.h"
 
-#include "wayland/meta-wayland-data-device.h"
-#include "wayland/meta-wayland-private.h"
-#include "wayland/meta-wayland-tablet-seat.h"
-#include "wayland/meta-wayland-versions.h"
+#include "meta-wayland-private.h"
+#include "meta-wayland-versions.h"
+#include "meta-wayland-data-device.h"
+#include "meta-wayland-tablet-seat.h"
 
 #define CAPABILITY_ENABLED(prev, cur, capability) ((cur & (capability)) && !(prev & (capability)))
 #define CAPABILITY_DISABLED(prev, cur, capability) ((prev & (capability)) && !(cur & (capability)))
@@ -99,12 +99,12 @@ bind_seat (struct wl_client *client,
 }
 
 static uint32_t
-lookup_device_capabilities (ClutterSeat *seat)
+lookup_device_capabilities (ClutterDeviceManager *device_manager)
 {
-  GList *devices, *l;
+  const GSList *devices, *l;
   uint32_t capabilities = 0;
 
-  devices = clutter_seat_list_devices (seat);
+  devices = clutter_device_manager_peek_devices (device_manager);
 
   for (l = devices; l; l = l->next)
     {
@@ -138,8 +138,6 @@ lookup_device_capabilities (ClutterSeat *seat)
           break;
         }
     }
-
-  g_list_free (devices);
 
   return capabilities;
 }
@@ -190,21 +188,21 @@ meta_wayland_seat_set_capabilities (MetaWaylandSeat *seat,
 }
 
 static void
-meta_wayland_seat_update_capabilities (MetaWaylandSeat *seat,
-				       ClutterSeat     *clutter_seat)
+meta_wayland_seat_update_capabilities (MetaWaylandSeat      *seat,
+                                       ClutterDeviceManager *device_manager)
 {
   uint32_t capabilities;
 
-  capabilities = lookup_device_capabilities (clutter_seat);
+  capabilities = lookup_device_capabilities (device_manager);
   meta_wayland_seat_set_capabilities (seat, capabilities);
 }
 
 static void
-meta_wayland_seat_devices_updated (ClutterSeat        *clutter_seat,
-                                   ClutterInputDevice *input_device,
-                                   MetaWaylandSeat    *seat)
+meta_wayland_seat_devices_updated (ClutterDeviceManager *device_manager,
+                                   ClutterInputDevice   *input_device,
+                                   MetaWaylandSeat      *seat)
 {
-  meta_wayland_seat_update_capabilities (seat, clutter_seat);
+  meta_wayland_seat_update_capabilities (seat, device_manager);
 }
 
 static MetaWaylandSeat *
@@ -212,7 +210,7 @@ meta_wayland_seat_new (MetaWaylandCompositor *compositor,
                        struct wl_display     *display)
 {
   MetaWaylandSeat *seat = g_new0 (MetaWaylandSeat, 1);
-  ClutterSeat *clutter_seat;
+  ClutterDeviceManager *device_manager;
 
   wl_list_init (&seat->base_resource_list);
   seat->wl_display = display;
@@ -228,15 +226,14 @@ meta_wayland_seat_new (MetaWaylandCompositor *compositor,
                               NULL);
 
   seat->text_input = meta_wayland_text_input_new (seat);
-  seat->gtk_text_input = meta_wayland_gtk_text_input_new (seat);
 
   meta_wayland_data_device_init (&seat->data_device);
 
-  clutter_seat = clutter_backend_get_default_seat (clutter_get_default_backend ());
-  meta_wayland_seat_update_capabilities (seat, clutter_seat);
-  g_signal_connect (clutter_seat, "device-added",
+  device_manager = clutter_device_manager_get_default ();
+  meta_wayland_seat_update_capabilities (seat, device_manager);
+  g_signal_connect (device_manager, "device-added",
                     G_CALLBACK (meta_wayland_seat_devices_updated), seat);
-  g_signal_connect (clutter_seat, "device-removed",
+  g_signal_connect (device_manager, "device-removed",
                     G_CALLBACK (meta_wayland_seat_devices_updated), seat);
 
   wl_global_create (display, &wl_seat_interface, META_WL_SEAT_VERSION, seat, bind_seat);
@@ -256,16 +253,15 @@ meta_wayland_seat_init (MetaWaylandCompositor *compositor)
 void
 meta_wayland_seat_free (MetaWaylandSeat *seat)
 {
-  ClutterSeat *clutter_seat;
+  ClutterDeviceManager *device_manager;
 
-  clutter_seat = clutter_backend_get_default_seat (clutter_get_default_backend ());
-  g_signal_handlers_disconnect_by_data (clutter_seat, seat);
+  device_manager = clutter_device_manager_get_default ();
+  g_signal_handlers_disconnect_by_data (device_manager, seat);
   meta_wayland_seat_set_capabilities (seat, 0);
 
   g_object_unref (seat->pointer);
   g_object_unref (seat->keyboard);
   g_object_unref (seat->touch);
-  meta_wayland_gtk_text_input_destroy (seat->gtk_text_input);
   meta_wayland_text_input_destroy (seat->text_input);
 
   g_free (seat);
@@ -389,10 +385,6 @@ meta_wayland_seat_handle_event (MetaWaylandSeat *seat,
       if (meta_wayland_text_input_handle_event (seat->text_input, event))
         return TRUE;
 
-      if (meta_wayland_gtk_text_input_handle_event (seat->gtk_text_input,
-                                                    event))
-        return TRUE;
-
       if (meta_wayland_seat_has_keyboard (seat))
         return meta_wayland_keyboard_handle_event (seat->keyboard,
                                                    (const ClutterKeyEvent *) event);
@@ -437,7 +429,6 @@ meta_wayland_seat_set_input_focus (MetaWaylandSeat    *seat,
   meta_wayland_tablet_seat_set_pad_focus (tablet_seat, surface);
 
   meta_wayland_text_input_set_focus (seat->text_input, surface);
-  meta_wayland_gtk_text_input_set_focus (seat->gtk_text_input, surface);
 }
 
 gboolean
@@ -506,17 +497,9 @@ gboolean
 meta_wayland_seat_can_popup (MetaWaylandSeat *seat,
                              uint32_t         serial)
 {
-  MetaWaylandCompositor *compositor;
-  MetaWaylandTabletSeat *tablet_seat;
-
-  compositor = meta_wayland_compositor_get_default ();
-  tablet_seat =
-    meta_wayland_tablet_manager_ensure_seat (compositor->tablet_manager, seat);
-
   return (meta_wayland_pointer_can_popup (seat->pointer, serial) ||
           meta_wayland_keyboard_can_popup (seat->keyboard, serial) ||
-          meta_wayland_touch_can_popup (seat->touch, serial) ||
-          meta_wayland_tablet_seat_can_popup (tablet_seat, serial));
+          meta_wayland_touch_can_popup (seat->touch, serial));
 }
 
 gboolean

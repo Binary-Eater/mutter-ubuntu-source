@@ -24,12 +24,10 @@
 
 #include <gtk/gtk.h>
 #include <gdk/gdkx.h>
-
-#include "core/main-private.h"
-#include "meta/common.h"
-#include "meta/types.h"
-#include "ui/theme-private.h"
-#include "ui/ui.h"
+#include <meta/common.h>
+#include <meta/types.h>
+#include "theme-private.h"
+#include "ui.h"
 
 typedef enum
 {
@@ -37,6 +35,7 @@ typedef enum
   META_FRAME_CONTROL_TITLE,
   META_FRAME_CONTROL_DELETE,
   META_FRAME_CONTROL_MENU,
+  META_FRAME_CONTROL_APPMENU,
   META_FRAME_CONTROL_MINIMIZE,
   META_FRAME_CONTROL_MAXIMIZE,
   META_FRAME_CONTROL_UNMAXIMIZE,
@@ -82,15 +81,11 @@ struct _MetaUIFrame
   MetaFrameControl prelit_control;
   MetaButtonState button_state;
   int grab_button;
-
-  gboolean is_frozen;
 };
 
 struct _MetaFrames
 {
   GtkWindow parent_instance;
-
-  MetaX11Display *x11_display;
 
   GHashTable *text_heights;
 
@@ -116,7 +111,7 @@ struct _MetaFramesClass
 
 GType        meta_frames_get_type               (void) G_GNUC_CONST;
 
-MetaFrames * meta_frames_new (MetaX11Display *x11_display);
+MetaFrames *meta_frames_new (void);
 
 MetaUIFrame * meta_frames_manage_window (MetaFrames *frames,
                                          MetaWindow *meta_window,
@@ -135,9 +130,8 @@ void meta_ui_frame_get_borders (MetaUIFrame      *frame,
 
 cairo_region_t * meta_ui_frame_get_bounds (MetaUIFrame *frame);
 
-void meta_ui_frame_get_mask (MetaUIFrame           *frame,
-                             cairo_rectangle_int_t *frame_rect,
-                             cairo_t               *cr);
+void meta_ui_frame_get_mask (MetaUIFrame *frame,
+                             cairo_t     *cr);
 
 void meta_ui_frame_move_resize (MetaUIFrame *frame,
                                 int x, int y, int width, int height);

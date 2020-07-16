@@ -41,7 +41,9 @@
  * #ClutterActorMeta is available since Clutter 1.4
  */
 
+#ifdef HAVE_CONFIG_H
 #include "clutter-build-config.h"
+#endif
 
 #include "clutter-actor-meta-private.h"
 
@@ -51,7 +53,7 @@
 struct _ClutterActorMetaPrivate
 {
   ClutterActor *actor;
-  gulong destroy_id;
+  guint destroy_id;
 
   gchar *name;
 
@@ -91,7 +93,11 @@ clutter_actor_meta_real_set_actor (ClutterActorMeta *meta,
   if (meta->priv->actor == actor)
     return;
 
-  g_clear_signal_handler (&meta->priv->destroy_id, meta->priv->actor);
+  if (meta->priv->destroy_id != 0)
+    {
+      g_signal_handler_disconnect (meta->priv->actor, meta->priv->destroy_id);
+      meta->priv->destroy_id = 0;
+    }
 
   meta->priv->actor = actor;
 
@@ -158,8 +164,8 @@ clutter_actor_meta_finalize (GObject *gobject)
 {
   ClutterActorMetaPrivate *priv = CLUTTER_ACTOR_META (gobject)->priv;
 
-  if (priv->actor != NULL)
-    g_clear_signal_handler (&priv->destroy_id, priv->actor);
+  if (priv->destroy_id != 0 && priv->actor != NULL)
+    g_signal_handler_disconnect (priv->actor, priv->destroy_id);
 
   g_free (priv->name);
 
@@ -573,7 +579,8 @@ _clutter_meta_group_clear_metas (ClutterMetaGroup *group)
 {
   g_list_foreach (group->meta, (GFunc) _clutter_actor_meta_set_actor, NULL);
 
-  g_list_free_full (group->meta, g_object_unref);
+  g_list_foreach (group->meta, (GFunc) g_object_unref, NULL);
+  g_list_free (group->meta);
   group->meta = NULL;
 }
 

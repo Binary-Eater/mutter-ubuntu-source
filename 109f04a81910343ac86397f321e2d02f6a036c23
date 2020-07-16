@@ -1,0 +1,12 @@
+  * Merge with debian. Remaining changes:
+    + debian/control:
+      - Update VCS flags to point to launchpad
+    + debian/gbp.conf: update branch to point to ubuntu/master
+    + debian/patches/x11-Add-support-for-fractional-scaling-using-Randr.patch:
+      - X11: Add support for fractional scaling using Randr
+  * New upstream snapshot
+    - Fixes a regression from the previous upload, which caused a hang when
+      interacting with the desktop icons.
+  * x11-Update-X11-focus-before-updating-MetaDisplay-focus.patch: Drop. This
+    was a cherrry-pick that is included in this snapshot.
+  * debian/libmutter-5-0.symbols: Add new symbol in this snapshot

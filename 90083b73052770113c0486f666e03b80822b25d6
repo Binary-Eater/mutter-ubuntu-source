@@ -1,0 +1,4 @@
+  * New upstream release.
+  * Refresh patches.
+  * Bump mutter's dependency on gsettings-desktop-schemas to (>= 3.19.3).
+  * Upload to unstable.

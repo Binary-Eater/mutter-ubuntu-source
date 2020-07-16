@@ -1,0 +1,4 @@
+  * New upstream release
+    - queue frame resize on window undecorate (Neil)
+    - fix description of desktop background (Luca)
+    - wrap g_error calls in braces (Matt)

@@ -1,0 +1,5 @@
+  * debian/control.in:
+    - add Vcs-Bzr into debian/control.in
+  * add 91_add_window_groups.patch
+    - Adds support for a above, normal and below window groups, for more 
+      control by plugins

@@ -1,0 +1,9 @@
+  [ Jeremy Bicha ]
+  * Add git_flush_all_swap_notifies_on_idle.patch:
+    - Add patch from 3.22 branch that fixes freezes with multiple monitors
+      on Wayland
+  [ Andreas Henriksson ]
+  * Add debian/patches/bgo768531_workaround-startup-notifications.patch
+    - temporary workaround used in both Fedora and Arch for getting
+      working application startup notifications under Wayland.
+    - See bgo#768531 for when a real solution is ready to replace this.

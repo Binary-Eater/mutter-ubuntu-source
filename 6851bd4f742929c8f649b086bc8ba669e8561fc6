@@ -1,0 +1,16 @@
+  * Merge with debian. Remaining changes:
+    + debian/control:
+      - Update VCS flags to point to launchpad
+      - Update maintainer to ubuntu
+    + debian/gbp.conf: update branch to point to ubuntu/master
+    + debian/patches/x11-Add-support-for-fractional-scaling-using-Randr.patch:
+      - X11: Add support for fractional scaling using Randr
+  * New upstream release
+  * d/p/clutter-evdev-disable-mousekeys-with-Numlock-ON.patch,
+    d/p/clutter-x11-disable-mousekeys-with-Numlock-ON.patch,
+    d/p/compositor-Destroy-window-actors-list-on-destruction.patch,
+    d/p/compositor-Disconnect-from-stage-signals-on-destruction.patch,
+    d/p/input-settings-Use-0-initialized-struct-for-kbd-a11y.patch:
+    - Dropped, merged upstream.
+  * d/p/meson-add-back-default_driver-option.patch:
+    - Refreshed

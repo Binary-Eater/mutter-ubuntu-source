@@ -1,0 +1,3 @@
+  * Add git_flush_all_swap_notifies_on_idle.patch:
+    - Add patch from 3.22 branch that fixes freezes with multiple monitors
+      on Wayland

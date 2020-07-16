@@ -1,0 +1,9 @@
+  * Merge with debian, including new stable upstream release
+  * debian/control: BD on adwaita-icon-theme 3.36.1-2ubuntu3.
+    This version includes all the window decoration icons that mutter uses
+  * Remaining changes with debian:
+    - debian/control:
+      + Update VCS flags to point to ubuntu salsa branch
+    - debian/gbp.conf: update branch to point to ubuntu/master
+    - debian/patches/x11-Add-support-for-fractional-scaling-using-Randr.patch:
+      + X11: Add support for fractional scaling using Randr

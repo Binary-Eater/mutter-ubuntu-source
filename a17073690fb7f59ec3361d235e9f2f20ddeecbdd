@@ -1,0 +1,3 @@
+  * Drop revert_upower_api_changes.patch and build against upower 0.99.
+    (LP: #1330037)
+  * Skip version number for rejected -1ubuntu3.

@@ -77,13 +77,6 @@ struct _MetaShapedTexturePrivate
 
   CoglTexture *texture;
   CoglTexture *mask_texture;
-  CoglSnippet *snippet;
-
-  CoglPipeline *base_pipeline;
-  CoglPipeline *masked_pipeline;
-  CoglPipeline *unblended_pipeline;
-
-  gboolean is_y_inverted;
 
   /* The region containing only fully opaque pixels */
   cairo_region_t *opaque_region;
@@ -133,7 +126,6 @@ meta_shaped_texture_init (MetaShapedTexture *self)
   priv->texture = NULL;
   priv->mask_texture = NULL;
   priv->create_mipmaps = TRUE;
-  priv->is_y_inverted = TRUE;
 }
 
 static void
@@ -176,16 +168,6 @@ set_clip_region (MetaShapedTexture *self,
 }
 
 static void
-meta_shaped_texture_reset_pipelines (MetaShapedTexture *stex)
-{
-  MetaShapedTexturePrivate *priv = stex->priv;
-
-  g_clear_pointer (&priv->base_pipeline, cogl_object_unref);
-  g_clear_pointer (&priv->masked_pipeline, cogl_object_unref);
-  g_clear_pointer (&priv->unblended_pipeline, cogl_object_unref);
-}
-
-static void
 meta_shaped_texture_dispose (GObject *object)
 {
   MetaShapedTexture *self = (MetaShapedTexture *) object;
@@ -202,98 +184,61 @@ meta_shaped_texture_dispose (GObject *object)
   set_unobscured_region (self, NULL);
   set_clip_region (self, NULL);
 
-  meta_shaped_texture_reset_pipelines (self);
-
-  g_clear_pointer (&priv->snippet, cogl_object_unref);
-
   G_OBJECT_CLASS (meta_shaped_texture_parent_class)->dispose (object);
 }
 
 static CoglPipeline *
-get_base_pipeline (MetaShapedTexture *stex,
-                   CoglContext       *ctx)
+get_base_pipeline (CoglContext *ctx)
 {
-  MetaShapedTexturePrivate *priv = stex->priv;
-  CoglPipeline *pipeline;
-
-  if (priv->base_pipeline)
-    return priv->base_pipeline;
-
-  pipeline = cogl_pipeline_new (ctx);
-  cogl_pipeline_set_layer_wrap_mode_s (pipeline, 0,
-                                       COGL_PIPELINE_WRAP_MODE_CLAMP_TO_EDGE);
-  cogl_pipeline_set_layer_wrap_mode_t (pipeline, 0,
-                                       COGL_PIPELINE_WRAP_MODE_CLAMP_TO_EDGE);
-  cogl_pipeline_set_layer_wrap_mode_s (pipeline, 1,
-                                       COGL_PIPELINE_WRAP_MODE_CLAMP_TO_EDGE);
-  cogl_pipeline_set_layer_wrap_mode_t (pipeline, 1,
-                                       COGL_PIPELINE_WRAP_MODE_CLAMP_TO_EDGE);
-  if (!priv->is_y_inverted)
+  static CoglPipeline *template = NULL;
+  if (G_UNLIKELY (template == NULL))
     {
-      CoglMatrix matrix;
+      template = cogl_pipeline_new (ctx);
+      cogl_pipeline_set_layer_wrap_mode_s (template, 0, COGL_PIPELINE_WRAP_MODE_CLAMP_TO_EDGE);
+      cogl_pipeline_set_layer_wrap_mode_t (template, 0, COGL_PIPELINE_WRAP_MODE_CLAMP_TO_EDGE);
+      cogl_pipeline_set_layer_wrap_mode_s (template, 1, COGL_PIPELINE_WRAP_MODE_CLAMP_TO_EDGE);
+      cogl_pipeline_set_layer_wrap_mode_t (template, 1, COGL_PIPELINE_WRAP_MODE_CLAMP_TO_EDGE);
+    }
+  return template;
+}
 
-      cogl_matrix_init_identity (&matrix);
-      cogl_matrix_scale (&matrix, 1, -1, 1);
-      cogl_matrix_translate (&matrix, 0, -1, 0);
-      cogl_pipeline_set_layer_matrix (pipeline, 0, &matrix);
+static CoglPipeline *
+get_unmasked_pipeline (CoglContext *ctx)
+{
+  return get_base_pipeline (ctx);
+}
+
+static CoglPipeline *
+get_masked_pipeline (CoglContext *ctx)
+{
+  static CoglPipeline *template = NULL;
+  if (G_UNLIKELY (template == NULL))
+    {
+      template = cogl_pipeline_copy (get_base_pipeline (ctx));
+      cogl_pipeline_set_layer_combine (template, 1,
+                                       "RGBA = MODULATE (PREVIOUS, TEXTURE[A])",
+                                       NULL);
     }
 
-  if (priv->snippet)
-    cogl_pipeline_add_layer_snippet (pipeline, 0, priv->snippet);
-
-  priv->base_pipeline = pipeline;
-
-  return priv->base_pipeline;
+  return template;
 }
 
 static CoglPipeline *
-get_unmasked_pipeline (MetaShapedTexture *stex,
-                       CoglContext       *ctx)
+get_unblended_pipeline (CoglContext *ctx)
 {
-  return get_base_pipeline (stex, ctx);
-}
+  static CoglPipeline *template = NULL;
+  if (G_UNLIKELY (template == NULL))
+    {
+      CoglColor color;
+      template = cogl_pipeline_copy (get_base_pipeline (ctx));
+      cogl_color_init_from_4ub (&color, 255, 255, 255, 255);
+      cogl_pipeline_set_blend (template,
+                               "RGBA = ADD (SRC_COLOR, 0)",
+                               NULL);
+      cogl_pipeline_set_color (template, &color);
+    }
 
-static CoglPipeline *
-get_masked_pipeline (MetaShapedTexture *stex,
-                     CoglContext       *ctx)
-{
-  MetaShapedTexturePrivate *priv = stex->priv;
-  CoglPipeline *pipeline;
-
-  if (priv->masked_pipeline)
-    return priv->masked_pipeline;
-
-  pipeline = cogl_pipeline_copy (get_base_pipeline (stex, ctx));
-  cogl_pipeline_set_layer_combine (pipeline, 1,
-                                   "RGBA = MODULATE (PREVIOUS, TEXTURE[A])",
-                                   NULL);
-
-  priv->masked_pipeline = pipeline;
-
-  return pipeline;
-}
-
-static CoglPipeline *
-get_unblended_pipeline (MetaShapedTexture *stex,
-                        CoglContext       *ctx)
-{
-  MetaShapedTexturePrivate *priv = stex->priv;
-  CoglPipeline *pipeline;
-  CoglColor color;
-
-  if (priv->unblended_pipeline)
-    return priv->unblended_pipeline;
-
-  pipeline = cogl_pipeline_copy (get_base_pipeline (stex, ctx));
-  cogl_color_init_from_4ub (&color, 255, 255, 255, 255);
-  cogl_pipeline_set_blend (pipeline,
-                           "RGBA = ADD (SRC_COLOR, 0)",
-                           NULL);
-  cogl_pipeline_set_color (pipeline, &color);
-
-  priv->unblended_pipeline = pipeline;
-
-  return pipeline;
+  return template;
 }
 
 static void
@@ -494,7 +439,7 @@ meta_shaped_texture_paint (ClutterActor *actor)
 
       if (!cairo_region_is_empty (region))
         {
-          opaque_pipeline = get_unblended_pipeline (stex, ctx);
+          opaque_pipeline = get_unblended_pipeline (ctx);
           cogl_pipeline_set_layer_texture (opaque_pipeline, 0, paint_tex);
           cogl_pipeline_set_layer_filters (opaque_pipeline, 0, filter, filter);
 
@@ -526,11 +471,11 @@ meta_shaped_texture_paint (ClutterActor *actor)
 
       if (priv->mask_texture == NULL)
         {
-          blended_pipeline = get_unmasked_pipeline (stex, ctx);
+          blended_pipeline = get_unmasked_pipeline (ctx);
         }
       else
         {
-          blended_pipeline = get_masked_pipeline (stex, ctx);
+          blended_pipeline = get_masked_pipeline (ctx);
           cogl_pipeline_set_layer_texture (blended_pipeline, 1, priv->mask_texture);
           cogl_pipeline_set_layer_filters (blended_pipeline, 1, filter, filter);
         }
@@ -800,42 +745,6 @@ meta_shaped_texture_set_texture (MetaShapedTexture *stex,
   g_return_if_fail (META_IS_SHAPED_TEXTURE (stex));
 
   set_cogl_texture (stex, texture);
-}
-
-/**
- * meta_shaped_texture_set_is_y_inverted: (skip)
- */
-void
-meta_shaped_texture_set_is_y_inverted (MetaShapedTexture *stex,
-                                       gboolean           is_y_inverted)
-{
-  MetaShapedTexturePrivate *priv = stex->priv;
-
-  if (priv->is_y_inverted == is_y_inverted)
-    return;
-
-  meta_shaped_texture_reset_pipelines (stex);
-
-  priv->is_y_inverted = is_y_inverted;
-}
-
-/**
- * meta_shaped_texture_set_snippet: (skip)
- */
-void
-meta_shaped_texture_set_snippet (MetaShapedTexture *stex,
-                                 CoglSnippet       *snippet)
-{
-  MetaShapedTexturePrivate *priv = stex->priv;
-
-  if (priv->snippet == snippet)
-    return;
-
-  meta_shaped_texture_reset_pipelines (stex);
-
-  g_clear_pointer (&priv->snippet, cogl_object_unref);
-  if (snippet)
-    priv->snippet = cogl_object_ref (snippet);
 }
 
 /**

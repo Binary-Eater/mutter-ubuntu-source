@@ -14,19 +14,19 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: metacity ru\n"
-"Report-Msgid-Bugs-To: https://bugzilla.gnome.org/enter_bug.cgi?"
+"Report-Msgid-Bugs-To: http://bugzilla.gnome.org/enter_bug.cgi?"
 "product=mutter&keywords=I18N+L10N&component=general\n"
-"POT-Creation-Date: 2017-02-28 06:20+0000\n"
-"PO-Revision-Date: 2017-03-18 10:56+0400\n"
-"Last-Translator: Yuri Myasoedov <ymyasoedov@yandex.ru>\n"
+"POT-Creation-Date: 2016-09-07 09:27+0000\n"
+"PO-Revision-Date: 2016-09-16 12:23+0300\n"
+"Last-Translator: Stas Solovey <whats_up@tut.by>\n"
 "Language-Team: Русский <gnome-cyr@gnome.org>\n"
 "Language: ru\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n"
-"%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
-"X-Generator: Poedit 1.8.7.1\n"
+"%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2)\n"
+"X-Generator: Gtranslator 2.91.7\n"
 
 #: data/50-mutter-navigation.xml:6
 msgid "Navigation"
@@ -279,10 +279,10 @@ msgstr ""
 
 #: data/org.gnome.mutter.gschema.xml.in:8
 msgid ""
-"This key will initiate the “overlay”, which is a combination window overview "
-"and application launching system. The default is intended to be the “Windows "
-"key” on PC hardware. It’s expected that this binding either the default or "
-"set to the empty string."
+"This key will initiate the \"overlay\", which is a combination window "
+"overview and application launching system. The default is intended to be the "
+"\"Windows key\" on PC hardware. It's expected that this binding either the "
+"default or set to the empty string."
 msgstr ""
 "Этот ключ инициирует перекрытие (обзор окон и система запуска приложений). "
 "Для обычных ПК используется клавиша «Windows». Ожидается, что значение этой "
@@ -323,12 +323,12 @@ msgstr "Рабочие места управляются динамически"
 
 #: data/org.gnome.mutter.gschema.xml.in:41
 msgid ""
-"Determines whether workspaces are managed dynamically or whether there’s a "
+"Determines whether workspaces are managed dynamically or whether there's a "
 "static number of workspaces (determined by the num-workspaces key in org."
 "gnome.desktop.wm.preferences)."
 msgstr ""
-"Определяет, управляются ли рабочие места динамически или количество рабочих "
-"мест постоянно (количество задаётся ключом в org.gnome.desktop.wm."
+"Определяет, управляются ли рабочие места автоматически или количество "
+"рабочих место постоянно (количество задаётся ключом в org.gnome.desktop.wm."
 "preferences)."
 
 #: data/org.gnome.mutter.gschema.xml.in:50
@@ -361,11 +361,11 @@ msgstr "Отложить переключение фокуса до тех по�
 
 #: data/org.gnome.mutter.gschema.xml.in:69
 msgid ""
-"If set to true, and the focus mode is either “sloppy” or “mouse” then the "
-"focus will not be changed immediately when entering a window, but only after "
-"the pointer stops moving."
+"If set to true, and the focus mode is either \"sloppy\" or \"mouse\" then "
+"the focus will not be changed immediately when entering a window, but only "
+"after the pointer stops moving."
 msgstr ""
-"Если установлено в значение «true» и режим фокуса установлен в значение "
+"Если установлено в значение «true», и режим фокуса установлен в значение "
 "«sloppy» или «mouse», тогда фокус не будет меняться при переходе к другому "
 "окну до тех пор, пока не остановится указатель."
 
@@ -375,11 +375,11 @@ msgstr "Ширина рамки перетаскивания"
 
 #: data/org.gnome.mutter.gschema.xml.in:80
 msgid ""
-"The amount of total draggable borders. If the theme’s visible borders are "
+"The amount of total draggable borders. If the theme's visible borders are "
 "not enough, invisible borders will be added to meet this value."
 msgstr ""
-"Общая ширина рамок для перетаскивания. Если видимых рамок, используемых в "
-"теме, недостаточно, то будут добавлены невидимые рамки до этого значения."
+"Общая ширина рамок для перетаскивания. Если видимых рамок темы недостаточно, "
+"то до этого значения будут добавлены невидимые рамки."
 
 #: data/org.gnome.mutter.gschema.xml.in:89
 msgid "Auto maximize nearly monitor sized windows"
@@ -461,58 +461,48 @@ msgstr "Переключиться на виртуальный терминал 
 msgid "Switch to VT 12"
 msgstr "Переключиться на виртуальный терминал 12"
 
-#. TRANSLATORS: This string refers to a button that switches between
-#. * different modes.
-#.
-#: src/backends/meta-input-settings.c:1800
-#, c-format
-msgid "Mode Switch (Group %d)"
-msgstr "Переключатель режима: группа %d"
-
-#. TRANSLATORS: This string refers to an action, cycles drawing tablets'
-#. * mapping through the available outputs.
-#.
-#: src/backends/meta-input-settings.c:1822
+#: src/backends/meta-input-settings.c:1707
+#| msgid "Switch system controls"
 msgid "Switch monitor"
 msgstr "Переключить монитор"
 
-#: src/backends/meta-input-settings.c:1824
+#: src/backends/meta-input-settings.c:1709
 msgid "Show on-screen help"
 msgstr "Показать справку на экране"
 
-#: src/backends/meta-monitor-manager.c:675
+#: src/backends/meta-monitor-manager.c:514
 msgid "Built-in display"
 msgstr "Встроенный дисплей"
 
-#: src/backends/meta-monitor-manager.c:698
+#: src/backends/meta-monitor-manager.c:537
 msgid "Unknown"
 msgstr "Неизвестный"
 
-#: src/backends/meta-monitor-manager.c:700
+#: src/backends/meta-monitor-manager.c:539
 msgid "Unknown Display"
 msgstr "Неизвестный дисплей"
 
 #. TRANSLATORS: this is a monitor vendor name, followed by a
 #. * size in inches, like 'Dell 15"'
 #.
-#: src/backends/meta-monitor-manager.c:708
+#: src/backends/meta-monitor-manager.c:547
 #, c-format
 msgid "%s %s"
 msgstr "%s %s"
 
 #. This probably means that a non-WM compositor like xcompmgr is running;
 #. * we have no way to get it to exit
-#: src/compositor/compositor.c:471
+#: src/compositor/compositor.c:463
 #, c-format
 msgid ""
-"Another compositing manager is already running on screen %i on display “%s”."
-msgstr "На экране %i дисплея «%s» уже запущен другой композитный менеджер."
+"Another compositing manager is already running on screen %i on display \"%s"
+"\"."
+msgstr "На экране %i дисплея «%s» уже запущен другой оконный менеджер."
 
 #: src/core/bell.c:194
 msgid "Bell event"
 msgstr "Событие звонка"
 
-#. Translators: %s is a window title
 #: src/core/delete.c:127
 #, c-format
 msgid "“%s” is not responding."
@@ -529,51 +519,51 @@ msgid ""
 msgstr "Можно немного подождать или принудительно завершить работу приложения."
 
 #: src/core/delete.c:141
-msgid "_Force Quit"
-msgstr "Завер_шить"
-
-#: src/core/delete.c:141
 msgid "_Wait"
 msgstr "_Подождать"
 
-#: src/core/display.c:608
+#: src/core/delete.c:141
+msgid "_Force Quit"
+msgstr "Завер_шить"
+
+#: src/core/display.c:590
 #, c-format
-msgid "Failed to open X Window System display “%s”\n"
+msgid "Failed to open X Window System display '%s'\n"
 msgstr "Не удалось открыть дисплей «%s» системы X Window\n"
 
-#: src/core/main.c:189
+#: src/core/main.c:182
 msgid "Disable connection to session manager"
 msgstr "Запретить подключение к менеджеру сеансов"
 
-#: src/core/main.c:195
+#: src/core/main.c:188
 msgid "Replace the running window manager"
 msgstr "Заменить запущенный оконный менеджер"
 
-#: src/core/main.c:201
+#: src/core/main.c:194
 msgid "Specify session management ID"
 msgstr "Указать идентификатор управления сеансом"
 
-#: src/core/main.c:206
+#: src/core/main.c:199
 msgid "X Display to use"
 msgstr "Используемый дисплей X"
 
-#: src/core/main.c:212
+#: src/core/main.c:205
 msgid "Initialize session from savefile"
 msgstr "Инициализировать сеанс из сохранённого файла"
 
-#: src/core/main.c:218
+#: src/core/main.c:211
 msgid "Make X calls synchronous"
 msgstr "Сделать X-вызовы синхронными"
 
-#: src/core/main.c:225
+#: src/core/main.c:218
 msgid "Run as a wayland compositor"
 msgstr "Запустить в качестве композитора wayland"
 
-#: src/core/main.c:231
+#: src/core/main.c:224
 msgid "Run as a nested compositor"
 msgstr "Запустить в качестве встроенного композитора"
 
-#: src/core/main.c:239
+#: src/core/main.c:232
 msgid "Run as a full display server, rather than nested"
 msgstr "Запустить в качестве полноэкранного сервера вместо встроенного"
 
@@ -581,7 +571,7 @@ msgstr "Запустить в качестве полноэкранного се
 #, c-format
 msgid ""
 "mutter %s\n"
-"Copyright © 2001-%d Havoc Pennington, Red Hat, Inc., and others\n"
+"Copyright (C) 2001-%d Havoc Pennington, Red Hat, Inc., and others\n"
 "This is free software; see the source for copying conditions.\n"
 "There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A "
 "PARTICULAR PURPOSE.\n"
@@ -607,38 +597,38 @@ msgstr "Использовать модуль mutter"
 msgid "Workspace %d"
 msgstr "Рабочее место %d"
 
-#: src/core/screen.c:580
+#: src/core/screen.c:521
 #, c-format
 msgid ""
-"Display “%s” already has a window manager; try using the --replace option to "
-"replace the current window manager."
+"Display \"%s\" already has a window manager; try using the --replace option "
+"to replace the current window manager."
 msgstr ""
 "Дисплей «%s» уже использует менеджер окон; попробуйте использовать параметр "
 "--replace, чтобы заменить текущий менеджер окон."
 
-#: src/core/screen.c:665
+#: src/core/screen.c:606
 #, c-format
-msgid "Screen %d on display “%s” is invalid\n"
+msgid "Screen %d on display '%s' is invalid\n"
 msgstr "Недопустимый экран %d дисплея «%s»\n"
 
 #: src/core/util.c:120
 msgid "Mutter was compiled without support for verbose mode\n"
 msgstr "Mutter собран без поддержки режима подробных сообщений\n"
 
-#: src/wayland/meta-wayland-tablet-pad.c:563
+#: src/wayland/meta-wayland-tablet-pad.c:595
 #, c-format
 msgid "Mode Switch: Mode %d"
 msgstr "Переключатель режима: режим %d"
 
 #: src/x11/session.c:1815
 msgid ""
-"These windows do not support “save current setup” and will have to be "
-"restarted manually next time you log in."
+"These windows do not support &quot;save current setup&quot; and will have to "
+"be restarted manually next time you log in."
 msgstr ""
-"Эти окна не поддерживают команду «Сохранить текущую настройку». При "
+"Эти окна не поддерживают команду «Сохранить текущие настройки». При "
 "следующем входе в систему их придётся перезапустить вручную."
 
-#: src/x11/window-props.c:559
+#: src/x11/window-props.c:548
 #, c-format
 msgid "%s (on %s)"
 msgstr "%s (на %s)"

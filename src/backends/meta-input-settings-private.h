@@ -92,7 +92,7 @@ struct _MetaInputSettingsClass
                                       GDesktopTabletMapping   mapping);
   void (* set_tablet_keep_aspect)    (MetaInputSettings      *settings,
                                       ClutterInputDevice     *device,
-                                      MetaLogicalMonitor     *logical_monitor,
+                                      MetaOutput             *output,
                                       gboolean                keep_aspect);
   void (* set_tablet_area)           (MetaInputSettings      *settings,
                                       ClutterInputDevice     *device,
@@ -108,16 +108,6 @@ struct _MetaInputSettingsClass
                                         ClutterInputDevice         *device,
                                         GDesktopPointerAccelProfile profile);
 
-  void (* set_stylus_pressure) (MetaInputSettings            *settings,
-                                ClutterInputDevice           *device,
-                                ClutterInputDeviceTool       *tool,
-                                const gint32                  curve[4]);
-  void (* set_stylus_button_map) (MetaInputSettings          *settings,
-                                  ClutterInputDevice         *device,
-                                  ClutterInputDeviceTool     *tool,
-                                  GDesktopStylusButtonAction  primary,
-                                  GDesktopStylusButtonAction  secondary);
-
   gboolean (* has_two_finger_scroll) (MetaInputSettings  *settings,
                                       ClutterInputDevice *device);
 };
@@ -128,18 +118,29 @@ MetaInputSettings * meta_input_settings_create (void);
 
 GSettings *           meta_input_settings_get_tablet_settings (MetaInputSettings  *settings,
                                                                ClutterInputDevice *device);
-MetaLogicalMonitor *  meta_input_settings_get_tablet_logical_monitor (MetaInputSettings  *settings,
-                                                                      ClutterInputDevice *device);
+MetaMonitorInfo *     meta_input_settings_get_tablet_monitor_info (MetaInputSettings  *settings,
+                                                                   ClutterInputDevice *device);
 
 GDesktopTabletMapping meta_input_settings_get_tablet_mapping (MetaInputSettings  *settings,
                                                               ClutterInputDevice *device);
+
+GDesktopStylusButtonAction meta_input_settings_get_stylus_button_action (MetaInputSettings      *settings,
+                                                                         ClutterInputDeviceTool *tool,
+                                                                         ClutterInputDevice     *current_device,
+                                                                         guint                   button);
+gdouble                    meta_input_settings_translate_tablet_tool_pressure (MetaInputSettings      *input_settings,
+                                                                               ClutterInputDeviceTool *tool,
+                                                                               ClutterInputDevice     *current_tablet,
+                                                                               gdouble                 pressure);
 
 gboolean                   meta_input_settings_is_pad_button_grabbed     (MetaInputSettings  *input_settings,
                                                                           ClutterInputDevice *pad,
                                                                           guint               button);
 
-gboolean                   meta_input_settings_handle_pad_button         (MetaInputSettings           *input_settings,
-                                                                          const ClutterPadButtonEvent *event);
+gboolean                   meta_input_settings_handle_pad_button         (MetaInputSettings  *input_settings,
+                                                                          ClutterInputDevice *pad,
+                                                                          gboolean            is_press,
+                                                                          guint               button);
 gchar *                    meta_input_settings_get_pad_button_action_label (MetaInputSettings  *input_settings,
                                                                             ClutterInputDevice *pad,
                                                                             guint               button);

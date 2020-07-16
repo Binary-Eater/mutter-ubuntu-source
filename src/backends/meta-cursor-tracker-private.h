@@ -30,6 +30,8 @@
 struct _MetaCursorTracker {
   GObject parent_instance;
 
+  MetaCursorRenderer *renderer;
+
   gboolean is_showing;
 
   MetaCursorSprite *displayed_cursor;

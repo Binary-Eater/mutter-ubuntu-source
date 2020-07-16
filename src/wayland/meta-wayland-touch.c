@@ -541,8 +541,6 @@ meta_wayland_touch_disable (MetaWaylandTouch *touch)
     clutter_evdev_remove_filter (evdev_filter_func, touch);
 #endif
 
-  meta_wayland_touch_cancel (touch);
-
   g_clear_pointer (&touch->touch_surfaces, (GDestroyNotify) g_hash_table_unref);
   g_clear_pointer (&touch->touches, (GDestroyNotify) g_hash_table_unref);
 }

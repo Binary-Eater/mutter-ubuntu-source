@@ -43,11 +43,11 @@ meta_renderer_create_cogl_renderer (MetaRenderer *renderer)
 }
 
 static MetaRendererView *
-meta_renderer_create_view (MetaRenderer       *renderer,
-                           MetaLogicalMonitor *logical_monitor)
+meta_renderer_create_view (MetaRenderer    *renderer,
+                           MetaMonitorInfo *monitor_info)
 {
   return META_RENDERER_GET_CLASS (renderer)->create_view (renderer,
-                                                          logical_monitor);
+                                                          monitor_info);
 }
 
 void
@@ -57,20 +57,21 @@ meta_renderer_rebuild_views (MetaRenderer *renderer)
   MetaBackend *backend = meta_get_backend ();
   MetaMonitorManager *monitor_manager =
     meta_backend_get_monitor_manager (backend);
-  GList *logical_monitors, *l;
+  MetaMonitorInfo *monitor_infos;
+  unsigned int num_monitor_infos;
+  unsigned int i;
 
   g_list_free_full (priv->views, g_object_unref);
   priv->views = NULL;
 
-  logical_monitors =
-    meta_monitor_manager_get_logical_monitors (monitor_manager);
+  monitor_infos = meta_monitor_manager_get_monitor_infos (monitor_manager,
+                                                          &num_monitor_infos);
 
-  for (l = logical_monitors; l; l = l->next)
+  for (i = 0; i < num_monitor_infos; i++)
     {
-      MetaLogicalMonitor *logical_monitor = l->data;
       MetaRendererView *view;
 
-      view = meta_renderer_create_view (renderer, logical_monitor);
+      view = meta_renderer_create_view (renderer, &monitor_infos[i]);
       priv->views = g_list_append (priv->views, view);
     }
 }

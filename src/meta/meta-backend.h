@@ -28,7 +28,6 @@
 #include <glib-object.h>
 
 #include <clutter/clutter.h>
-#include "meta/meta-dnd.h"
 
 typedef struct _MetaBackend        MetaBackend;
 typedef struct _MetaBackendClass   MetaBackendClass;
@@ -49,7 +48,6 @@ void meta_backend_set_numlock (MetaBackend *backend,
                                gboolean     numlock_state);
 
 ClutterActor *meta_backend_get_stage (MetaBackend *backend);
-MetaDnd      *meta_backend_get_dnd   (MetaBackend *backend);
 
 void meta_clutter_init (void);
 

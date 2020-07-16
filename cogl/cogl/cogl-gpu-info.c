@@ -169,8 +169,7 @@ check_qualcomm_vendor (const CoglGpuInfoStrings *strings)
 static CoglBool
 check_nvidia_vendor (const CoglGpuInfoStrings *strings)
 {
-  if (strcmp (strings->vendor_string, "NVIDIA") != 0 &&
-      strcmp (strings->vendor_string, "NVIDIA Corporation") != 0)
+  if (strcmp (strings->vendor_string, "NVIDIA") != 0)
     return FALSE;
 
   return TRUE;

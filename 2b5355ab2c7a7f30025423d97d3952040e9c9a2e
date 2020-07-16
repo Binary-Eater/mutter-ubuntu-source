@@ -1,0 +1,2 @@
+  * debian/patches/0001-Update-for-Cogl-API-breaks.patch:
+    + Fix build with the new cogl.

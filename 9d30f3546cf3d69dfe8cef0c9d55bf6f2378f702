@@ -1,0 +1,9 @@
+  * New upstream snapshot
+    - Fixes a regression from the previous upload, which caused a hang when
+      interacting with the desktop icons.
+  * x11-Update-X11-focus-before-updating-MetaDisplay-focus.patch: Drop. This
+    was a cherrry-pick that is included in this snapshot.
+  * debian/libmutter-5-0.symbols: Add new symbol in this snapshot
+  * debian/patches: Update X11 focus before display focus:
+    - Fixes an infinite loop causing an hang when showing the "application is
+      not responding" dialog (LP: #1845302)

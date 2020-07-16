@@ -1,0 +1,4 @@
+  * d/p/window-x11-Focus-a-window-in-the-active-workspace-as-take.patch:
+    - Fix possible crash on closing Java dialogs (Related to LP: #1834583)
+    d/p/metatest-Dispatch-the-destruction-instead-of-sleeping-aft.patch:
+    - Tests: don't wait too much after window destruction, causing failures

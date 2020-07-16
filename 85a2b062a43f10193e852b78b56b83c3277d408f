@@ -1,0 +1,4 @@
+  * Add git-conform-actor-graph-Add-missing-null-termination.patch:
+    - Fix actor-graph test on some architectures
+  * debian/rules:
+    - Don't fail the build for test failure on s390x

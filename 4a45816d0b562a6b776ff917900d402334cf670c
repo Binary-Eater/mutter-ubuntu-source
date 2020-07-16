@@ -1,0 +1,9 @@
+  * Merge with debian. Remaining changes:
+    + debian/control:
+      - Update VCS flags to point to launchpad
+    + debian/gbp.conf: update branch to point to ubuntu/master
+    + debian/patches/x11-Add-support-for-fractional-scaling-using-Randr.patch:
+      - X11: Add support for fractional scaling using Randr
+  * New upstream release
+    + Fix window recording on HiDPI
+    + Fix top-left pixel being insensitive to clicks (LP: #1849135)

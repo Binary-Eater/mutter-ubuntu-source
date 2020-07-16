@@ -1,0 +1,11 @@
+  [ Jeremy Bicha ]
+  * debian/control.in:
+    - Use standard Breaks/Replaces instead of Conflicts against older mutter
+      libraries
+  [ Emilio Pozuelo Monfort ]
+  * debian/control.in:
+    + Standards-Version is 3.9.4, no changes needed.
+  * New upstream release.
+  [ Michael Biebl ]
+  * debian/watch: Track stable releases.
+  * Bump debhelper compatibility level to 9.

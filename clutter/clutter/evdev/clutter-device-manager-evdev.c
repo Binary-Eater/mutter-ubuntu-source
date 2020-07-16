@@ -124,7 +124,6 @@ G_DEFINE_TYPE_WITH_CODE (ClutterDeviceManagerEvdev,
 static ClutterOpenDeviceCallback  device_open_callback;
 static ClutterCloseDeviceCallback device_close_callback;
 static gpointer                   device_callback_data;
-static gchar *                    evdev_seat_id;
 
 #ifdef CLUTTER_ENABLE_DEBUG
 static const char *device_type_str[] = {
@@ -312,9 +311,6 @@ new_absolute_motion_event (ClutterInputDevice *input_device,
   _clutter_xkb_translate_state (event, seat->xkb, seat->button_state);
   event->motion.x = x;
   event->motion.y = y;
-  clutter_input_device_evdev_translate_coordinates (input_device, stage,
-                                                    &event->motion.x,
-                                                    &event->motion.y);
   event->motion.axes = axes;
   clutter_event_set_source_device (event, input_device);
 
@@ -513,10 +509,6 @@ notify_touch_event (ClutterInputDevice *input_device,
   event->touch.device = seat->core_pointer;
   event->touch.x = x;
   event->touch.y = y;
-  clutter_input_device_evdev_translate_coordinates (input_device, stage,
-                                                    &event->touch.x,
-                                                    &event->touch.y);
-
   /* "NULL" sequences are special cased in clutter */
   event->touch.sequence = GINT_TO_POINTER (slot + 1);
   _clutter_xkb_translate_state (event, seat->xkb, seat->button_state);
@@ -538,8 +530,7 @@ notify_pinch_gesture_event (ClutterInputDevice          *input_device,
                             gdouble                      dx,
                             gdouble                      dy,
                             gdouble                      angle_delta,
-                            gdouble                      scale,
-                            guint                        n_fingers)
+                            gdouble                      scale)
 {
   ClutterInputDeviceEvdev *device_evdev;
   ClutterSeatEvdev *seat;
@@ -570,7 +561,6 @@ notify_pinch_gesture_event (ClutterInputDevice          *input_device,
   event->touchpad_pinch.dy = dy;
   event->touchpad_pinch.angle_delta = angle_delta;
   event->touchpad_pinch.scale = scale;
-  event->touchpad_pinch.n_fingers = n_fingers;
 
   _clutter_xkb_translate_state (event, seat->xkb, seat->button_state);
 
@@ -668,7 +658,6 @@ notify_pad_button (ClutterInputDevice *input_device,
                    guint64             time_us,
                    guint32             button,
                    guint32             mode_group,
-                   guint32             mode,
                    guint32             pressed)
 {
   ClutterInputDeviceEvdev *device_evdev;
@@ -694,7 +683,6 @@ notify_pad_button (ClutterInputDevice *input_device,
   event->pad_button.stage = stage;
   event->pad_button.button = button;
   event->pad_button.group = mode_group;
-  event->pad_button.mode = mode;
   clutter_event_set_device (event, input_device);
   clutter_event_set_source_device (event, input_device);
   clutter_event_set_time (event, us2ms (time_us));
@@ -710,7 +698,6 @@ notify_pad_strip (ClutterInputDevice *input_device,
                   guint32             strip_number,
                   guint32             strip_source,
                   guint32             mode_group,
-                  guint32             mode,
                   gdouble             value)
 {
   ClutterInputDeviceEvdev *device_evdev;
@@ -740,7 +727,6 @@ notify_pad_strip (ClutterInputDevice *input_device,
   event->pad_strip.strip_number = strip_number;
   event->pad_strip.value = value;
   event->pad_strip.group = mode_group;
-  event->pad_strip.mode = mode;
   clutter_event_set_device (event, input_device);
   clutter_event_set_source_device (event, input_device);
   clutter_event_set_time (event, us2ms (time_us));
@@ -756,7 +742,6 @@ notify_pad_ring (ClutterInputDevice *input_device,
                  guint32             ring_number,
                  guint32             ring_source,
                  guint32             mode_group,
-                 guint32             mode,
                  gdouble             angle)
 {
   ClutterInputDeviceEvdev *device_evdev;
@@ -786,7 +771,6 @@ notify_pad_ring (ClutterInputDevice *input_device,
   event->pad_ring.ring_number = ring_number;
   event->pad_ring.angle = angle;
   event->pad_ring.group = mode_group;
-  event->pad_ring.mode = mode;
   clutter_event_set_device (event, input_device);
   clutter_event_set_source_device (event, input_device);
   clutter_event_set_time (event, us2ms (time_us));
@@ -1224,17 +1208,11 @@ input_device_update_tool (ClutterInputDevice          *input_device,
         }
     }
 
-  if (evdev_device->last_tool != tool)
-    {
-      evdev_device->last_tool = tool;
-      g_signal_emit_by_name (clutter_device_manager_get_default (),
-                             "tool-changed", input_device, tool);
-    }
+  evdev_device->last_tool = tool;
 }
 
 static gdouble *
-translate_tablet_axes (struct libinput_event_tablet_tool *tablet_event,
-                       ClutterInputDeviceTool            *tool)
+translate_tablet_axes (struct libinput_event_tablet_tool *tablet_event)
 {
   GArray *axes = g_array_new (FALSE, FALSE, sizeof (gdouble));
   struct libinput_tablet_tool *libinput_tool;
@@ -1256,7 +1234,6 @@ translate_tablet_axes (struct libinput_event_tablet_tool *tablet_event,
   if (libinput_tablet_tool_has_pressure (libinput_tool))
     {
       value = libinput_event_tablet_tool_get_pressure (tablet_event);
-      value = clutter_input_device_tool_evdev_translate_pressure (tool, value);
       g_array_append_val (axes, value);
     }
 
@@ -1640,7 +1617,6 @@ process_device_event (ClutterDeviceManagerEvdev *manager_evdev,
         struct libinput_event_gesture *gesture_event =
           libinput_event_get_gesture_event (event);
         ClutterTouchpadGesturePhase phase;
-        guint n_fingers;
         guint64 time_us;
 
         if (libinput_event_get_type (event) == LIBINPUT_EVENT_GESTURE_PINCH_BEGIN)
@@ -1649,10 +1625,9 @@ process_device_event (ClutterDeviceManagerEvdev *manager_evdev,
           phase = libinput_event_gesture_get_cancelled (gesture_event) ?
             CLUTTER_TOUCHPAD_GESTURE_PHASE_CANCEL : CLUTTER_TOUCHPAD_GESTURE_PHASE_END;
 
-        n_fingers = libinput_event_gesture_get_finger_count (gesture_event);
         device = libinput_device_get_user_data (libinput_device);
         time_us = libinput_event_gesture_get_time_usec (gesture_event);
-        notify_pinch_gesture_event (device, phase, time_us, 0, 0, 0, 0, n_fingers);
+        notify_pinch_gesture_event (device, phase, time_us, 0, 0, 0, 0);
         break;
       }
     case LIBINPUT_EVENT_GESTURE_PINCH_UPDATE:
@@ -1660,10 +1635,8 @@ process_device_event (ClutterDeviceManagerEvdev *manager_evdev,
         struct libinput_event_gesture *gesture_event =
           libinput_event_get_gesture_event (event);
         gdouble angle_delta, scale, dx, dy;
-        guint n_fingers;
         guint64 time_us;
 
-        n_fingers = libinput_event_gesture_get_finger_count (gesture_event);
         device = libinput_device_get_user_data (libinput_device);
         time_us = libinput_event_gesture_get_time_usec (gesture_event);
         angle_delta = libinput_event_gesture_get_angle_delta (gesture_event);
@@ -1673,7 +1646,7 @@ process_device_event (ClutterDeviceManagerEvdev *manager_evdev,
 
         notify_pinch_gesture_event (device,
                                     CLUTTER_TOUCHPAD_GESTURE_PHASE_UPDATE,
-                                    time_us, dx, dy, angle_delta, scale, n_fingers);
+                                    time_us, dx, dy, angle_delta, scale);
         break;
       }
     case LIBINPUT_EVENT_GESTURE_SWIPE_BEGIN:
@@ -1734,8 +1707,7 @@ process_device_event (ClutterDeviceManagerEvdev *manager_evdev,
         if (!stage)
           break;
 
-        axes = translate_tablet_axes (tablet_event,
-                                      evdev_device->last_tool);
+        axes = translate_tablet_axes (tablet_event);
         if (!axes)
           break;
 
@@ -1775,11 +1747,8 @@ process_device_event (ClutterDeviceManagerEvdev *manager_evdev,
 
         libinput_tool = libinput_event_tablet_tool_get_tool (tablet_event);
 
-        if (state == LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_IN)
-          input_device_update_tool (device, libinput_tool);
+        input_device_update_tool (device, libinput_tool);
         notify_proximity (device, time, state == LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_IN);
-        if (state == LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_OUT)
-          input_device_update_tool (device, NULL);
         break;
       }
     case LIBINPUT_EVENT_TABLET_TOOL_BUTTON:
@@ -1821,7 +1790,7 @@ process_device_event (ClutterDeviceManagerEvdev *manager_evdev,
     case LIBINPUT_EVENT_TABLET_PAD_BUTTON:
       {
         guint64 time;
-        guint32 button_state, button, group, mode;
+        guint32 button_state, button, group;
         struct libinput_tablet_pad_mode_group *mode_group;
         struct libinput_event_tablet_pad *pad_event =
           libinput_event_get_tablet_pad_event (event);
@@ -1831,18 +1800,17 @@ process_device_event (ClutterDeviceManagerEvdev *manager_evdev,
 
         mode_group = libinput_event_tablet_pad_get_mode_group (pad_event);
         group = libinput_tablet_pad_mode_group_get_index (mode_group);
-        mode = libinput_event_tablet_pad_get_mode (pad_event);
 
         button = libinput_event_tablet_pad_get_button_number (pad_event);
         button_state = libinput_event_tablet_pad_get_button_state (pad_event) ==
                        LIBINPUT_BUTTON_STATE_PRESSED;
-        notify_pad_button (device, time, button, group, mode, button_state);
+        notify_pad_button (device, time, button, group, button_state);
         break;
       }
     case LIBINPUT_EVENT_TABLET_PAD_STRIP:
       {
         guint64 time;
-        guint32 number, source, group, mode;
+        guint32 number, source, group;
         struct libinput_tablet_pad_mode_group *mode_group;
         struct libinput_event_tablet_pad *pad_event =
           libinput_event_get_tablet_pad_event (event);
@@ -1856,15 +1824,14 @@ process_device_event (ClutterDeviceManagerEvdev *manager_evdev,
 
         mode_group = libinput_event_tablet_pad_get_mode_group (pad_event);
         group = libinput_tablet_pad_mode_group_get_index (mode_group);
-        mode = libinput_event_tablet_pad_get_mode (pad_event);
 
-        notify_pad_strip (device, time, number, source, group, mode, value);
+        notify_pad_strip (device, time, number, source, group, value);
         break;
       }
     case LIBINPUT_EVENT_TABLET_PAD_RING:
       {
         guint64 time;
-        guint32 number, source, group, mode;
+        guint32 number, source, group;
         struct libinput_tablet_pad_mode_group *mode_group;
         struct libinput_event_tablet_pad *pad_event =
           libinput_event_get_tablet_pad_event (event);
@@ -1878,9 +1845,8 @@ process_device_event (ClutterDeviceManagerEvdev *manager_evdev,
 
         mode_group = libinput_event_tablet_pad_get_mode_group (pad_event);
         group = libinput_tablet_pad_mode_group_get_index (mode_group);
-        mode = libinput_event_tablet_pad_get_mode (pad_event);
 
-        notify_pad_ring (device, time, number, source, group, mode, angle);
+        notify_pad_ring (device, time, number, source, group, angle);
         break;
       }
     default:
@@ -2062,8 +2028,7 @@ clutter_device_manager_evdev_constructed (GObject *gobject)
       return;
     }
 
-  if (libinput_udev_assign_seat (priv->libinput,
-                                 evdev_seat_id ? evdev_seat_id : "seat0") == -1)
+  if (libinput_udev_assign_seat (priv->libinput, "seat0") == -1)
     {
       g_critical ("Failed to assign a seat to the libinput object.");
       libinput_unref (priv->libinput);
@@ -2811,19 +2776,4 @@ clutter_evdev_warp_pointer (ClutterInputDevice   *pointer_device,
                             int                   y)
 {
   notify_absolute_motion (pointer_device, ms2us(time_), x, y, NULL);
-}
-
-/**
- * clutter_evdev_set_seat_id:
- * @seat_id: The seat ID
- *
- * Sets the seat to assign to the libinput context.
- *
- * For reliable effects, this function must be called before clutter_init().
- */
-void
-clutter_evdev_set_seat_id (const gchar *seat_id)
-{
-  g_free (evdev_seat_id);
-  evdev_seat_id = g_strdup (seat_id);
 }

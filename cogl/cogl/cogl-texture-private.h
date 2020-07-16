@@ -37,7 +37,6 @@
 #include "cogl-spans.h"
 #include "cogl-meta-texture.h"
 #include "cogl-framebuffer.h"
-#include "cogl-texture-2d.h"
 
 #ifdef COGL_HAS_EGL_SUPPORT
 #include "cogl-egl-defines.h"
@@ -155,8 +154,7 @@ typedef enum _CoglTextureSoureType {
   COGL_TEXTURE_SOURCE_TYPE_SIZED = 1,
   COGL_TEXTURE_SOURCE_TYPE_BITMAP,
   COGL_TEXTURE_SOURCE_TYPE_EGL_IMAGE,
-  COGL_TEXTURE_SOURCE_TYPE_GL_FOREIGN,
-  COGL_TEXTURE_SOURCE_TYPE_EGL_IMAGE_EXTERNAL
+  COGL_TEXTURE_SOURCE_TYPE_GL_FOREIGN
 } CoglTextureSourceType;
 
 typedef struct _CoglTextureLoader
@@ -181,14 +179,6 @@ typedef struct _CoglTextureLoader
       int height;
       CoglPixelFormat format;
     } egl_image;
-#endif
-#if defined (COGL_HAS_EGL_SUPPORT)
-    struct {
-      int width;
-      int height;
-      CoglTexture2DEGLImageExternalAlloc alloc;
-      CoglPixelFormat format;
-    } egl_image_external;
 #endif
     struct {
       int width;

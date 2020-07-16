@@ -159,7 +159,7 @@ set_pending_cursor_sprite_gbm_bo (MetaCursorSprite *cursor_sprite,
 
 static void
 set_crtc_cursor (MetaCursorRendererNative *native,
-                 MetaCrtc                 *crtc,
+                 MetaCRTC                 *crtc,
                  MetaCursorSprite         *cursor_sprite)
 {
   MetaCursorRendererNativePrivate *priv = meta_cursor_renderer_native_get_instance_private (native);
@@ -212,7 +212,7 @@ update_hw_cursor (MetaCursorRendererNative *native,
   MetaCursorRendererNativePrivate *priv = meta_cursor_renderer_native_get_instance_private (native);
   MetaCursorRenderer *renderer = META_CURSOR_RENDERER (native);
   MetaMonitorManager *monitors;
-  MetaCrtc *crtcs;
+  MetaCRTC *crtcs;
   unsigned int i, n_crtcs;
   MetaRectangle rect;
   gboolean painted = FALSE;
@@ -286,7 +286,7 @@ cursor_over_transformed_crtc (MetaCursorRenderer *renderer,
                               MetaCursorSprite   *cursor_sprite)
 {
   MetaMonitorManager *monitors;
-  MetaCrtc *crtcs;
+  MetaCRTC *crtcs;
   unsigned int i, n_crtcs;
   MetaRectangle rect;
 
@@ -528,9 +528,6 @@ meta_cursor_renderer_native_realize_cursor_from_wl_buffer (MetaCursorRenderer *r
   CoglTexture *texture;
   uint width, height;
 
-  if (!priv->gbm)
-    return;
-
   /* Destroy any previous pending cursor buffer; we'll always either fail (which
    * should unset, or succeed, which will set new buffer.
    */
@@ -618,11 +615,6 @@ meta_cursor_renderer_native_realize_cursor_from_xcursor (MetaCursorRenderer *ren
                                                          XcursorImage *xc_image)
 {
   MetaCursorRendererNative *native = META_CURSOR_RENDERER_NATIVE (renderer);
-  MetaCursorRendererNativePrivate *priv =
-	  meta_cursor_renderer_native_get_instance_private (native);
-
-  if (!priv->gbm)
-    return;
 
   invalidate_pending_cursor_sprite_gbm_bo (cursor_sprite);
 

@@ -48,7 +48,6 @@
 #include "clutter-private.h"
 #include "clutter-stage-private.h"
 #include "clutter-virtual-input-device.h"
-#include "clutter-input-device-tool.h"
 
 struct _ClutterDeviceManagerPrivate
 {
@@ -71,7 +70,6 @@ enum
 {
   DEVICE_ADDED,
   DEVICE_REMOVED,
-  TOOL_CHANGED,
 
   LAST_SIGNAL
 };
@@ -186,16 +184,6 @@ clutter_device_manager_class_init (ClutterDeviceManagerClass *klass)
                   _clutter_marshal_VOID__OBJECT,
                   G_TYPE_NONE, 1,
                   CLUTTER_TYPE_INPUT_DEVICE);
-
-  manager_signals[TOOL_CHANGED] =
-    g_signal_new (I_("tool-changed"),
-                  G_TYPE_FROM_CLASS (klass),
-                  G_SIGNAL_RUN_LAST,
-                  0, NULL, NULL,
-                  _clutter_marshal_VOID__OBJECT_OBJECT,
-                  G_TYPE_NONE, 2,
-                  CLUTTER_TYPE_INPUT_DEVICE,
-                  CLUTTER_TYPE_INPUT_DEVICE_TOOL);
 }
 
 static void

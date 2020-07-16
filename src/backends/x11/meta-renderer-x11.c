@@ -32,7 +32,6 @@
 #include "cogl/winsys/cogl-winsys-glx-private.h"
 #include "cogl/winsys/cogl-winsys-egl-x11-private.h"
 #include "backends/meta-backend-private.h"
-#include "backends/meta-logical-monitor.h"
 #include "backends/meta-renderer.h"
 #include "backends/meta-renderer-view.h"
 #include "backends/x11/meta-renderer-x11.h"
@@ -70,8 +69,8 @@ meta_renderer_x11_create_cogl_renderer (MetaRenderer *renderer)
 }
 
 static MetaRendererView *
-meta_renderer_x11_create_view (MetaRenderer       *renderer,
-                               MetaLogicalMonitor *logical_monitor)
+meta_renderer_x11_create_view (MetaRenderer    *renderer,
+                               MetaMonitorInfo *monitor_info)
 {
   MetaBackend *backend = meta_get_backend ();
   ClutterBackend *clutter_backend = meta_backend_get_clutter_backend (backend);
@@ -83,8 +82,8 @@ meta_renderer_x11_create_view (MetaRenderer       *renderer,
 
   g_assert (meta_is_wayland_compositor ());
 
-  width = logical_monitor->rect.width;
-  height = logical_monitor->rect.height;
+  width = monitor_info->rect.width;
+  height = monitor_info->rect.height;
   texture_2d = cogl_texture_2d_new_with_size (cogl_context, width, height);
   offscreen = cogl_offscreen_new_with_texture (COGL_TEXTURE (texture_2d));
 
@@ -92,7 +91,7 @@ meta_renderer_x11_create_view (MetaRenderer       *renderer,
     meta_fatal ("Couldn't allocate framebuffer: %s", error->message);
 
   return g_object_new (META_TYPE_RENDERER_VIEW,
-                       "layout", &logical_monitor->rect,
+                       "layout", &monitor_info->rect,
                        "framebuffer", COGL_FRAMEBUFFER (offscreen),
                        NULL);
 }

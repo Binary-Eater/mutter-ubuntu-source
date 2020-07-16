@@ -27,9 +27,6 @@
 #include "workspace-private.h"
 #include "place.h"
 #include <meta/prefs.h>
-#include "backends/meta-backend-private.h"
-#include "backends/meta-logical-monitor.h"
-#include "backends/meta-monitor-manager-private.h"
 
 #include <stdlib.h>
 #include <math.h>
@@ -331,10 +328,7 @@ setup_constraint_info (ConstraintInfo      *info,
                        const MetaRectangle *orig,
                        MetaRectangle       *new)
 {
-  MetaBackend *backend = meta_get_backend ();
-  MetaMonitorManager *monitor_manager =
-    meta_backend_get_monitor_manager (backend);
-  MetaLogicalMonitor *logical_monitor;
+  const MetaMonitorInfo *monitor_info;
   MetaWorkspace *cur_workspace;
 
   info->orig    = *orig;
@@ -382,36 +376,39 @@ setup_constraint_info (ConstraintInfo      *info,
   if (!info->is_user_action)
     info->fixed_directions = FIXED_DIRECTION_NONE;
 
-  logical_monitor =
-    meta_monitor_manager_get_logical_monitor_from_rect (monitor_manager,
-                                                        &info->current);
-  meta_window_get_work_area_for_logical_monitor (window,
-                                                 logical_monitor,
-                                                 &info->work_area_monitor);
+  monitor_info =
+    meta_screen_get_monitor_for_rect (window->screen, &info->current);
+  meta_window_get_work_area_for_monitor (window,
+                                         monitor_info->number,
+                                         &info->work_area_monitor);
 
-  if (!window->fullscreen || !meta_window_has_fullscreen_monitors (window))
+  if (!window->fullscreen || window->fullscreen_monitors[0] == -1)
     {
-      info->entire_monitor = logical_monitor->rect;
+      info->entire_monitor = monitor_info->rect;
     }
   else
     {
-      info->entire_monitor = window->fullscreen_monitors.top->rect;
-      meta_rectangle_union (&info->entire_monitor,
-                            &window->fullscreen_monitors.bottom->rect,
-                            &info->entire_monitor);
-      meta_rectangle_union (&info->entire_monitor,
-                            &window->fullscreen_monitors.left->rect,
-                            &info->entire_monitor);
-      meta_rectangle_union (&info->entire_monitor,
-                            &window->fullscreen_monitors.right->rect,
-                            &info->entire_monitor);
+      int i = 0;
+      long monitor;
+
+      monitor = window->fullscreen_monitors[i];
+      info->entire_monitor =
+        window->screen->monitor_infos[monitor].rect;
+      for (i = 1; i <= 3; i++)
+        {
+          monitor = window->fullscreen_monitors[i];
+          meta_rectangle_union (&info->entire_monitor,
+                                &window->screen->monitor_infos[monitor].rect,
+                                &info->entire_monitor);
+        }
     }
 
   cur_workspace = window->screen->active_workspace;
   info->usable_screen_region   =
     meta_workspace_get_onscreen_region (cur_workspace);
   info->usable_monitor_region =
-    meta_workspace_get_onmonitor_region (cur_workspace, logical_monitor);
+    meta_workspace_get_onmonitor_region (cur_workspace,
+                                         monitor_info->number);
 
   /* Log all this information for debugging */
   meta_topic (META_DEBUG_GEOMETRY,
@@ -463,13 +460,10 @@ place_window_if_needed(MetaWindow     *window,
       !window->minimized &&
       !window->fullscreen)
     {
-      MetaBackend *backend = meta_get_backend ();
-      MetaMonitorManager *monitor_manager =
-        meta_backend_get_monitor_manager (backend);
       MetaRectangle orig_rect;
       MetaRectangle placed_rect;
       MetaWorkspace *cur_workspace;
-      MetaLogicalMonitor *logical_monitor;
+      const MetaMonitorInfo *monitor_info;
 
       placed_rect = (MetaRectangle) {
         .x = window->rect.x,
@@ -487,16 +481,16 @@ place_window_if_needed(MetaWindow     *window,
       /* placing the window may have changed the monitor.  Find the
        * new monitor and update the ConstraintInfo
        */
-      logical_monitor =
-        meta_monitor_manager_get_logical_monitor_from_rect (monitor_manager,
-                                                            &placed_rect);
-      info->entire_monitor = logical_monitor->rect;
-      meta_window_get_work_area_for_logical_monitor (window,
-                                                     logical_monitor,
-                                                     &info->work_area_monitor);
+      monitor_info =
+        meta_screen_get_monitor_for_rect (window->screen, &placed_rect);
+      info->entire_monitor = monitor_info->rect;
+      meta_window_get_work_area_for_monitor (window,
+                                             monitor_info->number,
+                                             &info->work_area_monitor);
       cur_workspace = window->screen->active_workspace;
       info->usable_monitor_region =
-        meta_workspace_get_onmonitor_region (cur_workspace, logical_monitor);
+        meta_workspace_get_onmonitor_region (cur_workspace,
+                                             monitor_info->number);
 
       info->current.x = placed_rect.x;
       info->current.y = placed_rect.y;
@@ -1447,10 +1441,6 @@ constrain_to_single_monitor (MetaWindow         *window,
                              ConstraintPriority  priority,
                              gboolean            check_only)
 {
-  MetaBackend *backend = meta_get_backend ();
-  MetaMonitorManager *monitor_manager =
-    meta_backend_get_monitor_manager (backend);
-
   if (priority > PRIORITY_ENTIRELY_VISIBLE_ON_SINGLE_MONITOR)
     return TRUE;
 
@@ -1459,12 +1449,12 @@ constrain_to_single_monitor (MetaWindow         *window,
    * "onscreen" by their own strut) and we can't apply it to frameless windows
    * or else users will be unable to move windows such as XMMS across monitors.
    */
-  if (window->type == META_WINDOW_DESKTOP ||
-      window->type == META_WINDOW_DOCK ||
-      meta_monitor_manager_get_num_logical_monitors (monitor_manager) == 1 ||
-      !window->require_on_single_monitor ||
-      !window->frame ||
-      info->is_user_action ||
+  if (window->type == META_WINDOW_DESKTOP   ||
+      window->type == META_WINDOW_DOCK      ||
+      window->screen->n_monitor_infos == 1  ||
+      !window->require_on_single_monitor    ||
+      !window->frame                        ||
+      info->is_user_action                  ||
       meta_window_get_placement_rule (window))
     return TRUE;
 

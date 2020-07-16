@@ -59,8 +59,6 @@ struct _ClutterInputDeviceToolEvdev
 {
   ClutterInputDeviceTool parent_instance;
   struct libinput_tablet_tool *tool;
-  GHashTable *button_map;
-  gdouble pressure_curve[4];
 };
 
 struct _ClutterInputDeviceToolEvdevClass
@@ -73,11 +71,6 @@ GType                    clutter_input_device_tool_evdev_get_type (void) G_GNUC_
 ClutterInputDeviceTool * clutter_input_device_tool_evdev_new      (struct libinput_tablet_tool *tool,
                                                                    guint64                      serial,
                                                                    ClutterInputDeviceToolType   type);
-
-gdouble                  clutter_input_device_tool_evdev_translate_pressure (ClutterInputDeviceTool *tool,
-                                                                             gdouble                 pressure);
-guint                    clutter_input_device_tool_evdev_get_button_code    (ClutterInputDeviceTool *tool,
-                                                                             guint                   button);
 
 G_END_DECLS
 

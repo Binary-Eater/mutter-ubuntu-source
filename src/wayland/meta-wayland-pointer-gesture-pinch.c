@@ -38,19 +38,18 @@ handle_pinch_begin (MetaWaylandPointer *pointer,
   MetaWaylandPointerClient *pointer_client;
   MetaWaylandSeat *seat;
   struct wl_resource *resource;
-  uint32_t serial, fingers;
+  uint32_t serial;
 
   pointer_client = pointer->focus_client;
   seat = meta_wayland_pointer_get_seat (pointer);
   serial = wl_display_next_serial (seat->wl_display);
-  fingers = clutter_event_get_touchpad_gesture_finger_count (event);
 
   wl_resource_for_each (resource, &pointer_client->pinch_gesture_resources)
     {
       zwp_pointer_gesture_pinch_v1_send_begin (resource, serial,
                                                clutter_event_get_time (event),
                                                pointer->focus_surface->resource,
-                                               fingers);
+                                               2);
     }
 }
 

@@ -37,9 +37,8 @@ struct _MetaWaylandOutput
   GObject                   parent;
 
   struct wl_global         *global;
-  MetaLogicalMonitor       *logical_monitor;
+  MetaMonitorInfo          *monitor_info;
   guint                     mode_flags;
-  float                     refresh_rate;
   gint                      scale;
 
   GList                    *resources;

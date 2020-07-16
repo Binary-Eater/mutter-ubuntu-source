@@ -1,0 +1,2 @@
+  * debian/control.in:
+    - Don't recommend gnome-session (LP: #1703685)

@@ -1,0 +1,11 @@
+  [ Iain Lane ]
+  * Merge with debian. Remaining changes:
+    + debian/control:
+      - Update VCS flags to point to launchpad
+      - Update maintainer to ubuntu
+    + debian/gbp.conf: update branch to point to ubuntu/master
+    + debian/patches/x11-Add-support-for-fractional-scaling-using-Randr.patch:
+      - X11: Add support for fractional scaling using Randr
+  [ Marco Trevisan (Treviño) ]
+  * debian/patches: Refresh. Compositor is now a GObject, so we can use
+    smarter connection

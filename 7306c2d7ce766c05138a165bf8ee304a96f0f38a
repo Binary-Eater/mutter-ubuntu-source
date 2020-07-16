@@ -1,0 +1,5 @@
+  * New upstream release.
+    - No longer affects the number of workspaces in Unity 2D (LP: #826089)
+  * debian/control.in:
+    - Break gnome-shell (<< 3.3.92~) since this needs to be upgraded
+      at the same time as gnome-shell

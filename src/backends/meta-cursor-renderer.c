@@ -28,7 +28,6 @@
 
 #include <meta/meta-backend.h>
 #include <meta/util.h>
-#include <math.h>
 
 #include <cogl/cogl.h>
 #include <clutter/clutter.h>

@@ -36,14 +36,6 @@
 
 #include "compositor/region-utils.h"
 
-enum {
-  PAINTING,
-
-  LAST_SIGNAL
-};
-
-static guint signals[LAST_SIGNAL];
-
 struct _MetaSurfaceActorWaylandPrivate
 {
   MetaWaylandSurface *surface;
@@ -136,8 +128,7 @@ meta_surface_actor_wayland_get_subsurface_rect (MetaSurfaceActorWayland *self,
                                                 MetaRectangle           *rect)
 {
   MetaWaylandSurface *surface = meta_surface_actor_wayland_get_surface (self);
-  MetaWaylandBuffer *buffer = meta_wayland_surface_get_buffer (surface);
-  CoglTexture *texture = buffer->texture;
+  CoglTexture *texture = surface->buffer->texture;
   MetaWindow *toplevel_window;
   int monitor_scale;
   float x, y;
@@ -356,12 +347,11 @@ meta_surface_actor_wayland_paint (ClutterActor *actor)
   if (priv->surface)
     {
       MetaWaylandCompositor *compositor = priv->surface->compositor;
+      meta_wayland_surface_update_outputs (priv->surface);
 
       wl_list_insert_list (&compositor->frame_callbacks, &priv->frame_callback_list);
       wl_list_init (&priv->frame_callback_list);
     }
-
-  g_signal_emit (actor, signals[PAINTING], 0);
 
   CLUTTER_ACTOR_CLASS (meta_surface_actor_wayland_parent_class)->paint (actor);
 }
@@ -398,13 +388,6 @@ meta_surface_actor_wayland_class_init (MetaSurfaceActorWaylandClass *klass)
   surface_actor_class->get_window = meta_surface_actor_wayland_get_window;
 
   object_class->dispose = meta_surface_actor_wayland_dispose;
-
-  signals[PAINTING] = g_signal_new ("painting",
-                                    G_TYPE_FROM_CLASS (object_class),
-                                    G_SIGNAL_RUN_LAST,
-                                    0,
-                                    NULL, NULL, NULL,
-                                    G_TYPE_NONE, 0);
 }
 
 static void

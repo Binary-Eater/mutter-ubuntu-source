@@ -194,7 +194,6 @@ async_get_property_finish (xcb_connection_t          *xcb_conn,
 {
   xcb_get_property_reply_t *reply;
   xcb_generic_error_t *error;
-  int length;
 
   reply = xcb_get_property_reply (xcb_conn, cookie, &error);
   if (error)
@@ -210,15 +209,8 @@ async_get_property_finish (xcb_connection_t          *xcb_conn,
   results->prop = NULL;
 
   if (results->type != None)
-    {
-      length = xcb_get_property_value_length (reply);
-      /* Leave room for a trailing '\0' since xcb doesn't return null-terminated
-       * strings
-       */
-      results->prop = g_malloc (length + 1);
-      memcpy (results->prop, xcb_get_property_value (reply), length);
-      results->prop[length] = '\0';
-    }
+    results->prop = g_memdup (xcb_get_property_value (reply),
+                              xcb_get_property_value_length (reply));
 
   free (reply);
   return (results->prop != NULL);

@@ -60,12 +60,9 @@ void meta_wayland_seat_set_input_focus (MetaWaylandSeat    *seat,
 void meta_wayland_seat_repick (MetaWaylandSeat *seat);
 
 gboolean meta_wayland_seat_get_grab_info (MetaWaylandSeat    *seat,
-                                          MetaWaylandSurface *surface,
-                                          uint32_t            serial,
-                                          gboolean            require_pressed,
-                                          gfloat             *x,
-                                          gfloat             *y);
-gboolean meta_wayland_seat_can_popup     (MetaWaylandSeat *seat,
-                                          uint32_t         serial);
+					  MetaWaylandSurface *surface,
+					  uint32_t            serial,
+					  gfloat             *x,
+					  gfloat             *y);
 
 #endif /* META_WAYLAND_SEAT_H */

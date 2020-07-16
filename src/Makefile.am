@@ -45,24 +45,19 @@ mutter_built_sources = \
 
 if HAVE_WAYLAND
 mutter_built_sources += \
-	pointer-gestures-unstable-v1-protocol.c				\
-	pointer-gestures-unstable-v1-server-protocol.h			\
+	pointer-gestures-protocol.c		\
+	pointer-gestures-server-protocol.h	\
 	gtk-shell-protocol.c			\
 	gtk-shell-server-protocol.h		\
-	gtk-primary-selection-protocol.c				\
-	gtk-primary-selection-server-protocol.h				\
-	xdg-shell-unstable-v5-protocol.c				\
-	xdg-shell-unstable-v5-server-protocol.h				\
-	relative-pointer-unstable-v1-protocol.c				\
-	relative-pointer-unstable-v1-server-protocol.h			\
-	pointer-constraints-unstable-v1-protocol.c			\
-	pointer-constraints-unstable-v1-server-protocol.h		\
+	xdg-shell-protocol.c			\
+	xdg-shell-server-protocol.h		\
 	$(NULL)
 endif
 
 wayland_protocols =				\
+	wayland/protocol/pointer-gestures.xml	\
 	wayland/protocol/gtk-shell.xml		\
-	wayland/protocol/gtk-primary-selection.xml	\
+	wayland/protocol/xdg-shell.xml		\
 	$(NULL)
 
 libmutter_la_SOURCES =				\
@@ -91,8 +86,6 @@ libmutter_la_SOURCES =				\
 	backends/meta-monitor-manager-private.h	\
 	backends/meta-monitor-manager-dummy.c	\
 	backends/meta-monitor-manager-dummy.h	\
-	backends/meta-pointer-constraint.c	\
-	backends/meta-pointer-constraint.h	\
 	backends/meta-stage.h			\
 	backends/meta-stage.c			\
 	backends/edid-parse.c			\
@@ -119,8 +112,6 @@ libmutter_la_SOURCES =				\
 	core/boxes.c				\
 	core/boxes-private.h			\
 	meta/boxes.h				\
-	core/meta-border.c			\
-	core/meta-border.h			\
 	compositor/clutter-utils.c		\
 	compositor/clutter-utils.h		\
 	compositor/cogl-utils.c			\
@@ -201,8 +192,6 @@ libmutter_la_SOURCES =				\
 	core/screen.c				\
 	core/screen-private.h			\
 	meta/screen.h				\
-	core/startup-notification.c		\
-	core/startup-notification-private.h	\
 	meta/types.h				\
 	core/restart.c				\
 	core/stack.c				\
@@ -277,12 +266,6 @@ libmutter_la_SOURCES +=				\
 	wayland/meta-wayland-keyboard.h		\
 	wayland/meta-wayland-pointer.c		\
 	wayland/meta-wayland-pointer.h		\
-	wayland/meta-wayland-pointer-constraints.c	\
-	wayland/meta-wayland-pointer-constraints.h	\
-	wayland/meta-pointer-lock-wayland.c		\
-	wayland/meta-pointer-lock-wayland.h		\
-	wayland/meta-pointer-confinement-wayland.c	\
-	wayland/meta-pointer-confinement-wayland.h	\
 	wayland/meta-wayland-popup.c		\
 	wayland/meta-wayland-popup.h		\
 	wayland/meta-wayland-seat.c		\
@@ -498,20 +481,6 @@ $(dbus_login1_built_sources) : Makefile.am org.freedesktop.login1.xml
 		--generate-c-code meta-dbus-login1					\
 		$(srcdir)/org.freedesktop.login1.xml
 
-.SECONDEXPANSION:
-
-define protostability
-$(shell echo $1 | sed 's/.*\(\<unstable\>\|\<stable\>\).*/\1/')
-endef
-
-define protoname
-$(shell echo $1 | sed 's/\([a-z\-]\+\)-[a-z]\+-v[0-9]\+/\1/')
-endef
-
-%-protocol.c : $(WAYLAND_PROTOCOLS_DATADIR)/$$(call protostability,$$*)/$$(call protoname,$$*)/$$*.xml
-	$(AM_V_GEN)$(WAYLAND_SCANNER) code < $< > $@
-%-server-protocol.h : $(WAYLAND_PROTOCOLS_DATADIR)/$$(call protostability,$$*)/$$(call protoname,$$*)/$$*.xml
-	$(AM_V_GEN)$(WAYLAND_SCANNER) server-header < $< > $@
 %-protocol.c : $(srcdir)/wayland/protocol/%.xml
 	$(AM_V_GEN)$(WAYLAND_SCANNER) code < $< > $@
 %-server-protocol.h : $(srcdir)/wayland/protocol/%.xml

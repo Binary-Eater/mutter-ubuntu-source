@@ -447,7 +447,7 @@ meta_frames_new (int screen_number)
 }
 
 static const char *
-get_global_theme_variant (MetaFrames *frames)
+get_theme_variant_override (MetaFrames *frames)
 {
   GdkScreen *screen = gtk_widget_get_screen (GTK_WIDGET (frames));
   GtkSettings *settings = gtk_settings_get_for_screen (screen);
@@ -474,15 +474,19 @@ meta_ui_frame_attach_style (MetaUIFrame *frame)
 {
   MetaFrames *frames = frame->frames;
   const char *variant;
+  const char *variant_override;
 
   if (frame->style_info != NULL)
     meta_style_info_unref (frame->style_info);
 
-  variant = frame->meta_window->gtk_theme_variant;
-  if (variant == NULL)
-    variant = get_global_theme_variant (frame->frames);;
+  variant_override = get_theme_variant_override (frame->frames);
 
-  if (variant == NULL || *variant == '\0')
+  if (variant_override)
+    variant = variant_override;
+  else
+    variant = frame->meta_window->gtk_theme_variant;
+
+  if (variant == NULL || strcmp(variant, "normal") == 0)
     frame->style_info = meta_style_info_ref (frames->normal_style);
   else
     frame->style_info = meta_style_info_ref (meta_frames_get_theme_variant (frames,
@@ -966,6 +970,12 @@ meta_frame_left_click_event (MetaUIFrame *frame,
     case META_FRAME_CONTROL_UNMAXIMIZE:
     case META_FRAME_CONTROL_MINIMIZE:
     case META_FRAME_CONTROL_DELETE:
+    case META_FRAME_CONTROL_SHADE:
+    case META_FRAME_CONTROL_UNSHADE:
+    case META_FRAME_CONTROL_ABOVE:
+    case META_FRAME_CONTROL_UNABOVE:
+    case META_FRAME_CONTROL_STICK:
+    case META_FRAME_CONTROL_UNSTICK:
     case META_FRAME_CONTROL_MENU:
     case META_FRAME_CONTROL_APPMENU:
       frame->grab_button = event->button;
@@ -1064,10 +1074,7 @@ handle_button_press_event (MetaUIFrame *frame,
 
   control = get_control (frame, event->x, event->y);
 
-  /* don't do the rest of this if on client area */
-  if (control == META_FRAME_CONTROL_CLIENT_AREA)
-    return FALSE; /* not on the frame, just passed through from client */
-
+  /* focus on click, even if click was on client area */
   if (event->button == 1 &&
       !(control == META_FRAME_CONTROL_MINIMIZE ||
         control == META_FRAME_CONTROL_DELETE ||
@@ -1078,6 +1085,10 @@ handle_button_press_event (MetaUIFrame *frame,
                   frame->xwindow);
       meta_window_focus (frame->meta_window, event->time);
     }
+
+  /* don't do the rest of this if on client area */
+  if (control == META_FRAME_CONTROL_CLIENT_AREA)
+    return FALSE; /* not on the frame, just passed through from client */
 
   /* We want to shade even if we have a GrabOp, since we'll have a move grab
    * if we double click the titlebar.
@@ -1143,6 +1154,24 @@ handle_button_release_event (MetaUIFrame *frame,
         case META_FRAME_CONTROL_DELETE:
           meta_window_delete (frame->meta_window, event->time);
           break;
+        case META_FRAME_CONTROL_SHADE:
+          meta_window_shade (frame->meta_window, event->time);
+          break;
+        case META_FRAME_CONTROL_UNSHADE:
+          meta_window_unshade (frame->meta_window, event->time);
+          break;
+        case META_FRAME_CONTROL_ABOVE:
+          meta_window_make_above (frame->meta_window);
+          break;
+        case META_FRAME_CONTROL_UNABOVE:
+          meta_window_unmake_above (frame->meta_window);
+          break;
+        case META_FRAME_CONTROL_STICK:
+          meta_window_stick (frame->meta_window);
+          break;
+        case META_FRAME_CONTROL_UNSTICK:
+          meta_window_unstick (frame->meta_window);
+          break;
         default:
           break;
         }
@@ -1191,6 +1220,18 @@ meta_ui_frame_update_prelit_control (MetaUIFrame     *frame,
       break;
     case META_FRAME_CONTROL_UNMAXIMIZE:
       break;
+    case META_FRAME_CONTROL_SHADE:
+      break;
+    case META_FRAME_CONTROL_UNSHADE:
+      break;
+    case META_FRAME_CONTROL_ABOVE:
+      break;
+    case META_FRAME_CONTROL_UNABOVE:
+      break;
+    case META_FRAME_CONTROL_STICK:
+      break;
+    case META_FRAME_CONTROL_UNSTICK:
+      break;
     case META_FRAME_CONTROL_RESIZE_SE:
       cursor = META_CURSOR_SE_RESIZE;
       break;
@@ -1229,6 +1270,12 @@ meta_ui_frame_update_prelit_control (MetaUIFrame     *frame,
     case META_FRAME_CONTROL_MINIMIZE:
     case META_FRAME_CONTROL_MAXIMIZE:
     case META_FRAME_CONTROL_DELETE:
+    case META_FRAME_CONTROL_SHADE:
+    case META_FRAME_CONTROL_UNSHADE:
+    case META_FRAME_CONTROL_ABOVE:
+    case META_FRAME_CONTROL_UNABOVE:
+    case META_FRAME_CONTROL_STICK:
+    case META_FRAME_CONTROL_UNSTICK:
     case META_FRAME_CONTROL_UNMAXIMIZE:
       /* leave control set */
       break;
@@ -1362,10 +1409,6 @@ meta_ui_frame_get_mask (MetaUIFrame *frame,
                          borders.invisible.left / scale,
                          borders.invisible.top / scale,
                          frame_rect.width / scale, frame_rect.height / scale);
-  gtk_render_background (frame->style_info->styles[META_STYLE_ELEMENT_TITLEBAR], cr,
-                         borders.invisible.left / scale,
-                         borders.invisible.top / scale,
-                         frame_rect.width / scale, borders.total.top / scale);
 }
 
 /* XXX -- this is disgusting. Find a better approach here.
@@ -1443,6 +1486,24 @@ meta_ui_frame_paint (MetaUIFrame  *frame,
       break;
     case META_FRAME_CONTROL_UNMAXIMIZE:
       button_type = META_BUTTON_TYPE_MAXIMIZE;
+      break;
+    case META_FRAME_CONTROL_SHADE:
+      button_type = META_BUTTON_TYPE_SHADE;
+      break;
+    case META_FRAME_CONTROL_UNSHADE:
+      button_type = META_BUTTON_TYPE_UNSHADE;
+      break;
+    case META_FRAME_CONTROL_ABOVE:
+      button_type = META_BUTTON_TYPE_ABOVE;
+      break;
+    case META_FRAME_CONTROL_UNABOVE:
+      button_type = META_BUTTON_TYPE_UNABOVE;
+      break;
+    case META_FRAME_CONTROL_STICK:
+      button_type = META_BUTTON_TYPE_STICK;
+      break;
+    case META_FRAME_CONTROL_UNSTICK:
+      button_type = META_BUTTON_TYPE_UNSTICK;
       break;
     case META_FRAME_CONTROL_DELETE:
       button_type = META_BUTTON_TYPE_CLOSE;
@@ -1563,6 +1624,24 @@ control_rect (MetaFrameControl control,
     case META_FRAME_CONTROL_UNMAXIMIZE:
       rect = &fgeom->max_rect.visible;
       break;
+    case META_FRAME_CONTROL_SHADE:
+      rect = &fgeom->shade_rect.visible;
+      break;
+    case META_FRAME_CONTROL_UNSHADE:
+      rect = &fgeom->unshade_rect.visible;
+      break;
+    case META_FRAME_CONTROL_ABOVE:
+      rect = &fgeom->above_rect.visible;
+      break;
+    case META_FRAME_CONTROL_UNABOVE:
+      rect = &fgeom->unabove_rect.visible;
+      break;
+    case META_FRAME_CONTROL_STICK:
+      rect = &fgeom->stick_rect.visible;
+      break;
+    case META_FRAME_CONTROL_UNSTICK:
+      rect = &fgeom->unstick_rect.visible;
+      break;
     case META_FRAME_CONTROL_RESIZE_SE:
       break;
     case META_FRAME_CONTROL_RESIZE_S:
@@ -1645,6 +1724,36 @@ get_control (MetaUIFrame *frame, int root_x, int root_y)
         return META_FRAME_CONTROL_UNMAXIMIZE;
       else
         return META_FRAME_CONTROL_MAXIMIZE;
+    }
+
+  if (POINT_IN_RECT (x, y, fgeom.shade_rect.clickable))
+    {
+      return META_FRAME_CONTROL_SHADE;
+    }
+
+  if (POINT_IN_RECT (x, y, fgeom.unshade_rect.clickable))
+    {
+      return META_FRAME_CONTROL_UNSHADE;
+    }
+
+  if (POINT_IN_RECT (x, y, fgeom.above_rect.clickable))
+    {
+      return META_FRAME_CONTROL_ABOVE;
+    }
+
+  if (POINT_IN_RECT (x, y, fgeom.unabove_rect.clickable))
+    {
+      return META_FRAME_CONTROL_UNABOVE;
+    }
+
+  if (POINT_IN_RECT (x, y, fgeom.stick_rect.clickable))
+    {
+      return META_FRAME_CONTROL_STICK;
+    }
+
+  if (POINT_IN_RECT (x, y, fgeom.unstick_rect.clickable))
+    {
+      return META_FRAME_CONTROL_UNSTICK;
     }
 
   /* South resize always has priority over north resize,

@@ -913,11 +913,21 @@ key_is_laptop (MetaOutputKey *key)
 {
   /* FIXME: extend with better heuristics */
   return g_str_has_prefix (key->connector, "LVDS") ||
-    g_str_has_prefix (key->connector, "lvds") ||
-    g_str_has_prefix (key->connector, "Lvds") ||
-    g_str_has_prefix (key->connector, "LCD")  || /* some versions of fglrx, sigh */
-    g_str_has_prefix (key->connector, "DSI") ||
     g_str_has_prefix (key->connector, "eDP");
+}
+
+static gboolean
+output_is_laptop (MetaOutput *output)
+{
+  /* FIXME: extend with better heuristics */
+  switch (output->connector_type)
+    {
+    case META_CONNECTOR_TYPE_eDP:
+    case META_CONNECTOR_TYPE_LVDS:
+      return TRUE;
+    default:
+      return FALSE;
+    }
 }
 
 static gboolean
@@ -1042,17 +1052,6 @@ apply_configuration_with_lid (MetaMonitorConfig  *self,
 }
 
 gboolean
-meta_monitor_config_get_is_builtin_display_on (MetaMonitorConfig *self)
-{
-  g_return_val_if_fail (META_IS_MONITOR_CONFIG (self), FALSE);
-
-  if (self->current)
-    return laptop_display_is_on (self->current);
-
-  return FALSE;
-}
-
-gboolean
 meta_monitor_config_apply_stored (MetaMonitorConfig  *self,
 				  MetaMonitorManager *manager)
 {
@@ -1093,7 +1092,7 @@ find_primary_output (MetaOutput *outputs,
 
   for (i = 0; i < n_outputs; i++)
     {
-      if (meta_output_is_laptop (&outputs[i]))
+      if (output_is_laptop (&outputs[i]))
         return i;
     }
 
@@ -1555,19 +1554,18 @@ meta_monitor_config_restore_previous (MetaMonitorConfig  *self,
       /* The user chose to restore the previous configuration. In this
        * case, restore the previous configuration. */
       MetaConfiguration *prev_config = config_ref (self->previous);
-      gboolean ok = apply_configuration (self, prev_config, manager);
+      apply_configuration (self, prev_config, manager);
       config_unref (prev_config);
 
       /* After this, self->previous contains the rejected configuration.
        * Since it was rejected, nuke it. */
       g_clear_pointer (&self->previous, (GDestroyNotify) config_unref);
-
-      if (ok)
-        return;
     }
-
-  if (!meta_monitor_config_apply_stored (self, manager))
-    meta_monitor_config_make_default (self, manager);
+  else
+    {
+      if (!meta_monitor_config_apply_stored (self, manager))
+        meta_monitor_config_make_default (self, manager);
+    }
 }
 
 static void
@@ -2031,11 +2029,7 @@ meta_monitor_config_assign_crtcs (MetaConfiguration  *config,
 
   all_outputs = meta_monitor_manager_get_outputs (manager,
                                                   &n_outputs);
-  if (n_outputs != config->n_outputs)
-    {
-      g_hash_table_destroy (assignment.info);
-      return FALSE;
-    }
+  g_assert (n_outputs == config->n_outputs);
 
   for (i = 0; i < n_outputs; i++)
     {

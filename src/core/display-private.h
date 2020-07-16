@@ -35,7 +35,6 @@
 #include <meta/boxes.h>
 #include <meta/display.h>
 #include "keybindings-private.h"
-#include "startup-notification-private.h"
 #include "meta-gesture-tracker-private.h"
 #include <meta/prefs.h>
 #include <meta/barrier.h>
@@ -277,8 +276,9 @@ struct _MetaDisplay
   int xinput_event_base;
   int xinput_opcode;
 
-  MetaStartupNotification *startup_notification;
-
+#ifdef HAVE_STARTUP_NOTIFICATION
+  SnDisplay *sn_display;
+#endif
   int xsync_event_base;
   int xsync_error_base;
   int shape_event_base;

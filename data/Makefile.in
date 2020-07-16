@@ -267,9 +267,6 @@ SHELL = @SHELL@
 STRIP = @STRIP@
 USE_NLS = @USE_NLS@
 VERSION = @VERSION@
-WAYLAND_PROTOCOLS_CFLAGS = @WAYLAND_PROTOCOLS_CFLAGS@
-WAYLAND_PROTOCOLS_DATADIR = @WAYLAND_PROTOCOLS_DATADIR@
-WAYLAND_PROTOCOLS_LIBS = @WAYLAND_PROTOCOLS_LIBS@
 WAYLAND_SCANNER = @WAYLAND_SCANNER@
 XGETTEXT = @XGETTEXT@
 XMKMF = @XMKMF@
@@ -335,7 +332,8 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 desktopfiles_in_files = \
-	mutter.desktop.in
+	mutter.desktop.in \
+	mutter-wayland.desktop.in
 
 desktopfilesdir = $(datadir)/applications
 desktopfiles_DATA = $(desktopfiles_in_files:.desktop.in=.desktop)

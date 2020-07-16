@@ -1,0 +1,5 @@
+  * control: Build against gnome-desktop 3.36 and break old gnome-shell. So we
+    get dependencies on libgnome-desktop-3-19. Otherwise we get two different
+    versions of gnome-desktop loaded into GNOME Shell, which crashes. Break
+    old gnome-shell for the inverse reason - it needs to be upgraded otherwise
+    we get the mismatch the other way around.

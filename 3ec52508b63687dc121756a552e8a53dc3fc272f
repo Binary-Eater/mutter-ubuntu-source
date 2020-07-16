@@ -1,0 +1,4 @@
+  * Upstream snapshot
+  * debian/control.in:
+  - fixed typo in description
+  - bump Standards-Version to 3.8.3

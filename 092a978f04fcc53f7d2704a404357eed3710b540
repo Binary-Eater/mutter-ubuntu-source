@@ -1,0 +1,5 @@
+  * New upstream release.
+  * Refresh patches.
+  * Drop obsolete Conflicts/Replaces: gir1.2-mutter-2.91.
+  * Update Build-Depends as per configure.ac.
+  * Bump Standards-Version to 3.9.6. No further changes.

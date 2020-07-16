@@ -1,0 +1,2 @@
+  * removing debian/patches/18_unmimize.patch making apps closing when opening
+    (reopening corresponding bug and fixing LP: #637108)

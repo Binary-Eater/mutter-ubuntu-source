@@ -1,0 +1,9 @@
+  [ Jeremy Bicha ]
+  * New upstream bugfix release (LP: #1078155)
+    - Only process keyboard mapping events for the core X keyboard
+  * debian/mutter-common.install:
+    - Install missing keybindings settings
+  [ Brandon Snider ]
+  * Added 05_ignore_num_workspaces.patch
+    - Fixes gnome-shell forgetting how many workspaces are in use
+      when gnome-shell is reloaded (LP: #1067933)

@@ -1,0 +1,4 @@
+  * Team upload
+  * d/p/frames-Handle-touch-events.patch,
+    d/p/frames-Make-1st-button-motion-handlers-take-generic-event.patch:
+    Drop cherry-picked patches that caused a regression (Closes: #899181)

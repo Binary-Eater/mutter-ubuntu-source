@@ -25,19 +25,22 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <config.h>
-#include "stack.h"
-#include "window-private.h"
-#include <meta/errors.h>
-#include "frame.h"
-#include <meta/group.h>
-#include <meta/prefs.h>
-#include <meta/workspace.h>
-#include "backends/meta-logical-monitor.h"
+#include "config.h"
+
+#include "core/stack.h"
 
 #include <X11/Xatom.h>
 
+#include "backends/meta-logical-monitor.h"
+#include "core/frame.h"
+#include "core/meta-workspace-manager-private.h"
+#include "core/window-private.h"
+#include "meta/group.h"
+#include "meta/meta-x11-errors.h"
+#include "meta/prefs.h"
+#include "meta/workspace.h"
 #include "x11/group-private.h"
+#include "x11/meta-x11-display-private.h"
 
 #define WINDOW_HAS_TRANSIENT_TYPE(w)                    \
           (w->type == META_WINDOW_DIALOG ||             \
@@ -60,14 +63,14 @@ static void stack_do_resort           (MetaStack *stack);
 
 static void stack_ensure_sorted (MetaStack *stack);
 
-MetaStack*
-meta_stack_new (MetaScreen *screen)
+MetaStack *
+meta_stack_new (MetaDisplay *display)
 {
   MetaStack *stack;
 
   stack = g_new (MetaStack, 1);
 
-  stack->screen = screen;
+  stack->display = display;
   stack->xwindows = g_array_new (FALSE, FALSE, sizeof (Window));
 
   stack->sorted = NULL;
@@ -100,6 +103,8 @@ void
 meta_stack_add (MetaStack  *stack,
                 MetaWindow *window)
 {
+  MetaWorkspaceManager *workspace_manager = window->display->workspace_manager;
+
   g_return_if_fail (meta_window_is_stackable (window));
 
   meta_topic (META_DEBUG_STACK, "Adding window %s to the stack\n", window->desc);
@@ -116,13 +121,15 @@ meta_stack_add (MetaStack  *stack,
               window->desc, window->stack_position);
 
   stack_sync_to_xserver (stack);
-  meta_stack_update_window_tile_matches (stack, window->screen->active_workspace);
+  meta_stack_update_window_tile_matches (stack, workspace_manager->active_workspace);
 }
 
 void
 meta_stack_remove (MetaStack  *stack,
                    MetaWindow *window)
 {
+  MetaWorkspaceManager *workspace_manager = window->display->workspace_manager;
+
   meta_topic (META_DEBUG_STACK, "Removing window %s from the stack\n", window->desc);
 
   /* Set window to top position, so removing it will not leave gaps
@@ -152,27 +159,29 @@ meta_stack_remove (MetaStack  *stack,
     }
 
   stack_sync_to_xserver (stack);
-  meta_stack_update_window_tile_matches (stack, window->screen->active_workspace);
+  meta_stack_update_window_tile_matches (stack, workspace_manager->active_workspace);
 }
 
 void
 meta_stack_update_layer (MetaStack  *stack,
                          MetaWindow *window)
 {
+  MetaWorkspaceManager *workspace_manager = window->display->workspace_manager;
   stack->need_relayer = TRUE;
 
   stack_sync_to_xserver (stack);
-  meta_stack_update_window_tile_matches (stack, window->screen->active_workspace);
+  meta_stack_update_window_tile_matches (stack, workspace_manager->active_workspace);
 }
 
 void
 meta_stack_update_transient (MetaStack  *stack,
                              MetaWindow *window)
 {
+  MetaWorkspaceManager *workspace_manager = window->display->workspace_manager;
   stack->need_constrain = TRUE;
 
   stack_sync_to_xserver (stack);
-  meta_stack_update_window_tile_matches (stack, window->screen->active_workspace);
+  meta_stack_update_window_tile_matches (stack, workspace_manager->active_workspace);
 }
 
 /* raise/lower within a layer */
@@ -180,6 +189,7 @@ void
 meta_stack_raise (MetaStack  *stack,
                   MetaWindow *window)
 {
+  MetaWorkspaceManager *workspace_manager = window->display->workspace_manager;
   GList *l;
   int max_stack_position = window->stack_position;
   MetaWorkspace *workspace;
@@ -201,13 +211,14 @@ meta_stack_raise (MetaStack  *stack,
   meta_window_set_stack_position_no_sync (window, max_stack_position);
 
   stack_sync_to_xserver (stack);
-  meta_stack_update_window_tile_matches (stack, window->screen->active_workspace);
+  meta_stack_update_window_tile_matches (stack, workspace_manager->active_workspace);
 }
 
 void
 meta_stack_lower (MetaStack  *stack,
                   MetaWindow *window)
 {
+  MetaWorkspaceManager *workspace_manager = window->display->workspace_manager;
   GList *l;
   int min_stack_position = window->stack_position;
   MetaWorkspace *workspace;
@@ -229,7 +240,7 @@ meta_stack_lower (MetaStack  *stack,
   meta_window_set_stack_position_no_sync (window, min_stack_position);
 
   stack_sync_to_xserver (stack);
-  meta_stack_update_window_tile_matches (stack, window->screen->active_workspace);
+  meta_stack_update_window_tile_matches (stack, workspace_manager->active_workspace);
 }
 
 void
@@ -294,7 +305,17 @@ get_standalone_layer (MetaWindow *window)
     case META_WINDOW_NOTIFICATION:
     case META_WINDOW_COMBO:
     case META_WINDOW_OVERRIDE_OTHER:
-      layer = META_LAYER_OVERRIDE_REDIRECT;
+      switch (window->client_type)
+        {
+        case META_WINDOW_CLIENT_TYPE_X11:
+          layer = META_LAYER_OVERRIDE_REDIRECT;
+          break;
+        case META_WINDOW_CLIENT_TYPE_WAYLAND:
+          layer = META_LAYER_NORMAL;
+          break;
+        default:
+          g_assert_not_reached ();
+        }
       break;
     default:
       if (window->wm_state_below)
@@ -490,8 +511,6 @@ add_constraint (Constraint **constraints,
 {
   Constraint *c;
 
-  g_assert (above->screen == below->screen);
-
   /* check if constraint is a duplicate */
   c = constraints[below->stack_position];
   while (c != NULL)
@@ -552,7 +571,6 @@ create_constraints (Constraint **constraints,
               MetaWindow *group_window = tmp2->data;
 
               if (!meta_window_is_in_stack (group_window) ||
-                  w->screen != group_window->screen ||
                   group_window->override_redirect)
                 {
                   tmp2 = tmp2->next;
@@ -944,7 +962,7 @@ stack_do_resort (MetaStack *stack)
   stack->sorted = g_list_sort (stack->sorted,
                                (GCompareFunc) compare_window_position);
 
-  meta_screen_queue_check_fullscreen (stack->screen);
+  meta_display_queue_check_fullscreen (stack->display);
 
   stack->need_resort = FALSE;
 }
@@ -1051,7 +1069,7 @@ stack_sync_to_xserver (MetaStack *stack)
 
   /* The screen guard window sits above all hidden windows and acts as
    * a barrier to input reaching these windows. */
-  guint64 guard_window_id = stack->screen->guard_window;
+  guint64 guard_window_id = stack->display->x11_display->guard_window;
   g_array_append_val (hidden_stack_ids, guard_window_id);
 
   /* Sync to server */
@@ -1059,25 +1077,25 @@ stack_sync_to_xserver (MetaStack *stack)
   meta_topic (META_DEBUG_STACK, "Restacking %u windows\n",
               all_root_children_stacked->len);
 
-  meta_stack_tracker_restack_managed (stack->screen->stack_tracker,
+  meta_stack_tracker_restack_managed (stack->display->stack_tracker,
                                       (guint64 *)all_root_children_stacked->data,
                                       all_root_children_stacked->len);
-  meta_stack_tracker_restack_at_bottom (stack->screen->stack_tracker,
+  meta_stack_tracker_restack_at_bottom (stack->display->stack_tracker,
                                         (guint64 *)hidden_stack_ids->data,
                                         hidden_stack_ids->len);
 
   /* Sync _NET_CLIENT_LIST and _NET_CLIENT_LIST_STACKING */
 
-  XChangeProperty (stack->screen->display->xdisplay,
-                   stack->screen->xroot,
-                   stack->screen->display->atom__NET_CLIENT_LIST,
+  XChangeProperty (stack->display->x11_display->xdisplay,
+                   stack->display->x11_display->xroot,
+                   stack->display->x11_display->atom__NET_CLIENT_LIST,
                    XA_WINDOW,
                    32, PropModeReplace,
                    (unsigned char *)stack->xwindows->data,
                    stack->xwindows->len);
-  XChangeProperty (stack->screen->display->xdisplay,
-                   stack->screen->xroot,
-                   stack->screen->display->atom__NET_CLIENT_LIST_STACKING,
+  XChangeProperty (stack->display->x11_display->xdisplay,
+                   stack->display->x11_display->xroot,
+                   stack->display->x11_display->atom__NET_CLIENT_LIST_STACKING,
                    XA_WINDOW,
                    32, PropModeReplace,
                    (unsigned char *)x11_stacked->data,
@@ -1280,8 +1298,6 @@ meta_stack_windows_cmp  (MetaStack  *stack,
                          MetaWindow *window_a,
                          MetaWindow *window_b)
 {
-  g_return_val_if_fail (window_a->screen == window_b->screen, 0);
-
   /* -1 means a below b */
 
   stack_ensure_sorted (stack); /* update constraints, layers */
@@ -1410,10 +1426,10 @@ meta_window_set_stack_position_no_sync (MetaWindow *window,
   int low, high, delta;
   GList *tmp;
 
-  g_return_if_fail (window->screen->stack != NULL);
+  g_return_if_fail (window->display->stack != NULL);
   g_return_if_fail (window->stack_position >= 0);
   g_return_if_fail (position >= 0);
-  g_return_if_fail (position < window->screen->stack->n_positions);
+  g_return_if_fail (position < window->display->stack->n_positions);
 
   if (position == window->stack_position)
     {
@@ -1422,8 +1438,8 @@ meta_window_set_stack_position_no_sync (MetaWindow *window,
       return;
     }
 
-  window->screen->stack->need_resort = TRUE;
-  window->screen->stack->need_constrain = TRUE;
+  window->display->stack->need_resort = TRUE;
+  window->display->stack->need_constrain = TRUE;
 
   if (position < window->stack_position)
     {
@@ -1438,7 +1454,7 @@ meta_window_set_stack_position_no_sync (MetaWindow *window,
       delta = -1;
     }
 
-  tmp = window->screen->stack->sorted;
+  tmp = window->display->stack->sorted;
   while (tmp != NULL)
     {
       MetaWindow *w = tmp->data;
@@ -1461,8 +1477,10 @@ void
 meta_window_set_stack_position (MetaWindow *window,
                                 int         position)
 {
+  MetaWorkspaceManager *workspace_manager = window->display->workspace_manager;
+
   meta_window_set_stack_position_no_sync (window, position);
-  stack_sync_to_xserver (window->screen->stack);
-  meta_stack_update_window_tile_matches (window->screen->stack,
-                                         window->screen->active_workspace);
+  stack_sync_to_xserver (window->display->stack);
+  meta_stack_update_window_tile_matches (window->display->stack,
+                                         workspace_manager->active_workspace);
 }

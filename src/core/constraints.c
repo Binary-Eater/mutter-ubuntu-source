@@ -21,18 +21,21 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <config.h>
-#include "boxes-private.h"
-#include "constraints.h"
-#include "workspace-private.h"
-#include "place.h"
-#include <meta/prefs.h>
-#include "backends/meta-backend-private.h"
-#include "backends/meta-logical-monitor.h"
-#include "backends/meta-monitor-manager-private.h"
+#include "config.h"
+
+#include "core/constraints.h"
 
 #include <stdlib.h>
 #include <math.h>
+
+#include "backends/meta-backend-private.h"
+#include "backends/meta-logical-monitor.h"
+#include "backends/meta-monitor-manager-private.h"
+#include "core/boxes-private.h"
+#include "core/meta-workspace-manager-private.h"
+#include "core/place.h"
+#include "core/workspace-private.h"
+#include "meta/prefs.h"
 
 #if 0
  // This is the short and sweet version of how to hack on this file; see
@@ -412,7 +415,7 @@ setup_constraint_info (ConstraintInfo      *info,
                             &info->entire_monitor);
     }
 
-  cur_workspace = window->screen->active_workspace;
+  cur_workspace = window->display->workspace_manager->active_workspace;
   info->usable_screen_region   =
     meta_workspace_get_onscreen_region (cur_workspace);
   info->usable_monitor_region =
@@ -499,7 +502,7 @@ place_window_if_needed(MetaWindow     *window,
       meta_window_get_work_area_for_logical_monitor (window,
                                                      logical_monitor,
                                                      &info->work_area_monitor);
-      cur_workspace = window->screen->active_workspace;
+      cur_workspace = window->display->workspace_manager->active_workspace;
       info->usable_monitor_region =
         meta_workspace_get_onmonitor_region (cur_workspace, logical_monitor);
 
@@ -787,6 +790,8 @@ constrain_custom_rule (MetaWindow         *window,
   MetaRectangle intersection;
   gboolean constraint_satisfied;
   MetaPlacementRule current_rule;
+  MetaWindow *parent;
+  MetaRectangle parent_rect;
 
   if (priority > PRIORITY_CUSTOM_RULE)
     return TRUE;
@@ -795,6 +800,18 @@ constrain_custom_rule (MetaWindow         *window,
   if (!placement_rule)
     return TRUE;
 
+  if (window->placement_rule_constrained)
+    {
+      parent = meta_window_get_transient_for (window);
+      meta_window_get_frame_rect (parent, &parent_rect);
+      info->current.x =
+        parent_rect.x + window->constrained_placement_rule_offset_x;
+      info->current.y =
+        parent_rect.y + window->constrained_placement_rule_offset_y;
+
+      return TRUE;
+    }
+
   meta_rectangle_intersect (&info->current, &info->work_area_monitor,
                             &intersection);
 
@@ -802,10 +819,13 @@ constrain_custom_rule (MetaWindow         *window,
                                                    placement_rule,
                                                    &intersection);
 
-  if (constraint_satisfied || check_only)
+  if (check_only)
     return constraint_satisfied;
 
   current_rule = *placement_rule;
+
+  if (constraint_satisfied)
+    goto done;
 
   if (info->current.width != intersection.width &&
       (current_rule.constraint_adjustment &
@@ -831,7 +851,7 @@ constrain_custom_rule (MetaWindow         *window,
                                                    &intersection);
 
   if (constraint_satisfied)
-    return TRUE;
+    goto done;
 
   if (current_rule.constraint_adjustment &
       META_PLACEMENT_CONSTRAINT_ADJUSTMENT_SLIDE_X)
@@ -857,7 +877,7 @@ constrain_custom_rule (MetaWindow         *window,
                                                    &intersection);
 
   if (constraint_satisfied)
-    return TRUE;
+    goto done;
 
   if (current_rule.constraint_adjustment &
       META_PLACEMENT_CONSTRAINT_ADJUSTMENT_RESIZE_X)
@@ -871,6 +891,14 @@ constrain_custom_rule (MetaWindow         *window,
       info->current.y = intersection.y;
       info->current.height = intersection.height;
     }
+
+done:
+  window->placement_rule_constrained = TRUE;
+
+  parent = meta_window_get_transient_for (window);
+  meta_window_get_frame_rect (parent, &parent_rect);
+  window->constrained_placement_rule_offset_x = info->current.x - parent_rect.x;
+  window->constrained_placement_rule_offset_y = info->current.y - parent_rect.y;
 
   return TRUE;
 }
@@ -927,6 +955,7 @@ constrain_maximization (MetaWindow         *window,
                         ConstraintPriority  priority,
                         gboolean            check_only)
 {
+  MetaWorkspaceManager *workspace_manager = window->display->workspace_manager;
   MetaRectangle target_size;
   MetaRectangle min_size, max_size;
   gboolean hminbad, vminbad;
@@ -966,7 +995,7 @@ constrain_maximization (MetaWindow         *window,
         direction = META_DIRECTION_HORIZONTAL;
       else
         direction = META_DIRECTION_VERTICAL;
-      active_workspace_struts = window->screen->active_workspace->all_struts;
+      active_workspace_struts = workspace_manager->active_workspace->all_struts;
 
       target_size = info->current;
       meta_rectangle_expand_to_avoiding_struts (&target_size,
@@ -1565,7 +1594,7 @@ constrain_titlebar_visible (MetaWindow         *window,
       MetaFrameBorders borders;
       meta_frame_calc_borders (window->frame, &borders);
 
-      bottom_amount = info->current.height + borders.visible.bottom;
+      bottom_amount = info->current.height - borders.visible.top;
       vert_amount_onscreen = borders.visible.top;
     }
   else
@@ -1644,7 +1673,7 @@ constrain_partially_onscreen (MetaWindow         *window,
       MetaFrameBorders borders;
       meta_frame_calc_borders (window->frame, &borders);
 
-      bottom_amount = info->current.height + borders.visible.bottom;
+      bottom_amount = info->current.height - borders.visible.top;
       vert_amount_onscreen = borders.visible.top;
     }
   else

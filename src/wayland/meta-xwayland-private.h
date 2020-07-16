@@ -20,16 +20,16 @@
 #ifndef META_XWAYLAND_PRIVATE_H
 #define META_XWAYLAND_PRIVATE_H
 
-#include "meta-wayland-private.h"
-
 #include <glib.h>
+
+#include "wayland/meta-wayland-private.h"
 
 gboolean
 meta_xwayland_start (MetaXWaylandManager *manager,
                      struct wl_display   *display);
 
 void
-meta_xwayland_complete_init (void);
+meta_xwayland_complete_init (MetaDisplay *display);
 
 void
 meta_xwayland_stop (MetaXWaylandManager *manager);

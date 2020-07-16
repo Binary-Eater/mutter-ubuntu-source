@@ -22,12 +22,12 @@
 #ifndef META_WAYLAND_TABLET_TOOL_H
 #define META_WAYLAND_TABLET_TOOL_H
 
+#include <glib.h>
 #include <wayland-server.h>
 
-#include <glib.h>
-
-#include "meta-wayland-types.h"
-#include "meta-cursor-renderer.h"
+#include "backends/meta-cursor-renderer.h"
+#include "backends/meta-cursor-sprite-xcursor.h"
+#include "wayland/meta-wayland-types.h"
 
 struct _MetaWaylandTabletTool
 {
@@ -43,7 +43,7 @@ struct _MetaWaylandTabletTool
   MetaWaylandSurface *cursor_surface;
   struct wl_listener cursor_surface_destroy_listener;
   MetaCursorRenderer *cursor_renderer;
-  MetaCursorSprite *default_sprite;
+  MetaCursorSpriteXcursor *default_sprite;
   guint prepare_at_signal_id;
 
   MetaWaylandSurface *current;

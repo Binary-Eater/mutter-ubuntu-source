@@ -23,13 +23,13 @@
 
 #include "config.h"
 
-#include <clutter/evdev/clutter-evdev.h>
 #include <linux/input-event-codes.h>
 #include <libinput.h>
 
-#include "meta-backend-native.h"
-#include "meta-input-settings-native.h"
 #include "backends/meta-logical-monitor.h"
+#include "backends/native/meta-backend-native.h"
+#include "backends/native/meta-input-settings-native.h"
+#include "clutter/evdev/clutter-evdev.h"
 
 G_DEFINE_TYPE (MetaInputSettingsNative, meta_input_settings_native, META_TYPE_INPUT_SETTINGS)
 
@@ -398,9 +398,10 @@ is_mouse_device (ClutterInputDevice *device)
 }
 
 static gboolean
-is_trackball_device (ClutterInputDevice *device)
+meta_input_settings_native_is_trackball_device (MetaInputSettings  *settings,
+                                                ClutterInputDevice *device)
 {
-  return meta_input_device_is_trackball (device);
+  return has_udev_property (device, "ID_INPUT_TRACKBALL");
 }
 
 static void
@@ -419,7 +420,7 @@ meta_input_settings_native_set_trackball_accel_profile (MetaInputSettings       
                                                         ClutterInputDevice         *device,
                                                         GDesktopPointerAccelProfile profile)
 {
-  if (!is_trackball_device (device))
+  if (!meta_input_settings_native_is_trackball_device (settings, device))
     return;
 
   set_device_accel_profile (device, profile);
@@ -588,6 +589,7 @@ meta_input_settings_native_class_init (MetaInputSettingsNativeClass *klass)
   input_settings_class->set_stylus_button_map = meta_input_settings_native_set_stylus_button_map;
 
   input_settings_class->has_two_finger_scroll = meta_input_settings_native_has_two_finger_scroll;
+  input_settings_class->is_trackball_device = meta_input_settings_native_is_trackball_device;
 }
 
 static void

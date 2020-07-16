@@ -1,0 +1,5 @@
+  * Generate dependencies for libmutter-3-0, not libmutter-2-0
+  * d/libmutter-3-0.symbols: Update
+  * Standards-Version: 4.1.5 (no changes required)
+  * Set Rules-Requires-Root to no
+  * d/copyright: Remove obsolete FSF postal addresses

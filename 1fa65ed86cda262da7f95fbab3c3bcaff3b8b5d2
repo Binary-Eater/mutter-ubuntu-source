@@ -1,0 +1,4 @@
+  * New upstream beta release.
+  * Update build-dependencies according to configure.ac changes:
+    - bump wayland-protocols to >= 1.7
+  * Drop debian/patches/Fix-build-of-clutter-tests.patch, merged upstream.

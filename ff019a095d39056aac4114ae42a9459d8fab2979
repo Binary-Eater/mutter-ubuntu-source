@@ -1,0 +1,11 @@
+  [ Sjoerd Simons ]
+  * debian/patches/prevent-double-lock-deadlock.patch:
+    + Added. Don't call X functions that lock the display in code paths that
+      have already locked the display if X threads have been initialized
+      (bgo#704101)
+  [ Andreas Henriksson ]
+  * New upstream release.
+  * Update build-dependencies according to configure.ac changes:
+    - bump upower 0.99.0
+    - bump cogl 1.17.1
+  * Bump Standards-Version to 3.9.5

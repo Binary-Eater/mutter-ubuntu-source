@@ -1,0 +1,5 @@
+  [ Rico Tzschichholz ]
+  * Update library name to libmutter0d since the API/ABI is not compatible
+    with 3.10.x releases
+  [ Emilio Pozuelo Monfort ]
+  * Let libmutter0d conflict with libmutter0c.

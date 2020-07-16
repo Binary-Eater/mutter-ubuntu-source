@@ -1,0 +1,9 @@
+  * Merge with debian. Remaining changes:
+    + debian/control:
+      - Update VCS flags to point to launchpad
+    + debian/gbp.conf: update branch to point to ubuntu/master
+    + debian/patches/x11-Add-support-for-fractional-scaling-using-Randr.patch:
+      - X11: Add support for fractional scaling using Randr
+  * debian/patches: Update X11 focus before display focus:
+    - Fixes an infinite loop causing an hang when showing the "application is
+      not responding" dialog (LP: #1845302)

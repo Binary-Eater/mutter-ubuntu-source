@@ -1,0 +1,4 @@
+  * Team upload
+  * New upstream snapshot from the gnome-3-36 branch
+  * d/p/backend-x11-Reintroduce-XInitThreads.patch:
+    Drop patch, applied upstream

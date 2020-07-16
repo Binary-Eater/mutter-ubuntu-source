@@ -1,0 +1,9 @@
+  * New upstream release (LP: #1662805)
+  * libmutter0 has been renamed upstream to libmutter-0-0
+  * Rename libmutter-dev to libmutter-0-dev too
+  * debian/control.in:
+    - Drop obsolete Conflicts/Replaces now that the library
+      uses different file names
+  * Drop patches applied in new release:
+    - git_dont_set_unavailable_scroll_methods.patch
+    - git_flush_all_swap_notifies_on_idle.patch

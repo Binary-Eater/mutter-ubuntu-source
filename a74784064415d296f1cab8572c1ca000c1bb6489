@@ -1,0 +1,2 @@
+  * Remove gir1.0-mutter-2.29 to ease the gir1.2 transition, since
+    nothing uses it.

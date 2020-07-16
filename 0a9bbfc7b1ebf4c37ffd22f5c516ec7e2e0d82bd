@@ -1,0 +1,3 @@
+  * git-ui-add-missing-delimiter.patch,
+    git-prefs-fix-introspection-issues.patch: Add git patch to fix build
+    with current gobject-introspection.

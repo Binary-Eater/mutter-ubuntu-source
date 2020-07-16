@@ -1,0 +1,5 @@
+  * New upstream release
+    - Fix Adwaita window decoration (LP: #828543)
+  * debian/control.in: Bump libclutter-1.0-dev build-dependency to 1.7.5
+  * debian/patches/03_link_gles2.patch: Refreshed
+  * debian/libmutter0.symbols: Adjust .symbols file

@@ -1,0 +1,4 @@
+  * Rebuild for clutter 1.20
+  * debian/patches/git_switch_to_after_paint.patch: update for api
+    change in clutter 1.20
+  * debian/control.in: Bump deps on clutter >= 1.19.5

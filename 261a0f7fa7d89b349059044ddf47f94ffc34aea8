@@ -1,0 +1,4 @@
+  * Add support for high frame rate displays (LP: #1763892):
+    - Drop clutter-Smooth-out-master-clock-to-smooth-visuals.patch
+    - Add lp1763892-a-renderer-native-Add-hardware-presentation-timing.patch
+    - Add lp1763892-b-renderer-native-Advertise-_FEATURE_SWAP_THROTTLE.patch

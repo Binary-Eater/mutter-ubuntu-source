@@ -1,0 +1,4 @@
+  * New upstream release
+  * Sync with Ubuntu (3.10.0-0ubuntu1~saucy1)
+    + Update library name to libmutter0c
+    + Bump build-depends

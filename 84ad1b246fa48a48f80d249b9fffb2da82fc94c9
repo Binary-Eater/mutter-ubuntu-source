@@ -1,0 +1,3 @@
+  * New development release.
+  * debian/control:
+  - build-dep on clutter >= 1.2

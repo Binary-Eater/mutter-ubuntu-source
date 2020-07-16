@@ -1,0 +1,5 @@
+  * Drop debian/mutter-common.catalog and debian/mutter-common.sgmlcatalogs.
+    This is another leftover from the metacity package, mutter doesn't ship
+    any DTD.
+  * Replace another occurence of libgnome2-common with
+    gsettings-desktop-schemas.

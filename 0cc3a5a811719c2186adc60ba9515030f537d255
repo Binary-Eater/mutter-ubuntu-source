@@ -1,0 +1,3 @@
+  * New upstream release
+    + Fix window recording on HiDPI
+    + Fix top-left pixel being insensitive to clicks (LP: #1849135)

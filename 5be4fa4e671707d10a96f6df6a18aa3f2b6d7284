@@ -1,0 +1,4 @@
+  * New upstream release (3.0.0).
+  * debian/control.in:
+    - Bump Standards-Version to 3.9.2 (no further changes)
+    - Drop versionized dpkg-dev build-dependency

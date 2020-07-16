@@ -1,0 +1,4 @@
+  * New upstream release.
+  * Drop debian/patches/01_Wcast-align.patch. It's not necessary anymore as we
+    don't enable -Werror.
+  * Add Build-Depends on libxcb-res0-dev as per configure.ac.

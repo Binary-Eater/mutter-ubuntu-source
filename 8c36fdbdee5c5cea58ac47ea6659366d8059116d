@@ -1,0 +1,7 @@
+  [ Daniel van Vugt ]
+  * Add Sync-to-the-hardware-refresh-rate-not-just-60.00Hz.patch to render at
+    the full monitor refresh rate (LP: #1763892).
+  [ Jeremy Bicha ]
+  * debian/libmutter-3-0.symbols: Mark a Wacom symbol as linux-any
+  [ Patrice Duroux ]
+  * add back lost NEWS (Closes: #914942)

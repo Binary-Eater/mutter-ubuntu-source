@@ -1,0 +1,11 @@
+  [ Simon McVittie ]
+  * Update Vcs-* for migration from Alioth svn to salsa.debian.org git
+  * debian/gbp.conf: Add
+  * Refresh patch series with gbp pq
+  [ Daniel van Vugt ]
+  * Add synaptics-support.patch
+    - Allow touchpad settings to work with xserver-xorg-input-synaptics.
+      Note that this is unneeded on GNOME on Wayland where libinput is
+      always used. (LP: #1686081)
+  [ Jeremy Bicha ]
+  * Bump debhelper compat to 11

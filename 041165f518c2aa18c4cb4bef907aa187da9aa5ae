@@ -1,0 +1,9 @@
+  * Merge with debian git snapshot (LP: #1820542), remaining changes:
+    + debian/control:
+      - Update VCS flags to point to launchpad
+      - Update maintainer to ubuntu
+    + debian/gbp.conf: update branch to point to ubuntu/master
+    + debian/patches/x11-Add-support-for-fractional-scaling-using-Randr.patch:
+      - X11: Add support for fractional scaling using Randr
+  * d/p/x11-Add-support-for-fractional-scaling-using-Randr.patch:
+    - Refreshed.

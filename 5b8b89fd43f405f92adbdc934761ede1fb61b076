@@ -1,0 +1,5 @@
+  * d/p/monitor-config-manager-Fallback-to-closed-laptop-lid-conf.patch:
+    -  Fallback to closed laptop lid configuration if no other available
+       (LP: #1793496)
+  * d/p/x11-Add-support-for-fractional-scaling-using-Randr.patch:
+    - Don't override non-fractionally scaled monitors scaling (LP: #1873348)

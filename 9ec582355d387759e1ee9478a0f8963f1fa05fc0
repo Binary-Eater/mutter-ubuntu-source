@@ -1,0 +1,2 @@
+  * Drop debian/patches/debian-changes-3.2.1-0ubuntu1
+    which caused ARM build failure.

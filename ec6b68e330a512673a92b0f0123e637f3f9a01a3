@@ -1,0 +1,3 @@
+  * d/p/0001-meta-texture-rectangle-Use-Cogl-s-API-to-create-a-re.patch:
+    + Patch from upstream git, don't use GL types as cogl doesn't expose
+      GL headers in newer releases. This will ease the cogl transition.

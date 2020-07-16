@@ -1,0 +1,4 @@
+  * debian/rules:
+    - Build with --enable-egl-device (LP: #1666664)
+      This enables experimental support for using NVIDIA proprietary
+      drivers with GNOME on Wayland

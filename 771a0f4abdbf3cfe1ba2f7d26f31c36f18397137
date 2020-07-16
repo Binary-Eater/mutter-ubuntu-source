@@ -1,0 +1,6 @@
+  * debian/patches/20_unity_no_3D_detection.patch:
+    - detect in UNE session if the graphical driver is software-rendered.
+      if so, exit from the session after prompting and write the .dmrc file
+      to the gnome session (LP: #614088)
+  * debian/control:
+    - add libdbus-glib-1-dev build-dep

@@ -1,0 +1,3 @@
+  * New upstream release.
+    - Fixes crashes with full-screen apps (LP: #963526)
+    - Fixes some memory leaks

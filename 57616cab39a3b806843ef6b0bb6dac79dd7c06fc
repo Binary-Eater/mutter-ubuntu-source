@@ -1,0 +1,10 @@
+  * take some patches from metacity and adapt them to mutter:
+    - debian/patches/03_strict_focus.patch:
+      add a new focus mode META_FOCUS_MODE_STRICT
+      (/apps/metacity/general/focus_mode = strict)
+    - debian/patches/04_worspaces_default_name.patch
+      use "Desk" instead of "Workspace" for default workspaces naming.
+    - debian/patches/05_raise_on_click_for_click_mode.patch:
+      use raise on click option
+    - debian/patches/13_better_support_for_button_layout.patch
+      Corrected support for buttons backgrounds with transparency

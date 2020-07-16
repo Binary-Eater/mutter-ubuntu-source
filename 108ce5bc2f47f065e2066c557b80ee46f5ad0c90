@@ -1,0 +1,2 @@
+  * gir1.2-mutter-3.0: tighten dependency on libmutter0e by making
+    it versioned to = ${binary:Version} (Closes: #766359)

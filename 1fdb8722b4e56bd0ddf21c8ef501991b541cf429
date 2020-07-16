@@ -1,0 +1,8 @@
+  * New upstream release
+  * Drop git patches included in new release
+  [ Jackson Doak ]
+  * Merge with Debian. Remaining changes: LP: #1399047
+    - debian/patches/04_ignore_shadow_and_padding.patch:
+      + Silently ignore padding and shadow tags (for light-themes)
+    - Add Replaces for previous libmutter sonames, so that the library
+      upgrades properly.

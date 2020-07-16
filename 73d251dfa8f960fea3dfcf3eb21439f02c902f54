@@ -1,0 +1,4 @@
+  * remove debian/patches/04_worspaces_default_name.patch:
+    - drop "Desk" term
+  * add debian/patches/04_support_drag_drop_with_alt_tab.patch:
+    - support alt-tab during drag and drop operation (LP: #11939)

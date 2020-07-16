@@ -1,0 +1,3 @@
+  * debian/control.in:
+    - Loosen dependency on -common package
+  * Rename gir1.2-mutter-3.0 to gir-1.2-mutter-0

@@ -1,0 +1,2 @@
+  * Merge with Debian squeeze.
+  * debian/rules: Replace remaining occurances of "metacity" with "mutter". 

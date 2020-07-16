@@ -1,0 +1,6 @@
+  * Rebuild for libgirepository rename
+  * debian/patches/18_gtk3_gdk_macros.patch,
+    debian/patches/19_gtk3_theme_states.patch,
+    debian/patches/20_gtk3_testgradient.patch:
+    - A collection of patches from upstream git to fix building against
+      gtk3.

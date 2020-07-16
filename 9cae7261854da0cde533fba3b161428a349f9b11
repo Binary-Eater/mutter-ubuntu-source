@@ -1,0 +1,4 @@
+  * debian/patches:
+    - remove unused git patches
+    - git_fix_xrandr_backlight.patch, fix backlight not working on various
+      GPU's (LP: #947919)

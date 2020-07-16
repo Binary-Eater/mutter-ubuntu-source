@@ -1,0 +1,5 @@
+  * New upstream bugfix release.
+  * 10_window-actor_unredirect.patch: patch from upstream git. Fix crash 
+    when closing a window.
+  * 11_black_background.patch: patch from upstream git. Don’t set a 
+    black background when switching from the display manager.

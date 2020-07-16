@@ -1,0 +1,17 @@
+  * Merge with debian unstable, remaining changes:
+    + debian/patches/03_link_gles2.patch: Link to clutter-glx-1.0
+      explicitily at the end of link flags, to bring in libGLESv2 on armel.
+  [ Laurent Bigonville ]
+  * Drop debian/mutter.lintian-overrides: Missing manpages are now installed
+  [ Michael Biebl ]
+  * debian/control.in:
+    - Drop Build-Depends on gir1.2-gtk-3.0, gir1.2-clutter-1.0 and
+      gir1.2-json-glib-1.0 and let their corresponding -dev package pull it in
+      automatically. Bump the Build-Depends on the -dev packages accordingly.
+  * Bump debhelper compatibility level to 8.
+    - Update Build-Depends on debhelper.
+    - Strip debian/tmp/ from .install files.
+  * Let cdbs call dh_girepository.
+    - Bump Build-Depends on cdbs to (>= 0.4.90).
+    - Remove custom dh_girepository rules from debian/rules.
+    - Set DEB_DH_GIREPOSITORY_ARGS_ALL to /usr/lib/mutter.

@@ -1,0 +1,2 @@
+  * debian/patches/snap_packages_for_app_id.patch
+    - Support snap packages for sandboxed app IDs, cherry picked from master

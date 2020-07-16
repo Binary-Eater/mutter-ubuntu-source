@@ -1,0 +1,5 @@
+  * New upstream release (LP: #1269916)
+  * Merge with Debian. Remaining changes:
+    - debian/patches/04_ignore_shadow_and_padding.patch:
+      + Silently ignore padding and shadow tags (for light-themes)
+    - debian/control.in: Don't depend on gnome-desktop3 3.10

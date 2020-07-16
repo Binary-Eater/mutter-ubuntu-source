@@ -1,0 +1,4 @@
+  * New upstream release
+    - Fix crashes when launching apps from apps in GNOME on Wayland
+      (LP: #1754169)
+  * Bump urgency for this targeted fix

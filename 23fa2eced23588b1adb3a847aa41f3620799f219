@@ -1,0 +1,17 @@
+  * Team upload
+  [ Simon McVittie ]
+  * New upstream stable release
+    - Fix FTBFS with Wayland disabled (non-Linux kernels)
+    - X11 copy/paste/selection fixes (LP: #1852183)
+    - Fix freeze with some DisplayLink devices
+    - Fix a memory leak
+    - Synchronize shadows to server-side decorations
+    - Fix overview key on X11 when using multiple keyboard layouts
+    - Fix painting the redraw clip with the damage region
+    - Fix capturing with multiple stage views
+    - Fix screencasting of non-maximized windows (LP: #1873942)
+    - Various misc fixes and cleanups (LP: #1874818)
+    - Update translation: de
+  [ Marco Trevisan (Treviño) ]
+  * debian/libmutter-6-0.symbols: Update
+  * debian/rules: Ignore build failures on riscv64

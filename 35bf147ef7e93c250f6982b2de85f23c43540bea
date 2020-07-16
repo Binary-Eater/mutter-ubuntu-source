@@ -1,0 +1,4 @@
+  * New upstream release
+    + Fix placement of popup windows in multi-monitor setups
+    + Fix invisible mouse cursor on some hardware
+    + Updated translations

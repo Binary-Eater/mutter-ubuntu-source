@@ -71,6 +71,7 @@
 #include "window-private.h" /* to check window->hidden */
 #include "display-private.h" /* for meta_display_lookup_x_window() and meta_display_cancel_touch() */
 #include "util-private.h"
+#include "backends/meta-dnd-private.h"
 #include "frame.h"
 #include <X11/extensions/shape.h>
 #include <X11/extensions/Xcomposite.h>
@@ -386,6 +387,8 @@ meta_begin_modal_for_plugin (MetaCompositor   *compositor,
     {
       meta_display_sync_wayland_input_focus (display);
       meta_display_cancel_touch (display);
+
+      meta_dnd_wayland_handle_begin_modal (compositor);
     }
 
   return TRUE;
@@ -468,7 +471,7 @@ redirect_windows (MetaScreen *screen)
         {
           /* This probably means that a non-WM compositor like xcompmgr is running;
            * we have no way to get it to exit */
-          meta_fatal (_("Another compositing manager is already running on screen %i on display \"%s\"."),
+          meta_fatal (_("Another compositing manager is already running on screen %i on display “%s”."),
                       screen_number, display->name);
         }
 
@@ -1013,6 +1016,7 @@ meta_compositor_sync_window_geometry (MetaCompositor *compositor,
 {
   MetaWindowActor *window_actor = META_WINDOW_ACTOR (meta_window_get_compositor_private (window));
   meta_window_actor_sync_actor_geometry (window_actor, did_placement);
+  meta_plugin_manager_event_size_changed (compositor->plugin_mgr, window_actor);
 }
 
 static void

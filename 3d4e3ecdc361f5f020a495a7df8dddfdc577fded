@@ -1,0 +1,4 @@
+  * New upstream RC release
+  * mutter-common.gconf-defaults, mutter-common.gsettings-override:
+    - Dropped, overrides have been moved to ubuntu-default-settings
+      and ubuntu-gnome-default-settings

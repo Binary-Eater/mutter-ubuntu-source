@@ -1,0 +1,8 @@
+  [ Marco Trevisan (Treviño) ]
+  * New upstream release
+    + Avoid repainting covered areas
+    + Start Xwayland on demand
+    + Expose layout manager properties to transitions
+  * debian/patches: Refresh
+  [ Simon McVittie ]
+  * d/libmutter-5-0.bug-control: Include GL drivers in bug reports

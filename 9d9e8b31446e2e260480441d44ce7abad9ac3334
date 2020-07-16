@@ -1,0 +1,3 @@
+  * d/p/EGL-Include-EGL-eglmesaext.h.patch: Cherry pick from master. This
+    fixes the generated EGL includes for the move of exlext.h from mesa to
+    libglvnd, which has just happened in Debian.

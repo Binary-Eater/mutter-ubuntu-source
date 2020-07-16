@@ -1,0 +1,2 @@
+  * add debian/patches/15_detect_maximized_window.patch:
+    - detect window's state (needed for unity)

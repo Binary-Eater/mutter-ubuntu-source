@@ -1,0 +1,6 @@
+  * debian/rules:
+    - Build with -Wno-deprecated-declarations, otherwise -Werror will
+      make us fail to build when a library deprecates some functions.
+      Closes: #590347.
+  * The rebuild gets rid of the ClutterJson requirement, so this also
+    closes: #589879.

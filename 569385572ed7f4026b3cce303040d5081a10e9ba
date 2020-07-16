@@ -1,0 +1,2 @@
+  * New upstream release.
+    - fix crash when removing monitor/undocking (Closes: #813687)

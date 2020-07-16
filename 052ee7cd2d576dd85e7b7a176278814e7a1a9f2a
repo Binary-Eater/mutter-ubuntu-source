@@ -1,0 +1,6 @@
+  * Team upload
+  * Update to upstream gnome-3-36 branch, commit 3.36.1-16-gdb164bcfa
+    - Fix a crash during X11 drag-and-drop, for example when dragging
+      a JPEG file onto GIMP's splash screen
+    - Fix a crash in X11 input device handling
+    - Translate coordinates of absolute input devices for rotated screens

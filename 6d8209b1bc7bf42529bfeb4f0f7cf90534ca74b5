@@ -1,0 +1,7 @@
+  * Merge with debian experimental, remaining changes:
+    + debian/patches/03_link_gles2.patch: Link to clutter-glx-1.0
+      explicitily at the end of link flags, to bring in libGLESv2 on armel.
+  * New upstream release (3.0.0).
+  * debian/control.in:
+    - Bump Standards-Version to 3.9.2 (no further changes)
+    - Drop versionized dpkg-dev build-dependency

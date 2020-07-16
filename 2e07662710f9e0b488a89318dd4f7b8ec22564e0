@@ -1,0 +1,2 @@
+  * debian/control:
+  - fix gir package name, because the typelib has changed its name

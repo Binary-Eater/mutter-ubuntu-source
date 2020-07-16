@@ -1,0 +1,2 @@
+  * debian/patches/0001-Update-for-Cogl-API-breaks.patch: cherry pick
+    patch from upstream to fix FTBFS against cogl20.

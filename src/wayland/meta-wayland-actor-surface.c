@@ -110,7 +110,7 @@ meta_wayland_actor_surface_assigned (MetaWaylandSurfaceRole *surface_role)
 
 void
 meta_wayland_actor_surface_queue_frame_callbacks (MetaWaylandActorSurface *actor_surface,
-                                                  MetaWaylandPendingState *pending)
+                                                  MetaWaylandSurfaceState *pending)
 {
   MetaWaylandActorSurfacePrivate *priv =
     meta_wayland_actor_surface_get_instance_private (actor_surface);
@@ -150,7 +150,6 @@ meta_wayland_actor_surface_real_sync_actor_state (MetaWaylandActorSurface *actor
   MetaShapedTexture *stex;
   MetaWaylandBuffer *buffer;
   cairo_rectangle_int_t surface_rect;
-  int geometry_scale;
   MetaWaylandSurface *subsurface_surface;
 
   surface_actor = priv->actor;
@@ -176,11 +175,9 @@ meta_wayland_actor_surface_real_sync_actor_state (MetaWaylandActorSurface *actor
       meta_shaped_texture_set_texture (stex, NULL);
     }
 
-  /* Wayland surface coordinate space -> stage coordinate space */
-  geometry_scale = meta_wayland_actor_surface_get_geometry_scale (actor_surface);
   surface_rect = (cairo_rectangle_int_t) {
-    .width = meta_wayland_surface_get_width (surface) * geometry_scale,
-    .height = meta_wayland_surface_get_height (surface) * geometry_scale,
+    .width = meta_wayland_surface_get_width (surface),
+    .height = meta_wayland_surface_get_height (surface),
   };
 
   if (surface->input_region)
@@ -197,18 +194,22 @@ meta_wayland_actor_surface_real_sync_actor_state (MetaWaylandActorSurface *actor
       meta_surface_actor_set_input_region (surface_actor, NULL);
     }
 
-  if (surface->opaque_region)
+  if (surface->window &&
+      surface->window->client_type == META_WINDOW_CLIENT_TYPE_WAYLAND)
     {
-      cairo_region_t *opaque_region;
+      if (surface->opaque_region)
+        {
+          cairo_region_t *opaque_region;
 
-      opaque_region = cairo_region_copy (surface->opaque_region);
-      cairo_region_intersect_rectangle (opaque_region, &surface_rect);
-      meta_surface_actor_set_opaque_region (surface_actor, opaque_region);
-      cairo_region_destroy (opaque_region);
-    }
-  else
-    {
-      meta_surface_actor_set_opaque_region (surface_actor, NULL);
+          opaque_region = cairo_region_copy (surface->opaque_region);
+          cairo_region_intersect_rectangle (opaque_region, &surface_rect);
+          meta_surface_actor_set_opaque_region (surface_actor, opaque_region);
+          cairo_region_destroy (opaque_region);
+        }
+      else
+        {
+          meta_surface_actor_set_opaque_region (surface_actor, NULL);
+        }
     }
 
   meta_surface_actor_set_transform (surface_actor, surface->buffer_transform);
@@ -253,8 +254,8 @@ meta_wayland_actor_surface_sync_actor_state (MetaWaylandActorSurface *actor_surf
 }
 
 static void
-meta_wayland_actor_surface_commit (MetaWaylandSurfaceRole  *surface_role,
-                                   MetaWaylandPendingState *pending)
+meta_wayland_actor_surface_apply_state (MetaWaylandSurfaceRole  *surface_role,
+                                        MetaWaylandSurfaceState *pending)
 {
   MetaWaylandActorSurface *actor_surface =
     META_WAYLAND_ACTOR_SURFACE (surface_role);
@@ -342,7 +343,7 @@ meta_wayland_actor_surface_class_init (MetaWaylandActorSurfaceClass *klass)
   object_class->dispose = meta_wayland_actor_surface_dispose;
 
   surface_role_class->assigned = meta_wayland_actor_surface_assigned;
-  surface_role_class->commit = meta_wayland_actor_surface_commit;
+  surface_role_class->apply_state = meta_wayland_actor_surface_apply_state;
   surface_role_class->is_on_logical_monitor =
     meta_wayland_actor_surface_is_on_logical_monitor;
 

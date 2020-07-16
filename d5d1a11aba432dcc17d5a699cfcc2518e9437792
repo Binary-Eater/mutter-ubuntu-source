@@ -1,0 +1,2 @@
+  * Restore debian/skip-failing-tests-325.patch:
+    - The test still fails on mips

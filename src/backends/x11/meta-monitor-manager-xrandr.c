@@ -33,8 +33,10 @@
 #include <clutter/clutter.h>
 
 #include <X11/Xatom.h>
+#include <X11/Xlibint.h>
 #include <X11/extensions/Xrandr.h>
 #include <X11/extensions/dpms.h>
+#include <X11/extensions/extutil.h>
 #include <X11/Xlib-xcb.h>
 #include <xcb/randr.h>
 
@@ -62,9 +64,14 @@ struct _MetaMonitorManagerXrandr
   int rr_error_base;
   gboolean has_randr15;
 
+  xcb_timestamp_t last_xrandr_set_timestamp;
+
 #ifdef HAVE_XRANDR15
   GHashTable *tiled_monitor_atoms;
 #endif /* HAVE_XRANDR15 */
+
+  int max_screen_width;
+  int max_screen_height;
 };
 
 struct _MetaMonitorManagerXrandrClass
@@ -769,8 +776,8 @@ meta_monitor_manager_xrandr_read_current (MetaMonitorManager *manager)
   XRRGetScreenSizeRange (manager_xrandr->xdisplay, DefaultRootWindow (manager_xrandr->xdisplay),
 			 &min_width,
 			 &min_height,
-			 &manager->max_screen_width,
-			 &manager->max_screen_height);
+			 &manager_xrandr->max_screen_width,
+			 &manager_xrandr->max_screen_height);
 
   screen = ScreenOfDisplay (manager_xrandr->xdisplay,
 			    DefaultScreen (manager_xrandr->xdisplay));
@@ -971,27 +978,27 @@ meta_monitor_manager_xrandr_set_power_save_mode (MetaMonitorManager *manager,
   DPMSSetTimeouts (manager_xrandr->xdisplay, 0, 0, 0);
 }
 
-static Rotation
+static xcb_randr_rotation_t
 meta_monitor_transform_to_xrandr (MetaMonitorTransform transform)
 {
   switch (transform)
     {
     case META_MONITOR_TRANSFORM_NORMAL:
-      return RR_Rotate_0;
+      return XCB_RANDR_ROTATION_ROTATE_0;
     case META_MONITOR_TRANSFORM_90:
-      return RR_Rotate_90;
+      return XCB_RANDR_ROTATION_ROTATE_90;
     case META_MONITOR_TRANSFORM_180:
-      return RR_Rotate_180;
+      return XCB_RANDR_ROTATION_ROTATE_180;
     case META_MONITOR_TRANSFORM_270:
-      return RR_Rotate_270;
+      return XCB_RANDR_ROTATION_ROTATE_270;
     case META_MONITOR_TRANSFORM_FLIPPED:
-      return RR_Reflect_X | RR_Rotate_0;
+      return XCB_RANDR_ROTATION_REFLECT_X | XCB_RANDR_ROTATION_ROTATE_0;
     case META_MONITOR_TRANSFORM_FLIPPED_90:
-      return RR_Reflect_X | RR_Rotate_90;
+      return XCB_RANDR_ROTATION_REFLECT_X | XCB_RANDR_ROTATION_ROTATE_90;
     case META_MONITOR_TRANSFORM_FLIPPED_180:
-      return RR_Reflect_X | RR_Rotate_180;
+      return XCB_RANDR_ROTATION_REFLECT_X | XCB_RANDR_ROTATION_ROTATE_180;
     case META_MONITOR_TRANSFORM_FLIPPED_270:
-      return RR_Reflect_X | RR_Rotate_270;
+      return XCB_RANDR_ROTATION_REFLECT_X | XCB_RANDR_ROTATION_ROTATE_270;
     }
 
   g_assert_not_reached ();
@@ -1060,8 +1067,180 @@ output_set_underscanning_xrandr (MetaMonitorManagerXrandr *manager_xrandr,
     }
 }
 
+static gboolean
+xrandr_set_crtc_config (MetaMonitorManagerXrandr *manager_xrandr,
+                        gboolean                  save_timestamp,
+                        xcb_randr_crtc_t          crtc,
+                        xcb_timestamp_t           timestamp,
+                        int                       x,
+                        int                       y,
+                        xcb_randr_mode_t          mode,
+                        xcb_randr_rotation_t      rotation,
+                        xcb_randr_output_t       *outputs,
+                        int                       n_outputs)
+{
+  xcb_connection_t *xcb_conn;
+  xcb_timestamp_t config_timestamp;
+  xcb_randr_set_crtc_config_cookie_t cookie;
+  xcb_randr_set_crtc_config_reply_t *reply;
+  xcb_generic_error_t *xcb_error = NULL;
+
+  xcb_conn = XGetXCBConnection (manager_xrandr->xdisplay);
+  config_timestamp = manager_xrandr->resources->configTimestamp;
+  cookie = xcb_randr_set_crtc_config (xcb_conn,
+                                      crtc,
+                                      timestamp,
+                                      config_timestamp,
+                                      x, y,
+                                      mode,
+                                      rotation,
+                                      n_outputs,
+                                      outputs);
+  reply = xcb_randr_set_crtc_config_reply (xcb_conn,
+                                           cookie,
+                                           &xcb_error);
+  if (xcb_error || !reply)
+    {
+      free (xcb_error);
+      free (reply);
+      return FALSE;
+    }
+
+  if (save_timestamp)
+    manager_xrandr->last_xrandr_set_timestamp = reply->timestamp;
+
+  free (reply);
+
+  return TRUE;
+}
+
+static gboolean
+is_crtc_assignment_changed (MetaCrtc      *crtc,
+                            MetaCrtcInfo **crtc_infos,
+                            unsigned int   n_crtc_infos)
+{
+  unsigned int i;
+
+  for (i = 0; i < n_crtc_infos; i++)
+    {
+      MetaCrtcInfo *crtc_info = crtc_infos[i];
+      unsigned int j;
+
+      if (crtc_info->crtc != crtc)
+        continue;
+
+      if (crtc->current_mode != crtc_info->mode)
+        return TRUE;
+
+      if (crtc->rect.x != crtc_info->x)
+        return TRUE;
+
+      if (crtc->rect.y != crtc_info->y)
+        return TRUE;
+
+      if (crtc->transform != crtc_info->transform)
+        return TRUE;
+
+      for (j = 0; j < crtc_info->outputs->len; j++)
+        {
+          MetaOutput *output = ((MetaOutput**) crtc_info->outputs->pdata)[j];
+
+          if (output->crtc != crtc)
+            return TRUE;
+        }
+
+      return FALSE;
+    }
+
+  return crtc->current_mode != NULL;
+}
+
+static gboolean
+is_output_assignment_changed (MetaOutput      *output,
+                              MetaCrtcInfo   **crtc_infos,
+                              unsigned int     n_crtc_infos,
+                              MetaOutputInfo **output_infos,
+                              unsigned int     n_output_infos)
+{
+  gboolean output_is_found = FALSE;
+  unsigned int i;
+
+  for (i = 0; i < n_output_infos; i++)
+    {
+      MetaOutputInfo *output_info = output_infos[i];
+
+      if (output_info->output != output)
+        continue;
+
+      if (output->is_primary != output_info->is_primary)
+        return TRUE;
+
+      if (output->is_presentation != output_info->is_presentation)
+        return TRUE;
+
+      if (output->is_underscanning != output_info->is_underscanning)
+        return TRUE;
+
+      output_is_found = TRUE;
+    }
+
+  if (!output_is_found)
+    return output->crtc != NULL;
+
+  for (i = 0; i < n_crtc_infos; i++)
+    {
+      MetaCrtcInfo *crtc_info = crtc_infos[i];
+      unsigned int j;
+
+      for (j = 0; j < crtc_info->outputs->len; j++)
+        {
+          MetaOutput *crtc_info_output =
+            ((MetaOutput**) crtc_info->outputs->pdata)[j];
+
+          if (crtc_info_output == output &&
+              crtc_info->crtc == output->crtc)
+            return FALSE;
+        }
+    }
+
+  return TRUE;
+}
+
+static gboolean
+is_assignments_changed (MetaMonitorManager *manager,
+                        MetaCrtcInfo      **crtc_infos,
+                        unsigned int        n_crtc_infos,
+                        MetaOutputInfo    **output_infos,
+                        unsigned int        n_output_infos)
+{
+  unsigned int i;
+
+  for (i = 0; i < manager->n_crtcs; i++)
+    {
+      MetaCrtc *crtc = &manager->crtcs[i];
+
+      if (is_crtc_assignment_changed (crtc, crtc_infos, n_crtc_infos))
+        return TRUE;
+    }
+
+  for (i = 0; i < manager->n_outputs; i++)
+    {
+      MetaOutput *output = &manager->outputs[i];
+
+      if (is_output_assignment_changed (output,
+                                        crtc_infos,
+                                        n_crtc_infos,
+                                        output_infos,
+                                        n_output_infos))
+        return TRUE;
+    }
+
+  return FALSE;
+}
+
 static void
 apply_crtc_assignments (MetaMonitorManager *manager,
+                        gboolean            save_timestamp,
                         MetaCrtcInfo      **crtcs,
                         unsigned int        n_crtcs,
                         MetaOutputInfo    **outputs,
@@ -1110,14 +1289,13 @@ apply_crtc_assignments (MetaMonitorManager *manager,
           crtc->rect.x + crtc->rect.width > width ||
           crtc->rect.y + crtc->rect.height > height)
         {
-          XRRSetCrtcConfig (manager_xrandr->xdisplay,
-                            manager_xrandr->resources,
-                            (XID)crtc->crtc_id,
-                            CurrentTime,
-                            0, 0,
-                            None,
-                            RR_Rotate_0,
-                            NULL, 0);
+          xrandr_set_crtc_config (manager_xrandr,
+                                  save_timestamp,
+                                  (xcb_randr_crtc_t) crtc->crtc_id,
+                                  XCB_CURRENT_TIME,
+                                  0, 0, XCB_NONE,
+                                  XCB_RANDR_ROTATION_ROTATE_0,
+                                  NULL, 0);
 
           crtc->rect.x = 0;
           crtc->rect.y = 0;
@@ -1140,14 +1318,13 @@ apply_crtc_assignments (MetaMonitorManager *manager,
       if (crtc->current_mode == NULL)
         continue;
 
-      XRRSetCrtcConfig (manager_xrandr->xdisplay,
-                        manager_xrandr->resources,
-                        (XID)crtc->crtc_id,
-                        CurrentTime,
-                        0, 0,
-                        None,
-                        RR_Rotate_0,
-                        NULL, 0);
+      xrandr_set_crtc_config (manager_xrandr,
+                              save_timestamp,
+                              (xcb_randr_crtc_t) crtc->crtc_id,
+                              XCB_CURRENT_TIME,
+                              0, 0, XCB_NONE,
+                              XCB_RANDR_ROTATION_ROTATE_0,
+                              NULL, 0);
 
       crtc->rect.x = 0;
       crtc->rect.y = 0;
@@ -1176,14 +1353,14 @@ apply_crtc_assignments (MetaMonitorManager *manager,
       if (crtc_info->mode != NULL)
         {
           MetaCrtcMode *mode;
-          g_autofree XID *output_ids = NULL;
+          g_autofree xcb_randr_output_t *output_ids = NULL;
           unsigned int j, n_output_ids;
-          Status ok;
+          xcb_randr_rotation_t rotation;
 
           mode = crtc_info->mode;
 
           n_output_ids = crtc_info->outputs->len;
-          output_ids = g_new (XID, n_output_ids);
+          output_ids = g_new (xcb_randr_output_t, n_output_ids);
 
           for (j = 0; j < n_output_ids; j++)
             {
@@ -1197,16 +1374,15 @@ apply_crtc_assignments (MetaMonitorManager *manager,
               output_ids[j] = output->winsys_id;
             }
 
-          ok = XRRSetCrtcConfig (manager_xrandr->xdisplay,
-                                 manager_xrandr->resources,
-                                 (XID)crtc->crtc_id,
-                                 CurrentTime,
-                                 crtc_info->x, crtc_info->y,
-                                 (XID)mode->mode_id,
-                                 meta_monitor_transform_to_xrandr (crtc_info->transform),
-                                 output_ids, n_output_ids);
-
-          if (ok != Success)
+          rotation = meta_monitor_transform_to_xrandr (crtc_info->transform);
+          if (!xrandr_set_crtc_config (manager_xrandr,
+                                       save_timestamp,
+                                       (xcb_randr_crtc_t) crtc->crtc_id,
+                                       XCB_CURRENT_TIME,
+                                       crtc_info->x, crtc_info->y,
+                                       (xcb_randr_mode_t) mode->mode_id,
+                                       rotation,
+                                       output_ids, n_output_ids))
             {
               meta_warning ("Configuring CRTC %d with mode %d (%d x %d @ %f) at position %d, %d and transform %u failed\n",
                             (unsigned)(crtc->crtc_id), (unsigned)(mode->mode_id),
@@ -1283,6 +1459,9 @@ apply_crtc_assignments (MetaMonitorManager *manager,
 static void
 meta_monitor_manager_xrandr_ensure_initial_config (MetaMonitorManager *manager)
 {
+  MetaMonitorManagerDeriveFlag flags =
+    META_MONITOR_MANAGER_DERIVE_FLAG_NONE;
+
   meta_monitor_manager_ensure_configured (manager);
 
   /*
@@ -1292,27 +1471,67 @@ meta_monitor_manager_xrandr_ensure_initial_config (MetaMonitorManager *manager)
    */
   meta_monitor_manager_read_current_state (manager);
 
-  meta_monitor_manager_update_logical_state_derived (manager);
+  if (meta_is_monitor_config_manager_enabled ())
+    flags |= META_MONITOR_MANAGER_DERIVE_FLAG_CONFIGURED_SCALE;
+
+  meta_monitor_manager_update_logical_state_derived (manager, flags);
 }
 
 static gboolean
-meta_monitor_manager_xrandr_apply_monitors_config (MetaMonitorManager *manager,
-                                                   MetaMonitorsConfig *config,
-                                                   GError            **error)
+meta_monitor_manager_xrandr_apply_monitors_config (MetaMonitorManager      *manager,
+                                                   MetaMonitorsConfig      *config,
+                                                   MetaMonitorsConfigMethod method,
+                                                   GError                 **error)
 {
   GPtrArray *crtc_infos;
   GPtrArray *output_infos;
+
+  if (!config)
+    {
+      MetaMonitorManagerDeriveFlag flags =
+        META_MONITOR_MANAGER_DERIVE_FLAG_NONE;
+
+      meta_monitor_manager_rebuild_derived (manager, flags);
+      return TRUE;
+    }
 
   if (!meta_monitor_config_manager_assign (manager, config,
                                            &crtc_infos, &output_infos,
                                            error))
     return FALSE;
 
-  apply_crtc_assignments (manager,
-                          (MetaCrtcInfo **) crtc_infos->pdata,
-                          crtc_infos->len,
-                          (MetaOutputInfo **) output_infos->pdata,
-                          output_infos->len);
+  if (method != META_MONITORS_CONFIG_METHOD_VERIFY)
+    {
+      /*
+       * If the assignment has not changed, we won't get any notification about
+       * any new configuration from the X server; but we still need to update
+       * our own configuration, as something not applicable in Xrandr might
+       * have changed locally, such as the logical monitors scale. This means we
+       * must check that our new assignment actually changes anything, otherwise
+       * just update the logical state.
+       */
+      if (is_assignments_changed (manager,
+                                  (MetaCrtcInfo **) crtc_infos->pdata,
+                                  crtc_infos->len,
+                                  (MetaOutputInfo **) output_infos->pdata,
+                                  output_infos->len))
+        {
+          apply_crtc_assignments (manager,
+                                  TRUE,
+                                  (MetaCrtcInfo **) crtc_infos->pdata,
+                                  crtc_infos->len,
+                                  (MetaOutputInfo **) output_infos->pdata,
+                                  output_infos->len);
+        }
+      else
+        {
+          MetaMonitorManagerDeriveFlag flags;
+
+          flags = (META_MONITOR_MANAGER_DERIVE_FLAG_NONE |
+                   META_MONITOR_MANAGER_DERIVE_FLAG_CONFIGURED_SCALE);
+          meta_monitor_manager_rebuild_derived (manager, flags);
+        }
+    }
 
   g_ptr_array_free (crtc_infos, TRUE);
   g_ptr_array_free (output_infos, TRUE);
@@ -1327,7 +1546,7 @@ meta_monitor_manager_xrandr_apply_configuration (MetaMonitorManager *manager,
 						 MetaOutputInfo    **outputs,
 						 unsigned int        n_outputs)
 {
-  apply_crtc_assignments (manager, crtcs, n_crtcs, outputs, n_outputs);
+  apply_crtc_assignments (manager, FALSE, crtcs, n_crtcs, outputs, n_outputs);
 }
 
 static void
@@ -1568,6 +1787,56 @@ meta_monitor_manager_xrandr_is_transform_handled (MetaMonitorManager  *manager,
   return TRUE;
 }
 
+static float
+meta_monitor_manager_xrandr_calculate_monitor_mode_scale (MetaMonitorManager *manager,
+                                                          MetaMonitor        *monitor,
+                                                          MetaMonitorMode    *monitor_mode)
+{
+  return meta_monitor_calculate_mode_scale (monitor, monitor_mode);
+}
+
+static float *
+meta_monitor_manager_xrandr_calculate_supported_scales (MetaMonitorManager          *manager,
+                                                        MetaLogicalMonitorLayoutMode layout_mode,
+                                                        MetaMonitor                 *monitor,
+                                                        MetaMonitorMode             *monitor_mode,
+                                                        int                         *n_supported_scales)
+{
+  MetaMonitorScalesConstraint constraints;
+
+  constraints = META_MONITOR_SCALES_CONSTRAINT_NO_FRAC;
+  return meta_monitor_calculate_supported_scales (monitor, monitor_mode,
+                                                  constraints,
+                                                  n_supported_scales);
+}
+
+static MetaMonitorManagerCapability
+meta_monitor_manager_xrandr_get_capabilities (MetaMonitorManager *manager)
+{
+  return (META_MONITOR_MANAGER_CAPABILITY_MIRRORING |
+          META_MONITOR_MANAGER_CAPABILITY_GLOBAL_SCALE_REQUIRED);
+}
+
+static gboolean
+meta_monitor_manager_xrandr_get_max_screen_size (MetaMonitorManager *manager,
+                                                 int                *max_width,
+                                                 int                *max_height)
+{
+  MetaMonitorManagerXrandr *manager_xrandr =
+    META_MONITOR_MANAGER_XRANDR (manager);
+
+  *max_width = manager_xrandr->max_screen_width;
+  *max_height = manager_xrandr->max_screen_height;
+
+  return TRUE;
+}
+
+static MetaLogicalMonitorLayoutMode
+meta_monitor_manager_xrandr_get_default_layout_mode (MetaMonitorManager *manager)
+{
+  return META_LOGICAL_MONITOR_LAYOUT_MODE_PHYSICAL;
+}
+
 static void
 meta_monitor_manager_xrandr_init (MetaMonitorManagerXrandr *manager_xrandr)
 {
@@ -1644,6 +1913,11 @@ meta_monitor_manager_xrandr_class_init (MetaMonitorManagerXrandrClass *klass)
   manager_class->tiled_monitor_removed = meta_monitor_manager_xrandr_tiled_monitor_removed;
 #endif
   manager_class->is_transform_handled = meta_monitor_manager_xrandr_is_transform_handled;
+  manager_class->calculate_monitor_mode_scale = meta_monitor_manager_xrandr_calculate_monitor_mode_scale;
+  manager_class->calculate_supported_scales = meta_monitor_manager_xrandr_calculate_supported_scales;
+  manager_class->get_capabilities = meta_monitor_manager_xrandr_get_capabilities;
+  manager_class->get_max_screen_size = meta_monitor_manager_xrandr_get_max_screen_size;
+  manager_class->get_default_layout_mode = meta_monitor_manager_xrandr_get_default_layout_mode;
 
   quark_meta_monitor_xrandr_data =
     g_quark_from_static_string ("-meta-monitor-xrandr-data");
@@ -1654,7 +1928,8 @@ meta_monitor_manager_xrandr_handle_xevent (MetaMonitorManagerXrandr *manager_xra
 					   XEvent                   *event)
 {
   MetaMonitorManager *manager = META_MONITOR_MANAGER (manager_xrandr);
-  gboolean hotplug;
+  gboolean is_hotplug;
+  gboolean is_our_configuration;
 
   if ((event->type - manager_xrandr->rr_event_base) != RRScreenChangeNotify)
     return FALSE;
@@ -1663,16 +1938,24 @@ meta_monitor_manager_xrandr_handle_xevent (MetaMonitorManagerXrandr *manager_xra
 
   meta_monitor_manager_read_current_state (manager);
 
-  hotplug = manager_xrandr->resources->timestamp < manager_xrandr->resources->configTimestamp;
-  if (hotplug)
+
+  is_hotplug = (manager_xrandr->resources->timestamp <
+                manager_xrandr->resources->configTimestamp);
+  is_our_configuration = (manager_xrandr->resources->timestamp ==
+                          manager_xrandr->last_xrandr_set_timestamp);
+  if (is_hotplug)
     {
-      /* This is a hotplug event, so go ahead and build a new configuration. */
       meta_monitor_manager_on_hotplug (manager);
     }
   else
     {
-      /* Something else changed -- tell the world about it. */
-      meta_monitor_manager_rebuild_derived (manager);
+      MetaMonitorManagerDeriveFlag flags =
+        META_MONITOR_MANAGER_DERIVE_FLAG_NONE;
+
+      if (is_our_configuration)
+        flags |= META_MONITOR_MANAGER_DERIVE_FLAG_CONFIGURED_SCALE;
+
+      meta_monitor_manager_rebuild_derived (manager, flags);
     }
 
   return TRUE;

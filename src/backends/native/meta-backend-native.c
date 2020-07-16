@@ -45,6 +45,7 @@
 #include "backends/meta-pointer-constraint.h"
 #include "backends/meta-stage.h"
 #include "backends/native/meta-clutter-backend-native.h"
+#include "backends/native/meta-input-settings-native.h"
 #include "backends/native/meta-renderer-native.h"
 #include "backends/native/meta-stage-native.h"
 
@@ -340,6 +341,9 @@ relative_motion_filter (ClutterInputDevice *device,
   MetaLogicalMonitor *logical_monitor, *dest_logical_monitor;
   float new_dx, new_dy;
 
+  if (meta_is_stage_views_scaled ())
+    return;
+
   logical_monitor = meta_monitor_manager_get_logical_monitor_at (monitor_manager,
                                                                  x, y);
   if (!logical_monitor)
@@ -431,6 +435,12 @@ meta_backend_native_create_renderer (MetaBackend *backend)
   return META_RENDERER (renderer_native);
 }
 
+static MetaInputSettings *
+meta_backend_native_create_input_settings (MetaBackend *backend)
+{
+  return g_object_new (META_TYPE_INPUT_SETTINGS_NATIVE, NULL);
+}
+
 static void
 meta_backend_native_warp_pointer (MetaBackend *backend,
                                   int          x,
@@ -485,7 +495,7 @@ meta_backend_native_set_keymap (MetaBackend *backend,
 
   clutter_evdev_set_keyboard_map (manager, keymap);
 
-  g_signal_emit_by_name (backend, "keymap-changed", 0);
+  meta_backend_notify_keymap_changed (backend);
 
   xkb_keymap_unref (keymap);
 }
@@ -502,8 +512,9 @@ meta_backend_native_lock_layout_group (MetaBackend *backend,
                                        guint        idx)
 {
   ClutterDeviceManager *manager = clutter_device_manager_get_default ();
+
   clutter_evdev_set_keyboard_layout_index (manager, idx);
-  g_signal_emit_by_name (backend, "keymap-layout-group-changed", idx, 0);
+  meta_backend_notify_keymap_layout_group_changed (backend, idx);
 }
 
 static void
@@ -560,6 +571,7 @@ meta_backend_native_class_init (MetaBackendNativeClass *klass)
   backend_class->create_monitor_manager = meta_backend_native_create_monitor_manager;
   backend_class->create_cursor_renderer = meta_backend_native_create_cursor_renderer;
   backend_class->create_renderer = meta_backend_native_create_renderer;
+  backend_class->create_input_settings = meta_backend_native_create_input_settings;
 
   backend_class->warp_pointer = meta_backend_native_warp_pointer;
 

@@ -59,12 +59,43 @@ typedef struct _MetaMonitorTiled MetaMonitorTiled;
 typedef struct _MetaMonitorSpec MetaMonitorSpec;
 typedef struct _MetaLogicalMonitor MetaLogicalMonitor;
 
+typedef struct _MetaMonitorMode MetaMonitorMode;
+
 typedef struct _MetaCrtc MetaCrtc;
 typedef struct _MetaOutput MetaOutput;
 typedef struct _MetaCrtcMode MetaCrtcMode;
 typedef struct _MetaCrtcInfo MetaCrtcInfo;
 typedef struct _MetaOutputInfo MetaOutputInfo;
 typedef struct _MetaTileInfo MetaTileInfo;
+
+typedef enum _MetaMonitorManagerCapability
+{
+  META_MONITOR_MANAGER_CAPABILITY_NONE = 0,
+  META_MONITOR_MANAGER_CAPABILITY_MIRRORING = (1 << 0),
+  META_MONITOR_MANAGER_CAPABILITY_LAYOUT_MODE = (1 << 1),
+  META_MONITOR_MANAGER_CAPABILITY_GLOBAL_SCALE_REQUIRED = (1 << 2)
+} MetaMonitorManagerCapability;
+
+/* Equivalent to the 'method' enum in org.gnome.Mutter.DisplayConfig */
+typedef enum _MetaMonitorsConfigMethod
+{
+  META_MONITORS_CONFIG_METHOD_VERIFY = 0,
+  META_MONITORS_CONFIG_METHOD_TEMPORARY = 1,
+  META_MONITORS_CONFIG_METHOD_PERSISTENT = 2
+} MetaMonitorsConfigMethod;
+
+/* Equivalent to the 'layout-mode' enum in org.gnome.Mutter.DisplayConfig */
+typedef enum _MetaLogicalMonitorLayoutMode
+{
+  META_LOGICAL_MONITOR_LAYOUT_MODE_LOGICAL = 1,
+  META_LOGICAL_MONITOR_LAYOUT_MODE_PHYSICAL = 2
+} MetaLogicalMonitorLayoutMode;
+
+typedef enum _MetaMonitorManagerDeriveFlag
+{
+  META_MONITOR_MANAGER_DERIVE_FLAG_NONE = 0,
+  META_MONITOR_MANAGER_DERIVE_FLAG_CONFIGURED_SCALE = (1 << 0)
+} MetaMonitorManagerDeriveFlag;
 
 typedef enum
 {
@@ -100,6 +131,28 @@ typedef enum
   META_CONNECTOR_TYPE_DSI = 16,
 } MetaConnectorType;
 
+/* Same as KMS mode flags and X11 randr flags */
+typedef enum
+{
+  META_CRTC_MODE_FLAG_NONE = 0,
+  META_CRTC_MODE_FLAG_PHSYNC = (1 << 0),
+  META_CRTC_MODE_FLAG_NHSYNC = (1 << 1),
+  META_CRTC_MODE_FLAG_PVSYNC = (1 << 2),
+  META_CRTC_MODE_FLAG_NVSYNC = (1 << 3),
+  META_CRTC_MODE_FLAG_INTERLACE = (1 << 4),
+  META_CRTC_MODE_FLAG_DBLSCAN = (1 << 5),
+  META_CRTC_MODE_FLAG_CSYNC = (1 << 6),
+  META_CRTC_MODE_FLAG_PCSYNC = (1 << 7),
+  META_CRTC_MODE_FLAG_NCSYNC = (1 << 8),
+  META_CRTC_MODE_FLAG_HSKEW = (1 << 9),
+  META_CRTC_MODE_FLAG_BCAST = (1 << 10),
+  META_CRTC_MODE_FLAG_PIXMUX = (1 << 11),
+  META_CRTC_MODE_FLAG_DBLCLK = (1 << 12),
+  META_CRTC_MODE_FLAG_CLKDIV2 = (1 << 13),
+
+  META_CRTC_MODE_FLAG_MASK = 0x3fff
+} MetaCrtcModeFlag;
+
 struct _MetaTileInfo
 {
   guint32 group_id;
@@ -125,7 +178,6 @@ struct _MetaOutput
   int width_mm;
   int height_mm;
   CoglSubpixelOrder subpixel_order;
-  int scale;
 
   MetaConnectorType connector_type;
 
@@ -201,7 +253,7 @@ struct _MetaCrtcMode
   int width;
   int height;
   float refresh_rate;
-  guint32 flags;
+  MetaCrtcModeFlag flags;
 
   gpointer driver_private;
   GDestroyNotify driver_notify;
@@ -237,6 +289,12 @@ struct _MetaOutputInfo
   gboolean     is_underscanning;
 };
 
+typedef enum _MetaMonitorConfigSystem
+{
+  META_MONITOR_CONFIG_SYSTEM_LEGACY,
+  META_MONITOR_CONFIG_SYSTEM_MANAGER
+} MetaMonitorConfigSystem;
+
 #define META_TYPE_MONITOR_MANAGER            (meta_monitor_manager_get_type ())
 #define META_MONITOR_MANAGER(obj)            (G_TYPE_CHECK_INSTANCE_CAST ((obj), META_TYPE_MONITOR_MANAGER, MetaMonitorManager))
 #define META_MONITOR_MANAGER_CLASS(klass)    (G_TYPE_CHECK_CLASS_CAST ((klass),  META_TYPE_MONITOR_MANAGER, MetaMonitorManagerClass))
@@ -259,8 +317,8 @@ struct _MetaMonitorManager
 
   MetaPowerSave power_save_mode;
 
-  int max_screen_width;
-  int max_screen_height;
+  MetaLogicalMonitorLayoutMode layout_mode;
+
   int screen_width;
   int screen_height;
 
@@ -285,13 +343,19 @@ struct _MetaMonitorManager
 
   int dbus_name_id;
 
+  MetaMonitorConfigSystem pending_persistent_system;
   int persistent_timeout_id;
+
   MetaMonitorConfig *legacy_config;
 
   MetaMonitorConfigManager *config_manager;
 
   GnomePnpIds *pnp_ids;
   UpClient *up_client;
+
+  gulong experimental_features_changed_handler_id;
+
+  MetaMonitorSwitchConfigType current_switch_config;
 };
 
 struct _MetaMonitorManagerClass
@@ -309,9 +373,10 @@ struct _MetaMonitorManagerClass
 
   void (*ensure_initial_config) (MetaMonitorManager *);
 
-  gboolean (*apply_monitors_config) (MetaMonitorManager *,
-                                     MetaMonitorsConfig *,
-                                     GError            **);
+  gboolean (*apply_monitors_config) (MetaMonitorManager      *,
+                                     MetaMonitorsConfig      *,
+                                     MetaMonitorsConfigMethod ,
+                                     GError                 **);
 
   void (*apply_configuration) (MetaMonitorManager  *,
                                MetaCrtcInfo       **,
@@ -348,11 +413,32 @@ struct _MetaMonitorManagerClass
   gboolean (*is_transform_handled) (MetaMonitorManager  *,
                                     MetaCrtc            *,
                                     MetaMonitorTransform);
+
+  float (*calculate_monitor_mode_scale) (MetaMonitorManager *,
+                                         MetaMonitor        *,
+                                         MetaMonitorMode    *);
+
+  float * (*calculate_supported_scales) (MetaMonitorManager          *,
+                                         MetaLogicalMonitorLayoutMode ,
+                                         MetaMonitor                 *,
+                                         MetaMonitorMode             *,
+                                         int                         *);
+
+  MetaMonitorManagerCapability (*get_capabilities) (MetaMonitorManager *);
+
+  gboolean (*get_max_screen_size) (MetaMonitorManager *,
+                                   int                *,
+                                   int                *);
+
+  MetaLogicalMonitorLayoutMode (*get_default_layout_mode) (MetaMonitorManager *);
 };
+
+gboolean            meta_is_monitor_config_manager_enabled (void);
 
 void                meta_monitor_manager_rebuild (MetaMonitorManager *manager,
                                                   MetaMonitorsConfig *config);
-void                meta_monitor_manager_rebuild_derived   (MetaMonitorManager *manager);
+void                meta_monitor_manager_rebuild_derived (MetaMonitorManager          *manager,
+                                                          MetaMonitorManagerDeriveFlag flags);
 
 int                 meta_monitor_manager_get_num_logical_monitors (MetaMonitorManager *manager);
 
@@ -398,10 +484,6 @@ void                meta_monitor_manager_get_screen_size   (MetaMonitorManager *
                                                             int                *width,
                                                             int                *height);
 
-void                meta_monitor_manager_get_screen_limits (MetaMonitorManager *manager,
-                                                            int                *width,
-                                                            int                *height);
-
 void                meta_monitor_manager_apply_configuration (MetaMonitorManager  *manager,
                                                               MetaCrtcInfo       **crtcs,
                                                               unsigned int         n_crtcs,
@@ -439,13 +521,42 @@ MetaMonitorsConfig * meta_monitor_manager_ensure_configured (MetaMonitorManager 
 
 void               meta_monitor_manager_update_logical_state (MetaMonitorManager *manager,
                                                               MetaMonitorsConfig *config);
-void               meta_monitor_manager_update_logical_state_derived (MetaMonitorManager *manager);
+void               meta_monitor_manager_update_logical_state_derived (MetaMonitorManager          *manager,
+                                                                      MetaMonitorManagerDeriveFlag flags);
 
 gboolean           meta_monitor_manager_is_lid_closed (MetaMonitorManager *manager);
 
 void               meta_monitor_manager_lid_is_closed_changed (MetaMonitorManager *manager);
 
 gboolean           meta_monitor_manager_is_headless (MetaMonitorManager *manager);
+
+float              meta_monitor_manager_calculate_monitor_mode_scale (MetaMonitorManager *manager,
+                                                                      MetaMonitor        *monitor,
+                                                                      MetaMonitorMode    *monitor_mode);
+
+float *            meta_monitor_manager_calculate_supported_scales (MetaMonitorManager          *,
+                                                                    MetaLogicalMonitorLayoutMode ,
+                                                                    MetaMonitor                 *,
+                                                                    MetaMonitorMode             *,
+                                                                    int                         *);
+
+gboolean           meta_monitor_manager_is_scale_supported (MetaMonitorManager          *manager,
+                                                            MetaLogicalMonitorLayoutMode layout_mode,
+                                                            MetaMonitor                 *monitor,
+                                                            MetaMonitorMode             *monitor_mode,
+                                                            float                        scale);
+
+MetaMonitorManagerCapability
+                   meta_monitor_manager_get_capabilities (MetaMonitorManager *manager);
+
+gboolean           meta_monitor_manager_get_max_screen_size (MetaMonitorManager *manager,
+                                                             int                *max_width,
+                                                             int                *max_height);
+
+MetaLogicalMonitorLayoutMode
+                   meta_monitor_manager_get_default_layout_mode (MetaMonitorManager *manager);
+
+void meta_monitor_manager_rotate_monitor (MetaMonitorManager *manager);
 
 void meta_monitor_manager_clear_output (MetaOutput *output);
 void meta_monitor_manager_clear_mode (MetaCrtcMode *mode);

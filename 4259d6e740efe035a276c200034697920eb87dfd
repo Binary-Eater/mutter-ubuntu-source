@@ -1,0 +1,10 @@
+  * Merge with debian. Remaining changes:
+    + debian/control:
+      - Update VCS flags to point to launchpad
+      - Update maintainer to ubuntu
+    + debian/gbp.conf: update branch to point to ubuntu/master
+    + debian/patches/x11-Add-support-for-fractional-scaling-using-Randr.patch:
+      - X11: Add support for fractional scaling using Randr
+  * d/p/clutter-*: Cherry-pick from upstream to fix a crash. During
+    animations, which was particularly bad when using Dash-to-Dock in
+    auto-hide mode. (LP: #1841794)

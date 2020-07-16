@@ -1,0 +1,3 @@
+  * New upstream release from git repositoy, using now clutter 1.0,
+    needed for last GNOME shell.
+  * debian/control.in: build-dep on libclutter-1.0-dev

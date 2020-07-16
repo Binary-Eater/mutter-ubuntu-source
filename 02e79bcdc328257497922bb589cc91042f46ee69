@@ -1,0 +1,4 @@
+  * Team upload
+  * debian/watch: Only watch stable branch again
+  * New upstream release, functionally identical to the previous
+    snapshot

@@ -1,0 +1,3 @@
+  * add debian/patches/16_paint_clone_unclipped.patch:
+    Paint the full region and not only the clipped one for clone 
+    (Jason Smith)

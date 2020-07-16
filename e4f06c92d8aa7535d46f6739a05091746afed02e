@@ -1,0 +1,3 @@
+  * New upstream beta release on the way to 3.6.
+  * debian/control.in:
+    - Drop unnecessary gnome-doc-utils dependency

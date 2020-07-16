@@ -1,0 +1,2 @@
+  * debian/control:
+  - fix GIR package name to account for GIR API name change

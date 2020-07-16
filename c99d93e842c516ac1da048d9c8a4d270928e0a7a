@@ -1,0 +1,3 @@
+  * New upstream release
+  * debian/patches: disable mousekeys with Numlock ON to match the
+    documentation (cherry picked from the 3.32 branch)

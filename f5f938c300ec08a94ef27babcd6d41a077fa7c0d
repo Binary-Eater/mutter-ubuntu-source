@@ -1,0 +1,5 @@
+  * Team upload. Urgency high as that problem already affects testing
+    users.
+  * debian/patches:
+    - Add 00git-dont-lose-application-redraws.patch to fix rendering
+      issues with parts of the screen not showing the latest content.

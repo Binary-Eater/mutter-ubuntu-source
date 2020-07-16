@@ -1,0 +1,2 @@
+  * control: Depend on g-s-d-common instead of g-s-d. We only need the
+    schemas.

@@ -1,0 +1,3 @@
+  * New upstream bugfix release (LP: #1128804)
+    - Fix maximized windows jumping between monitors
+    - Fix windows turning black when redirected again

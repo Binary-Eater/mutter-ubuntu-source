@@ -1,0 +1,8 @@
+  [ Dmitry Shachnev ]
+  * Make gir1.2-mutter-3.0 break gnome-shell versions older than 3.13.92.
+    Upstream commit a4a688ed83983fb5 removed MetaBackgroundEffects class,
+    which old gnome-shell (up to 3.13.91) was using via JavaScript code.
+  [ Andreas Henriksson ]
+  * Make the libinput-dev build-dependency linux-only.
+    Thanks to Julien Cristau for pointing it out.
+  * New upstream release.

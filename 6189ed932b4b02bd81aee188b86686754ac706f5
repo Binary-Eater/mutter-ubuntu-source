@@ -1,0 +1,8 @@
+  * d/p/clutter-Avoid-rounding-compensation-when-invalidating-2D-.patch,
+    d/p/clutter-Fix-offscreen-effect-painting-of-clones.patch:
+    - Fix offscreen-effect painting of clones in zoom mode (LP: #1767648,
+      LP: #1779615)
+  * d/p/cogl-auto-texture-Avoid-a-double-free-crash.patch,
+    d/p/clutter-offscreen-effect-Disable-if-no-texture.patch:
+    - Fix crash in dual monitor setup and gdm activation (LP: #1790525,
+      LP: #1795774)

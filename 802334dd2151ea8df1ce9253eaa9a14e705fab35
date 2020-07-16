@@ -1,0 +1,16 @@
+  [ Gustavo Noronha Silva ]
+  * New development release
+  * debian/control:
+  - update build-dependencies on GObject-Introspection packages
+  - build-depend on GTK+3
+  [ Emilio Pozuelo Monfort ]
+  * New upstream release.
+    - Rename gir1.0-mutter-2.31 to gir1.0-mutter-2.91.
+  * debian/control.in:
+    - Build depend on libjson-glib-dev and gir1.0-json-glib-1.0.
+  * debian/rules,
+    debian/control.in,
+    debian/source/format:
+    - Switch to source format 3.0 (quilt).
+  * debian/rules:
+    - Bump the shlib version.

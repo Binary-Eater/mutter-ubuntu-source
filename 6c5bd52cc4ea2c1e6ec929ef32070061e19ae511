@@ -1,0 +1,3 @@
+  * debian/control.in:
+    - build-dep on latest libgirepository1.0-dev and libclutter-1.0-dev
+      for gir change

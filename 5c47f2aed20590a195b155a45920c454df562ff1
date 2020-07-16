@@ -1,0 +1,4 @@
+  * Backport to focal (LP: #1877209)
+  * debian/gbp.conf: Set branch to ubuntu/focal
+  * debian/control: Update VCS references to focal branch
+  * debian/rules: Revert groovy/debian build changes as per dh 13

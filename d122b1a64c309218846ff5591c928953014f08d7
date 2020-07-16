@@ -1,0 +1,7 @@
+  [ Rico Tzschichholz ]
+  * New upstream release
+  * debian/watch:
+    - Look for bzip2 tarballs
+  [ Josselin Mouette ]
+  * Depend on libgnome2-common for the GConf schemas. This will be 
+    necessary until mutter is ported to GSettings.

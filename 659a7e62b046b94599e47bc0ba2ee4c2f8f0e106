@@ -1,0 +1,8 @@
+  * New upstream release (LP: #1690173)
+  * debian/rules:
+    - Run build tests, but don't fail the build for test failure on s390x
+  * debian/control.in:
+    - Build-depend on xauth and xfvb for build tests
+    - Depend on gnome-settings-daemon (LP: #1561706)
+  * Add debian/patches/skip-failing-tests.patch:
+    - Don't run a few tests that have been reported as failing

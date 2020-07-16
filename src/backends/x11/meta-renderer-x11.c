@@ -32,6 +32,7 @@
 #include "cogl/winsys/cogl-winsys-glx-private.h"
 #include "cogl/winsys/cogl-winsys-egl-x11-private.h"
 #include "backends/meta-backend-private.h"
+#include "backends/meta-logical-monitor.h"
 #include "backends/meta-renderer.h"
 #include "backends/meta-renderer-view.h"
 #include "backends/x11/meta-renderer-x11.h"
@@ -65,12 +66,20 @@ meta_renderer_x11_create_cogl_renderer (MetaRenderer *renderer)
   cogl_renderer_set_custom_winsys (cogl_renderer, get_x11_cogl_winsys_vtable);
   cogl_xlib_renderer_set_foreign_display (cogl_renderer, xdisplay);
 
+  /* Set up things so that if the INTEL_swap_event extension is not present,
+   * but the driver is known to have good thread support, we use an extra
+   * thread and call glXWaitVideoSync() in the thread. This allows idles
+   * to work properly, even when Mutter is constantly redrawing new frames;
+   * otherwise, without INTEL_swap_event, we'll just block in glXSwapBuffers().
+   */
+  cogl_xlib_renderer_set_threaded_swap_wait_enabled (cogl_renderer, TRUE);
+
   return cogl_renderer;
 }
 
 static MetaRendererView *
-meta_renderer_x11_create_view (MetaRenderer    *renderer,
-                               MetaMonitorInfo *monitor_info)
+meta_renderer_x11_create_view (MetaRenderer       *renderer,
+                               MetaLogicalMonitor *logical_monitor)
 {
   MetaBackend *backend = meta_get_backend ();
   ClutterBackend *clutter_backend = meta_backend_get_clutter_backend (backend);
@@ -82,8 +91,8 @@ meta_renderer_x11_create_view (MetaRenderer    *renderer,
 
   g_assert (meta_is_wayland_compositor ());
 
-  width = monitor_info->rect.width;
-  height = monitor_info->rect.height;
+  width = logical_monitor->rect.width;
+  height = logical_monitor->rect.height;
   texture_2d = cogl_texture_2d_new_with_size (cogl_context, width, height);
   offscreen = cogl_offscreen_new_with_texture (COGL_TEXTURE (texture_2d));
 
@@ -91,7 +100,7 @@ meta_renderer_x11_create_view (MetaRenderer    *renderer,
     meta_fatal ("Couldn't allocate framebuffer: %s", error->message);
 
   return g_object_new (META_TYPE_RENDERER_VIEW,
-                       "layout", &monitor_info->rect,
+                       "layout", &logical_monitor->rect,
                        "framebuffer", COGL_FRAMEBUFFER (offscreen),
                        NULL);
 }

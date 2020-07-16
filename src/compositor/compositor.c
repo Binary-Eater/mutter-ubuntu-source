@@ -468,7 +468,7 @@ redirect_windows (MetaScreen *screen)
         {
           /* This probably means that a non-WM compositor like xcompmgr is running;
            * we have no way to get it to exit */
-          meta_fatal (_("Another compositing manager is already running on screen %i on display \"%s\"."),
+          meta_fatal (_("Another compositing manager is already running on screen %i on display “%s”."),
                       screen_number, display->name);
         }
 
@@ -1013,6 +1013,7 @@ meta_compositor_sync_window_geometry (MetaCompositor *compositor,
 {
   MetaWindowActor *window_actor = META_WINDOW_ACTOR (meta_window_get_compositor_private (window));
   meta_window_actor_sync_actor_geometry (window_actor, did_placement);
+  meta_plugin_manager_event_size_changed (compositor->plugin_mgr, window_actor);
 }
 
 static void

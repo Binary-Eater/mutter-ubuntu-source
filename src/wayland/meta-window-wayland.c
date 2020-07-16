@@ -35,6 +35,8 @@
 #include "meta-wayland-private.h"
 #include "meta-wayland-surface.h"
 #include "meta-wayland-xdg-shell.h"
+#include "backends/meta-backend-private.h"
+#include "backends/meta-logical-monitor.h"
 #include "compositor/meta-surface-actor-wayland.h"
 
 struct _MetaWindowWayland
@@ -299,7 +301,6 @@ meta_window_wayland_move_resize_internal (MetaWindow                *window,
 
       if (new_x != window->rect.x || new_y != window->rect.y)
         {
-          *result |= META_MOVE_RESIZE_RESULT_MOVED;
           wl_window->has_pending_move = TRUE;
           wl_window->pending_move_x = new_x;
           wl_window->pending_move_y = new_y;
@@ -335,10 +336,13 @@ scale_rect_size (MetaRectangle *rect,
 static void
 meta_window_wayland_update_main_monitor (MetaWindow *window)
 {
+  MetaBackend *backend = meta_get_backend ();
+  MetaMonitorManager *monitor_manager =
+    meta_backend_get_monitor_manager (backend);
   MetaWindow *toplevel_window;
-  const MetaMonitorInfo *from;
-  const MetaMonitorInfo *to;
-  const MetaMonitorInfo *scaled_new;
+  MetaLogicalMonitor *from;
+  MetaLogicalMonitor *to;
+  MetaLogicalMonitor *scaled_new;
   float scale;
   MetaRectangle rect;
 
@@ -358,7 +362,7 @@ meta_window_wayland_update_main_monitor (MetaWindow *window)
    * needed to avoid jumping back and forth between the new and the old, since
    * changing main monitor may cause the window to be resized so that it no
    * longer have that same new main monitor. */
-  to = meta_screen_calculate_monitor_for_window (window->screen, window);
+  to = meta_window_calculate_main_logical_monitor (window);
 
   if (from == to)
     return;
@@ -377,7 +381,8 @@ meta_window_wayland_update_main_monitor (MetaWindow *window)
   scale = (float)to->scale / from->scale;
   rect = window->rect;
   scale_rect_size (&rect, scale);
-  scaled_new = meta_screen_get_monitor_for_rect (window->screen, &rect);
+  scaled_new =
+    meta_monitor_manager_get_logical_monitor_from_rect (monitor_manager, &rect);
   if (to != scaled_new)
     return;
 
@@ -385,8 +390,8 @@ meta_window_wayland_update_main_monitor (MetaWindow *window)
 }
 
 static void
-meta_window_wayland_main_monitor_changed (MetaWindow *window,
-                                          const MetaMonitorInfo *old)
+meta_window_wayland_main_monitor_changed (MetaWindow               *window,
+                                          const MetaLogicalMonitor *old)
 {
   float scale_factor;
   MetaWaylandSurface *surface;

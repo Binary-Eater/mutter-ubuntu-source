@@ -1,0 +1,4 @@
+  * New upstream stable release.
+   - Fix _NET_WM_FRAME_EXTENTS not to include invisible borders
+   - Fix application-specified window placement (-geometry) for
+     invisible borders

@@ -1,0 +1,2 @@
+  * Switch Build-Depends from the transitional libsystemd-login-dev to
+    libsystemd-dev. (Closes: #779761)

@@ -1,0 +1,3 @@
+  * debian/patches/src-core-screen.c-Set-_NET_NUMBER_OF_DESKTOPS-in-met.patch:
+    Cherry-pick from upstream. Fix positioning of desktop icons at startup.
+    (LP: #1696621)

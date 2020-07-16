@@ -1,0 +1,2 @@
+  * Add git_revert_call_threaded_swap.patch:
+    - Revert patch that caused Budgie to crash (LP: #1669584)

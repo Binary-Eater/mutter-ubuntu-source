@@ -1,0 +1,8 @@
+  * New upstream release
+  * New upstream release
+  * Sync with Ubuntu:
+    - Drop unnecessary gnome-doc-utils install
+  * d/p/00_meta_window_move_frame-fix-crash-when-frame-is-NULL.patch:
+    Dropped: fixed upstream
+  * debian/control.in: Rename libmutter0 to libmutter0a as the libmutter ABI
+    broke

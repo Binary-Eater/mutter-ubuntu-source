@@ -1,0 +1,3 @@
+  * debian/patches/18_unmimize.patch:
+    - Revert dropping this patch, it wasn't the causing 
+      (LP: #637108), which is now fixed in indicator-appmenu

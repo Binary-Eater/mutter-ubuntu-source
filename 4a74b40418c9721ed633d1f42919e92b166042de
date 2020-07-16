@@ -1,0 +1,3 @@
+  * Update gbp.conf and Vcs metadata for cosmic
+  * control: Depend on g-s-d-schemas instead of g-s-d. We only need the
+    schemas. (LP: #1808796)

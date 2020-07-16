@@ -1,0 +1,6 @@
+  [ Andreas Henriksson ]
+  * Fix typo in previous changelog entry.
+  * New upstream release.
+  * Drop debian/patches/git_launcher-fix-vt-switch.patch,
+    debian/patches/git_launcher-format-string.patch:
+    - now part of upstream release.

@@ -1,0 +1,4 @@
+  * Add fix-redundant-decls.patch:
+    - Backport commit to fix build with latest GLib
+  * Drop git_revert_call_threaded_swap.patch:
+    - Not needed with Budgie 10.3

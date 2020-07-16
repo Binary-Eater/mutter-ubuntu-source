@@ -1,0 +1,7 @@
+  * New upstream release (LP: #1730097):
+    - Fix unredirecting full-screen windows and fix returning to
+      full-screen after Alt-Tab (LP: #1725649)
+    - Allow HiDPI scaling even when non-HiDPI displays are connected
+      (LP: #1724024)
+    - Fix Epiphany URL bar (LP: #1719043) (Closes: #875826)
+  * Drop cherry-picked patches

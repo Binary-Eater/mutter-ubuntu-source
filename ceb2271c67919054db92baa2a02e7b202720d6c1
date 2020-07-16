@@ -1,0 +1,7 @@
+  * New upstream release (LP: #1796772)
+  * Drop cherry-picked patches applied in new release
+  * debian/libmutter-3-0.symbols: Add new symbols
+  * Don't run the build tests on mips & mipsel since they fail
+    and time out too much.
+  * Drop skip-failing-tests.patch:
+    - These tests seem to run ok except on mips and mipsel

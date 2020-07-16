@@ -1,0 +1,8 @@
+  [ Rico Tzschichholz ]
+  * debian/patches: Add upstream patch
+    00_meta_window_move_frame-fix-crash-when-frame-is-NULL.patch 
+  [ Michael Biebl ]
+  * Install missing keybindings file 50-mutter-windows.xml which is required
+    to configure mutter specific keyboard shortcuts in gnome-control-center.
+    Closes: #680004
+  * Use list-missing to list files missing from the package.

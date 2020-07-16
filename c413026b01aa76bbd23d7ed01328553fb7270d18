@@ -1,0 +1,2 @@
+  * debian/patches/92_handle_event_mask_when_managing_window.patch:
+    - Don't screw up the event mask when "managing" our own windows 

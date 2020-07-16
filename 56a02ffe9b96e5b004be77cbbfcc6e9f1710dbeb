@@ -1,0 +1,7 @@
+  * d/p/wayland-xdg-popup-Always-use-monitor-of-toplevel.patch
+    d/p/wayland-xdg-shell-Scale-configure-relative-popup-coo.patch
+    d/p/wayland-xdg-popup-Force-monitor-of-the-top-level.patch
+    d/p/wayland-xdg-shell-update-popup-window-monitor-early.patch
+    d/p/wayland-xdg-shell-Scale-positioner-coordinates.patch:
+      - Added. Fix positioning of popups on hidpi screens in
+        wayland (bgo#771841)

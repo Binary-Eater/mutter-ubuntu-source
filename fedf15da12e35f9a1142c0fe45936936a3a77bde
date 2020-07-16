@@ -1,0 +1,10 @@
+  * New upstream release.
+    - Fix bug with unredirecting full-screen windows on multi-monitor -
+      notably affected gnome-screensaver
+    - Disable top resizing of attached dialogs
+    - Fix problem where certain application updates would get lost
+    - Fix a problem where after resuming from the screensaver, things got slow
+    - When a monitor is plugged or unplugged, keep existing windows on their
+      current monitor
+    - And other bug fixes
+  * debian/libmutter0.symbols: Updated

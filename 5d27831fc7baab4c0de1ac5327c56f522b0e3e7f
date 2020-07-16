@@ -1,0 +1,5 @@
+  * New upstream release
+  - refreshed patches
+  - added a hack to rules to work-around the build trying to install
+    locale files to /usr/lib/locale
+  - bumped shlib minimum version to 2.31.5 (see #586124)

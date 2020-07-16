@@ -1,0 +1,9 @@
+  [ Sjoerd Simons ]
+  * New upstream release 3.16.1.
+  * debian/rules: Explicitely build wayland and the native backend on linux
+  * debian/control.in: Bump b-d
+  * debian/rules: Stop shipping doc/theme-format.txt, Metacity format support
+    has been dropped
+  * bump library name to libmutter0f
+  [ Emilio Pozuelo Monfort ]
+  * New upstream release 3.16.2.

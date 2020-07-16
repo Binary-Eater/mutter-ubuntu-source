@@ -1,0 +1,2 @@
+  * debian/patches/17_add_overlay_key_signals.patch:
+    - additional signals when triggering key

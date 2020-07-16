@@ -1,0 +1,9 @@
+  [ Robert Ancell ]
+  * debian/patches/00_git_cairo_api.patch:
+  * debian/patches/00_git_get_back_pixmap.patch:
+    - Take upstream git changes to fix FTBFS
+  * debian/patches/18_unmimize.patch:
+    - Fix unminimized windows not being mapped (LP: #620758)
+  [ Didier Roche ]
+  * debian/patches/95_workaround_gdk_compat.patch:
+    - port 2.31.5-0ubuntu3.1 inline patch to quilt for vcs handling

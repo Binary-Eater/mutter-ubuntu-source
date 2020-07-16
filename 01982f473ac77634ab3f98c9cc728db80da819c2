@@ -1,0 +1,4 @@
+  * New upstream release (LP: #1690173)
+  * Add missing depends on gnome-settings-daemon (LP: #1561706)
+  * Drop git-conform-actor-graph-Add-missing-null-termination.patch,
+    applied in new release

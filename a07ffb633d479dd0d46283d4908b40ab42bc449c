@@ -1,0 +1,2 @@
+  * Build-Depend on libgl1-mesa-dri for build tests since
+    Debian's mesa packages currently only recommends it

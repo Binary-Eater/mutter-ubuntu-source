@@ -1,0 +1,3 @@
+  * debian/patches/clutter-clone-Unset-source-when-source-actor-is-dest.patch
+    - Add patch from 3.22 branch to fix a gnome-shell crash when using the
+      alternatetab extension. (Closes: #857290)

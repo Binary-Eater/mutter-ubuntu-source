@@ -1,0 +1,3 @@
+  * Cherry-pick upstream commit which fixes the issue that window resize
+    handles were not shown.
+  * Drop obsolete Breaks/Replaces from pre-wheezy.

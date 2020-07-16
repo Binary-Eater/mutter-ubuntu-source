@@ -1,0 +1,17 @@
+  * Team upload
+  [ Iain Lane ]
+  * Update metadata for debian/buster branch
+  [ Simon McVittie ]
+  * Update to upstream gnome-3-30 branch at 3.30.2-10-gdb8a29b34
+    - d/p/clutter-evdev-Fix-toggling-accessibility-features-from-ke.patch:
+      Allow keyboard accessibility features to be switched on when using
+      Wayland mode. Previously, this was wrongly controlled by the
+      "togglekeys" setting, which is off by default and has no UI, meaning
+      that in practice keyboard accessibility features were always off.
+    - d/p/clutter-Fix-check-for-keyboard-a11y-features.patch:
+      Fix the sense of the check for keyboard accessibility features.
+      Previously, they were enabled when disabled in gnome-control-center
+      and vice versa.
+  * d/libmutter-3-0.symbols: Add meta_gpu_kms_get_current_time_ns,
+    which was added in 3.30.2-2 by
+    d/p/Sync-to-the-hardware-refresh-rate-not-just-60.00Hz.patch

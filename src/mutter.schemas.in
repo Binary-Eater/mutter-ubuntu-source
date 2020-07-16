@@ -5,8 +5,8 @@
 
     <schema>
       <key>/schemas/apps/mutter/general/overlay_key</key>
-      <applyto>/apps/mutter/general/overlay_key</applyto>
-      <owner>mutter</owner>
+      <applyto>/apps/metacity/general/overlay_key</applyto>
+      <owner>metacity</owner>
       <type>string</type>
       <default>&lt;Super_L&gt;</default>
       <locale name="C">

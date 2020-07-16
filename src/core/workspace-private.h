@@ -47,12 +47,12 @@ struct _MetaWorkspace
   GList  *list_containing_self;
 
   MetaRectangle work_area_screen;
-  MetaRectangle *work_area_monitor;
+  MetaRectangle *work_area_xinerama;
   GList  *screen_region;
-  GList  **monitor_region;
-  gint n_monitor_regions;
+  GList  **xinerama_region;
+  gint n_xinerama_regions;
   GList  *screen_edges;
-  GList  *monitor_edges;
+  GList  *xinerama_edges;
   GSList *builtin_struts;
   GSList *all_struts;
   guint work_areas_invalid : 1;
@@ -77,12 +77,14 @@ void           meta_workspace_relocate_windows (MetaWorkspace *workspace,
 void meta_workspace_invalidate_work_area (MetaWorkspace *workspace);
 
 
-void meta_workspace_get_work_area_for_monitor   (MetaWorkspace *workspace,
-                                                 int            which_monitor,
+void meta_workspace_get_work_area_for_xinerama  (MetaWorkspace *workspace,
+                                                 int            which_xinerama,
                                                  MetaRectangle *area);
 GList* meta_workspace_get_onscreen_region       (MetaWorkspace *workspace);
-GList* meta_workspace_get_onmonitor_region      (MetaWorkspace *workspace,
-                                                 int            which_monitor);
+GList* meta_workspace_get_onxinerama_region     (MetaWorkspace *workspace,
+                                                 int            which_xinerama);
+void meta_workspace_get_work_area_all_xineramas (MetaWorkspace *workspace,
+                                                 MetaRectangle *area);
 
 void meta_workspace_focus_default_window (MetaWorkspace *workspace,
                                           MetaWindow    *not_this_one,

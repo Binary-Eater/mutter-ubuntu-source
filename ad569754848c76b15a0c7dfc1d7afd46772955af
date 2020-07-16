@@ -1,0 +1,3 @@
+  * add debian/patches/11_hide_tooltip_on_decorator.patch: (LP: #519856)
+    add a gconf key (/desktop/gnome/interface/hide_decorator_tooltip)
+    to disable tooltip in decorator bar. If key not present, show the tooltip.

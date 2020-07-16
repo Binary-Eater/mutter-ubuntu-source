@@ -1,0 +1,2 @@
+  * Add an explicit Replaces: libmutter0a to libmutter0b, required to
+    let update-manager know that it's safe to remove the package on upgrade.

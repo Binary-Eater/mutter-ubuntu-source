@@ -1,0 +1,4 @@
+  * New upstream release
+  * debian/control:
+    - Bump build-depends on libgtk3.0-dev
+    - Rename gir1.0 packages to gir1.2

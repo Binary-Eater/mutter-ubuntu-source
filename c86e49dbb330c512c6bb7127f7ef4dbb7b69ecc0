@@ -1,0 +1,3 @@
+  * debian/patches/20_unity_no_3D_detection.patch:
+    - add an extra string in fallback mode to guide user in live session
+      (LP: #651085)

@@ -1,0 +1,2 @@
+  * d/p/core-Split-x11-display-initialization-in-2-signals.patch: Cherry-pick.
+    Fixes starting up of gsd-xsettings on Wayland. (LP: #1843107)

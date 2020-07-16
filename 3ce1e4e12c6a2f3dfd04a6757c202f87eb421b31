@@ -1,0 +1,2 @@
+  * debian/gir1.0-mutter-2.{29->31}.install:
+  - actually install the typelib file

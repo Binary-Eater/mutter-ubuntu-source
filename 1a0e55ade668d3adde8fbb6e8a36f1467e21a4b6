@@ -1,0 +1,2 @@
+  * add debian/patches/10_no-ws-switcher.patch:
+    Don't show ws selector when you only have one ws (LP: #506944)

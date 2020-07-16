@@ -1,0 +1,2 @@
+  * Clean up /etc/sgml/mutter-common.cat and /etc/sgml/mutter-common.cat.old
+    on upgrades. Closes: #675309

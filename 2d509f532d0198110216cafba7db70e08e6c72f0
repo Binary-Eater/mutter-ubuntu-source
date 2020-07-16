@@ -1,0 +1,4 @@
+  * debian/rules: Run build tests
+  * debian/control.in: Build-depend on xauth and xfvb
+  * Add debian/patches/skip-failing-tests.patch:
+    - Don't run a few tests that have been reported as failing

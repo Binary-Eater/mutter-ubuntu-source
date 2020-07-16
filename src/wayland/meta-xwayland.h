@@ -26,9 +26,14 @@
 #define META_XWAYLAND_H
 
 #include <glib.h>
-#include <meta/types.h>
 
+#include "core/util-private.h"
+#include "meta/types.h"
 #include "wayland/meta-wayland-types.h"
+
+META_EXPORT_TEST
+void
+meta_xwayland_override_display_number (int number);
 
 void
 meta_xwayland_handle_wl_surface_id (MetaWindow *window,
@@ -40,5 +45,9 @@ meta_xwayland_is_xwayland_surface (MetaWaylandSurface *surface);
 void
 meta_xwayland_handle_xwayland_grab (MetaWindow *window,
                                     gboolean    allow);
+
+void
+meta_xwayland_associate_window_with_surface (MetaWindow          *window,
+                                             MetaWaylandSurface  *surface);
 
 #endif /* META_XWAYLAND_H */

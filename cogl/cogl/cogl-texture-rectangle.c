@@ -31,9 +31,7 @@
  *  Neil Roberts   <neil@linux.intel.com>
  */
 
-#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
-#endif
 
 #include "cogl-private.h"
 #include "cogl-util.h"
@@ -43,10 +41,10 @@
 #include "cogl-context-private.h"
 #include "cogl-object-private.h"
 #include "cogl-journal-private.h"
-#include "cogl-pipeline-opengl-private.h"
 #include "cogl-error-private.h"
-#include "cogl-util-gl-private.h"
 #include "cogl-gtype-private.h"
+#include "driver/gl/cogl-pipeline-opengl-private.h"
+#include "driver/gl/cogl-util-gl-private.h"
 
 #include <string.h>
 #include <math.h>
@@ -70,7 +68,7 @@ COGL_GTYPE_DEFINE_CLASS (TextureRectangle, texture_rectangle,
 
 static const CoglTextureVtable cogl_texture_rectangle_vtable;
 
-static CoglBool
+static gboolean
 can_use_wrap_mode (GLenum wrap_mode)
 {
   return (wrap_mode == GL_CLAMP ||
@@ -119,7 +117,7 @@ _cogl_texture_rectangle_free (CoglTextureRectangle *tex_rect)
   _cogl_texture_free (COGL_TEXTURE (tex_rect));
 }
 
-static CoglBool
+static gboolean
 _cogl_texture_rectangle_can_create (CoglContext *ctx,
                                     unsigned int width,
                                     unsigned int height,
@@ -166,7 +164,7 @@ _cogl_texture_rectangle_can_create (CoglContext *ctx,
 
 static void
 _cogl_texture_rectangle_set_auto_mipmap (CoglTexture *tex,
-                                         CoglBool value)
+                                         gboolean value)
 {
   /* Rectangle textures currently never support mipmapping so there's
      no point in doing anything here */
@@ -215,7 +213,7 @@ cogl_texture_rectangle_new_with_size (CoglContext *ctx,
                                               loader);
 }
 
-static CoglBool
+static gboolean
 allocate_with_size (CoglTextureRectangle *tex_rect,
                     CoglTextureLoader *loader,
                     CoglError **error)
@@ -277,7 +275,7 @@ allocate_with_size (CoglTextureRectangle *tex_rect,
   return TRUE;
 }
 
-static CoglBool
+static gboolean
 allocate_from_bitmap (CoglTextureRectangle *tex_rect,
                       CoglTextureLoader *loader,
                       CoglError **error)
@@ -288,7 +286,7 @@ allocate_from_bitmap (CoglTextureRectangle *tex_rect,
   CoglBitmap *bmp = loader->src.bitmap.bitmap;
   int width = cogl_bitmap_get_width (bmp);
   int height = cogl_bitmap_get_height (bmp);
-  CoglBool can_convert_in_place = loader->src.bitmap.can_convert_in_place;
+  gboolean can_convert_in_place = loader->src.bitmap.can_convert_in_place;
   CoglBitmap *upload_bmp;
   GLenum gl_intformat;
   GLenum gl_format;
@@ -351,7 +349,7 @@ allocate_from_bitmap (CoglTextureRectangle *tex_rect,
   return TRUE;
 }
 
-static CoglBool
+static gboolean
 allocate_from_gl_foreign (CoglTextureRectangle *tex_rect,
                           CoglTextureLoader *loader,
                           CoglError **error)
@@ -460,7 +458,7 @@ allocate_from_gl_foreign (CoglTextureRectangle *tex_rect,
   return TRUE;
 }
 
-static CoglBool
+static gboolean
 _cogl_texture_rectangle_allocate (CoglTexture *tex,
                                   CoglError **error)
 {
@@ -543,13 +541,13 @@ _cogl_texture_rectangle_get_max_waste (CoglTexture *tex)
   return -1;
 }
 
-static CoglBool
+static gboolean
 _cogl_texture_rectangle_is_sliced (CoglTexture *tex)
 {
   return FALSE;
 }
 
-static CoglBool
+static gboolean
 _cogl_texture_rectangle_can_hardware_repeat (CoglTexture *tex)
 {
   return FALSE;
@@ -568,7 +566,7 @@ static CoglTransformResult
 _cogl_texture_rectangle_transform_quad_coords_to_gl (CoglTexture *tex,
                                                      float *coords)
 {
-  CoglBool need_repeat = FALSE;
+  gboolean need_repeat = FALSE;
   int i;
 
   for (i = 0; i < 4; i++)
@@ -582,7 +580,7 @@ _cogl_texture_rectangle_transform_quad_coords_to_gl (CoglTexture *tex,
           : COGL_TRANSFORM_NO_REPEAT);
 }
 
-static CoglBool
+static gboolean
 _cogl_texture_rectangle_get_gl_texture (CoglTexture *tex,
                                         GLuint *out_gl_handle,
                                         GLenum *out_gl_target)
@@ -641,7 +639,7 @@ _cogl_texture_rectangle_ensure_non_quad_rendering (CoglTexture *tex)
   /* Nothing needs to be done */
 }
 
-static CoglBool
+static gboolean
 _cogl_texture_rectangle_set_region (CoglTexture *tex,
                                     int src_x,
                                     int src_y,
@@ -657,7 +655,7 @@ _cogl_texture_rectangle_set_region (CoglTexture *tex,
   GLenum gl_format;
   GLenum gl_type;
   CoglContext *ctx = tex->context;
-  CoglBool status;
+  gboolean status;
 
   upload_bmp =
     _cogl_bitmap_convert_for_upload (bmp,
@@ -692,7 +690,7 @@ _cogl_texture_rectangle_set_region (CoglTexture *tex,
   return status;
 }
 
-static CoglBool
+static gboolean
 _cogl_texture_rectangle_get_data (CoglTexture *tex,
                                   CoglPixelFormat format,
                                   int rowstride,
@@ -739,7 +737,7 @@ _cogl_texture_rectangle_get_gl_format (CoglTexture *tex)
   return COGL_TEXTURE_RECTANGLE (tex)->gl_format;
 }
 
-static CoglBool
+static gboolean
 _cogl_texture_rectangle_is_foreign (CoglTexture *tex)
 {
   return COGL_TEXTURE_RECTANGLE (tex)->is_foreign;
@@ -757,6 +755,7 @@ cogl_texture_rectangle_vtable =
     TRUE, /* primitive */
     _cogl_texture_rectangle_allocate,
     _cogl_texture_rectangle_set_region,
+    NULL, /* is_get_data_supported */
     _cogl_texture_rectangle_get_data,
     NULL, /* foreach_sub_texture_in_region */
     _cogl_texture_rectangle_get_max_waste,

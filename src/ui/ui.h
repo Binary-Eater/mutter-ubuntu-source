@@ -22,27 +22,21 @@
 #ifndef META_UI_H
 #define META_UI_H
 
-/* Don't include gtk.h or gdk.h here */
-#include <meta/common.h>
-#include <meta/types.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <cairo.h>
-#include <glib.h>
 #include <gdk-pixbuf/gdk-pixbuf.h>
+#include <glib.h>
+
+#include "core/util-private.h"
+#include "meta/types.h"
 
 typedef struct _MetaUI MetaUI;
 typedef struct _MetaUIFrame MetaUIFrame;
 
 typedef gboolean (* MetaEventFunc) (XEvent *xevent, gpointer data);
 
-void meta_ui_init (void);
-
-Display* meta_ui_get_display (void);
-
-gint meta_ui_get_screen_number (void);
-
-MetaUI* meta_ui_new (Display *xdisplay);
+MetaUI *meta_ui_new  (MetaX11Display *x11_display);
 void    meta_ui_free (MetaUI *ui);
 
 void meta_ui_theme_get_frame_borders (MetaUI *ui,
@@ -77,6 +71,8 @@ gboolean  meta_ui_window_should_not_cause_focus (Display *xdisplay,
 
 gboolean meta_ui_window_is_widget (MetaUI *ui,
                                    Window  xwindow);
+
+META_EXPORT_TEST
 gboolean meta_ui_window_is_dummy  (MetaUI *ui,
                                    Window  xwindow);
 

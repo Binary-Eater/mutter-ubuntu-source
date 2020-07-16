@@ -23,13 +23,16 @@
 #include "backends/meta-crtc.h"
 #include "backends/meta-output.h"
 #include "compositor/meta-plugin-manager.h"
+#include "core/display-private.h"
 #include "core/main-private.h"
 #include "meta/main.h"
 #include "tests/meta-backend-test.h"
 #include "tests/meta-monitor-manager-test.h"
+#include "tests/test-utils.h"
 #include "wayland/meta-wayland.h"
 
 #define ALL_TRANSFORMS ((1 << (META_MONITOR_TRANSFORM_FLIPPED_270 + 1)) - 1)
+#define FRAME_WARNING "Frame has assigned frame counter but no frame drawn time"
 
 static gboolean
 run_tests (gpointer data)
@@ -37,6 +40,8 @@ run_tests (gpointer data)
   MetaBackend *backend = meta_get_backend ();
   MetaSettings *settings = meta_backend_get_settings (backend);
   gboolean ret;
+
+  g_test_log_set_fatal_handler (NULL, NULL);
 
   meta_settings_override_experimental_features (settings);
 
@@ -49,6 +54,20 @@ run_tests (gpointer data)
   meta_quit (ret != 0);
 
   return FALSE;
+}
+
+static gboolean
+ignore_frame_counter_warning (const gchar    *log_domain,
+                              GLogLevelFlags  log_level,
+                              const gchar    *message,
+                              gpointer        user_data)
+{
+  if ((log_level & G_LOG_LEVEL_WARNING) &&
+      g_strcmp0 (log_domain, "mutter") == 0 &&
+      g_str_has_suffix (message, FRAME_WARNING))
+    return FALSE;
+
+  return TRUE;
 }
 
 static void
@@ -82,14 +101,12 @@ static void
 meta_test_headless_monitor_getters (void)
 {
   MetaDisplay *display;
-  MetaScreen *screen;
   int index;
 
   display = meta_get_display ();
-  screen = display->screen;
 
-  index = meta_screen_get_monitor_index_for_rect (screen,
-                                                  &(MetaRectangle) { 0 });
+  index = meta_display_get_monitor_index_for_rect (display,
+                                                   &(MetaRectangle) { 0 });
   g_assert_cmpint (index, ==, -1);
 }
 
@@ -167,9 +184,6 @@ create_headless_test_setup (void)
 static void
 init_tests (int argc, char **argv)
 {
-  g_test_init (&argc, &argv, NULL);
-  g_test_bug_base ("http://bugzilla.gnome.org/show_bug.cgi?id=");
-
   MetaMonitorTestSetup *initial_test_setup;
 
   initial_test_setup = create_headless_test_setup ();
@@ -185,16 +199,18 @@ init_tests (int argc, char **argv)
 int
 main (int argc, char *argv[])
 {
+  test_init (&argc, &argv);
   init_tests (argc, argv);
 
-  meta_plugin_manager_load ("default");
+  meta_plugin_manager_load (test_get_plugin_name ());
 
   meta_override_compositor_configuration (META_COMPOSITOR_TYPE_WAYLAND,
                                           META_TYPE_BACKEND_TEST);
-  meta_wayland_override_display_name ("mutter-test-display");
 
   meta_init ();
   meta_register_with_session ();
+
+  g_test_log_set_fatal_handler (ignore_frame_counter_warning, NULL);
 
   g_idle_add (run_tests, NULL);
 

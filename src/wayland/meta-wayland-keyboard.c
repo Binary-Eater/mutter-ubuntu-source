@@ -47,19 +47,18 @@
 
 #include "config.h"
 
-#include <glib.h>
-#include <string.h>
 #include <errno.h>
-#include <stdlib.h>
 #include <fcntl.h>
-#include <unistd.h>
+#include <glib.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/mman.h>
-#include <clutter/evdev/clutter-evdev.h>
+#include <unistd.h>
 
-#include "display-private.h"
 #include "backends/meta-backend-private.h"
-
-#include "meta-wayland-private.h"
+#include "clutter/evdev/clutter-evdev.h"
+#include "core/display-private.h"
+#include "wayland/meta-wayland-private.h"
 
 #ifdef HAVE_NATIVE_BACKEND
 #include "backends/native/meta-backend-native.h"
@@ -293,14 +292,23 @@ meta_wayland_keyboard_broadcast_key (MetaWaylandKeyboard *keyboard,
     {
       MetaWaylandInputDevice *input_device =
         META_WAYLAND_INPUT_DEVICE (keyboard);
+      uint32_t serial;
 
-      keyboard->key_serial =
-        meta_wayland_input_device_next_serial (input_device);
+      serial = meta_wayland_input_device_next_serial (input_device);
+
+      if (state)
+        {
+          keyboard->key_down_serial = serial;
+          keyboard->key_down_keycode = key;
+        }
+      else
+        {
+          keyboard->key_up_serial = serial;
+          keyboard->key_up_keycode = key;
+        }
 
       wl_resource_for_each (resource, &keyboard->focus_resource_list)
-        {
-          wl_keyboard_send_key (resource, keyboard->key_serial, time, key, state);
-        }
+        wl_keyboard_send_key (resource, serial, time, key, state);
     }
 
   /* Eat the key events if we have a focused surface. */
@@ -633,21 +641,20 @@ default_grab_key (MetaWaylandKeyboardGrab *grab,
 {
   MetaWaylandKeyboard *keyboard = grab->keyboard;
   gboolean is_press = event->type == CLUTTER_KEY_PRESS;
-  guint32 code;
+  guint32 code = 0;
 #ifdef HAVE_NATIVE_BACKEND
   MetaBackend *backend = meta_get_backend ();
 #endif
 
-  /* Synthetic key events are for autorepeat. Ignore those, as
-   * autorepeat in Wayland is done on the client side. */
-  if ((event->key.flags & CLUTTER_EVENT_FLAG_SYNTHETIC) &&
-      !(event->key.flags & CLUTTER_EVENT_FLAG_INPUT_METHOD))
+  /* Ignore autorepeat events, as autorepeat in Wayland is done on the client
+   * side. */
+  if (event->key.flags & CLUTTER_EVENT_FLAG_REPEATED)
     return FALSE;
 
 #ifdef HAVE_NATIVE_BACKEND
   if (META_IS_BACKEND_NATIVE (backend))
     code = clutter_evdev_event_get_event_code (event);
-  else
+  if (code == 0)
 #endif
     code = evdev_code (&event->key);
 
@@ -771,7 +778,9 @@ gboolean
 meta_wayland_keyboard_handle_event (MetaWaylandKeyboard *keyboard,
                                     const ClutterKeyEvent *event)
 {
+#ifdef WITH_VERBOSE_MODE
   gboolean is_press = event->type == CLUTTER_KEY_PRESS;
+#endif
   gboolean handled;
 
   /* Synthetic key events are for autorepeat. Ignore those, as
@@ -1002,7 +1011,9 @@ gboolean
 meta_wayland_keyboard_can_popup (MetaWaylandKeyboard *keyboard,
                                  uint32_t             serial)
 {
-  return keyboard->key_serial == serial;
+  return (keyboard->key_down_serial == serial ||
+          ((keyboard->key_down_keycode == keyboard->key_up_keycode) &&
+           keyboard->key_up_serial == serial));
 }
 
 void

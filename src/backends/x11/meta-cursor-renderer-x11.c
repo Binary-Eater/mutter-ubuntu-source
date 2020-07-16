@@ -24,12 +24,13 @@
 
 #include "config.h"
 
-#include "meta-cursor-renderer-x11.h"
+#include "backends/x11/meta-cursor-renderer-x11.h"
 
 #include <X11/extensions/Xfixes.h>
 
-#include "meta-backend-x11.h"
-#include "meta-stage-private.h"
+#include "backends/meta-cursor-sprite-xcursor.h"
+#include "backends/meta-stage-private.h"
+#include "backends/x11/meta-backend-x11.h"
 
 struct _MetaCursorRendererX11Private
 {
@@ -59,13 +60,18 @@ meta_cursor_renderer_x11_update_cursor (MetaCursorRenderer *renderer,
 
   gboolean has_server_cursor = FALSE;
 
-  if (cursor_sprite)
+  if (cursor_sprite && META_IS_CURSOR_SPRITE_XCURSOR (cursor_sprite))
     {
-      MetaCursor cursor = meta_cursor_sprite_get_meta_cursor (cursor_sprite);
+      MetaCursorSpriteXcursor *sprite_xcursor =
+        META_CURSOR_SPRITE_XCURSOR (cursor_sprite);
+      MetaCursor cursor;
 
+      cursor = meta_cursor_sprite_xcursor_get_cursor (sprite_xcursor);
       if (cursor != META_CURSOR_NONE)
         {
-          Cursor xcursor = meta_cursor_create_x_cursor (xdisplay, cursor);
+          Cursor xcursor;
+
+          xcursor = meta_create_x_cursor (xdisplay, cursor);
           XDefineCursor (xdisplay, xwindow, xcursor);
           XFlush (xdisplay);
           XFreeCursor (xdisplay, xcursor);

@@ -2,6 +2,7 @@
 
 /*
  * Copyright (C) 2017 Red Hat
+ * Copyright (c) 2018 DisplayLink (UK) Ltd.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -27,6 +28,7 @@
 #include <errno.h>
 #include <poll.h>
 #include <string.h>
+#include <time.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 
@@ -37,7 +39,8 @@
 #include "backends/native/meta-crtc-kms.h"
 #include "backends/native/meta-launcher.h"
 #include "backends/native/meta-output-kms.h"
-#include "backends/native/meta-default-modes.h"
+
+#include "meta-default-modes.h"
 
 typedef struct _MetaKmsSource
 {
@@ -51,15 +54,19 @@ typedef struct _MetaGpuKmsFlipClosureContainer
 {
   GClosure *flip_closure;
   MetaGpuKms *gpu_kms;
+  MetaCrtc *crtc;
 } MetaGpuKmsFlipClosureContainer;
 
 struct _MetaGpuKms
 {
   MetaGpu parent;
 
+  uint32_t id;
   int fd;
   char *file_path;
   GSource *source;
+
+  clockid_t clock_id;
 
   drmModeConnector **connectors;
   unsigned int n_connectors;
@@ -67,12 +74,11 @@ struct _MetaGpuKms
   int max_buffer_width;
   int max_buffer_height;
 
-  gboolean page_flips_not_supported;
-
   gboolean resources_init_failed_before;
+
+  MetaGpuKmsFlag flags;
 };
 
-G_DEFINE_QUARK (MetaGpuKmsError, meta_gpu_kms_error)
 G_DEFINE_TYPE (MetaGpuKms, meta_gpu_kms, META_TYPE_GPU)
 
 static gboolean
@@ -117,7 +123,12 @@ get_crtc_drm_connectors (MetaGpu       *gpu,
 
       assigned_crtc = meta_output_get_assigned_crtc (output);
       if (assigned_crtc == crtc)
-        g_array_append_val (connectors_array, output->winsys_id);
+        {
+          uint32_t connector_id;
+
+          connector_id = meta_output_kms_get_connector_id (output);
+          g_array_append_val (connectors_array, connector_id);
+        }
     }
 
   *n_connectors = connectors_array->len;
@@ -166,19 +177,26 @@ meta_gpu_kms_apply_crtc_mode (MetaGpuKms *gpu_kms,
 
 static void
 invoke_flip_closure (GClosure   *flip_closure,
-                     MetaGpuKms *gpu_kms)
+                     MetaGpuKms *gpu_kms,
+                     MetaCrtc   *crtc,
+                     int64_t     page_flip_time_ns)
 {
   GValue params[] = {
     G_VALUE_INIT,
-    G_VALUE_INIT
+    G_VALUE_INIT,
+    G_VALUE_INIT,
+    G_VALUE_INIT,
   };
 
   g_value_init (&params[0], G_TYPE_POINTER);
   g_value_set_pointer (&params[0], flip_closure);
   g_value_init (&params[1], G_TYPE_OBJECT);
   g_value_set_object (&params[1], gpu_kms);
-  g_closure_invoke (flip_closure, NULL, 2, params, NULL);
-  g_closure_unref (flip_closure);
+  g_value_init (&params[2], G_TYPE_OBJECT);
+  g_value_set_object (&params[2], crtc);
+  g_value_init (&params[3], G_TYPE_INT64);
+  g_value_set_int64 (&params[3], page_flip_time_ns);
+  g_closure_invoke (flip_closure, NULL, 4, params, NULL);
 }
 
 gboolean
@@ -192,7 +210,7 @@ meta_gpu_kms_is_crtc_active (MetaGpuKms *gpu_kms,
 
   g_assert (meta_crtc_get_gpu (crtc) == META_GPU (gpu_kms));
 
-  if (monitor_manager->power_save_mode != META_POWER_SAVE_ON)
+  if (meta_monitor_manager_get_power_save_mode (monitor_manager))
     return FALSE;
 
   connected_crtc_found = FALSE;
@@ -217,14 +235,16 @@ meta_gpu_kms_is_crtc_active (MetaGpuKms *gpu_kms,
 
 MetaGpuKmsFlipClosureContainer *
 meta_gpu_kms_wrap_flip_closure (MetaGpuKms *gpu_kms,
+                                MetaCrtc   *crtc,
                                 GClosure   *flip_closure)
 {
   MetaGpuKmsFlipClosureContainer *closure_container;
 
   closure_container = g_new0 (MetaGpuKmsFlipClosureContainer, 1);
   *closure_container = (MetaGpuKmsFlipClosureContainer) {
-    .flip_closure = flip_closure,
-    .gpu_kms = gpu_kms
+    .flip_closure = g_closure_ref (flip_closure),
+    .gpu_kms = gpu_kms,
+    .crtc = crtc
   };
 
   return closure_container;
@@ -233,68 +253,71 @@ meta_gpu_kms_wrap_flip_closure (MetaGpuKms *gpu_kms,
 void
 meta_gpu_kms_flip_closure_container_free (MetaGpuKmsFlipClosureContainer *closure_container)
 {
+  g_closure_unref (closure_container->flip_closure);
   g_free (closure_container);
 }
 
 gboolean
-meta_gpu_kms_flip_crtc (MetaGpuKms *gpu_kms,
-                        MetaCrtc   *crtc,
-                        int         x,
-                        int         y,
-                        uint32_t    fb_id,
-                        GClosure   *flip_closure,
-                        gboolean   *fb_in_use)
+meta_gpu_kms_flip_crtc (MetaGpuKms  *gpu_kms,
+                        MetaCrtc    *crtc,
+                        uint32_t     fb_id,
+                        GClosure    *flip_closure,
+                        GError     **error)
 {
   MetaGpu *gpu = META_GPU (gpu_kms);
   MetaMonitorManager *monitor_manager = meta_gpu_get_monitor_manager (gpu);
+  MetaGpuKmsFlipClosureContainer *closure_container;
+  int kms_fd = meta_gpu_kms_get_fd (gpu_kms);
   uint32_t *connectors;
   unsigned int n_connectors;
   int ret = -1;
 
   g_assert (meta_crtc_get_gpu (crtc) == gpu);
-  g_assert (monitor_manager->power_save_mode == META_POWER_SAVE_ON);
+  g_assert (meta_monitor_manager_get_power_save_mode (monitor_manager) ==
+            META_POWER_SAVE_ON);
 
   get_crtc_drm_connectors (gpu, crtc, &connectors, &n_connectors);
   g_assert (n_connectors > 0);
   g_free (connectors);
 
-  if (!gpu_kms->page_flips_not_supported)
-    {
-      MetaGpuKmsFlipClosureContainer *closure_container;
-      int kms_fd = meta_gpu_kms_get_fd (gpu_kms);
+  g_assert (fb_id != 0);
 
-      closure_container = meta_gpu_kms_wrap_flip_closure (gpu_kms,
-                                                          flip_closure);
+  closure_container = meta_gpu_kms_wrap_flip_closure (gpu_kms,
+                                                      crtc,
+                                                      flip_closure);
 
-      ret = drmModePageFlip (kms_fd,
-                             crtc->crtc_id,
-                             fb_id,
-                             DRM_MODE_PAGE_FLIP_EVENT,
-                             closure_container);
-      if (ret != 0 && ret != -EACCES)
-        {
-          meta_gpu_kms_flip_closure_container_free (closure_container);
-          g_warning ("Failed to flip: %s", strerror (-ret));
-          gpu_kms->page_flips_not_supported = TRUE;
-        }
-    }
-
-  if (gpu_kms->page_flips_not_supported)
-    {
-      if (meta_gpu_kms_apply_crtc_mode (gpu_kms, crtc, x, y, fb_id))
-        {
-          *fb_in_use = TRUE;
-          return FALSE;
-        }
-    }
-
+  ret = drmModePageFlip (kms_fd,
+                         crtc->crtc_id,
+                         fb_id,
+                         DRM_MODE_PAGE_FLIP_EVENT,
+                         closure_container);
   if (ret != 0)
-    return FALSE;
-
-  *fb_in_use = TRUE;
-  g_closure_ref (flip_closure);
+    {
+      meta_gpu_kms_flip_closure_container_free (closure_container);
+      g_set_error (error, G_IO_ERROR,
+                   g_io_error_from_errno (-ret),
+                   "drmModePageFlip failed: %s", g_strerror (-ret));
+      return FALSE;
+    }
 
   return TRUE;
+}
+
+static int64_t
+timespec_to_nanoseconds (const struct timespec *ts)
+{
+  const int64_t one_billion = 1000000000;
+
+  return ((int64_t) ts->tv_sec) * one_billion + ts->tv_nsec;
+}
+
+static int64_t
+timeval_to_nanoseconds (const struct timeval *tv)
+{
+  int64_t usec = ((int64_t) tv->tv_sec) * G_USEC_PER_SEC + tv->tv_usec;
+  int64_t nsec = usec * 1000;
+
+  return nsec;
 }
 
 static void
@@ -307,8 +330,12 @@ page_flip_handler (int           fd,
   MetaGpuKmsFlipClosureContainer *closure_container = user_data;
   GClosure *flip_closure = closure_container->flip_closure;
   MetaGpuKms *gpu_kms = closure_container->gpu_kms;
+  struct timeval page_flip_time = {sec, usec};
 
-  invoke_flip_closure (flip_closure, gpu_kms);
+  invoke_flip_closure (flip_closure,
+                       gpu_kms,
+                       closure_container->crtc,
+                       timeval_to_nanoseconds (&page_flip_time));
   meta_gpu_kms_flip_closure_container_free (closure_container);
 }
 
@@ -318,15 +345,8 @@ meta_gpu_kms_wait_for_flip (MetaGpuKms *gpu_kms,
 {
   drmEventContext evctx;
 
-  if (gpu_kms->page_flips_not_supported)
-    {
-      g_set_error (error, G_IO_ERROR, G_IO_ERROR_FAILED,
-                   "Page flips not supported");
-      return FALSE;
-    }
-
   memset (&evctx, 0, sizeof evctx);
-  evctx.version = DRM_EVENT_CONTEXT_VERSION;
+  evctx.version = 2;
   evctx.page_flip_handler = page_flip_handler;
 
   while (TRUE)
@@ -375,10 +395,27 @@ meta_gpu_kms_get_fd (MetaGpuKms *gpu_kms)
   return gpu_kms->fd;
 }
 
+uint32_t
+meta_gpu_kms_get_id (MetaGpuKms *gpu_kms)
+{
+  return gpu_kms->id;
+}
+
 const char *
 meta_gpu_kms_get_file_path (MetaGpuKms *gpu_kms)
 {
   return gpu_kms->file_path;
+}
+
+int64_t
+meta_gpu_kms_get_current_time_ns (MetaGpuKms *gpu_kms)
+{
+  struct timespec ts;
+
+  if (clock_gettime (gpu_kms->clock_id, &ts))
+    return 0;
+
+  return timespec_to_nanoseconds (&ts);
 }
 
 void
@@ -393,6 +430,18 @@ meta_gpu_kms_set_power_save_mode (MetaGpuKms *gpu_kms,
 
       meta_output_kms_set_power_save_mode (output, state);
     }
+}
+
+gboolean
+meta_gpu_kms_is_boot_vga (MetaGpuKms *gpu_kms)
+{
+  return !!(gpu_kms->flags & META_GPU_KMS_FLAG_BOOT_VGA);
+}
+
+gboolean
+meta_gpu_kms_is_platform_device (MetaGpuKms *gpu_kms)
+{
+  return !!(gpu_kms->flags & META_GPU_KMS_FLAG_PLATFORM_DEVICE);
 }
 
 static void
@@ -519,8 +568,8 @@ create_mode (const drmModeModeInfo *drm_mode,
 }
 
 static MetaOutput *
-find_output_by_id (GList *outputs,
-                   glong  id)
+find_output_by_connector_id (GList *outputs,
+                             glong  id)
 {
   GList *l;
 
@@ -528,7 +577,7 @@ find_output_by_id (GList *outputs,
     {
       MetaOutput *output = l->data;
 
-      if (output->winsys_id == id)
+      if (meta_output_kms_get_connector_id (output) == id)
         return output;
     }
 
@@ -681,6 +730,17 @@ init_crtcs (MetaGpuKms       *gpu_kms,
 }
 
 static void
+init_frame_clock (MetaGpuKms *gpu_kms)
+{
+  uint64_t uses_monotonic;
+
+  if (drmGetCap (gpu_kms->fd, DRM_CAP_TIMESTAMP_MONOTONIC, &uses_monotonic) != 0)
+    uses_monotonic = 0;
+
+  gpu_kms->clock_id = uses_monotonic ? CLOCK_MONOTONIC : CLOCK_REALTIME;
+}
+
+static void
 init_outputs (MetaGpuKms       *gpu_kms,
               MetaKmsResources *resources)
 {
@@ -705,7 +765,8 @@ init_outputs (MetaGpuKms       *gpu_kms,
           MetaOutput *old_output;
           GError *error = NULL;
 
-          old_output = find_output_by_id (old_outputs, connector->connector_id);
+          old_output = find_output_by_connector_id (old_outputs,
+                                                    connector->connector_id);
           output = meta_create_kms_output (gpu_kms, connector, resources,
                                            old_output,
                                            &error);
@@ -776,8 +837,6 @@ meta_gpu_kms_read_current (MetaGpu  *gpu,
                            GError  **error)
 {
   MetaGpuKms *gpu_kms = META_GPU_KMS (gpu);
-  MetaMonitorManager *monitor_manager =
-    meta_gpu_get_monitor_manager (gpu);
   MetaKmsResources resources;
   g_autoptr (GError) local_error = NULL;
 
@@ -795,20 +854,17 @@ meta_gpu_kms_read_current (MetaGpu  *gpu,
   gpu_kms->max_buffer_width = resources.resources->max_width;
   gpu_kms->max_buffer_height = resources.resources->max_height;
 
-  monitor_manager->power_save_mode = META_POWER_SAVE_ON;
-
   /* Note: we must not free the public structures (output, crtc, monitor
      mode and monitor info) here, they must be kept alive until the API
      users are done with them after we emit monitors-changed, and thus
      are freed by the platform-independent layer. */
   free_resources (gpu_kms);
 
-  g_assert (resources.resources->count_connectors > 0);
-
   init_connectors (gpu_kms, resources.resources);
   init_modes (gpu_kms, resources.resources);
   init_crtcs (gpu_kms, &resources);
   init_outputs (gpu_kms, &resources);
+  init_frame_clock (gpu_kms);
 
   meta_kms_resources_release (&resources);
 
@@ -824,6 +880,7 @@ meta_gpu_kms_can_have_outputs (MetaGpuKms *gpu_kms)
 MetaGpuKms *
 meta_gpu_kms_new (MetaMonitorManagerKms  *monitor_manager_kms,
                   const char             *kms_file_path,
+                  MetaGpuKmsFlag          flags,
                   GError                **error)
 {
   MetaMonitorManager *monitor_manager =
@@ -834,51 +891,17 @@ meta_gpu_kms_new (MetaMonitorManagerKms  *monitor_manager_kms,
   GSource *source;
   MetaKmsSource *kms_source;
   MetaGpuKms *gpu_kms;
-  drmModeRes *drm_resources;
-  guint n_connectors;
   int kms_fd;
 
   kms_fd = meta_launcher_open_restricted (launcher, kms_file_path, error);
   if (kms_fd == -1)
     return NULL;
 
-  /* Some GPUs might have no connectors, for example dedicated GPUs on PRIME (hybrid) laptops.
-   * These GPUs cannot render anything on separate screens, and they are aggressively switched
-   * off by the kernel.
-   *
-   * If we add these PRIME GPUs to the GPU list anyway, Mutter keeps awakening the secondary GPU,
-   * and doing this causes a considerable stuttering. These GPUs are usually put to sleep again
-   * after ~2s without a workload.
-   *
-   * For now, to avoid this situation, only create the MetaGpuKms when the GPU has any connectors.
-   */
-  drm_resources = drmModeGetResources (kms_fd);
-
-  if (!drm_resources)
-    {
-      g_set_error (error, G_IO_ERROR, G_IO_ERROR_FAILED, "No resources");
-      meta_launcher_close_restricted (launcher, kms_fd);
-      return NULL;
-    }
-
-  n_connectors = drm_resources->count_connectors;
-
-  drmModeFreeResources (drm_resources);
-
-  if (n_connectors == 0)
-    {
-      g_set_error (error,
-                   META_GPU_KMS_ERROR,
-                   META_GPU_KMS_ERROR_NO_CONNECTORS,
-                   "No connectors available in this GPU. This is probably a dedicated GPU in a hybrid setup.");
-      meta_launcher_close_restricted (launcher, kms_fd);
-      return NULL;
-    }
-
   gpu_kms = g_object_new (META_TYPE_GPU_KMS,
                           "monitor-manager", monitor_manager_kms,
                           NULL);
 
+  gpu_kms->flags = flags;
   gpu_kms->fd = kms_fd;
   gpu_kms->file_path = g_strdup (kms_file_path);
 
@@ -923,7 +946,10 @@ meta_gpu_kms_finalize (GObject *object)
 static void
 meta_gpu_kms_init (MetaGpuKms *gpu_kms)
 {
+  static uint32_t id = 0;
+
   gpu_kms->fd = -1;
+  gpu_kms->id = ++id;
 }
 
 static void

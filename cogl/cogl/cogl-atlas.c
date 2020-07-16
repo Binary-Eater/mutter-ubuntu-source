@@ -29,9 +29,7 @@
  *  Neil Roberts   <neil@linux.intel.com>
  */
 
-#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
-#endif
 
 #include "cogl-atlas.h"
 #include "cogl-rectangle-map.h"
@@ -40,11 +38,11 @@
 #include "cogl-texture-2d-private.h"
 #include "cogl-texture-2d-sliced.h"
 #include "cogl-texture-driver.h"
-#include "cogl-pipeline-opengl-private.h"
 #include "cogl-debug.h"
 #include "cogl-framebuffer-private.h"
 #include "cogl-blit.h"
 #include "cogl-private.h"
+#include "driver/gl/cogl-pipeline-opengl-private.h"
 
 #include <stdlib.h>
 
@@ -364,7 +362,7 @@ _cogl_atlas_notify_post_reorganize (CoglAtlas *atlas)
   g_hook_list_invoke (&atlas->post_reorganize_callbacks, FALSE);
 }
 
-CoglBool
+gboolean
 _cogl_atlas_reserve_space (CoglAtlas             *atlas,
                            unsigned int           width,
                            unsigned int           height,
@@ -374,7 +372,7 @@ _cogl_atlas_reserve_space (CoglAtlas             *atlas,
   CoglRectangleMap *new_map;
   CoglTexture2D *new_tex;
   unsigned int map_width = 0, map_height = 0;
-  CoglBool ret;
+  gboolean ret;
   CoglRectangleMapEntry new_position;
 
   /* Check if we can fit the rectangle into the existing map */

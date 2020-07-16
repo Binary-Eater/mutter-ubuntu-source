@@ -28,9 +28,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
-#endif
 
 #include "math.h"
 
@@ -173,7 +171,7 @@ _cogl_span_iter_next (CoglSpanIter *iter)
   _cogl_span_iter_update (iter);
 }
 
-CoglBool
+gboolean
 _cogl_span_iter_end (CoglSpanIter *iter)
 {
   /* End reached when whole area covered */

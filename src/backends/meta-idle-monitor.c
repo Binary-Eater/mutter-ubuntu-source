@@ -29,17 +29,17 @@
 #include "config.h"
 
 #include <string.h>
-#include <clutter/clutter.h>
 #include <X11/Xlib.h>
 #include <X11/extensions/sync.h>
 
-#include <meta/util.h>
-#include <meta/main.h>
-#include <meta/meta-idle-monitor.h>
-#include "gsm-inhibitor-flag.h"
-#include "meta-idle-monitor-private.h"
-#include "meta-idle-monitor-dbus.h"
-#include "meta-backend-private.h"
+#include "backends/gsm-inhibitor-flag.h"
+#include "backends/meta-backend-private.h"
+#include "backends/meta-idle-monitor-private.h"
+#include "backends/meta-idle-monitor-dbus.h"
+#include "clutter/clutter.h"
+#include "meta/main.h"
+#include "meta/meta-idle-monitor.h"
+#include "meta/util.h"
 
 G_STATIC_ASSERT(sizeof(unsigned long) == sizeof(gpointer));
 
@@ -226,7 +226,7 @@ meta_idle_monitor_inhibited_actions_changed (GDBusProxy  *session,
     {
       gboolean inhibited;
 
-      inhibited = g_variant_get_uint32 (v) & GSM_INHIBITOR_FLAG_IDLE;
+      inhibited = !!(g_variant_get_uint32 (v) & GSM_INHIBITOR_FLAG_IDLE);
       g_variant_unref (v);
 
       if (!inhibited)
@@ -265,7 +265,8 @@ meta_idle_monitor_init (MetaIdleMonitor *monitor)
                                         "InhibitedActions");
   if (v)
     {
-      monitor->inhibited = g_variant_get_uint32 (v) & GSM_INHIBITOR_FLAG_IDLE;
+      monitor->inhibited = !!(g_variant_get_uint32 (v) &
+                              GSM_INHIBITOR_FLAG_IDLE);
       g_variant_unref (v);
     }
 }
@@ -315,11 +316,18 @@ idle_monitor_dispatch_timeout (GSource     *source,
                                gpointer     user_data)
 {
   MetaIdleMonitorWatch *watch = (MetaIdleMonitorWatch *) user_data;
+  int64_t now;
+  int64_t ready_time;
+
+  now = g_source_get_time (source);
+  ready_time = g_source_get_ready_time (source);
+  if (ready_time > now)
+    return G_SOURCE_CONTINUE;
 
   _meta_idle_monitor_watch_fire (watch);
   g_source_set_ready_time (watch->timeout_source, -1);
 
-  return TRUE;
+  return G_SOURCE_CONTINUE;
 }
 
 static GSourceFuncs idle_monitor_source_funcs = {

@@ -46,7 +46,7 @@ typedef struct _CoglBitmap CoglBitmap;
 
 #include <glib-object.h>
 
-COGL_BEGIN_DECLS
+G_BEGIN_DECLS
 
 /**
  * cogl_bitmap_get_gtype:
@@ -246,7 +246,7 @@ cogl_bitmap_get_buffer (CoglBitmap *bitmap);
  *
  * Since: 1.0
  */
-CoglBool
+gboolean
 cogl_bitmap_get_size_from_file (const char *filename,
                                 int *width,
                                 int *height);
@@ -262,7 +262,7 @@ cogl_bitmap_get_size_from_file (const char *filename,
  *
  * Since: 1.0
  */
-CoglBool
+gboolean
 cogl_is_bitmap (void *object);
 
 /**
@@ -289,7 +289,8 @@ cogl_is_bitmap (void *object);
  *
  * Since: 1.4
  */
-typedef enum {
+typedef enum
+{
   COGL_BITMAP_ERROR_FAILED,
   COGL_BITMAP_ERROR_UNKNOWN_TYPE,
   COGL_BITMAP_ERROR_CORRUPT_IMAGE
@@ -297,6 +298,6 @@ typedef enum {
 
 uint32_t cogl_bitmap_error_quark (void);
 
-COGL_END_DECLS
+G_END_DECLS
 
 #endif /* __COGL_BITMAP_H__ */

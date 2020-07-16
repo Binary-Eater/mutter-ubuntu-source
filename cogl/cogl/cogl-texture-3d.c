@@ -29,25 +29,23 @@
  *  Neil Roberts   <neil@linux.intel.com>
  */
 
-#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
-#endif
 
 #include "cogl-private.h"
 #include "cogl-util.h"
 #include "cogl-texture-private.h"
 #include "cogl-texture-3d-private.h"
 #include "cogl-texture-3d.h"
-#include "cogl-texture-gl-private.h"
 #include "cogl-texture-driver.h"
 #include "cogl-context-private.h"
 #include "cogl-object-private.h"
 #include "cogl-journal-private.h"
 #include "cogl-pipeline-private.h"
-#include "cogl-pipeline-opengl-private.h"
 #include "cogl-error-private.h"
-#include "cogl-util-gl-private.h"
 #include "cogl-gtype-private.h"
+#include "driver/gl/cogl-texture-gl-private.h"
+#include "driver/gl/cogl-pipeline-opengl-private.h"
+#include "driver/gl/cogl-util-gl-private.h"
 
 #include <string.h>
 #include <math.h>
@@ -114,7 +112,7 @@ _cogl_texture_3d_free (CoglTexture3D *tex_3d)
 
 static void
 _cogl_texture_3d_set_auto_mipmap (CoglTexture *tex,
-                                  CoglBool value)
+                                  gboolean value)
 {
   CoglTexture3D *tex_3d = COGL_TEXTURE_3D (tex);
 
@@ -286,7 +284,7 @@ cogl_texture_3d_new_from_data (CoglContext *context,
   return ret;
 }
 
-static CoglBool
+static gboolean
 _cogl_texture_3d_can_create (CoglContext *ctx,
                              int width,
                              int height,
@@ -347,7 +345,7 @@ _cogl_texture_3d_can_create (CoglContext *ctx,
   return TRUE;
 }
 
-static CoglBool
+static gboolean
 allocate_with_size (CoglTexture3D *tex_3d,
                     CoglTextureLoader *loader,
                     CoglError **error)
@@ -410,7 +408,7 @@ allocate_with_size (CoglTexture3D *tex_3d,
   return TRUE;
 }
 
-static CoglBool
+static gboolean
 allocate_from_bitmap (CoglTexture3D *tex_3d,
                       CoglTextureLoader *loader,
                       CoglError **error)
@@ -423,7 +421,7 @@ allocate_from_bitmap (CoglTexture3D *tex_3d,
   int height = loader->src.bitmap.height;
   int depth = loader->src.bitmap.depth;
   CoglPixelFormat bmp_format = cogl_bitmap_get_format (bmp);
-  CoglBool can_convert_in_place = loader->src.bitmap.can_convert_in_place;
+  gboolean can_convert_in_place = loader->src.bitmap.can_convert_in_place;
   CoglBitmap *upload_bmp;
   CoglPixelFormat upload_format;
   GLenum gl_intformat;
@@ -519,7 +517,7 @@ allocate_from_bitmap (CoglTexture3D *tex_3d,
   return TRUE;
 }
 
-static CoglBool
+static gboolean
 _cogl_texture_3d_allocate (CoglTexture *tex,
                            CoglError **error)
 {
@@ -547,13 +545,13 @@ _cogl_texture_3d_get_max_waste (CoglTexture *tex)
   return -1;
 }
 
-static CoglBool
+static gboolean
 _cogl_texture_3d_is_sliced (CoglTexture *tex)
 {
   return FALSE;
 }
 
-static CoglBool
+static gboolean
 _cogl_texture_3d_can_hardware_repeat (CoglTexture *tex)
 {
   return TRUE;
@@ -575,7 +573,7 @@ _cogl_texture_3d_transform_quad_coords_to_gl (CoglTexture *tex,
   /* The texture coordinates map directly so we don't need to do
      anything other than check for repeats */
 
-  CoglBool need_repeat = FALSE;
+  gboolean need_repeat = FALSE;
   int i;
 
   for (i = 0; i < 4; i++)
@@ -586,7 +584,7 @@ _cogl_texture_3d_transform_quad_coords_to_gl (CoglTexture *tex,
           : COGL_TRANSFORM_NO_REPEAT);
 }
 
-static CoglBool
+static gboolean
 _cogl_texture_3d_get_gl_texture (CoglTexture *tex,
                                  GLuint *out_gl_handle,
                                  GLenum *out_gl_target)
@@ -641,7 +639,7 @@ _cogl_texture_3d_pre_paint (CoglTexture *tex, CoglTexturePrePaintFlags flags)
          GL_GENERATE_MIPMAP and reuploading the first pixel */
       if (cogl_has_feature (ctx, COGL_FEATURE_ID_OFFSCREEN))
         _cogl_texture_gl_generate_mipmaps (tex);
-#if defined (HAVE_COGL_GL) || defined (HAVE_COGL_GLES)
+#ifdef HAVE_COGL_GL
       else if (_cogl_has_private_feature (ctx, COGL_PRIVATE_FEATURE_GL_FIXED))
         {
           _cogl_bind_gl_texture_transient (GL_TEXTURE_3D,
@@ -678,7 +676,7 @@ _cogl_texture_3d_ensure_non_quad_rendering (CoglTexture *tex)
   /* Nothing needs to be done */
 }
 
-static CoglBool
+static gboolean
 _cogl_texture_3d_set_region (CoglTexture *tex,
                              int src_x,
                              int src_y,
@@ -739,6 +737,7 @@ cogl_texture_3d_vtable =
     TRUE, /* primitive */
     _cogl_texture_3d_allocate,
     _cogl_texture_3d_set_region,
+    NULL, /* is_get_data_supported */
     _cogl_texture_3d_get_data,
     NULL, /* foreach_sub_texture_in_region */
     _cogl_texture_3d_get_max_waste,

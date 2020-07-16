@@ -39,12 +39,12 @@
 #include "cogl-private.h"
 #include "cogl-texture-private.h"
 #include "cogl-texture-2d-gl.h"
-#include "cogl-texture-2d-gl-private.h"
 #include "cogl-texture-2d-private.h"
-#include "cogl-texture-gl-private.h"
-#include "cogl-pipeline-opengl-private.h"
 #include "cogl-error-private.h"
-#include "cogl-util-gl-private.h"
+#include "driver/gl/cogl-texture-2d-gl-private.h"
+#include "driver/gl/cogl-texture-gl-private.h"
+#include "driver/gl/cogl-pipeline-opengl-private.h"
+#include "driver/gl/cogl-util-gl-private.h"
 
 #if defined (COGL_HAS_EGL_SUPPORT)
 
@@ -73,7 +73,7 @@ _cogl_texture_2d_gl_free (CoglTexture2D *tex_2d)
 #endif
 }
 
-CoglBool
+gboolean
 _cogl_texture_2d_gl_can_create (CoglContext *ctx,
                                 int width,
                                 int height,
@@ -126,7 +126,7 @@ _cogl_texture_2d_gl_init (CoglTexture2D *tex_2d)
   tex_2d->egl_image_external.destroy = NULL;
 }
 
-static CoglBool
+static gboolean
 allocate_with_size (CoglTexture2D *tex_2d,
                     CoglTextureLoader *loader,
                     CoglError **error)
@@ -192,7 +192,7 @@ allocate_with_size (CoglTexture2D *tex_2d,
   return TRUE;
 }
 
-static CoglBool
+static gboolean
 allocate_from_bitmap (CoglTexture2D *tex_2d,
                       CoglTextureLoader *loader,
                       CoglError **error)
@@ -203,7 +203,7 @@ allocate_from_bitmap (CoglTexture2D *tex_2d,
   CoglPixelFormat internal_format;
   int width = cogl_bitmap_get_width (bmp);
   int height = cogl_bitmap_get_height (bmp);
-  CoglBool can_convert_in_place = loader->src.bitmap.can_convert_in_place;
+  gboolean can_convert_in_place = loader->src.bitmap.can_convert_in_place;
   CoglBitmap *upload_bmp;
   GLenum gl_intformat;
   GLenum gl_format;
@@ -299,7 +299,7 @@ allocate_from_bitmap (CoglTexture2D *tex_2d,
 }
 
 #if defined (COGL_HAS_EGL_SUPPORT) && defined (EGL_KHR_image_base)
-static CoglBool
+static gboolean
 allocate_from_egl_image (CoglTexture2D *tex_2d,
                          CoglTextureLoader *loader,
                          CoglError **error)
@@ -338,7 +338,7 @@ allocate_from_egl_image (CoglTexture2D *tex_2d,
 }
 #endif
 
-static CoglBool
+static gboolean
 allocate_from_gl_foreign (CoglTexture2D *tex_2d,
                           CoglTextureLoader *loader,
                           CoglError **error)
@@ -463,14 +463,19 @@ allocate_from_gl_foreign (CoglTexture2D *tex_2d,
 }
 
 #if defined (COGL_HAS_EGL_SUPPORT)
-static CoglBool
+static gboolean
 allocate_custom_egl_image_external (CoglTexture2D *tex_2d,
                                     CoglTextureLoader *loader,
                                     CoglError **error)
 {
   CoglTexture *tex = COGL_TEXTURE (tex_2d);
   CoglContext *ctx = tex->context;
-  CoglPixelFormat internal_format = loader->src.egl_image_external.format;
+  CoglPixelFormat external_format;
+  CoglPixelFormat internal_format;
+
+  external_format = loader->src.egl_image_external.format;
+  internal_format = _cogl_texture_determine_internal_format (tex,
+                                                             external_format);
 
   _cogl_gl_util_clear_gl_errors (ctx);
 
@@ -552,7 +557,7 @@ cogl_texture_2d_new_from_egl_image_external (CoglContext *ctx,
 }
 #endif /* defined (COGL_HAS_EGL_SUPPORT) */
 
-CoglBool
+gboolean
 _cogl_texture_2d_gl_allocate (CoglTexture *tex,
                               CoglError **error)
 {
@@ -576,7 +581,11 @@ _cogl_texture_2d_gl_allocate (CoglTexture *tex,
     case COGL_TEXTURE_SOURCE_TYPE_GL_FOREIGN:
       return allocate_from_gl_foreign (tex_2d, loader, error);
     case COGL_TEXTURE_SOURCE_TYPE_EGL_IMAGE_EXTERNAL:
+#if defined (COGL_HAS_EGL_SUPPORT)
       return allocate_custom_egl_image_external (tex_2d, loader, error);
+#else
+      g_return_val_if_reached (FALSE);
+#endif
     }
 
   g_return_val_if_reached (FALSE);
@@ -721,7 +730,7 @@ _cogl_texture_2d_gl_generate_mipmap (CoglTexture2D *tex_2d)
      GL_GENERATE_MIPMAP and reuploading the first pixel */
   if (cogl_has_feature (ctx, COGL_FEATURE_ID_OFFSCREEN))
     _cogl_texture_gl_generate_mipmaps (COGL_TEXTURE (tex_2d));
-#if defined(HAVE_COGL_GLES) || defined(HAVE_COGL_GL)
+#ifdef HAVE_COGL_GL
   else
     {
       _cogl_bind_gl_texture_transient (GL_TEXTURE_2D,
@@ -742,7 +751,7 @@ _cogl_texture_2d_gl_generate_mipmap (CoglTexture2D *tex_2d)
 #endif
 }
 
-CoglBool
+gboolean
 _cogl_texture_2d_gl_copy_from_bitmap (CoglTexture2D *tex_2d,
                                       int src_x,
                                       int src_y,
@@ -760,7 +769,7 @@ _cogl_texture_2d_gl_copy_from_bitmap (CoglTexture2D *tex_2d,
   CoglPixelFormat upload_format;
   GLenum gl_format;
   GLenum gl_type;
-  CoglBool status = TRUE;
+  gboolean status = TRUE;
 
   upload_bmp =
     _cogl_bitmap_convert_for_upload (bmp,
@@ -772,12 +781,11 @@ _cogl_texture_2d_gl_copy_from_bitmap (CoglTexture2D *tex_2d,
 
   upload_format = cogl_bitmap_get_format (upload_bmp);
 
-  ctx->driver_vtable->pixel_format_to_gl_with_target (ctx,
-                                                      upload_format,
-                                                      _cogl_texture_get_format (tex),
-                                                      NULL, /* internal gl format */
-                                                      &gl_format,
-                                                      &gl_type);
+  ctx->driver_vtable->pixel_format_to_gl (ctx,
+                                          upload_format,
+                                          NULL, /* internal gl format */
+                                          &gl_format,
+                                          &gl_type);
 
   /* If this touches the first pixel then we'll update our copy */
   if (dst_x == 0 && dst_y == 0 &&
@@ -829,6 +837,15 @@ _cogl_texture_2d_gl_copy_from_bitmap (CoglTexture2D *tex_2d,
   return status;
 }
 
+gboolean
+_cogl_texture_2d_gl_is_get_data_supported (CoglTexture2D *tex_2d)
+{
+  if (tex_2d->gl_target == GL_TEXTURE_EXTERNAL_OES)
+    return FALSE;
+  else
+    return TRUE;
+}
+
 void
 _cogl_texture_2d_gl_get_data (CoglTexture2D *tex_2d,
                               CoglPixelFormat format,
@@ -854,12 +871,12 @@ _cogl_texture_2d_gl_get_data (CoglTexture2D *tex_2d,
                                                     width,
                                                     bpp);
 
-  _cogl_bind_gl_texture_transient (GL_TEXTURE_2D,
+  _cogl_bind_gl_texture_transient (tex_2d->gl_target,
                                    tex_2d->gl_texture,
                                    tex_2d->is_foreign);
 
   ctx->texture_driver->gl_get_tex_image (ctx,
-                                         GL_TEXTURE_2D,
+                                         tex_2d->gl_target,
                                          gl_format,
                                          gl_type,
                                          data);

@@ -25,14 +25,13 @@
 #ifndef META_CURSOR_RENDERER_NATIVE_H
 #define META_CURSOR_RENDERER_NATIVE_H
 
-#include "meta-cursor-renderer.h"
+#include "backends/meta-cursor-renderer.h"
+#include "meta/meta-backend.h"
 
 #define META_TYPE_CURSOR_RENDERER_NATIVE (meta_cursor_renderer_native_get_type ())
 G_DECLARE_FINAL_TYPE (MetaCursorRendererNative, meta_cursor_renderer_native,
                       META, CURSOR_RENDERER_NATIVE,
                       MetaCursorRenderer)
-
-void meta_cursor_renderer_native_force_update (MetaCursorRendererNative *renderer);
 
 MetaCursorRendererNative * meta_cursor_renderer_native_new (MetaBackend *backend);
 

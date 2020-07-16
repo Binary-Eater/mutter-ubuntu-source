@@ -19,9 +19,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
 #include "clutter-build-config.h"
-#endif
 
 #include <string.h>
 
@@ -36,7 +34,6 @@
 #include <errno.h>
 
 #include "clutter-backend-x11.h"
-#include "clutter-device-manager-core-x11.h"
 #include "clutter-device-manager-xi2.h"
 #include "clutter-settings-x11.h"
 #include "clutter-stage-x11.h"
@@ -44,13 +41,8 @@
 
 #include "xsettings/xsettings-common.h"
 
-#if HAVE_XCOMPOSITE
 #include <X11/extensions/Xcomposite.h>
-#endif
-
-#if HAVE_XINPUT_2
 #include <X11/extensions/XInput2.h>
-#endif
 
 #include <cogl/cogl.h>
 #include <cogl/cogl-xlib.h>
@@ -62,6 +54,7 @@
 #include "clutter-main.h"
 #include "clutter-private.h"
 #include "clutter-settings-private.h"
+#include "clutter-xkb-a11y-x11.h"
 
 G_DEFINE_TYPE (ClutterBackendX11, clutter_backend_x11, CLUTTER_TYPE_BACKEND)
 
@@ -243,7 +236,6 @@ clutter_backend_x11_create_device_manager (ClutterBackendX11 *backend_x11)
   ClutterEventTranslator *translator;
   ClutterBackend *backend;
 
-#ifdef HAVE_XINPUT_2
   if (clutter_enable_xinput)
     {
       int event_base, first_event, first_error;
@@ -272,15 +264,9 @@ clutter_backend_x11_create_device_manager (ClutterBackendX11 *backend_x11)
     }
 
   if (backend_x11->device_manager == NULL)
-#endif /* HAVE_XINPUT_2 */
     {
-      CLUTTER_NOTE (BACKEND, "Creating Core device manager");
+      g_critical ("XI2 extension is missing.");
       backend_x11->has_xinput = FALSE;
-      backend_x11->device_manager =
-        g_object_new (CLUTTER_TYPE_DEVICE_MANAGER_X11,
-                      "backend", backend_x11,
-                      NULL);
-
       backend_x11->xi_minor = -1;
     }
 
@@ -289,6 +275,20 @@ clutter_backend_x11_create_device_manager (ClutterBackendX11 *backend_x11)
 
   translator = CLUTTER_EVENT_TRANSLATOR (backend_x11->device_manager);
   _clutter_backend_add_event_translator (backend, translator);
+}
+
+static void
+on_keymap_state_change (ClutterKeymapX11 *keymap_x11,
+                        gpointer          data)
+{
+  ClutterDeviceManager *device_manager = CLUTTER_DEVICE_MANAGER (data);
+  ClutterKbdA11ySettings kbd_a11y_settings;
+
+  /* On keymaps state change, just reapply the current settings, it'll
+   * take care of enabling/disabling mousekeys based on NumLock state.
+   */
+  clutter_device_manager_get_kbd_a11y_settings (device_manager, &kbd_a11y_settings);
+  clutter_device_manager_x11_apply_kbd_a11y_settings (device_manager, &kbd_a11y_settings);
 }
 
 static void
@@ -307,6 +307,11 @@ clutter_backend_x11_create_keymap (ClutterBackendX11 *backend_x11)
       backend = CLUTTER_BACKEND (backend_x11);
       translator = CLUTTER_EVENT_TRANSLATOR (backend_x11->keymap);
       _clutter_backend_add_event_translator (backend, translator);
+
+      g_signal_connect (backend_x11->keymap,
+                        "state-changed",
+                        G_CALLBACK (on_keymap_state_change),
+                        backend->device_manager);
     }
 }
 
@@ -489,9 +494,6 @@ _clutter_backend_x11_events_init (ClutterBackend *backend)
       backend_x11->event_source = source;
     }
 
-  /* create the device manager; we need this because we can effectively
-   * choose between core+XI1 and XI2 input events
-   */
   clutter_backend_x11_create_device_manager (backend_x11);
 
   /* register keymap; unless we create a generic Keymap object, I'm
@@ -519,14 +521,12 @@ static const GOptionEntry entries[] =
     G_OPTION_ARG_NONE, &clutter_synchronise,
     N_("Make X calls synchronous"), NULL
   },
-#ifdef HAVE_XINPUT_2
   {
     "disable-xinput", 0,
     G_OPTION_FLAG_REVERSE,
     G_OPTION_ARG_NONE, &clutter_enable_xinput,
     N_("Disable XInput support"), NULL
   },
-#endif /* HAVE_XINPUT_2 */
   { NULL }
 };
 
@@ -689,8 +689,8 @@ static gboolean
 check_onscreen_template (CoglRenderer         *renderer,
                          CoglSwapChain        *swap_chain,
                          CoglOnscreenTemplate *onscreen_template,
-                         CoglBool              enable_argb,
-                         CoglBool              enable_stereo,
+                         gboolean              enable_argb,
+                         gboolean              enable_stereo,
                          GError              **error)
 {
   GError *internal_error = NULL;
@@ -818,6 +818,14 @@ clutter_backend_x11_get_keymap_direction (ClutterBackend *backend)
   return _clutter_keymap_x11_get_direction (backend_x11->keymap);
 }
 
+static ClutterKeymap *
+clutter_backend_x11_get_keymap (ClutterBackend *backend)
+{
+  ClutterBackendX11 *backend_x11 = CLUTTER_BACKEND_X11 (backend);
+
+  return CLUTTER_KEYMAP (backend_x11->keymap);
+}
+
 static void
 clutter_backend_x11_class_init (ClutterBackendX11Class *klass)
 {
@@ -840,6 +848,7 @@ clutter_backend_x11_class_init (ClutterBackendX11Class *klass)
   backend_class->get_display = clutter_backend_x11_get_display;
 
   backend_class->get_keymap_direction = clutter_backend_x11_get_keymap_direction;
+  backend_class->get_keymap = clutter_backend_x11_get_keymap;
 }
 
 static void
@@ -948,30 +957,6 @@ clutter_x11_set_display (Display *xdpy)
     }
 
   _foreign_dpy= xdpy;
-}
-
-/**
- * clutter_x11_enable_xinput:
- *
- * Enables the use of the XInput extension if present on connected
- * XServer and support built into Clutter. XInput allows for multiple
- * pointing devices to be used.
- *
- * This function must be called before clutter_init().
- *
- * Since XInput might not be supported by the X server, you might
- * want to use clutter_x11_has_xinput() to see if support was enabled.
- *
- * Since: 0.8
- *
- * Deprecated: 1.14: This function does not do anything; XInput support
- *   is enabled by default in Clutter. Use the CLUTTER_DISABLE_XINPUT
- *   environment variable to disable XInput support and use Xlib core
- *   events instead.
- */
-void
-clutter_x11_enable_xinput (void)
-{
 }
 
 /**
@@ -1183,31 +1168,6 @@ clutter_x11_remove_filter (ClutterX11FilterFunc func,
 }
 
 /**
- * clutter_x11_get_input_devices:
- *
- * Retrieves a pointer to the list of input devices
- *
- * Deprecated: 1.2: Use clutter_device_manager_peek_devices() instead
- *
- * Since: 0.8
- *
- * Return value: (transfer none) (element-type Clutter.InputDevice): a
- *   pointer to the internal list of input devices; the returned list is
- *   owned by Clutter and should not be modified or freed
- */
-const GSList *
-clutter_x11_get_input_devices (void)
-{
-  ClutterDeviceManager *manager;
-
-  manager = clutter_device_manager_get_default ();
-  if (manager == NULL)
-    return NULL;
-
-  return clutter_device_manager_peek_devices (manager);
-}
-
-/**
  * clutter_x11_has_xinput:
  *
  * Gets whether Clutter has XInput support.
@@ -1220,7 +1180,6 @@ clutter_x11_get_input_devices (void)
 gboolean
 clutter_x11_has_xinput (void)
 {
-#ifdef HAVE_XINPUT_2
  ClutterBackend *backend = clutter_get_default_backend ();
 
   if (backend == NULL)
@@ -1236,9 +1195,6 @@ clutter_x11_has_xinput (void)
     }
 
   return CLUTTER_BACKEND_X11 (backend)->has_xinput;
-#else
-  return FALSE;
-#endif
 }
 
 /**
@@ -1252,7 +1208,6 @@ clutter_x11_has_xinput (void)
 gboolean
 clutter_x11_has_composite_extension (void)
 {
-#if HAVE_XCOMPOSITE
   static gboolean have_composite = FALSE, done_check = FALSE;
   int error = 0, event = 0;
   Display *dpy;
@@ -1283,9 +1238,6 @@ clutter_x11_has_composite_extension (void)
   done_check = TRUE;
 
   return have_composite;
-#else
-  return FALSE;
-#endif /* HAVE_XCOMPOSITE */
 }
 
 /**

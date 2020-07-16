@@ -37,9 +37,7 @@
  * Pixel Buffers API.
  */
 
-#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
-#endif
 
 #include <stdio.h>
 #include <string.h>
@@ -64,7 +62,7 @@ _cogl_buffer_register_buffer_type (const CoglObjectClass *klass)
   _cogl_buffer_types = g_slist_prepend (_cogl_buffer_types, (void *) klass);
 }
 
-CoglBool
+gboolean
 cogl_is_buffer (void *object)
 {
   const CoglObject *obj = object;
@@ -102,7 +100,7 @@ malloc_unmap (CoglBuffer *buffer)
   buffer->flags &= ~COGL_BUFFER_FLAG_MAPPED;
 }
 
-static CoglBool
+static gboolean
 malloc_set_data (CoglBuffer *buffer,
                  unsigned int offset,
                  const void *data,
@@ -121,7 +119,7 @@ _cogl_buffer_initialize (CoglBuffer *buffer,
                          CoglBufferUsageHint usage_hint,
                          CoglBufferUpdateHint update_hint)
 {
-  CoglBool use_malloc = FALSE;
+  gboolean use_malloc = FALSE;
 
   buffer->context = ctx;
   buffer->flags = COGL_BUFFER_FLAG_NONE;
@@ -212,7 +210,7 @@ cogl_buffer_get_update_hint (CoglBuffer *buffer)
 static void
 warn_about_midscene_changes (void)
 {
-  static CoglBool seen = FALSE;
+  static gboolean seen = FALSE;
   if (!seen)
     {
       g_warning ("Mid-scene modification of buffers has "
@@ -361,7 +359,7 @@ _cogl_buffer_unmap_for_fill_or_fallback (CoglBuffer *buffer)
     cogl_buffer_unmap (buffer);
 }
 
-CoglBool
+gboolean
 _cogl_buffer_set_data (CoglBuffer *buffer,
                        size_t offset,
                        const void *data,
@@ -377,14 +375,14 @@ _cogl_buffer_set_data (CoglBuffer *buffer,
   return buffer->vtable.set_data (buffer, offset, data, size, error);
 }
 
-CoglBool
+gboolean
 cogl_buffer_set_data (CoglBuffer *buffer,
                       size_t offset,
                       const void *data,
                       size_t size)
 {
   CoglError *ignore_error = NULL;
-  CoglBool status =
+  gboolean status =
     _cogl_buffer_set_data (buffer, offset, data, size, &ignore_error);
   if (!status)
     cogl_error_free (ignore_error);

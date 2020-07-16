@@ -43,16 +43,7 @@
 #include <glib.h>
 #include <glib-object.h>
 
-/* Guard C code in headers, while including them from C++ */
-#ifdef  __cplusplus
-#define COGL_BEGIN_DECLS  extern "C" {
-#define COGL_END_DECLS    }
-#else
-#define COGL_BEGIN_DECLS
-#define COGL_END_DECLS
-#endif
-
-COGL_BEGIN_DECLS
+G_BEGIN_DECLS
 
 /**
  * SECTION:cogl-types
@@ -60,32 +51,6 @@ COGL_BEGIN_DECLS
  *
  * General types used by various Cogl functions.
 */
-
-/**
- * CoglBool:
- *
- * A boolean data type used throughout the Cogl C api. This should be
- * used in conjunction with the %TRUE and %FALSE macro defines for
- * setting and testing boolean values.
- *
- * Since: 2.0
- * Stability: stable
- */
-typedef int CoglBool;
-
-#if __GNUC__ >= 4
-#define COGL_GNUC_NULL_TERMINATED __attribute__((__sentinel__))
-#else
-#define COGL_GNUC_NULL_TERMINATED
-#endif
-
-#if (__GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 1)) && \
-  !defined (COGL_COMPILATION)
-#define COGL_GNUC_DEPRECATED                       \
-  __attribute__((__deprecated__))
-#else
-#define COGL_GNUC_DEPRECATED
-#endif /* __GNUC__ */
 
 /* Some structures are meant to be opaque but they have public
    definitions because we want the size to be public so they can be
@@ -147,15 +112,6 @@ cogl_handle_ref (CoglHandle handle);
  */
 void
 cogl_handle_unref (CoglHandle handle);
-
-/**
- * CoglFuncPtr:
- *
- * The type used by cogl for function pointers, note that this type
- * is used as a generic catch-all cast for function pointers and the
- * actual arguments and return type may be different.
- */
-typedef void (* CoglFuncPtr) (void);
 
 /* We forward declare this in cogl-types to avoid circular dependencies
  * between cogl-matrix.h, cogl-euler.h and cogl-quaterion.h */
@@ -313,7 +269,8 @@ typedef struct _CoglTextureVertex       CoglTextureVertex;
  *
  * Since: 0.8
  */
-typedef enum { /*< prefix=COGL_PIXEL_FORMAT >*/
+typedef enum /*< prefix=COGL_PIXEL_FORMAT >*/
+{
   COGL_PIXEL_FORMAT_ANY           = 0,
   COGL_PIXEL_FORMAT_A_8           = 1 | COGL_A_BIT,
 
@@ -366,7 +323,6 @@ typedef enum { /*< prefix=COGL_PIXEL_FORMAT >*/
  * @COGL_FEATURE_TEXTURE_YUV: ycbcr conversion support
  * @COGL_FEATURE_TEXTURE_READ_PIXELS: glReadPixels() support
  * @COGL_FEATURE_SHADERS_GLSL: GLSL support
- * @COGL_FEATURE_SHADERS_ARBFP: ARBFP support
  * @COGL_FEATURE_OFFSCREEN: FBO support
  * @COGL_FEATURE_OFFSCREEN_MULTISAMPLE: Multisample support on FBOs
  * @COGL_FEATURE_OFFSCREEN_BLIT: Blit support on FBOs
@@ -424,7 +380,6 @@ typedef enum
   COGL_FEATURE_TEXTURE_NPOT_REPEAT    = (1 << 17),
   COGL_FEATURE_POINT_SPRITE           = (1 << 18),
   COGL_FEATURE_TEXTURE_3D             = (1 << 19),
-  COGL_FEATURE_SHADERS_ARBFP          = (1 << 20),
   COGL_FEATURE_MAP_BUFFER_FOR_READ    = (1 << 21),
   COGL_FEATURE_MAP_BUFFER_FOR_WRITE   = (1 << 22),
   COGL_FEATURE_ONSCREEN_MULTIPLE      = (1 << 23),
@@ -513,7 +468,8 @@ COGL_STRUCT_SIZE_ASSERT (CoglTextureVertex, 36);
  *
  * Since: 1.0
  */
-typedef enum {
+typedef enum
+{
   COGL_TEXTURE_NONE           = 0,
   COGL_TEXTURE_NO_AUTO_MIPMAP = 1 << 0,
   COGL_TEXTURE_NO_SLICING     = 1 << 1,
@@ -548,7 +504,8 @@ typedef enum {
  *
  * Since: 1.0
  */
-typedef enum {
+typedef enum
+{
   COGL_FOG_MODE_LINEAR,
   COGL_FOG_MODE_EXPONENTIAL,
   COGL_FOG_MODE_EXPONENTIAL_SQUARED
@@ -575,7 +532,8 @@ typedef enum {
  *
  * Since: 1.0
  */
-typedef enum { /*< prefix=COGL_BLEND_STRING_ERROR >*/
+typedef enum /*< prefix=COGL_BLEND_STRING_ERROR >*/
+{
   COGL_BLEND_STRING_ERROR_PARSE_ERROR,
   COGL_BLEND_STRING_ERROR_ARGUMENT_PARSE_ERROR,
   COGL_BLEND_STRING_ERROR_INVALID_ERROR,
@@ -617,7 +575,8 @@ cogl_blend_string_error_quark (void);
  * Since: 1.4
  * Stability: unstable
  */
-typedef enum { /*< prefix=COGL_ERROR >*/
+typedef enum /*< prefix=COGL_ERROR >*/
+{
   COGL_SYSTEM_ERROR_UNSUPPORTED,
   COGL_SYSTEM_ERROR_NO_MEMORY
 } CoglSystemError;
@@ -639,7 +598,8 @@ _cogl_system_error_quark (void);
  *
  * Since: 1.0
  */
-typedef enum {
+typedef enum
+{
   COGL_ATTRIBUTE_TYPE_BYTE           = 0x1400,
   COGL_ATTRIBUTE_TYPE_UNSIGNED_BYTE  = 0x1401,
   COGL_ATTRIBUTE_TYPE_SHORT          = 0x1402,
@@ -663,7 +623,8 @@ typedef enum {
  * be available if the GL_OES_element_index_uint extension is
  * advertized.
  */
-typedef enum {
+typedef enum
+{
   COGL_INDICES_TYPE_UNSIGNED_BYTE,
   COGL_INDICES_TYPE_UNSIGNED_SHORT,
   COGL_INDICES_TYPE_UNSIGNED_INT
@@ -688,7 +649,8 @@ typedef enum {
  *
  * Since: 1.0
  */
-typedef enum {
+typedef enum
+{
   COGL_VERTICES_MODE_POINTS = 0x0000,
   COGL_VERTICES_MODE_LINES = 0x0001,
   COGL_VERTICES_MODE_LINE_LOOP = 0x0002,
@@ -730,7 +692,8 @@ typedef enum {
  * The test is only done when depth testing is explicitly enabled. (See
  * cogl_depth_state_set_test_enabled())
  */
-typedef enum {
+typedef enum
+{
   COGL_DEPTH_TEST_FUNCTION_NEVER    = 0x0200,
   COGL_DEPTH_TEST_FUNCTION_LESS     = 0x0201,
   COGL_DEPTH_TEST_FUNCTION_EQUAL    = 0x0202,
@@ -742,7 +705,8 @@ typedef enum {
 } CoglDepthTestFunction;
 /* NB: The above definitions are taken from gl.h equivalents */
 
-typedef enum { /*< prefix=COGL_RENDERER_ERROR >*/
+typedef enum /*< prefix=COGL_RENDERER_ERROR >*/
+{
   COGL_RENDERER_ERROR_XLIB_DISPLAY_OPEN,
   COGL_RENDERER_ERROR_BAD_CONSTRAINT
 } CoglRendererError;
@@ -860,7 +824,8 @@ typedef enum
  *
  * Since: 1.0
  */
-typedef enum {
+typedef enum
+{
   COGL_BUFFER_BIT_COLOR   = 1L<<0,
   COGL_BUFFER_BIT_DEPTH   = 1L<<1,
   COGL_BUFFER_BIT_STENCIL = 1L<<2
@@ -874,7 +839,8 @@ typedef enum {
  *
  * Since: 1.0
  */
-typedef enum { /*< prefix=COGL_READ_PIXELS >*/
+typedef enum /*< prefix=COGL_READ_PIXELS >*/
+{
   COGL_READ_PIXELS_COLOR_BUFFER = 1L << 0
 } CoglReadPixelsFlags;
 
@@ -887,12 +853,13 @@ typedef enum { /*< prefix=COGL_READ_PIXELS >*/
  * Represents how draw should affect the two buffers
  * of a stereo framebuffer. See cogl_framebuffer_set_stereo_mode().
  */
-typedef enum {
+typedef enum
+{
   COGL_STEREO_BOTH,
   COGL_STEREO_LEFT,
   COGL_STEREO_RIGHT
 } CoglStereoMode;
 
-COGL_END_DECLS
+G_END_DECLS
 
 #endif /* __COGL_TYPES_H__ */

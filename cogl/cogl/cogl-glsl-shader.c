@@ -32,20 +32,18 @@
  *   Neil Roberts <neil@linux.intel.com>
  */
 
-#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
-#endif
 
 #include "cogl-context-private.h"
-#include "cogl-util-gl-private.h"
 #include "cogl-glsl-shader-private.h"
 #include "cogl-glsl-shader-boilerplate.h"
+#include "driver/gl/cogl-util-gl-private.h"
 
 #include <string.h>
 
 #include <glib.h>
 
-static CoglBool
+static gboolean
 add_layer_vertex_boilerplate_cb (CoglPipelineLayer *layer,
                                  void *user_data)
 {
@@ -63,7 +61,7 @@ add_layer_vertex_boilerplate_cb (CoglPipelineLayer *layer,
   return TRUE;
 }
 
-static CoglBool
+static gboolean
 add_layer_fragment_boilerplate_cb (CoglPipelineLayer *layer,
                                    void *user_data)
 {

@@ -29,9 +29,7 @@
  *   Robert Bragg <robert@linux.intel.com>
  */
 
-#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
-#endif
 
 #include "cogl-xlib-renderer.h"
 #include "cogl-util.h"
@@ -41,9 +39,9 @@
 #include "cogl-renderer-private.h"
 #include "cogl-xlib-renderer-private.h"
 #include "cogl-x11-renderer-private.h"
-#include "cogl-winsys-private.h"
 #include "cogl-error-private.h"
 #include "cogl-poll-private.h"
+#include "winsys/cogl-winsys-private.h"
 
 #include <X11/Xlib.h>
 #include <X11/extensions/Xdamage.h>
@@ -230,16 +228,16 @@ static CoglSubpixelOrder subpixel_map[6][6] = {
 
 static void
 update_outputs (CoglRenderer *renderer,
-                CoglBool notify)
+                gboolean notify)
 {
   CoglXlibRenderer *xlib_renderer =
     _cogl_xlib_renderer_get_data (renderer);
   XRRScreenResources *resources;
   CoglXlibTrapState state;
-  CoglBool error = FALSE;
+  gboolean error = FALSE;
   GList *new_outputs = NULL;
   GList *l, *m;
-  CoglBool changed = FALSE;
+  gboolean changed = FALSE;
   int i;
 
   xlib_renderer->outputs_update_serial = XNextRequest (xlib_renderer->xdpy);
@@ -504,7 +502,7 @@ dispatch_xlib_events (void *user_data, int revents)
       }
 }
 
-CoglBool
+gboolean
 _cogl_xlib_renderer_connect (CoglRenderer *renderer, CoglError **error)
 {
   CoglXlibRenderer *xlib_renderer =

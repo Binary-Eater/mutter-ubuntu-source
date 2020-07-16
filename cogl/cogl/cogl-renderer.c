@@ -29,9 +29,7 @@
  *   Robert Bragg <robert@linux.intel.com>
  */
 
-#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
-#endif
 
 #include <stdlib.h>
 #include <string.h>
@@ -40,23 +38,24 @@
 #include "cogl-private.h"
 #include "cogl-object.h"
 #include "cogl-context-private.h"
-#include "cogl-util-gl-private.h"
 #include "cogl-mutter.h"
 
 #include "cogl-renderer.h"
 #include "cogl-renderer-private.h"
 #include "cogl-display-private.h"
-#include "cogl-winsys-private.h"
-#include "cogl-winsys-stub-private.h"
 #include "cogl-config-private.h"
 #include "cogl-error-private.h"
 #include "cogl-gtype-private.h"
 
+#include "driver/gl/cogl-util-gl-private.h"
+#include "winsys/cogl-winsys-private.h"
+#include "winsys/cogl-winsys-stub-private.h"
+
 #ifdef COGL_HAS_EGL_PLATFORM_XLIB_SUPPORT
-#include "cogl-winsys-egl-x11-private.h"
+#include "winsys/cogl-winsys-egl-x11-private.h"
 #endif
 #ifdef COGL_HAS_GLX_SUPPORT
-#include "cogl-winsys-glx-private.h"
+#include "winsys/cogl-winsys-glx-private.h"
 #endif
 
 #ifdef COGL_HAS_XLIB_SUPPORT
@@ -67,7 +66,7 @@
 extern const CoglTextureDriver _cogl_texture_driver_gl;
 extern const CoglDriverVtable _cogl_driver_gl;
 #endif
-#if defined (HAVE_COGL_GLES) || defined (HAVE_COGL_GLES2)
+#if defined (HAVE_COGL_GLES2)
 extern const CoglTextureDriver _cogl_texture_driver_gles;
 extern const CoglDriverVtable _cogl_driver_gles;
 #endif
@@ -129,20 +128,6 @@ static CoglDriverDescription _cogl_drivers[] =
     &_cogl_driver_gles,
     &_cogl_texture_driver_gles,
     COGL_GLES2_LIBNAME,
-  },
-#endif
-#ifdef HAVE_COGL_GLES
-  {
-    COGL_DRIVER_GLES1,
-    "gles1",
-    0,
-    { COGL_PRIVATE_FEATURE_ANY_GL,
-      COGL_PRIVATE_FEATURE_GL_EMBEDDED,
-      COGL_PRIVATE_FEATURE_GL_FIXED,
-      -1 },
-    &_cogl_driver_gles,
-    &_cogl_texture_driver_gles,
-    COGL_GLES1_LIBNAME,
   },
 #endif
   {
@@ -267,7 +252,7 @@ cogl_xlib_renderer_get_foreign_display (CoglRenderer *renderer)
 
 void
 cogl_xlib_renderer_set_event_retrieval_enabled (CoglRenderer *renderer,
-                                                CoglBool enable)
+                                                gboolean enable)
 {
   _COGL_RETURN_IF_FAIL (cogl_is_renderer (renderer));
   /* NB: Renderers are considered immutable once connected */
@@ -278,7 +263,7 @@ cogl_xlib_renderer_set_event_retrieval_enabled (CoglRenderer *renderer,
 
 void
 cogl_xlib_renderer_request_reset_on_video_memory_purge (CoglRenderer *renderer,
-                                                        CoglBool enable)
+                                                        gboolean enable)
 {
   _COGL_RETURN_IF_FAIL (cogl_is_renderer (renderer));
   _COGL_RETURN_IF_FAIL (!renderer->connected);
@@ -288,7 +273,7 @@ cogl_xlib_renderer_request_reset_on_video_memory_purge (CoglRenderer *renderer,
 
 void
 cogl_xlib_renderer_set_threaded_swap_wait_enabled (CoglRenderer *renderer,
-						   CoglBool enable)
+						   gboolean enable)
 {
   _COGL_RETURN_IF_FAIL (cogl_is_renderer (renderer));
   /* NB: Renderers are considered immutable once connected */
@@ -298,7 +283,7 @@ cogl_xlib_renderer_set_threaded_swap_wait_enabled (CoglRenderer *renderer,
 }
 #endif /* COGL_HAS_XLIB_SUPPORT */
 
-CoglBool
+gboolean
 cogl_renderer_check_onscreen_template (CoglRenderer *renderer,
                                        CoglOnscreenTemplate *onscreen_template,
                                        CoglError **error)
@@ -320,7 +305,7 @@ cogl_renderer_check_onscreen_template (CoglRenderer *renderer,
   return TRUE;
 }
 
-typedef CoglBool (*CoglDriverCallback) (CoglDriverDescription *description,
+typedef gboolean (*CoglDriverCallback) (CoglDriverDescription *description,
                                         void *user_data);
 
 static void
@@ -401,12 +386,8 @@ driver_id_to_name (CoglDriver id)
         return "gl";
       case COGL_DRIVER_GL3:
         return "gl3";
-      case COGL_DRIVER_GLES1:
-        return "gles1";
       case COGL_DRIVER_GLES2:
         return "gles2";
-      case COGL_DRIVER_WEBGL:
-        return "webgl";
       case COGL_DRIVER_NOP:
         return "nop";
       case COGL_DRIVER_ANY:
@@ -424,7 +405,7 @@ typedef struct _SatisfyConstraintsState
   const CoglDriverDescription *driver_description;
 } SatisfyConstraintsState;
 
-static CoglBool
+static gboolean
 satisfy_constraints (CoglDriverDescription *description,
                      void *user_data)
 {
@@ -451,7 +432,7 @@ satisfy_constraints (CoglDriverDescription *description,
   return FALSE;
 }
 
-static CoglBool
+static gboolean
 _cogl_renderer_choose_driver (CoglRenderer *renderer,
                               CoglError **error)
 {
@@ -491,7 +472,7 @@ _cogl_renderer_choose_driver (CoglRenderer *renderer,
 
   if (driver_override != COGL_DRIVER_ANY)
     {
-      CoglBool found = FALSE;
+      gboolean found = FALSE;
       int i;
 
       for (i = 0; i < G_N_ELEMENTS (_cogl_drivers); i++)
@@ -573,7 +554,7 @@ cogl_renderer_set_custom_winsys (CoglRenderer                *renderer,
   renderer->custom_winsys_vtable_getter = winsys_vtable_getter;
 }
 
-static CoglBool
+static gboolean
 connect_custom_winsys (CoglRenderer *renderer,
                        CoglError   **error)
 {
@@ -607,12 +588,12 @@ connect_custom_winsys (CoglRenderer *renderer,
   return FALSE;
 }
 
-CoglBool
+gboolean
 cogl_renderer_connect (CoglRenderer *renderer, CoglError **error)
 {
   int i;
   GString *error_message;
-  CoglBool constraints_failed = FALSE;
+  gboolean constraints_failed = FALSE;
 
   if (renderer->connected)
     return TRUE;
@@ -632,7 +613,7 @@ cogl_renderer_connect (CoglRenderer *renderer, CoglError **error)
       const CoglWinsysVtable *winsys = _cogl_winsys_vtable_getters[i]();
       CoglError *tmp_error = NULL;
       GList *l;
-      CoglBool skip_due_to_constraints = FALSE;
+      gboolean skip_due_to_constraints = FALSE;
 
       if (renderer->winsys_id_override != COGL_WINSYS_ID_ANY)
         {
@@ -788,7 +769,7 @@ cogl_renderer_get_winsys_id (CoglRenderer *renderer)
 void *
 _cogl_renderer_get_proc_address (CoglRenderer *renderer,
                                  const char *name,
-                                 CoglBool in_core)
+                                 gboolean in_core)
 {
   const CoglWinsysVtable *winsys = _cogl_renderer_get_winsys (renderer);
 
@@ -803,8 +784,7 @@ cogl_renderer_get_n_fragment_texture_units (CoglRenderer *renderer)
   _COGL_GET_CONTEXT (ctx, 0);
 
 #if defined (HAVE_COGL_GL) || defined (HAVE_COGL_GLES2)
-  if (cogl_has_feature (ctx, COGL_FEATURE_ID_GLSL) ||
-      cogl_has_feature (ctx, COGL_FEATURE_ID_ARBFP))
+  if (cogl_has_feature (ctx, COGL_FEATURE_ID_GLSL))
     GE (ctx, glGetIntegerv (GL_MAX_TEXTURE_IMAGE_UNITS, &n));
 #endif
 

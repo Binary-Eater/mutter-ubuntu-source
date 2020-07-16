@@ -20,6 +20,8 @@
 #ifndef META_MAIN_PRIVATE_H
 #define META_MAIN_PRIVATE_H
 
+#include "core/util-private.h"
+
 typedef enum _MetaCompositorType
 {
 #ifdef HAVE_WAYLAND
@@ -28,7 +30,10 @@ typedef enum _MetaCompositorType
   META_COMPOSITOR_TYPE_X11,
 } MetaCompositorType;
 
+META_EXPORT_TEST
 void meta_override_compositor_configuration (MetaCompositorType compositor_type,
                                              GType              backend_gtype);
+
+gboolean meta_should_autostart_x11_display (void);
 
 #endif /* META_MAIN_PRIVATE_H */

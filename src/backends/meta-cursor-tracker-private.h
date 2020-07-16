@@ -22,10 +22,10 @@
 #ifndef META_CURSOR_TRACKER_PRIVATE_H
 #define META_CURSOR_TRACKER_PRIVATE_H
 
-#include <meta/meta-cursor-tracker.h>
-
-#include "meta-cursor.h"
-#include "meta-cursor-renderer.h"
+#include "backends/meta-cursor.h"
+#include "backends/meta-cursor-renderer.h"
+#include "backends/x11/cm/meta-cursor-sprite-xfixes.h"
+#include "meta/meta-cursor-tracker.h"
 
 struct _MetaCursorTracker {
   GObject parent_instance;
@@ -46,11 +46,7 @@ struct _MetaCursorTracker {
   MetaCursorSprite *root_cursor;
 
   /* The cursor from the X11 server. */
-  MetaCursorSprite *xfixes_cursor;
-};
-
-struct _MetaCursorTrackerClass {
-  GObjectClass parent_class;
+  MetaCursorSpriteXfixes *xfixes_cursor;
 };
 
 gboolean meta_cursor_tracker_handle_xevent (MetaCursorTracker *tracker,

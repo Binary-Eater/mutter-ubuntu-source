@@ -49,60 +49,21 @@
 
 #include <glib.h>
 
-#ifdef HAVE_COGL_GL
-
-#define COGL_PIPELINE_PROGEND_FIXED_ARBFP 0
-#define COGL_PIPELINE_PROGEND_FIXED       1
-#define COGL_PIPELINE_PROGEND_GLSL        2
-#define COGL_PIPELINE_N_PROGENDS          3
-
-#define COGL_PIPELINE_VERTEND_FIXED 0
-#define COGL_PIPELINE_VERTEND_GLSL  1
-#define COGL_PIPELINE_N_VERTENDS    2
-
-#define COGL_PIPELINE_FRAGEND_ARBFP 0
-#define COGL_PIPELINE_FRAGEND_FIXED 1
-#define COGL_PIPELINE_FRAGEND_GLSL  2
-#define COGL_PIPELINE_N_FRAGENDS    3
-
-#else /* HAVE_COGL_GL */
-
-#ifdef HAVE_COGL_GLES2
+#if defined(HAVE_COGL_GL) || defined(HAVE_COGL_GLES2)
 
 #define COGL_PIPELINE_PROGEND_GLSL 0
 #define COGL_PIPELINE_VERTEND_GLSL 0
 #define COGL_PIPELINE_FRAGEND_GLSL 0
 
-#ifdef HAVE_COGL_GLES
-#define COGL_PIPELINE_PROGEND_FIXED 1
-#define COGL_PIPELINE_VERTEND_FIXED 1
-#define COGL_PIPELINE_FRAGEND_FIXED 1
-
-#define COGL_PIPELINE_N_PROGENDS    2
-#define COGL_PIPELINE_N_VERTENDS    2
-#define COGL_PIPELINE_N_FRAGENDS    2
-#else
 #define COGL_PIPELINE_N_PROGENDS    1
 #define COGL_PIPELINE_N_VERTENDS    1
 #define COGL_PIPELINE_N_FRAGENDS    1
-#endif
 
-#else /* HAVE_COGL_GLES2 */
+#else /* defined(HAVE_COGL_GL) || defined(HAVE_COGL_GLES2) */
 
-#ifdef HAVE_COGL_GLES
-#define COGL_PIPELINE_PROGEND_FIXED 0
-#define COGL_PIPELINE_VERTEND_FIXED 0
-#define COGL_PIPELINE_FRAGEND_FIXED 0
-#define COGL_PIPELINE_N_PROGENDS    1
-#define COGL_PIPELINE_N_VERTENDS    1
-#define COGL_PIPELINE_N_FRAGENDS    1
-#else
 #error No drivers defined
-#endif
 
-#endif /* HAVE_COGL_GLES2 */
-
-#endif /* HAVE_COGL_GL */
+#endif /* defined(HAVE_COGL_GL) || defined(HAVE_COGL_GLES2) */
 
 #define COGL_PIPELINE_PROGEND_DEFAULT    0
 #define COGL_PIPELINE_PROGEND_UNDEFINED  3
@@ -296,7 +257,7 @@ typedef struct
 
 typedef struct
 {
-  CoglBool        enabled;
+  gboolean        enabled;
   CoglColor       color;
   CoglFogMode     mode;
   float           density;
@@ -518,11 +479,11 @@ typedef struct _CoglPipelineFragend
   void (*start) (CoglPipeline *pipeline,
                  int n_layers,
                  unsigned long pipelines_difference);
-  CoglBool (*add_layer) (CoglPipeline *pipeline,
+  gboolean (*add_layer) (CoglPipeline *pipeline,
                          CoglPipelineLayer *layer,
                          unsigned long layers_difference);
-  CoglBool (*passthrough) (CoglPipeline *pipeline);
-  CoglBool (*end) (CoglPipeline *pipeline,
+  gboolean (*passthrough) (CoglPipeline *pipeline);
+  gboolean (*end) (CoglPipeline *pipeline,
                    unsigned long pipelines_difference);
 
   void (*pipeline_pre_change_notify) (CoglPipeline *pipeline,
@@ -539,11 +500,11 @@ typedef struct _CoglPipelineVertend
   void (*start) (CoglPipeline *pipeline,
                  int n_layers,
                  unsigned long pipelines_difference);
-  CoglBool (*add_layer) (CoglPipeline *pipeline,
+  gboolean (*add_layer) (CoglPipeline *pipeline,
                          CoglPipelineLayer *layer,
                          unsigned long layers_difference,
                          CoglFramebuffer *framebuffer);
-  CoglBool (*end) (CoglPipeline *pipeline,
+  gboolean (*end) (CoglPipeline *pipeline,
                    unsigned long pipelines_difference);
 
   void (*pipeline_pre_change_notify) (CoglPipeline *pipeline,
@@ -558,7 +519,7 @@ typedef struct
 {
   int vertend;
   int fragend;
-  CoglBool (*start) (CoglPipeline *pipeline);
+  gboolean (*start) (CoglPipeline *pipeline);
   void (*end) (CoglPipeline *pipeline,
                unsigned long pipelines_difference);
   void (*pipeline_pre_change_notify) (CoglPipeline *pipeline,
@@ -576,8 +537,6 @@ typedef struct
 typedef enum
 {
   COGL_PIPELINE_PROGRAM_TYPE_GLSL = 1,
-  COGL_PIPELINE_PROGRAM_TYPE_ARBFP,
-  COGL_PIPELINE_PROGRAM_TYPE_FIXED
 } CoglPipelineProgramType;
 
 extern const CoglPipelineFragend *
@@ -607,7 +566,7 @@ _cogl_pipeline_get_authority (CoglPipeline *pipeline,
   return authority;
 }
 
-typedef CoglBool (*CoglPipelineStateComparitor) (CoglPipeline *authority0,
+typedef gboolean (*CoglPipelineStateComparitor) (CoglPipeline *authority0,
                                                  CoglPipeline *authority1);
 
 void
@@ -620,14 +579,14 @@ void
 _cogl_pipeline_pre_change_notify (CoglPipeline     *pipeline,
                                   CoglPipelineState change,
                                   const CoglColor  *new_color,
-                                  CoglBool          from_layer_change);
+                                  gboolean          from_layer_change);
 
 void
 _cogl_pipeline_prune_redundant_ancestry (CoglPipeline *pipeline);
 
 void
 _cogl_pipeline_update_real_blend_enable (CoglPipeline *pipeline,
-                                         CoglBool unknown_color_alpha);
+                                         gboolean unknown_color_alpha);
 
 typedef enum
 {
@@ -642,7 +601,7 @@ _cogl_pipeline_get_layer_with_flags (CoglPipeline *pipeline,
 #define _cogl_pipeline_get_layer(p, l) \
   _cogl_pipeline_get_layer_with_flags (p, l, 0)
 
-CoglBool
+gboolean
 _cogl_is_pipeline_layer (void *object);
 
 void
@@ -660,7 +619,7 @@ _cogl_pipeline_prune_empty_layer_difference (CoglPipeline *layers_authority,
  * able to fill your geometry according to a given Cogl pipeline.
  */
 
-CoglBool
+gboolean
 _cogl_pipeline_get_real_blend_enabled (CoglPipeline *pipeline);
 
 /*
@@ -846,9 +805,6 @@ _cogl_pipeline_weak_copy (CoglPipeline *pipeline,
 void
 _cogl_pipeline_set_progend (CoglPipeline *pipeline, int progend);
 
-CoglPipeline *
-_cogl_pipeline_get_parent (CoglPipeline *pipeline);
-
 void
 _cogl_pipeline_get_colorubv (CoglPipeline *pipeline,
                              uint8_t       *color);
@@ -861,7 +817,7 @@ unsigned long
 _cogl_pipeline_compare_differences (CoglPipeline *pipeline0,
                                     CoglPipeline *pipeline1);
 
-CoglBool
+gboolean
 _cogl_pipeline_equal (CoglPipeline *pipeline0,
                       CoglPipeline *pipeline1,
                       unsigned int differences,
@@ -912,7 +868,7 @@ void
 _cogl_pipeline_set_blend_enabled (CoglPipeline *pipeline,
                                   CoglPipelineBlendEnable enable);
 
-CoglBool
+gboolean
 _cogl_pipeline_get_fog_enabled (CoglPipeline *pipeline);
 
 #ifdef COGL_DEBUG_ENABLED
@@ -924,19 +880,15 @@ _cogl_pipeline_set_static_breadcrumb (CoglPipeline *pipeline,
 unsigned long
 _cogl_pipeline_get_age (CoglPipeline *pipeline);
 
-CoglPipeline *
-_cogl_pipeline_get_authority (CoglPipeline *pipeline,
-                              unsigned long difference);
-
 void
 _cogl_pipeline_add_layer_difference (CoglPipeline *pipeline,
                                      CoglPipelineLayer *layer,
-                                     CoglBool inc_n_layers);
+                                     gboolean inc_n_layers);
 
 void
 _cogl_pipeline_remove_layer_difference (CoglPipeline *pipeline,
                                         CoglPipelineLayer *layer,
-                                        CoglBool dec_n_layers);
+                                        gboolean dec_n_layers);
 
 CoglPipeline *
 _cogl_pipeline_find_equivalent_parent (CoglPipeline *pipeline,
@@ -959,7 +911,7 @@ _cogl_pipeline_prune_to_n_layers (CoglPipeline *pipeline, int n);
 const GList *
 _cogl_pipeline_get_layers (CoglPipeline *pipeline);
 
-typedef CoglBool (*CoglPipelineInternalLayerCallback) (CoglPipelineLayer *layer,
+typedef gboolean (*CoglPipelineInternalLayerCallback) (CoglPipelineLayer *layer,
                                                        void *user_data);
 
 void
@@ -967,15 +919,15 @@ _cogl_pipeline_foreach_layer_internal (CoglPipeline *pipeline,
                                        CoglPipelineInternalLayerCallback callback,
                                        void *user_data);
 
-CoglBool
+gboolean
 _cogl_pipeline_layer_numbers_equal (CoglPipeline *pipeline0,
                                     CoglPipeline *pipeline1);
 
-CoglBool
+gboolean
 _cogl_pipeline_layer_and_unit_numbers_equal (CoglPipeline *pipeline0,
                                              CoglPipeline *pipeline1);
 
-CoglBool
+gboolean
 _cogl_pipeline_need_texture_combine_separate
                                     (CoglPipelineLayer *combine_authority);
 

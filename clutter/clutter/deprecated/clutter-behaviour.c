@@ -70,9 +70,7 @@
  * if you still have code using #ClutterBehaviour.
  */
 
-#ifdef HAVE_CONFIG_H
 #include "clutter-build-config.h"
-#endif
 
 #define CLUTTER_DISABLE_DEPRECATION_WARNINGS
 #include "clutter-behaviour.h"
@@ -103,7 +101,8 @@ enum
 
 static GParamSpec *obj_props[PROP_LAST];
 
-enum {
+enum
+{
   APPLIED,
   REMOVED,
   LAST_SIGNAL

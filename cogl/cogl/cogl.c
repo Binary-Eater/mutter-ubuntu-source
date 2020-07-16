@@ -34,15 +34,11 @@
 #include <math.h>
 #include <stdlib.h>
 
-#define COGL_VERSION_MIN_REQUIRED COGL_VERSION_1_4
-
 #include "cogl-i18n-private.h"
 #include "cogl-debug.h"
 #include "cogl-util.h"
 #include "cogl-context-private.h"
 #include "cogl-pipeline-private.h"
-#include "cogl-pipeline-opengl-private.h"
-#include "cogl-winsys-private.h"
 #include "cogl-framebuffer-private.h"
 #include "cogl-matrix-private.h"
 #include "cogl-journal-private.h"
@@ -56,12 +52,14 @@
 #include "cogl-private.h"
 #include "cogl1-context.h"
 #include "cogl-offscreen.h"
-#include "cogl-attribute-gl-private.h"
-#include "cogl-clutter.h"
+#include "driver/gl/cogl-pipeline-opengl-private.h"
+#include "driver/gl/cogl-attribute-gl-private.h"
+#include "winsys/cogl-winsys-private.h"
+#include "deprecated/cogl-clutter.h"
 
 #include "deprecated/cogl-framebuffer-deprecated.h"
 
-CoglFuncPtr
+GCallback
 cogl_get_proc_address (const char* name)
 {
   _COGL_GET_CONTEXT (ctx, NULL);
@@ -69,7 +67,7 @@ cogl_get_proc_address (const char* name)
   return _cogl_renderer_get_proc_address (ctx->display->renderer, name, FALSE);
 }
 
-CoglBool
+gboolean
 _cogl_check_extension (const char *name, char * const *ext)
 {
   while (*ext)
@@ -82,7 +80,7 @@ _cogl_check_extension (const char *name, char * const *ext)
 }
 
 /* XXX: This has been deprecated as public API */
-CoglBool
+gboolean
 cogl_check_extension (const char *name, const char *ext)
 {
   return cogl_clutter_check_extension (name, ext);
@@ -98,7 +96,7 @@ cogl_clear (const CoglColor *color, unsigned long buffers)
 
 /* XXX: This API has been deprecated */
 void
-cogl_set_depth_test_enabled (CoglBool setting)
+cogl_set_depth_test_enabled (gboolean setting)
 {
   _COGL_GET_CONTEXT (ctx, NO_RETVAL);
 
@@ -113,7 +111,7 @@ cogl_set_depth_test_enabled (CoglBool setting)
 }
 
 /* XXX: This API has been deprecated */
-CoglBool
+gboolean
 cogl_get_depth_test_enabled (void)
 {
   _COGL_GET_CONTEXT (ctx, FALSE);
@@ -121,7 +119,7 @@ cogl_get_depth_test_enabled (void)
 }
 
 void
-cogl_set_backface_culling_enabled (CoglBool setting)
+cogl_set_backface_culling_enabled (gboolean setting)
 {
   _COGL_GET_CONTEXT (ctx, NO_RETVAL);
 
@@ -136,7 +134,7 @@ cogl_set_backface_culling_enabled (CoglBool setting)
     ctx->legacy_state_set--;
 }
 
-CoglBool
+gboolean
 cogl_get_backface_culling_enabled (void)
 {
   _COGL_GET_CONTEXT (ctx, FALSE);
@@ -203,7 +201,7 @@ cogl_get_features (void)
   return ctx->feature_flags;
 }
 
-CoglBool
+gboolean
 cogl_features_available (CoglFeatureFlags features)
 {
   _COGL_GET_CONTEXT (ctx, 0);
@@ -211,13 +209,13 @@ cogl_features_available (CoglFeatureFlags features)
   return (ctx->feature_flags & features) == features;
 }
 
-CoglBool
+gboolean
 cogl_has_feature (CoglContext *ctx, CoglFeatureID feature)
 {
   return COGL_FLAGS_GET (ctx->features, feature);
 }
 
-CoglBool
+gboolean
 cogl_has_features (CoglContext *ctx, ...)
 {
   va_list args;
@@ -358,7 +356,7 @@ cogl_begin_gl (void)
 
   if (ctx->in_begin_gl_block)
     {
-      static CoglBool shown = FALSE;
+      static gboolean shown = FALSE;
       if (!shown)
         g_warning ("You should not nest cogl_begin_gl/cogl_end_gl blocks");
       shown = TRUE;
@@ -416,7 +414,7 @@ cogl_end_gl (void)
 
   if (!ctx->in_begin_gl_block)
     {
-      static CoglBool shown = FALSE;
+      static gboolean shown = FALSE;
       if (!shown)
         g_warning ("cogl_end_gl is being called before cogl_begin_gl");
       shown = TRUE;
@@ -534,11 +532,11 @@ typedef struct _CoglSourceState
      necessary because some internal Cogl code expects to be able to
      push a temporary pipeline to put GL into a known state. For that
      to work it also needs to prevent applying the legacy state */
-  CoglBool enable_legacy;
+  gboolean enable_legacy;
 } CoglSourceState;
 
 static void
-_push_source_real (CoglPipeline *pipeline, CoglBool enable_legacy)
+_push_source_real (CoglPipeline *pipeline, gboolean enable_legacy)
 {
   CoglSourceState *top = g_slice_new (CoglSourceState);
   _COGL_GET_CONTEXT (ctx, NO_RETVAL);
@@ -567,7 +565,7 @@ cogl_push_source (void *material_or_pipeline)
    never applies the legacy state. Some parts of Cogl use this
    internally to set a temporary pipeline with a known state */
 void
-_cogl_push_source (CoglPipeline *pipeline, CoglBool enable_legacy)
+_cogl_push_source (CoglPipeline *pipeline, gboolean enable_legacy)
 {
   CoglSourceState *top;
 
@@ -625,7 +623,7 @@ cogl_get_source (void)
   return top->pipeline;
 }
 
-CoglBool
+gboolean
 _cogl_get_enable_legacy_state (void)
 {
   CoglSourceState *top;
@@ -753,7 +751,7 @@ _cogl_system_error_quark (void)
 void
 _cogl_init (void)
 {
-  static CoglBool initialized = FALSE;
+  static gboolean initialized = FALSE;
 
   if (initialized == FALSE)
     {
@@ -800,7 +798,7 @@ _cogl_pixel_format_get_bytes_per_pixel (CoglPixelFormat format)
 
 /* Note: this also refers to the mapping defined above for
  * _cogl_pixel_format_get_bytes_per_pixel() */
-CoglBool
+gboolean
 _cogl_pixel_format_is_endian_dependant (CoglPixelFormat format)
 {
   int aligned_lut[] = { -1, 1,  1,  1,

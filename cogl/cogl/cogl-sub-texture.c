@@ -31,9 +31,7 @@
  *  Neil Roberts   <neil@linux.intel.com>
  */
 
-#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
-#endif
 
 #include "cogl-util.h"
 #include "cogl-texture-private.h"
@@ -44,8 +42,8 @@
 #include "cogl-texture-driver.h"
 #include "cogl-texture-rectangle-private.h"
 #include "cogl-texture-2d.h"
-#include "cogl-texture-gl-private.h"
 #include "cogl-gtype-private.h"
+#include "driver/gl/cogl-texture-gl-private.h"
 
 #include <string.h>
 #include <math.h>
@@ -270,12 +268,12 @@ cogl_sub_texture_new (CoglContext *ctx,
   return _cogl_sub_texture_object_new (sub_tex);
 }
 
-static CoglBool
+static gboolean
 _cogl_sub_texture_allocate (CoglTexture *tex,
                             CoglError **error)
 {
   CoglSubTexture *sub_tex = COGL_SUB_TEXTURE (tex);
-  CoglBool status = cogl_texture_allocate (sub_tex->full_texture, error);
+  gboolean status = cogl_texture_allocate (sub_tex->full_texture, error);
 
   _cogl_texture_set_allocated (tex,
                                _cogl_texture_get_format (sub_tex->full_texture),
@@ -298,7 +296,7 @@ _cogl_sub_texture_get_max_waste (CoglTexture *tex)
   return cogl_texture_get_max_waste (sub_tex->full_texture);
 }
 
-static CoglBool
+static gboolean
 _cogl_sub_texture_is_sliced (CoglTexture *tex)
 {
   CoglSubTexture *sub_tex = COGL_SUB_TEXTURE (tex);
@@ -306,7 +304,7 @@ _cogl_sub_texture_is_sliced (CoglTexture *tex)
   return cogl_texture_is_sliced (sub_tex->full_texture);
 }
 
-static CoglBool
+static gboolean
 _cogl_sub_texture_can_hardware_repeat (CoglTexture *tex)
 {
   CoglSubTexture *sub_tex = COGL_SUB_TEXTURE (tex);
@@ -356,7 +354,7 @@ _cogl_sub_texture_transform_quad_coords_to_gl (CoglTexture *tex,
                                                     coords);
 }
 
-static CoglBool
+static gboolean
 _cogl_sub_texture_get_gl_texture (CoglTexture *tex,
                                   GLuint *out_gl_handle,
                                   GLenum *out_gl_target)
@@ -393,7 +391,7 @@ _cogl_sub_texture_ensure_non_quad_rendering (CoglTexture *tex)
 {
 }
 
-static CoglBool
+static gboolean
 _cogl_sub_texture_set_region (CoglTexture *tex,
                               int src_x,
                               int src_y,
@@ -430,6 +428,14 @@ _cogl_sub_texture_set_region (CoglTexture *tex,
                                                error);
 }
 
+static gboolean
+_cogl_sub_texture_is_get_data_supported (CoglTexture *tex)
+{
+  CoglSubTexture *sub_tex = COGL_SUB_TEXTURE (tex);
+
+  return cogl_texture_is_get_data_supported (sub_tex->full_texture);
+}
+
 static CoglPixelFormat
 _cogl_sub_texture_get_format (CoglTexture *tex)
 {
@@ -460,6 +466,7 @@ cogl_sub_texture_vtable =
     FALSE, /* not primitive */
     _cogl_sub_texture_allocate,
     _cogl_sub_texture_set_region,
+    _cogl_sub_texture_is_get_data_supported,
     NULL, /* get_data */
     _cogl_sub_texture_foreach_sub_texture_in_region,
     _cogl_sub_texture_get_max_waste,

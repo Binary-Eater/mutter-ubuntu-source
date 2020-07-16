@@ -31,27 +31,25 @@
  *   Neil Roberts <neil@linux.intel.com>
  */
 
-#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
-#endif
 
 #include <string.h>
 
 #include <test-fixtures/test-unit.h>
 
 #include "cogl-context-private.h"
-#include "cogl-util-gl-private.h"
 #include "cogl-pipeline-private.h"
-#include "cogl-pipeline-opengl-private.h"
+#include "driver/gl/cogl-util-gl-private.h"
+#include "driver/gl/cogl-pipeline-opengl-private.h"
 
 #ifdef COGL_PIPELINE_VERTEND_GLSL
 
 #include "cogl-context-private.h"
 #include "cogl-object-private.h"
-#include "cogl-program-private.h"
-#include "cogl-pipeline-vertend-glsl-private.h"
 #include "cogl-pipeline-state-private.h"
 #include "cogl-glsl-shader-private.h"
+#include "driver/gl/cogl-pipeline-vertend-glsl-private.h"
+#include "deprecated/cogl-program-private.h"
 
 const CoglPipelineVertend _cogl_pipeline_glsl_vertend;
 
@@ -166,7 +164,7 @@ get_layer_vertex_snippets (CoglPipelineLayer *layer)
   return &layer->big_state->vertex_snippets;
 }
 
-static CoglBool
+static gboolean
 add_layer_declaration_cb (CoglPipelineLayer *layer,
                           void *user_data)
 {
@@ -334,7 +332,7 @@ _cogl_pipeline_vertend_glsl_start (CoglPipeline *pipeline,
     }
 }
 
-static CoglBool
+static gboolean
 _cogl_pipeline_vertend_glsl_add_layer (CoglPipeline *pipeline,
                                        CoglPipelineLayer *layer,
                                        unsigned long layers_difference,
@@ -407,7 +405,7 @@ _cogl_pipeline_vertend_glsl_add_layer (CoglPipeline *pipeline,
   return TRUE;
 }
 
-static CoglBool
+static gboolean
 _cogl_pipeline_vertend_glsl_end (CoglPipeline *pipeline,
                                  unsigned long pipelines_difference)
 {
@@ -425,7 +423,7 @@ _cogl_pipeline_vertend_glsl_end (CoglPipeline *pipeline,
       GLuint shader;
       CoglPipelineSnippetData snippet_data;
       CoglPipelineSnippetList *vertex_snippets;
-      CoglBool has_per_vertex_point_size =
+      gboolean has_per_vertex_point_size =
         cogl_pipeline_get_per_vertex_point_size (pipeline);
 
       COGL_STATIC_COUNTER (vertend_glsl_compile_counter,

@@ -169,7 +169,7 @@ cogl2_path_get_fill_rule (CoglPath *path)
 
 static void
 _cogl_path_add_node (CoglPath *path,
-                     CoglBool new_sub_path,
+                     gboolean new_sub_path,
 		     float x,
 		     float y)
 {
@@ -299,7 +299,7 @@ _cogl_path_fill_nodes_with_clipped_rectangle (CoglPath *path,
   /* We need at least three stencil bits to combine clips */
   if (_cogl_framebuffer_get_stencil_bits (framebuffer) >= 3)
     {
-      static CoglBool seen_warning = FALSE;
+      static gboolean seen_warning = FALSE;
 
       if (!seen_warning)
         {
@@ -320,10 +320,10 @@ _cogl_path_fill_nodes_with_clipped_rectangle (CoglPath *path,
   cogl_framebuffer_pop_clip (framebuffer);
 }
 
-static CoglBool
+static gboolean
 validate_layer_cb (CoglPipelineLayer *layer, void *user_data)
 {
-  CoglBool *needs_fallback = user_data;
+  gboolean *needs_fallback = user_data;
   CoglTexture *texture = _cogl_pipeline_layer_get_texture (layer);
 
   /* If any of the layers of the current pipeline contain sliced
@@ -365,7 +365,7 @@ _cogl_path_fill_nodes (CoglPath *path,
     }
   else
     {
-      CoglBool needs_fallback = FALSE;
+      gboolean needs_fallback = FALSE;
       CoglPrimitive *primitive;
 
       _cogl_pipeline_foreach_layer_internal (pipeline,
@@ -538,7 +538,7 @@ cogl2_path_rectangle (CoglPath *path,
                       float x_2,
                       float y_2)
 {
-  CoglBool is_rectangle;
+  gboolean is_rectangle;
 
   /* If the path was previously empty and the rectangle isn't mirrored
      then we'll record that this is a simple rectangle path so that we
@@ -556,7 +556,7 @@ cogl2_path_rectangle (CoglPath *path,
   path->data->is_rectangle = is_rectangle;
 }
 
-CoglBool
+gboolean
 _cogl_path_is_rectangle (CoglPath *path)
 {
   return path->data->is_rectangle;
@@ -1358,13 +1358,13 @@ _cogl_path_build_fill_attribute_buffer (CoglPath *path)
   gluTessNormal (tess.glu_tess, 0.0, 0.0, 1.0);
 
   gluTessCallback (tess.glu_tess, GLU_TESS_BEGIN_DATA,
-                   _cogl_path_tesselator_begin);
+                   (GCallback) _cogl_path_tesselator_begin);
   gluTessCallback (tess.glu_tess, GLU_TESS_VERTEX_DATA,
-                   _cogl_path_tesselator_vertex);
+                   (GCallback) _cogl_path_tesselator_vertex);
   gluTessCallback (tess.glu_tess, GLU_TESS_END_DATA,
-                   _cogl_path_tesselator_end);
+                   (GCallback) _cogl_path_tesselator_end);
   gluTessCallback (tess.glu_tess, GLU_TESS_COMBINE_DATA,
-                   _cogl_path_tesselator_combine);
+                   (GCallback) _cogl_path_tesselator_combine);
 
   gluTessBeginPolygon (tess.glu_tess, &tess);
 
@@ -1504,7 +1504,6 @@ cogl_framebuffer_push_path_clip (CoglFramebuffer *framebuffer,
       COGL_FRAMEBUFFER_STATE_CLIP;
 }
 
-/* XXX: deprecated */
 void
 cogl_clip_push_from_path (CoglPath *path)
 {
@@ -1575,7 +1574,6 @@ _cogl_path_build_stroke_attribute_buffer (CoglPath *path)
   data->stroke_n_attributes = n_attributes;
 }
 
-/* XXX: deprecated */
 void
 cogl_framebuffer_fill_path (CoglFramebuffer *framebuffer,
                             CoglPipeline *pipeline,
@@ -1588,7 +1586,6 @@ cogl_framebuffer_fill_path (CoglFramebuffer *framebuffer,
   _cogl_path_fill_nodes (path, framebuffer, pipeline, 0 /* flags */);
 }
 
-/* XXX: deprecated */
 void
 cogl_framebuffer_stroke_path (CoglFramebuffer *framebuffer,
                               CoglPipeline *pipeline,

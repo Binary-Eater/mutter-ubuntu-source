@@ -31,9 +31,7 @@
  *   Neil Roberts <neil@linux.intel.com>
  */
 
-#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
-#endif
 
 #include "cogl-types.h"
 #include "cogl-snippet-private.h"
@@ -71,7 +69,7 @@ cogl_snippet_get_hook (CoglSnippet *snippet)
   return snippet->hook;
 }
 
-static CoglBool
+static gboolean
 _cogl_snippet_modify (CoglSnippet *snippet)
 {
   if (snippet->immutable)

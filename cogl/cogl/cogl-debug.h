@@ -37,9 +37,10 @@
 
 #include <glib.h>
 
-COGL_BEGIN_DECLS
+G_BEGIN_DECLS
 
-typedef enum {
+typedef enum
+{
   COGL_DEBUG_SLICING,
   COGL_DEBUG_OFFSCREEN,
   COGL_DEBUG_DRAW,
@@ -60,8 +61,6 @@ typedef enum {
   COGL_DEBUG_DISABLE_SHARED_ATLAS,
   COGL_DEBUG_OPENGL,
   COGL_DEBUG_DISABLE_TEXTURING,
-  COGL_DEBUG_DISABLE_ARBFP,
-  COGL_DEBUG_DISABLE_FIXED,
   COGL_DEBUG_DISABLE_GLSL,
   COGL_DEBUG_SHOW_SOURCE,
   COGL_DEBUG_DISABLE_BLENDING,
@@ -114,10 +113,10 @@ _cogl_debug_check_environment (void);
 
 void
 _cogl_parse_debug_string (const char *value,
-                          CoglBool enable,
-                          CoglBool ignore_help);
+                          gboolean enable,
+                          gboolean ignore_help);
 
-COGL_END_DECLS
+G_END_DECLS
 
 #endif /* __COGL_DEBUG_H__ */
 

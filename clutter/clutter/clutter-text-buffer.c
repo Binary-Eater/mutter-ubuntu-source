@@ -19,9 +19,7 @@
  * Author: Stef Walter <stefw@collabora.co.uk>
  */
 
-#ifdef HAVE_CONFIG_H
 #include "clutter-build-config.h"
-#endif
 
 #include "clutter-text-buffer.h"
 #include "clutter-marshal.h"
@@ -52,7 +50,8 @@
 /* Initial size of buffer, in bytes */
 #define MIN_SIZE 16
 
-enum {
+enum
+{
   PROP_0,
   PROP_TEXT,
   PROP_LENGTH,
@@ -62,7 +61,8 @@ enum {
 
 static GParamSpec *obj_props[PROP_LAST] = { NULL, };
 
-enum {
+enum
+{
   INSERTED_TEXT,
   DELETED_TEXT,
   LAST_SIGNAL

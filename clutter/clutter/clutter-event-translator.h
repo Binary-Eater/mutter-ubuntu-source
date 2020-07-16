@@ -14,7 +14,8 @@ G_BEGIN_DECLS
 typedef struct _ClutterEventTranslator          ClutterEventTranslator;
 typedef struct _ClutterEventTranslatorIface     ClutterEventTranslatorIface;
 
-typedef enum {
+typedef enum
+{
   CLUTTER_TRANSLATE_CONTINUE,
   CLUTTER_TRANSLATE_REMOVE,
   CLUTTER_TRANSLATE_QUEUE
@@ -29,7 +30,7 @@ struct _ClutterEventTranslatorIface
                                               ClutterEvent           *translated);
 };
 
-CLUTTER_AVAILABLE_IN_MUTTER
+CLUTTER_EXPORT
 GType _clutter_event_translator_get_type (void) G_GNUC_CONST;
 
 ClutterTranslateReturn _clutter_event_translator_translate_event (ClutterEventTranslator *translator,

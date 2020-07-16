@@ -68,7 +68,10 @@ meta_backend_x11_nested_update_screen_size (MetaBackend *backend,
   MetaRenderer *renderer = meta_backend_get_renderer (backend);
 
   if (meta_is_stage_views_enabled ())
-    meta_renderer_rebuild_views (renderer);
+    {
+      meta_renderer_rebuild_views (renderer);
+      clutter_stage_update_resource_scales (CLUTTER_STAGE (stage));
+    }
   clutter_actor_set_size (stage, width, height);
 }
 
@@ -132,6 +135,12 @@ meta_backend_x11_nested_set_keymap (MetaBackend *backend,
 }
 
 static gboolean
+meta_backend_x11_nested_is_lid_closed (MetaBackend *backend)
+{
+  return FALSE;
+}
+
+static gboolean
 meta_backend_x11_nested_handle_host_xevent (MetaBackendX11 *x11,
                                             XEvent         *event)
 {
@@ -192,6 +201,7 @@ meta_backend_x11_nested_class_init (MetaBackendX11NestedClass *klass)
   backend_class->select_stage_events = meta_backend_x11_nested_select_stage_events;
   backend_class->lock_layout_group = meta_backend_x11_nested_lock_layout_group;
   backend_class->set_keymap = meta_backend_x11_nested_set_keymap;
+  backend_class->is_lid_closed = meta_backend_x11_nested_is_lid_closed;
 
   backend_x11_class->handle_host_xevent = meta_backend_x11_nested_handle_host_xevent;
   backend_x11_class->translate_device_event = meta_backend_x11_nested_translate_device_event;

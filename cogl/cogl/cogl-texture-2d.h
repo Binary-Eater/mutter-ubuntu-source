@@ -44,7 +44,7 @@
 #include "cogl-egl-defines.h"
 #endif
 
-COGL_BEGIN_DECLS
+G_BEGIN_DECLS
 
 /**
  * SECTION:cogl-texture-2d
@@ -82,11 +82,11 @@ GType cogl_texture_2d_get_gtype (void);
  * Return value: %TRUE if the object references a #CoglTexture2D,
  *   %FALSE otherwise
  */
-CoglBool
+gboolean
 cogl_is_texture_2d (void *object);
 
 /**
- * cogl_texture_2d_new_with_size:
+ * cogl_texture_2d_new_with_size: (skip)
  * @ctx: A #CoglContext
  * @width: Width of the texture to allocate
  * @height: Height of the texture to allocate
@@ -120,7 +120,7 @@ cogl_texture_2d_new_with_size (CoglContext *ctx,
                                int height);
 
 /**
- * cogl_texture_2d_new_from_file:
+ * cogl_texture_2d_new_from_file: (skip)
  * @ctx: A #CoglContext
  * @filename: the file to load
  * @error: A #CoglError to catch exceptional errors or %NULL
@@ -154,7 +154,7 @@ cogl_texture_2d_new_from_file (CoglContext *ctx,
                                CoglError **error);
 
 /**
- * cogl_texture_2d_new_from_data:
+ * cogl_texture_2d_new_from_data: (skip)
  * @ctx: A #CoglContext
  * @width: width of texture in pixels
  * @height: height of texture in pixels
@@ -231,6 +231,9 @@ cogl_texture_2d_new_from_data (CoglContext *ctx,
 CoglTexture2D *
 cogl_texture_2d_new_from_bitmap (CoglBitmap *bitmap);
 
+/**
+ * cogl_egl_texture_2d_new_from_image: (skip)
+ */
 #if defined (COGL_HAS_EGL_SUPPORT) && defined (EGL_KHR_image_base)
 /* NB: The reason we require the width, height and format to be passed
  * even though they may seem redundant is because GLES 1/2 don't
@@ -247,6 +250,9 @@ typedef gboolean (*CoglTexture2DEGLImageExternalAlloc) (CoglTexture2D *tex_2d,
                                                         gpointer user_data,
                                                         GError **error);
 
+/**
+ * cogl_texture_2d_new_from_egl_image_external: (skip)
+ */
 CoglTexture2D *
 cogl_texture_2d_new_from_egl_image_external (CoglContext *ctx,
                                              int width,
@@ -265,6 +271,6 @@ cogl_texture_2d_egl_image_external_alloc_finish (CoglTexture2D *tex_2d,
 						 GDestroyNotify destroy);
 #endif
 
-COGL_END_DECLS
+G_END_DECLS
 
 #endif /* __COGL_TEXTURE_2D_H */

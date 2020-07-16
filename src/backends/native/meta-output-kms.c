@@ -2,6 +2,7 @@
 
 /*
  * Copyright (C) 2013-2017 Red Hat
+ * Copyright (C) 2018 DisplayLink (UK) Ltd.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -29,7 +30,8 @@
 
 #include "backends/meta-crtc.h"
 #include "backends/native/meta-crtc-kms.h"
-#include "backends/native/meta-default-modes.h"
+
+#include "meta-default-modes.h"
 
 #define SYNC_TOLERANCE 0.01    /* 1 percent */
 
@@ -54,6 +56,10 @@ typedef struct _MetaOutputKms
   uint32_t edid_blob_id;
   uint32_t tile_blob_id;
 
+  uint32_t underscan_prop_id;
+  uint32_t underscan_hborder_prop_id;
+  uint32_t underscan_vborder_prop_id;
+
   int suggested_x;
   int suggested_y;
   uint32_t hotplug_mode_update;
@@ -64,13 +70,63 @@ typedef struct _MetaOutputKms
 void
 meta_output_kms_set_underscan (MetaOutput *output)
 {
+  MetaOutputKms *output_kms = output->driver_private;
+  MetaGpu *gpu = meta_output_get_gpu (output);
+  MetaGpuKms *gpu_kms = META_GPU_KMS (gpu);
   MetaCrtc *crtc;
+  int kms_fd;
+  uint32_t connector_id;
 
-  crtc = meta_output_get_assigned_crtc (output);
-  if (!crtc)
+  if (!output_kms->underscan_prop_id)
     return;
 
-  meta_crtc_kms_set_underscan (crtc, output->is_underscanning);
+  crtc = meta_output_get_assigned_crtc (output);
+  kms_fd = meta_gpu_kms_get_fd (gpu_kms);
+  connector_id = output_kms->connector->connector_id;
+
+  if (output->is_underscanning && crtc && crtc->current_mode)
+    {
+      drmModeObjectSetProperty (kms_fd, connector_id,
+                                DRM_MODE_OBJECT_CONNECTOR,
+                                output_kms->underscan_prop_id,
+                                (uint64_t) 1);
+
+      if (output_kms->underscan_hborder_prop_id)
+        {
+          uint64_t value;
+
+          value = MIN (128, crtc->current_mode->width * 0.05);
+          drmModeObjectSetProperty (kms_fd, connector_id,
+                                    DRM_MODE_OBJECT_CONNECTOR,
+                                    output_kms->underscan_hborder_prop_id,
+                                    value);
+        }
+      if (output_kms->underscan_vborder_prop_id)
+        {
+          uint64_t value;
+
+          value = MIN (128, crtc->current_mode->height * 0.05);
+          drmModeObjectSetProperty (kms_fd, connector_id,
+                                    DRM_MODE_OBJECT_CONNECTOR,
+                                    output_kms->underscan_vborder_prop_id,
+                                    value);
+        }
+    }
+  else
+    {
+      drmModeObjectSetProperty (kms_fd, connector_id,
+                                DRM_MODE_OBJECT_CONNECTOR,
+                                output_kms->underscan_prop_id,
+                                (uint64_t) 0);
+    }
+}
+
+uint32_t
+meta_output_kms_get_connector_id (MetaOutput *output)
+{
+  MetaOutputKms *output_kms = output->driver_private;
+
+  return output_kms->connector->connector_id;
 }
 
 void
@@ -86,7 +142,7 @@ meta_output_kms_set_power_save_mode (MetaOutput *output,
       int fd;
 
       fd = meta_gpu_kms_get_fd (gpu_kms);
-      if (drmModeObjectSetProperty (fd, output->winsys_id,
+      if (drmModeObjectSetProperty (fd, output_kms->connector->connector_id,
                                     DRM_MODE_OBJECT_CONNECTOR,
                                     output_kms->dpms_prop_id, state) < 0)
         g_warning ("Failed to set power save mode for output %s: %s",
@@ -302,6 +358,15 @@ find_connector_properties (MetaGpuKms    *gpu_kms,
                strcmp (prop->name, "panel orientation") == 0)
         handle_panel_orientation (output, prop,
                                   output_kms->connector->prop_values[i]);
+      else if ((prop->flags & DRM_MODE_PROP_ENUM) &&
+               strcmp (prop->name, "underscan") == 0)
+        output_kms->underscan_prop_id = prop->prop_id;
+      else if ((prop->flags & DRM_MODE_PROP_RANGE) &&
+               strcmp (prop->name, "underscan hborder") == 0)
+        output_kms->underscan_hborder_prop_id = prop->prop_id;
+      else if ((prop->flags & DRM_MODE_PROP_RANGE) &&
+               strcmp (prop->name, "underscan vborder") == 0)
+        output_kms->underscan_vborder_prop_id = prop->prop_id;
 
       drmModeFreeProperty (prop);
     }
@@ -502,6 +567,7 @@ meta_create_kms_output (MetaGpuKms        *gpu_kms,
   unsigned int i;
   unsigned int crtc_mask;
   int fd;
+  uint32_t id;
 
   output = g_object_new (META_TYPE_OUTPUT, NULL);
 
@@ -510,8 +576,10 @@ meta_create_kms_output (MetaGpuKms        *gpu_kms,
   output->driver_notify = (GDestroyNotify) meta_output_destroy_notify;
 
   output->gpu = gpu;
-  output->winsys_id = connector->connector_id;
   output->name = make_output_name (connector);
+
+  id = meta_gpu_kms_get_id (gpu_kms);
+  output->winsys_id = ((uint64_t) id << 32) | connector->connector_id;
 
   switch (connector->subpixel)
     {
@@ -626,6 +694,7 @@ meta_create_kms_output (MetaGpuKms        *gpu_kms,
   output->suggested_x = output_kms->suggested_x;
   output->suggested_y = output_kms->suggested_y;
   output->hotplug_mode_update = output_kms->hotplug_mode_update;
+  output->supports_underscanning = output_kms->underscan_prop_id != 0;
 
   if (output_kms->edid_blob_id != 0)
     {

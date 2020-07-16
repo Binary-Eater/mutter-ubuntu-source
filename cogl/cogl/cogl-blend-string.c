@@ -31,9 +31,7 @@
  *   Robert Bragg <robert@linux.intel.com>
  */
 
-#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
-#endif
 
 #include <stdlib.h>
 #include <string.h>
@@ -165,7 +163,7 @@ _cogl_blend_string_split_rgba_statement (CoglBlendStringStatement *statement,
     }
 }
 
-static CoglBool
+static gboolean
 validate_tex_combine_statements (CoglBlendStringStatement *statements,
                                  int n_statements,
                                  CoglError **error)
@@ -211,7 +209,7 @@ error:
   return FALSE;
 }
 
-static CoglBool
+static gboolean
 validate_blend_statements (CoglBlendStringStatement *statements,
                            int n_statements,
                            CoglError **error)
@@ -275,7 +273,7 @@ error:
   return FALSE;
 }
 
-static CoglBool
+static gboolean
 validate_statements_for_context (CoglBlendStringStatement *statements,
                                  int n_statements,
                                  CoglBlendStringContext context,
@@ -447,19 +445,19 @@ get_color_src_info (const char *mark,
   return NULL;
 }
 
-static CoglBool
+static gboolean
 is_symbol_char (const char c)
 {
   return (g_ascii_isalpha (c) || c == '_') ? TRUE : FALSE;
 }
 
-static CoglBool
+static gboolean
 is_alphanum_char (const char c)
 {
   return (g_ascii_isalnum (c) || c == '_') ? TRUE : FALSE;
 }
 
-static CoglBool
+static gboolean
 parse_argument (const char *string, /* original user string */
                 const char **ret_p, /* start of argument IN:OUT */
                 const CoglBlendStringStatement *statement,
@@ -472,8 +470,8 @@ parse_argument (const char *string, /* original user string */
   const char *mark = NULL;
   const char *error_string = NULL;
   ParserArgState state = PARSER_ARG_STATE_START;
-  CoglBool parsing_factor = FALSE;
-  CoglBool implicit_factor_brace = FALSE;
+  gboolean parsing_factor = FALSE;
+  gboolean implicit_factor_brace = FALSE;
 
   arg->source.is_zero = FALSE;
   arg->source.info = NULL;

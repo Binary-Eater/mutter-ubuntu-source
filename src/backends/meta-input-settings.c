@@ -27,15 +27,16 @@
 
 #include "config.h"
 
+#include <glib/gi18n-lib.h>
 #include <string.h>
 
-#include "meta-backend-private.h"
-#include "meta-input-settings-private.h"
+#include "backends/meta-backend-private.h"
+#include "backends/meta-input-settings-private.h"
+#include "backends/meta-input-mapper-private.h"
 #include "backends/meta-logical-monitor.h"
 #include "backends/meta-monitor.h"
-
-#include <glib/gi18n-lib.h>
-#include <meta/util.h>
+#include "core/display-private.h"
+#include "meta/util.h"
 
 static GQuark quark_tool_settings = 0;
 
@@ -96,6 +97,9 @@ struct _MetaInputSettingsPrivate
     guint number;
     gdouble value;
   } last_pad_action_info;
+
+  /* For absolute devices with no mapping in settings */
+  MetaInputMapper *input_mapper;
 };
 
 typedef void (*ConfigBoolFunc)   (MetaInputSettings  *input_settings,
@@ -108,7 +112,8 @@ typedef void (*ConfigUintFunc)   (MetaInputSettings  *input_settings,
                                   ClutterInputDevice *device,
                                   guint               value);
 
-typedef enum {
+typedef enum
+{
   META_PAD_DIRECTION_NONE = -1,
   META_PAD_DIRECTION_UP = 0,
   META_PAD_DIRECTION_DOWN,
@@ -157,6 +162,7 @@ meta_input_settings_dispose (GObject *object)
   g_clear_object (&priv->keyboard_settings);
   g_clear_object (&priv->gsd_settings);
   g_clear_object (&priv->a11y_settings);
+  g_clear_object (&priv->input_mapper);
   g_clear_pointer (&priv->mappable_devices, g_hash_table_unref);
   g_clear_pointer (&priv->current_tools, g_hash_table_unref);
 
@@ -709,22 +715,6 @@ update_touchpad_send_events (MetaInputSettings  *input_settings,
     }
 }
 
-gboolean
-meta_input_device_is_trackball (ClutterInputDevice *device)
-{
-  gboolean is_trackball;
-  char *name;
-
-  if (clutter_input_device_get_device_mode (device) == CLUTTER_INPUT_MODE_MASTER)
-    return FALSE;
-
-  name = g_ascii_strdown (clutter_input_device_get_device_name (device), -1);
-  is_trackball = strstr (name, "trackball") != NULL;
-  g_free (name);
-
-  return is_trackball;
-}
-
 static void
 update_trackball_scroll_button (MetaInputSettings  *input_settings,
                                 ClutterInputDevice *device)
@@ -733,11 +723,12 @@ update_trackball_scroll_button (MetaInputSettings  *input_settings,
   MetaInputSettingsPrivate *priv;
   guint button;
 
-  if (device && !meta_input_device_is_trackball (device))
-    return;
-
   priv = meta_input_settings_get_instance_private (input_settings);
   input_settings_class = META_INPUT_SETTINGS_GET_CLASS (input_settings);
+
+  if (device && !input_settings_class->is_trackball_device (input_settings, device))
+    return;
+
   /* This key is 'i' in the schema but it also specifies a minimum
    * range of 0 so the cast here is safe. */
   button = (guint) g_settings_get_int (priv->trackball_settings, "scroll-wheel-emulation-button");
@@ -756,7 +747,7 @@ update_trackball_scroll_button (MetaInputSettings  *input_settings,
         {
           device = devices->data;
 
-          if (meta_input_device_is_trackball (device))
+          if (input_settings_class->is_trackball_device (input_settings, device))
             input_settings_class->set_scroll_button (input_settings, device, button);
 
           devices = devices->next;
@@ -824,7 +815,7 @@ meta_input_settings_find_monitor (MetaInputSettings   *input_settings,
   gchar **edid;
 
   priv = meta_input_settings_get_instance_private (input_settings);
-  edid = g_settings_get_strv (settings, "display");
+  edid = g_settings_get_strv (settings, "output");
   n_values = g_strv_length (edid);
 
   if (n_values != 3)
@@ -859,6 +850,42 @@ meta_input_settings_find_monitor (MetaInputSettings   *input_settings,
 
 out:
   g_strfreev (edid);
+}
+
+static gboolean
+meta_input_settings_delegate_on_mapper (MetaInputSettings  *input_settings,
+                                        ClutterInputDevice *device)
+{
+  MetaInputSettingsPrivate *priv;
+  gboolean builtin = FALSE;
+
+  priv = meta_input_settings_get_instance_private (input_settings);
+
+#ifdef HAVE_LIBWACOM
+  if (clutter_input_device_get_device_type (device) != CLUTTER_TOUCHSCREEN_DEVICE)
+    {
+      WacomDevice *wacom_device;
+      WacomIntegrationFlags flags = 0;
+
+      wacom_device =
+        meta_input_settings_get_tablet_wacom_device (input_settings,
+                                                     device);
+
+      if (wacom_device)
+        {
+          flags = libwacom_get_integration_flags (wacom_device);
+
+          if ((flags & (WACOM_DEVICE_INTEGRATED_SYSTEM |
+                        WACOM_DEVICE_INTEGRATED_DISPLAY)) == 0)
+            return FALSE;
+
+          builtin = (flags & WACOM_DEVICE_INTEGRATED_SYSTEM) != 0;
+        }
+    }
+#endif
+
+  meta_input_mapper_add_device (priv->input_mapper, device, builtin);
+  return TRUE;
 }
 
 static void
@@ -930,12 +957,21 @@ update_device_display (MetaInputSettings  *input_settings,
   if (clutter_input_device_get_device_type (device) == CLUTTER_TOUCHSCREEN_DEVICE ||
       clutter_input_device_get_mapping_mode (device) ==
       CLUTTER_INPUT_DEVICE_MAPPING_ABSOLUTE)
-    meta_input_settings_find_monitor (input_settings, settings, device,
-                                      &monitor, &logical_monitor);
-
-  if (monitor)
-    meta_monitor_manager_get_monitor_matrix (priv->monitor_manager,
-                                             monitor, logical_monitor, matrix);
+    {
+      meta_input_settings_find_monitor (input_settings, settings, device,
+                                        &monitor, &logical_monitor);
+      if (monitor)
+        {
+          meta_input_mapper_remove_device (priv->input_mapper, device);
+          meta_monitor_manager_get_monitor_matrix (priv->monitor_manager,
+                                                   monitor, logical_monitor, matrix);
+        }
+      else
+        {
+          if (meta_input_settings_delegate_on_mapper (input_settings, device))
+            return;
+        }
+    }
 
   input_settings_class->set_matrix (input_settings, device, matrix);
 
@@ -1122,7 +1158,7 @@ mapped_device_changed_cb (GSettings         *settings,
                           const gchar       *key,
                           DeviceMappingInfo *info)
 {
-  if (strcmp (key, "display") == 0)
+  if (strcmp (key, "output") == 0)
     update_device_display (info->input_settings, settings, info->device);
   else if (strcmp (key, "mapping") == 0)
     update_tablet_mapping (info->input_settings, settings, info->device);
@@ -1180,7 +1216,7 @@ load_keyboard_a11y_settings (MetaInputSettings  *input_settings,
                              ClutterInputDevice *device)
 {
   MetaInputSettingsPrivate *priv = meta_input_settings_get_instance_private (input_settings);
-  ClutterKbdA11ySettings kbd_a11y_settings;
+  ClutterKbdA11ySettings kbd_a11y_settings = { 0 };
   ClutterInputDevice *core_keyboard;
   guint i;
 
@@ -1291,7 +1327,9 @@ lookup_tool_settings (ClutterInputDeviceTool *tool,
 
   serial = clutter_input_device_tool_get_serial (tool);
 
-  if (serial == 0)
+  /* The Wacom driver uses serial 1 for serial-less devices but 1 is not a
+   * real serial, so let's custom-case this */
+  if (serial == 0 || serial == 1)
     {
       path = g_strdup_printf ("/org/gnome/desktop/peripherals/stylus/default-%s:%s/",
                               clutter_input_device_get_vendor_id (device),
@@ -1384,6 +1422,29 @@ monitors_changed_cb (MetaMonitorManager *monitor_manager,
   while (g_hash_table_iter_next (&iter, (gpointer *) &device,
                                  (gpointer *) &info))
     update_device_display (input_settings, info->settings, device);
+}
+
+static void
+input_mapper_device_mapped_cb (MetaInputMapper    *mapper,
+                               ClutterInputDevice *device,
+                               MetaLogicalMonitor *logical_monitor,
+                               MetaMonitor        *monitor,
+                               MetaInputSettings  *input_settings)
+{
+  MetaInputSettingsPrivate *priv;
+  float matrix[6] = { 1, 0, 0, 0, 1, 0 };
+
+  priv = meta_input_settings_get_instance_private (input_settings);
+
+  if (monitor && logical_monitor)
+    {
+      meta_monitor_manager_get_monitor_matrix (priv->monitor_manager,
+                                               monitor, logical_monitor,
+                                               matrix);
+    }
+
+  META_INPUT_SETTINGS_GET_CLASS (input_settings)->set_matrix (input_settings,
+                                                              device, matrix);
 }
 
 static void
@@ -1608,6 +1669,7 @@ meta_input_settings_device_removed (ClutterDeviceManager *device_manager,
   MetaInputSettingsPrivate *priv;
 
   priv = meta_input_settings_get_instance_private (input_settings);
+  meta_input_mapper_remove_device (priv->input_mapper, device);
   g_hash_table_remove (priv->mappable_devices, device);
   g_hash_table_remove (priv->current_tools, device);
 
@@ -1697,6 +1759,39 @@ check_mappable_devices (MetaInputSettings *input_settings)
 }
 
 static void
+power_save_mode_changed_cb (MetaMonitorManager *manager,
+                            gpointer            user_data)
+{
+  MetaInputSettingsPrivate *priv;
+  ClutterInputDevice *device;
+  MetaLogicalMonitor *logical_monitor;
+  MetaMonitor *builtin;
+  MetaPowerSave power_save_mode;
+  gboolean on;
+
+  power_save_mode = meta_monitor_manager_get_power_save_mode (manager);
+  on = power_save_mode == META_POWER_SAVE_ON;
+  priv = meta_input_settings_get_instance_private (user_data);
+
+  builtin = meta_monitor_manager_get_laptop_panel (manager);
+  if (!builtin)
+    return;
+
+  logical_monitor = meta_monitor_get_logical_monitor (builtin);
+  if (!logical_monitor)
+    return;
+
+  device =
+    meta_input_mapper_get_logical_monitor_device (priv->input_mapper,
+                                                  logical_monitor,
+                                                  CLUTTER_TOUCHSCREEN_DEVICE);
+  if (!device)
+    return;
+
+  clutter_input_device_set_enabled (device, on);
+}
+
+static void
 meta_input_settings_constructed (GObject *object)
 {
   MetaInputSettings *input_settings = META_INPUT_SETTINGS (object);
@@ -1776,6 +1871,8 @@ meta_input_settings_init (MetaInputSettings *settings)
   priv->monitor_manager = g_object_ref (meta_monitor_manager_get ());
   g_signal_connect (priv->monitor_manager, "monitors-changed-internal",
                     G_CALLBACK (monitors_changed_cb), settings);
+  g_signal_connect (priv->monitor_manager, "power-save-mode-changed",
+                    G_CALLBACK (power_save_mode_changed_cb), settings);
 
 #ifdef HAVE_LIBWACOM
   priv->wacom_db = libwacom_database_new ();
@@ -1787,6 +1884,10 @@ meta_input_settings_init (MetaInputSettings *settings)
 #endif
 
   priv->two_finger_devices = g_hash_table_new (NULL, NULL);
+
+  priv->input_mapper = meta_input_mapper_new ();
+  g_signal_connect (priv->input_mapper, "device-mapped",
+                    G_CALLBACK (input_mapper_device_mapped_cb), settings);
 }
 
 GSettings *
@@ -1974,7 +2075,7 @@ meta_input_settings_cycle_tablet_output (MetaInputSettings  *input_settings,
       edid[1] = "";
       edid[2] = "";
     }
-  g_settings_set_strv (info->settings, "display", edid);
+  g_settings_set_strv (info->settings, "output", edid);
 
   meta_display_show_tablet_mapping_notification (meta_get_display (),
                                                  device, pretty_name);

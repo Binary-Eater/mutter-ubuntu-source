@@ -3,6 +3,7 @@
 /*
  * Copyright (C) 2016 Red Hat Inc.
  * Copyright (C) 2017 Intel Corporation
+ * Copyright (C) 2018 DisplayLink (UK) Ltd.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -28,17 +29,17 @@
 
 #include "wayland/meta-wayland-dma-buf.h"
 
-#include "cogl/cogl.h"
-#include "cogl/cogl-egl.h"
+#include <drm_fourcc.h>
+
 #include "backends/meta-backend-private.h"
-#include "backends/meta-egl.h"
 #include "backends/meta-egl-ext.h"
+#include "backends/meta-egl.h"
+#include "cogl/cogl-egl.h"
+#include "cogl/cogl.h"
 #include "meta/meta-backend.h"
 #include "wayland/meta-wayland-buffer.h"
 #include "wayland/meta-wayland-private.h"
 #include "wayland/meta-wayland-versions.h"
-
-#include <drm_fourcc.h>
 
 #include "linux-dmabuf-unstable-v1-server-protocol.h"
 
@@ -64,9 +65,9 @@ struct _MetaWaylandDmaBufBuffer
 
 G_DEFINE_TYPE (MetaWaylandDmaBufBuffer, meta_wayland_dma_buf_buffer, G_TYPE_OBJECT);
 
-gboolean
-meta_wayland_dma_buf_buffer_attach (MetaWaylandBuffer *buffer,
-                                    GError           **error)
+static gboolean
+meta_wayland_dma_buf_realize_texture (MetaWaylandBuffer  *buffer,
+                                      GError            **error)
 {
   MetaBackend *backend = meta_get_backend ();
   MetaEgl *egl = meta_backend_get_egl (backend);
@@ -80,11 +81,18 @@ meta_wayland_dma_buf_buffer_attach (MetaWaylandBuffer *buffer,
   EGLint attribs[64];
   int attr_idx = 0;
 
-  if (buffer->texture)
+  if (buffer->dma_buf.texture)
     return TRUE;
 
   switch (dma_buf->drm_format)
     {
+    /*
+     * NOTE: The cogl_format here is only used for texture color channel
+     * swizzling as compared to COGL_PIXEL_FORMAT_ARGB. It is *not* used
+     * for accessing the buffer memory. EGL will access the buffer
+     * memory according to the DRM fourcc code. Cogl will not mmap
+     * and access the buffer memory at all.
+     */
     case DRM_FORMAT_XRGB8888:
       cogl_format = COGL_PIXEL_FORMAT_RGB_888;
       break;
@@ -188,9 +196,24 @@ meta_wayland_dma_buf_buffer_attach (MetaWaylandBuffer *buffer,
   if (!texture)
     return FALSE;
 
-  buffer->texture = COGL_TEXTURE (texture);
+  buffer->dma_buf.texture = COGL_TEXTURE (texture);
   buffer->is_y_inverted = dma_buf->is_y_inverted;
 
+  return TRUE;
+}
+
+gboolean
+meta_wayland_dma_buf_buffer_attach (MetaWaylandBuffer  *buffer,
+                                    CoglTexture       **texture,
+                                    gboolean           *changed_texture,
+                                    GError            **error)
+{
+  if (!meta_wayland_dma_buf_realize_texture (buffer, error))
+    return FALSE;
+
+  *changed_texture = *texture != buffer->dma_buf.texture;
+  cogl_clear_object (texture);
+  *texture = cogl_object_ref (buffer->dma_buf.texture);
   return TRUE;
 }
 
@@ -366,7 +389,7 @@ buffer_params_create_common (struct wl_client   *client,
   buffer = meta_wayland_buffer_from_resource (buffer_resource);
 
   meta_wayland_buffer_realize (buffer);
-  if (!meta_wayland_buffer_attach (buffer, &error))
+  if (!meta_wayland_dma_buf_realize_texture (buffer, &error))
     {
       if (buffer_id == 0)
         {

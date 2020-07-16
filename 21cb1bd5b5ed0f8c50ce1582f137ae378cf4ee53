@@ -1,0 +1,4 @@
+  * 80_no_session_delay.patch: Start mutter as early as possible, since with
+    plugins (such as gnome-shell) it will take the longest time to start up;
+    Let the scheduler deal with squeezing the other processes into mutter's
+    idle periods.

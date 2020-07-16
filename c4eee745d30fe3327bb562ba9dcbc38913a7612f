@@ -1,0 +1,1 @@
+  * debian/patches/02_arm_include_clutter_x11.patch: Fix armel FTBFS.

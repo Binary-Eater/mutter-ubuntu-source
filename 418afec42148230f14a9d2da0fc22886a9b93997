@@ -1,0 +1,18 @@
+  [ Michael Biebl ]
+  * New upstream release.
+  [ Rico Tzschichholz ]
+  * debian/control.in:
+    - Bump minimum GTK, cogl, clutter & gsettings-desktop-schemas
+    - Add mutter-dbg package
+  * debian/mutter-common.install:
+    - Install gsettings schemas
+  * debian/rules: Enable compile warnings
+  [ Jeremy Bicha ]
+  * debian/control.in:
+    - Drop gconf dependency
+  [ Michael Biebl ]
+  * Bump Standards-Version to 3.9.3.
+  * Update Vcs-* URLs.
+  * Drop Suggests: gnome-themes. This is a remnant of the old metacity
+    package this work is based on.
+  * Refresh debian/patches/01_Wcast-align.patch.

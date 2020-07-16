@@ -9,3 +9,5 @@ DISTCLEANFILES = \
 	intltool-update \
 	po/stamp-it \
 	po/.intltool-merge-cache
+
+DISTCHECK_CONFIGURE_FLAGS = --enable-gtk-doc

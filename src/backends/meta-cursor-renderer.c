@@ -25,6 +25,7 @@
 #include "config.h"
 
 #include "meta-cursor-renderer.h"
+#include "meta-cursor-private.h"
 
 #include <meta/meta-backend.h>
 #include <meta/util.h>
@@ -37,8 +38,9 @@
 struct _MetaCursorRendererPrivate
 {
   int current_x, current_y;
+  MetaRectangle current_rect;
 
-  MetaCursorSprite *displayed_cursor;
+  MetaCursorReference *displayed_cursor;
   gboolean handled_by_backend;
 };
 typedef struct _MetaCursorRendererPrivate MetaCursorRendererPrivate;
@@ -46,33 +48,27 @@ typedef struct _MetaCursorRendererPrivate MetaCursorRendererPrivate;
 G_DEFINE_TYPE_WITH_PRIVATE (MetaCursorRenderer, meta_cursor_renderer, G_TYPE_OBJECT);
 
 static void
-queue_redraw (MetaCursorRenderer *renderer,
-              MetaCursorSprite   *cursor_sprite)
+queue_redraw (MetaCursorRenderer *renderer)
 {
   MetaCursorRendererPrivate *priv = meta_cursor_renderer_get_instance_private (renderer);
   MetaBackend *backend = meta_get_backend ();
   ClutterActor *stage = meta_backend_get_stage (backend);
   CoglTexture *texture;
-  MetaRectangle rect = { 0 };
-
-  if (cursor_sprite)
-    rect = meta_cursor_renderer_calculate_rect (renderer, cursor_sprite);
 
   /* During early initialization, we can have no stage */
   if (!stage)
     return;
 
-  if (cursor_sprite && !priv->handled_by_backend)
-    texture = meta_cursor_sprite_get_cogl_texture (cursor_sprite);
+  if (priv->displayed_cursor && !priv->handled_by_backend)
+    texture = meta_cursor_reference_get_cogl_texture (priv->displayed_cursor, NULL, NULL);
   else
     texture = NULL;
 
-  meta_stage_set_cursor (META_STAGE (stage), texture, &rect);
+  meta_stage_set_cursor (META_STAGE (stage), texture, &priv->current_rect);
 }
 
 static gboolean
-meta_cursor_renderer_real_update_cursor (MetaCursorRenderer *renderer,
-                                         MetaCursorSprite   *cursor_sprite)
+meta_cursor_renderer_real_update_cursor (MetaCursorRenderer *renderer)
 {
   return FALSE;
 }
@@ -88,50 +84,34 @@ meta_cursor_renderer_init (MetaCursorRenderer *renderer)
 {
 }
 
-MetaRectangle
-meta_cursor_renderer_calculate_rect (MetaCursorRenderer *renderer,
-                                     MetaCursorSprite   *cursor_sprite)
-{
-  MetaCursorRendererPrivate *priv =
-    meta_cursor_renderer_get_instance_private (renderer);
-  CoglTexture *texture;
-  int hot_x, hot_y;
-  int width, height;
-  float texture_scale;
-
-  texture = meta_cursor_sprite_get_cogl_texture (cursor_sprite);
-  if (!texture)
-    return (MetaRectangle) { 0 };
-
-  meta_cursor_sprite_get_hotspot (cursor_sprite, &hot_x, &hot_y);
-  texture_scale = meta_cursor_sprite_get_texture_scale (cursor_sprite);
-  width = cogl_texture_get_width (texture);
-  height = cogl_texture_get_height (texture);
-
-  return (MetaRectangle) {
-    .x = (int)roundf (priv->current_x - (hot_x * texture_scale)),
-    .y = (int)roundf (priv->current_y - (hot_y * texture_scale)),
-    .width = (int)roundf (width * texture_scale),
-    .height = (int)roundf (height * texture_scale),
-  };
-}
-
 static void
-update_cursor (MetaCursorRenderer *renderer,
-               MetaCursorSprite   *cursor_sprite)
+update_cursor (MetaCursorRenderer *renderer)
 {
   MetaCursorRendererPrivate *priv = meta_cursor_renderer_get_instance_private (renderer);
   gboolean handled_by_backend;
   gboolean should_redraw = FALSE;
 
-  if (cursor_sprite)
-    meta_cursor_sprite_prepare_at (cursor_sprite,
-                                   priv->current_x,
-                                   priv->current_y);
+  if (priv->displayed_cursor)
+    {
+      CoglTexture *texture;
+      int hot_x, hot_y;
 
-  handled_by_backend =
-    META_CURSOR_RENDERER_GET_CLASS (renderer)->update_cursor (renderer,
-                                                              cursor_sprite);
+      texture = meta_cursor_reference_get_cogl_texture (priv->displayed_cursor, &hot_x, &hot_y);
+
+      priv->current_rect.x = priv->current_x - hot_x;
+      priv->current_rect.y = priv->current_y - hot_y;
+      priv->current_rect.width = cogl_texture_get_width (COGL_TEXTURE (texture));
+      priv->current_rect.height = cogl_texture_get_height (COGL_TEXTURE (texture));
+    }
+  else
+    {
+      priv->current_rect.x = 0;
+      priv->current_rect.y = 0;
+      priv->current_rect.width = 0;
+      priv->current_rect.height = 0;
+    }
+
+  handled_by_backend = META_CURSOR_RENDERER_GET_CLASS (renderer)->update_cursor (renderer);
   if (handled_by_backend != priv->handled_by_backend)
     {
       priv->handled_by_backend = handled_by_backend;
@@ -142,7 +122,7 @@ update_cursor (MetaCursorRenderer *renderer,
     should_redraw = TRUE;
 
   if (should_redraw)
-    queue_redraw (renderer, cursor_sprite);
+    queue_redraw (renderer);
 }
 
 MetaCursorRenderer *
@@ -152,25 +132,16 @@ meta_cursor_renderer_new (void)
 }
 
 void
-meta_cursor_renderer_set_cursor (MetaCursorRenderer *renderer,
-                                 MetaCursorSprite   *cursor_sprite)
+meta_cursor_renderer_set_cursor (MetaCursorRenderer  *renderer,
+                                 MetaCursorReference *cursor)
 {
   MetaCursorRendererPrivate *priv = meta_cursor_renderer_get_instance_private (renderer);
 
-  if (priv->displayed_cursor == cursor_sprite)
+  if (priv->displayed_cursor == cursor)
     return;
-  priv->displayed_cursor = cursor_sprite;
 
-  update_cursor (renderer, cursor_sprite);
-}
-
-void
-meta_cursor_renderer_force_update (MetaCursorRenderer *renderer)
-{
-  MetaCursorRendererPrivate *priv =
-    meta_cursor_renderer_get_instance_private (renderer);
-
-  update_cursor (renderer, priv->displayed_cursor);
+  priv->displayed_cursor = cursor;
+  update_cursor (renderer);
 }
 
 void
@@ -184,10 +155,10 @@ meta_cursor_renderer_set_position (MetaCursorRenderer *renderer,
   priv->current_x = x;
   priv->current_y = y;
 
-  update_cursor (renderer, priv->displayed_cursor);
+  update_cursor (renderer);
 }
 
-MetaCursorSprite *
+MetaCursorReference *
 meta_cursor_renderer_get_cursor (MetaCursorRenderer *renderer)
 {
   MetaCursorRendererPrivate *priv = meta_cursor_renderer_get_instance_private (renderer);
@@ -195,27 +166,10 @@ meta_cursor_renderer_get_cursor (MetaCursorRenderer *renderer)
   return priv->displayed_cursor;
 }
 
-#ifdef HAVE_WAYLAND
-void
-meta_cursor_renderer_realize_cursor_from_wl_buffer (MetaCursorRenderer *renderer,
-                                                    MetaCursorSprite   *cursor_sprite,
-                                                    struct wl_resource *buffer)
+const MetaRectangle *
+meta_cursor_renderer_get_rect (MetaCursorRenderer *renderer)
 {
+  MetaCursorRendererPrivate *priv = meta_cursor_renderer_get_instance_private (renderer);
 
-  MetaCursorRendererClass *renderer_class = META_CURSOR_RENDERER_GET_CLASS (renderer);
-
-  if (renderer_class->realize_cursor_from_wl_buffer)
-    renderer_class->realize_cursor_from_wl_buffer (renderer, cursor_sprite, buffer);
-}
-#endif
-
-void
-meta_cursor_renderer_realize_cursor_from_xcursor (MetaCursorRenderer *renderer,
-                                                  MetaCursorSprite   *cursor_sprite,
-                                                  XcursorImage       *xc_image)
-{
-  MetaCursorRendererClass *renderer_class = META_CURSOR_RENDERER_GET_CLASS (renderer);
-
-  if (renderer_class->realize_cursor_from_xcursor)
-    renderer_class->realize_cursor_from_xcursor (renderer, cursor_sprite, xc_image);
+  return &priv->current_rect;
 }

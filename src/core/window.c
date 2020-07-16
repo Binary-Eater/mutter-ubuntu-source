@@ -41,7 +41,7 @@
 #include <meta/prefs.h>
 #include <meta/group.h>
 #include "constraints.h"
-#include <meta/meta-enum-types.h>
+#include "mutter-enum-types.h"
 #include "core.h"
 
 #include <X11/Xatom.h>
@@ -57,8 +57,7 @@
 #include "x11/xprops.h"
 
 #ifdef HAVE_WAYLAND
-#include "wayland/meta-window-wayland.h"
-#include "wayland/meta-wayland-surface.h"
+#include "wayland/window-wayland.h"
 #include "wayland/meta-wayland-private.h"
 #endif
 
@@ -724,12 +723,6 @@ meta_window_should_attach_to_parent (MetaWindow *window)
 static gboolean
 client_window_should_be_mapped (MetaWindow *window)
 {
-#ifdef HAVE_WAYLAND
-  if (window->client_type == META_WINDOW_CLIENT_TYPE_WAYLAND &&
-      !window->surface->buffer)
-    return FALSE;
-#endif
-
   return !window->shaded;
 }
 
@@ -980,8 +973,7 @@ _meta_window_shared_new (MetaDisplay         *display,
 
   window->compositor_private = NULL;
 
-  window->monitor = meta_screen_calculate_monitor_for_window (window->screen,
-                                                              window);
+  window->monitor = meta_screen_get_monitor_for_window (window->screen, window);
   window->preferred_output_winsys_id = window->monitor->winsys_id;
 
   window->tile_match = NULL;
@@ -1540,12 +1532,6 @@ meta_window_showing_on_its_workspace (MetaWindow *window)
 gboolean
 meta_window_should_be_showing (MetaWindow  *window)
 {
-#ifdef HAVE_WAYLAND
-  if (window->client_type == META_WINDOW_CLIENT_TYPE_WAYLAND &&
-      !window->surface->buffer)
-    return FALSE;
-#endif
-
   /* Windows should be showing if they're located on the
    * active workspace and they're showing on their own workspace. */
   return (meta_window_located_on_workspace (window, window->screen->active_workspace) &&
@@ -2664,6 +2650,8 @@ meta_window_maximize (MetaWindow        *window,
 {
   MetaRectangle *saved_rect = NULL;
   gboolean maximize_horizontally, maximize_vertically;
+  MetaRectangle old_rect;
+  MetaRectangle new_rect;
 
   g_return_if_fail (!window->override_redirect);
 
@@ -2713,23 +2701,18 @@ meta_window_maximize (MetaWindow        *window,
                                      directions,
                                      saved_rect);
 
-      MetaRectangle old_frame_rect, old_buffer_rect, new_rect;
-
-      meta_window_get_frame_rect (window, &old_frame_rect);
-      meta_window_get_buffer_rect (window, &old_buffer_rect);
+      meta_window_get_frame_rect (window, &old_rect);
 
       meta_window_move_resize_internal (window,
-                                        (META_MOVE_RESIZE_MOVE_ACTION |
-                                         META_MOVE_RESIZE_RESIZE_ACTION |
-                                         META_MOVE_RESIZE_STATE_CHANGED |
-                                         META_MOVE_RESIZE_DONT_SYNC_COMPOSITOR),
+                                        META_MOVE_RESIZE_MOVE_ACTION | META_MOVE_RESIZE_RESIZE_ACTION | META_MOVE_RESIZE_STATE_CHANGED,
                                         NorthWestGravity,
                                         window->unconstrained_rect);
-      meta_window_get_frame_rect (window, &new_rect);
 
-      meta_compositor_size_change_window (window->display->compositor, window,
-                                          META_SIZE_CHANGE_MAXIMIZE,
-                                          &old_frame_rect, &old_buffer_rect);
+      meta_window_get_frame_rect (window, &new_rect);
+      meta_compositor_maximize_window (window->display->compositor,
+                                       window,
+                                       &old_rect,
+                                       &new_rect);
     }
 }
 
@@ -2889,6 +2872,8 @@ void
 meta_window_tile (MetaWindow *window)
 {
   MetaMaximizeFlags directions;
+  MetaRectangle old_rect;
+  MetaRectangle new_rect;
 
   /* Don't do anything if no tiling is requested */
   if (window->tile_mode == META_TILE_NONE)
@@ -2902,7 +2887,15 @@ meta_window_tile (MetaWindow *window)
   meta_window_maximize_internal (window, directions, NULL);
   meta_screen_update_tile_preview (window->screen, FALSE);
 
+  meta_window_get_frame_rect (window, &old_rect);
+
   meta_window_move_resize_now (window);
+
+  meta_window_get_frame_rect (window, &new_rect);
+  meta_compositor_maximize_window (window->display->compositor,
+                                   window,
+                                   &old_rect,
+                                   &new_rect);
 
   if (window->frame)
     meta_frame_queue_draw (window->frame);
@@ -2971,9 +2964,11 @@ unmaximize_window_before_freeing (MetaWindow        *window)
     }
 }
 
-void
-meta_window_unmaximize (MetaWindow        *window,
-                        MetaMaximizeFlags  directions)
+static void
+meta_window_unmaximize_internal (MetaWindow        *window,
+                                 MetaMaximizeFlags  directions,
+                                 MetaRectangle     *desired_rect,
+                                 int                gravity)
 {
   gboolean unmaximize_horizontally, unmaximize_vertically;
   MetaRectangle new_rect;
@@ -2994,14 +2989,12 @@ meta_window_unmaximize (MetaWindow        *window,
   if ((unmaximize_horizontally && window->maximized_horizontally) ||
       (unmaximize_vertically   && window->maximized_vertically))
     {
-      MetaRectangle *desired_rect;
       MetaRectangle target_rect;
       MetaRectangle work_area;
-      MetaRectangle old_frame_rect, old_buffer_rect;
+      MetaRectangle old_rect;
 
       meta_window_get_work_area_for_monitor (window, window->monitor->number, &work_area);
-      meta_window_get_frame_rect (window, &old_frame_rect);
-      meta_window_get_buffer_rect (window, &old_buffer_rect);
+      meta_window_get_frame_rect (window, &old_rect);
 
       meta_topic (META_DEBUG_WINDOW_OPS,
                   "Unmaximizing %s%s\n",
@@ -3021,12 +3014,10 @@ meta_window_unmaximize (MetaWindow        *window,
        */
       meta_window_frame_size_changed (window);
 
-      desired_rect = &window->saved_rect;
-
       /* Unmaximize to the saved_rect position in the direction(s)
        * being unmaximized.
        */
-      target_rect = old_frame_rect;
+      target_rect = old_rect;
 
       /* Avoid unmaximizing to "almost maximized" size when the previous size
        * is greater then 80% of the work area use MAX_UNMAXIMIZED_WINDOW_AREA of the work area as upper limit
@@ -3068,17 +3059,15 @@ meta_window_unmaximize (MetaWindow        *window,
       meta_window_client_rect_to_frame_rect (window, &target_rect, &target_rect);
 
       meta_window_move_resize_internal (window,
-                                        (META_MOVE_RESIZE_MOVE_ACTION |
-                                         META_MOVE_RESIZE_RESIZE_ACTION |
-                                         META_MOVE_RESIZE_STATE_CHANGED |
-                                         META_MOVE_RESIZE_DONT_SYNC_COMPOSITOR),
-                                        NorthWestGravity,
+                                        META_MOVE_RESIZE_MOVE_ACTION | META_MOVE_RESIZE_RESIZE_ACTION | META_MOVE_RESIZE_STATE_CHANGED,
+                                        gravity,
                                         target_rect);
 
       meta_window_get_frame_rect (window, &new_rect);
-      meta_compositor_size_change_window (window->display->compositor, window,
-                                          META_SIZE_CHANGE_UNMAXIMIZE,
-                                          &old_frame_rect, &old_buffer_rect);
+      meta_compositor_unmaximize_window (window->display->compositor,
+                                         window,
+                                         &old_rect,
+                                         &new_rect);
 
       /* When we unmaximize, if we're doing a mouse move also we could
        * get the window suddenly jumping to the upper left corner of
@@ -3103,6 +3092,37 @@ meta_window_unmaximize (MetaWindow        *window,
   g_object_notify_by_pspec (G_OBJECT (window), obj_props[PROP_MAXIMIZED_HORIZONTALLY]);
   g_object_notify_by_pspec (G_OBJECT (window), obj_props[PROP_MAXIMIZED_VERTICALLY]);
   g_object_thaw_notify (G_OBJECT (window));
+}
+
+void
+meta_window_unmaximize (MetaWindow        *window,
+                        MetaMaximizeFlags  directions)
+{
+  meta_window_unmaximize_internal (window, directions, &window->saved_rect,
+                                   NorthWestGravity);
+}
+
+/* Like meta_window_unmaximize(), but instead of unmaximizing to the
+ * saved position, we give the new desired size, and the gravity that
+ * determines the positioning relationship between the area occupied
+ * maximized and the new are. The arguments are similar to
+ * meta_window_resize_with_gravity().
+ * Unlike meta_window_unmaximize(), tiling is not restored for windows
+ * with a tile mode other than META_TILE_NONE.
+ */
+static void
+meta_window_unmaximize_with_gravity (MetaWindow        *window,
+                                     MetaMaximizeFlags  directions,
+                                     int                new_width,
+                                     int                new_height,
+                                     int                gravity)
+{
+  MetaRectangle desired_rect;
+
+  desired_rect.width = new_width;
+  desired_rect.height = new_height;
+
+  meta_window_unmaximize_internal (window, directions, &desired_rect, gravity);
 }
 
 void
@@ -3206,8 +3226,6 @@ meta_window_unmake_fullscreen (MetaWindow  *window)
 
       window->fullscreen = FALSE;
       target_rect = window->saved_rect;
-
-      meta_window_frame_size_changed (window);
 
       /* Window's size hints may have changed while maximized, making
        * saved_rect invalid.  #329152
@@ -3546,7 +3564,7 @@ meta_window_update_monitor (MetaWindow *window,
   const MetaMonitorInfo *old;
 
   old = window->monitor;
-  META_WINDOW_GET_CLASS (window)->update_main_monitor (window);
+  window->monitor = meta_screen_get_monitor_for_window (window->screen, window);
   if (old != window->monitor)
     {
       meta_window_on_all_workspaces_changed (window);
@@ -3687,7 +3705,7 @@ meta_window_move_resize_internal (MetaWindow          *window,
     {
       window->unconstrained_rect = unconstrained_rect;
 
-      if (window->known_to_compositor && !(flags & META_MOVE_RESIZE_DONT_SYNC_COMPOSITOR))
+      if (window->known_to_compositor)
         meta_compositor_sync_window_geometry (window->display->compositor,
                                               window,
                                               did_placement);
@@ -4019,8 +4037,9 @@ meta_window_get_buffer_rect (const MetaWindow *window,
  * @client_rect: client rectangle in root coordinates
  * @frame_rect: (out): location to store the computed corresponding frame bounds.
  *
- * Converts a desired bounds of the client window into the corresponding bounds
- * of the window frame (excluding invisible borders and client side shadows.)
+ * Converts a desired bounds of the client window - what is passed to meta_window_move_resize() -
+ * into the corresponding bounds of the window frame (excluding invisible borders
+ * and client side shadows.)
  */
 void
 meta_window_client_rect_to_frame_rect (MetaWindow    *window,
@@ -4067,7 +4086,7 @@ meta_window_client_rect_to_frame_rect (MetaWindow    *window,
  * @client_rect: (out): location to store the computed corresponding client rectangle.
  *
  * Converts a desired frame bounds for a window into the bounds of the client
- * window.
+ * window - what is passed to meta_window_move_resize().
  */
 void
 meta_window_frame_rect_to_client_rect (MetaWindow    *window,
@@ -4614,7 +4633,12 @@ meta_window_change_workspace_by_index (MetaWindow *window,
     workspace = meta_screen_append_new_workspace (screen, FALSE, CurrentTime);
 
   if (workspace)
-    meta_window_change_workspace (window, workspace);
+    {
+      if (window->on_all_workspaces_requested)
+        meta_window_unstick (window);
+
+      meta_window_change_workspace (window, workspace);
+    }
 }
 
 static void
@@ -5633,7 +5657,7 @@ update_move (MetaWindow  *window,
       int monitor;
 
       window->tile_mode = META_TILE_NONE;
-      wmonitor = window->monitor;
+      wmonitor = meta_screen_get_monitor_for_window (window->screen, window);
 
       for (monitor = 0; monitor < window->screen->n_monitor_infos; monitor++)
         {
@@ -5703,6 +5727,81 @@ update_move (MetaWindow  *window,
   meta_window_move_frame (window, TRUE, new_x, new_y);
 }
 
+/* When resizing a maximized window by using alt-middle-drag (resizing
+ * with the grips or the menu for a maximized window is not enabled),
+ * the user can "break" out of the maximized state. This checks for
+ * that possibility. During such a break-out resize the user can also
+ * return to the previous maximization state by resizing back to near
+ * the original size.
+ */
+static MetaMaximizeFlags
+check_resize_unmaximize(MetaWindow *window,
+                        int         dx,
+                        int         dy)
+{
+  int threshold;
+  MetaMaximizeFlags new_unmaximize;
+
+#define DRAG_THRESHOLD_TO_RESIZE_THRESHOLD_FACTOR 3
+
+  threshold = meta_prefs_get_drag_threshold () *
+    DRAG_THRESHOLD_TO_RESIZE_THRESHOLD_FACTOR;
+  new_unmaximize = 0;
+
+  if (window->maximized_horizontally ||
+      window->tile_mode != META_TILE_NONE ||
+      (window->display->grab_resize_unmaximize & META_MAXIMIZE_HORIZONTAL) != 0)
+    {
+      int x_amount;
+
+      /* We allow breaking out of maximization in either direction, to make
+       * the window larger than the monitor as well as smaller than the
+       * monitor. If we wanted to only allow resizing smaller than the
+       * monitor, we'd use - dx for NE/E/SE and dx for SW/W/NW.
+       */
+      if ((window->display->grab_op & (META_GRAB_OP_WINDOW_DIR_WEST | META_GRAB_OP_WINDOW_DIR_EAST)) != 0)
+        x_amount = dx < 0 ? - dx : dx;
+      else
+        x_amount = 0;
+
+      if (x_amount > threshold)
+        new_unmaximize |= META_MAXIMIZE_HORIZONTAL;
+    }
+
+  if (window->maximized_vertically ||
+      (window->display->grab_resize_unmaximize & META_MAXIMIZE_VERTICAL) != 0)
+    {
+      int y_amount;
+
+      if ((window->display->grab_op & (META_GRAB_OP_WINDOW_DIR_NORTH | META_GRAB_OP_WINDOW_DIR_SOUTH)) != 0)
+        y_amount = dy < 0 ? - dy : dy;
+      else
+        y_amount = 0;
+
+      if (y_amount > threshold)
+        new_unmaximize |= META_MAXIMIZE_VERTICAL;
+    }
+
+  /* Metacity doesn't have a full user interface for only horizontally or
+   * vertically maximized, so while only unmaximizing in the direction drags
+   * has some advantages, it will also confuse the user. So, we always
+   * unmaximize both ways if possible.
+   */
+  if (new_unmaximize != 0)
+    {
+      new_unmaximize = 0;
+
+      if (window->maximized_horizontally ||
+          (window->display->grab_resize_unmaximize & META_MAXIMIZE_HORIZONTAL) != 0)
+        new_unmaximize |= META_MAXIMIZE_HORIZONTAL;
+      if (window->maximized_vertically ||
+          (window->display->grab_resize_unmaximize & META_MAXIMIZE_VERTICAL) != 0)
+        new_unmaximize |= META_MAXIMIZE_VERTICAL;
+    }
+
+  return new_unmaximize;
+}
+
 static gboolean
 update_resize_timeout (gpointer data)
 {
@@ -5727,6 +5826,7 @@ update_resize (MetaWindow *window,
   int gravity;
   MetaRectangle old;
   double remaining = 0;
+  MetaMaximizeFlags new_unmaximize;
 
   window->display->grab_latest_motion_x = x;
   window->display->grab_latest_motion_y = y;
@@ -5772,6 +5872,8 @@ update_resize (MetaWindow *window,
 
       meta_window_update_keyboard_resize (window, TRUE);
     }
+
+  new_unmaximize = check_resize_unmaximize (window, dx, dy);
 
   if (window->display->grab_op & META_GRAB_OP_WINDOW_DIR_EAST)
     new_w += dx;
@@ -5841,7 +5943,29 @@ update_resize (MetaWindow *window,
                                           snap,
                                           FALSE);
 
-  meta_window_resize_frame_with_gravity (window, TRUE, new_w, new_h, gravity);
+  if (new_unmaximize == window->display->grab_resize_unmaximize)
+    {
+      meta_window_resize_frame_with_gravity (window, TRUE, new_w, new_h, gravity);
+    }
+  else
+    {
+      if ((new_unmaximize & ~window->display->grab_resize_unmaximize) != 0)
+        {
+          meta_window_unmaximize_with_gravity (window,
+                                               (new_unmaximize & ~window->display->grab_resize_unmaximize),
+                                               new_w, new_h, gravity);
+        }
+
+      if ((window->display->grab_resize_unmaximize & ~new_unmaximize))
+        {
+          MetaRectangle saved_rect = window->saved_rect;
+          meta_window_maximize (window,
+                                (window->display->grab_resize_unmaximize & ~new_unmaximize));
+          window->saved_rect = saved_rect;
+        }
+    }
+
+  window->display->grab_resize_unmaximize = new_unmaximize;
 
   /* Store the latest resize time, if we actually resized. */
   if (window->rect.width != old.width || window->rect.height != old.height)
@@ -6042,8 +6166,12 @@ void
 meta_window_get_work_area_current_monitor (MetaWindow    *window,
                                            MetaRectangle *area)
 {
+  const MetaMonitorInfo *monitor = NULL;
+  monitor = meta_screen_get_monitor_for_window (window->screen,
+                                                window);
+
   meta_window_get_work_area_for_monitor (window,
-                                         window->monitor->number,
+                                         monitor->number,
                                          area);
 }
 
@@ -6272,7 +6400,7 @@ find_ancestor_func (MetaWindow *window,
  * so by traversing the @transient's ancestors until it either locates @window
  * or reaches an ancestor that is not transient.
  *
- * Return Value: (transfer none): %TRUE if window is an ancestor of transient.
+ * Return Value: %TRUE if window is an ancestor of transient.
  */
 gboolean
 meta_window_is_ancestor_of_transient (MetaWindow *window,
@@ -7010,7 +7138,7 @@ meta_window_get_transient_for (MetaWindow *window)
  * Returns pid of the process that created this window, if known (obtained from
  * the _NET_WM_PID property).
  *
- * Return value: (transfer none): the pid, or -1 if not known.
+ * Return value: the pid, or -1 if not known.
  */
 int
 meta_window_get_pid (MetaWindow *window)
@@ -7847,10 +7975,4 @@ meta_window_grab_op_ended (MetaWindow *window,
                            MetaGrabOp  op)
 {
   META_WINDOW_GET_CLASS (window)->grab_op_ended (window, op);
-}
-
-void
-meta_window_emit_size_changed (MetaWindow *window)
-{
-  g_signal_emit (window, window_signals[SIZE_CHANGED], 0);
 }

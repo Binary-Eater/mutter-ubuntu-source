@@ -20,11 +20,10 @@
 #include "frame.h"
 #include <meta/window.h>
 #include <meta/meta-shaped-texture.h>
-#include <meta/meta-enum-types.h>
-#include <meta/meta-shadow-factory.h>
 
 #include "compositor-private.h"
 #include "meta-shaped-texture-private.h"
+#include "meta-shadow-factory-private.h"
 #include "meta-window-actor-private.h"
 #include "meta-texture-rectangle.h"
 #include "region-utils.h"
@@ -75,8 +74,6 @@ struct _MetaWindowActorPrivate
   MetaWindowShape  *shadow_shape;
   char *            shadow_class;
 
-  MetaShadowMode    shadow_mode;
-
   guint             send_frame_messages_timer;
   gint64            frame_drawn_time;
 
@@ -90,7 +87,8 @@ struct _MetaWindowActorPrivate
    */
   gint              minimize_in_progress;
   gint              unminimize_in_progress;
-  gint              size_change_in_progress;
+  gint              maximize_in_progress;
+  gint              unmaximize_in_progress;
   gint              map_in_progress;
   gint              destroy_in_progress;
 
@@ -111,6 +109,8 @@ struct _MetaWindowActorPrivate
   guint             recompute_unfocused_shadow : 1;
 
   guint		    needs_destroy	   : 1;
+
+  guint             no_shadow              : 1;
 
   guint             updates_frozen         : 1;
   guint             first_frame_state      : 2; /* FirstFrameState */
@@ -147,7 +147,7 @@ static guint signals[LAST_SIGNAL] = { 0 };
 enum
 {
   PROP_META_WINDOW = 1,
-  PROP_SHADOW_MODE,
+  PROP_NO_SHADOW,
   PROP_SHADOW_CLASS
 };
 
@@ -245,15 +245,14 @@ meta_window_actor_class_init (MetaWindowActorClass *klass)
                                    PROP_META_WINDOW,
                                    pspec);
 
-  pspec = g_param_spec_enum ("shadow-mode",
-                             "Shadow mode",
-                             "Decides when to paint shadows",
-                             META_TYPE_SHADOW_MODE,
-                             META_SHADOW_MODE_AUTO,
-                             G_PARAM_READWRITE);
+  pspec = g_param_spec_boolean ("no-shadow",
+                                "No shadow",
+                                "Do not add shaddow to this window",
+                                FALSE,
+                                G_PARAM_READWRITE);
 
   g_object_class_install_property (object_class,
-                                   PROP_SHADOW_MODE,
+                                   PROP_NO_SHADOW,
                                    pspec);
 
   pspec = g_param_spec_string ("shadow-class",
@@ -511,14 +510,14 @@ meta_window_actor_set_property (GObject      *object,
       g_signal_connect_object (priv->window, "notify::appears-focused",
                                G_CALLBACK (window_appears_focused_notify), self, 0);
       break;
-    case PROP_SHADOW_MODE:
+    case PROP_NO_SHADOW:
       {
-        MetaShadowMode newv = g_value_get_enum (value);
+        gboolean newv = g_value_get_boolean (value);
 
-        if (newv == priv->shadow_mode)
+        if (newv == priv->no_shadow)
           return;
 
-        priv->shadow_mode = newv;
+        priv->no_shadow = newv;
 
         meta_window_actor_invalidate_shadow (self);
       }
@@ -555,8 +554,8 @@ meta_window_actor_get_property (GObject      *object,
     case PROP_META_WINDOW:
       g_value_set_object (value, priv->window);
       break;
-    case PROP_SHADOW_MODE:
-      g_value_set_enum (value, priv->shadow_mode);
+    case PROP_NO_SHADOW:
+      g_value_set_boolean (value, priv->no_shadow);
       break;
     case PROP_SHADOW_CLASS:
       g_value_set_string (value, priv->shadow_class);
@@ -616,10 +615,8 @@ meta_window_actor_get_shape_bounds (MetaWindowActor       *self,
 #ifdef HAVE_WAYLAND
   if (META_IS_SURFACE_ACTOR_WAYLAND (priv->surface))
     {
-      MetaSurfaceActorWayland *surface_actor =
-        META_SURFACE_ACTOR_WAYLAND (priv->surface);
-      double scale = meta_surface_actor_wayland_get_scale (surface_actor);
-
+      double scale = priv->surface ?
+                     meta_surface_actor_wayland_get_scale (META_SURFACE_ACTOR_WAYLAND (priv->surface)) : 1.;
       bounds->x *= scale;
       bounds->y *= scale;
       bounds->width *= scale;
@@ -805,10 +802,8 @@ meta_window_actor_has_shadow (MetaWindowActor *self)
 {
   MetaWindowActorPrivate *priv = self->priv;
 
-  if (priv->shadow_mode == META_SHADOW_MODE_FORCED_OFF)
+  if (priv->no_shadow)
     return FALSE;
-  if (priv->shadow_mode == META_SHADOW_MODE_FORCED_ON)
-    return TRUE;
 
   /* Leaving out shadows for maximized and fullscreen windows is an effeciency
    * win and also prevents the unsightly effect of the shadow of maximized
@@ -1041,18 +1036,20 @@ gboolean
 meta_window_actor_effect_in_progress (MetaWindowActor *self)
 {
   return (self->priv->minimize_in_progress ||
-	  self->priv->size_change_in_progress ||
+	  self->priv->maximize_in_progress ||
+	  self->priv->unmaximize_in_progress ||
 	  self->priv->map_in_progress ||
 	  self->priv->destroy_in_progress);
 }
 
 static gboolean
-is_freeze_thaw_effect (MetaPluginEffect event)
+is_freeze_thaw_effect (gulong event)
 {
   switch (event)
   {
   case META_PLUGIN_DESTROY:
-  case META_PLUGIN_SIZE_CHANGE:
+  case META_PLUGIN_MAXIMIZE:
+  case META_PLUGIN_UNMAXIMIZE:
     return TRUE;
     break;
   default:
@@ -1061,8 +1058,8 @@ is_freeze_thaw_effect (MetaPluginEffect event)
 }
 
 static gboolean
-start_simple_effect (MetaWindowActor  *self,
-                     MetaPluginEffect  event)
+start_simple_effect (MetaWindowActor *self,
+                     gulong        event)
 {
   MetaWindowActorPrivate *priv = self->priv;
   MetaCompositor *compositor = priv->compositor;
@@ -1071,8 +1068,6 @@ start_simple_effect (MetaWindowActor  *self,
 
   switch (event)
   {
-  case META_PLUGIN_NONE:
-    return FALSE;
   case META_PLUGIN_MINIMIZE:
     counter = &priv->minimize_in_progress;
     break;
@@ -1085,7 +1080,8 @@ start_simple_effect (MetaWindowActor  *self,
   case META_PLUGIN_DESTROY:
     counter = &priv->destroy_in_progress;
     break;
-  case META_PLUGIN_SIZE_CHANGE:
+  case META_PLUGIN_UNMAXIMIZE:
+  case META_PLUGIN_MAXIMIZE:
   case META_PLUGIN_SWITCH_WORKSPACE:
     g_assert_not_reached ();
     break;
@@ -1127,8 +1123,8 @@ meta_window_actor_after_effects (MetaWindowActor *self)
 }
 
 void
-meta_window_actor_effect_completed (MetaWindowActor  *self,
-                                    MetaPluginEffect  event)
+meta_window_actor_effect_completed (MetaWindowActor *self,
+                                    gulong           event)
 {
   MetaWindowActorPrivate *priv   = self->priv;
 
@@ -1138,8 +1134,6 @@ meta_window_actor_effect_completed (MetaWindowActor  *self,
 
   switch (event)
   {
-  case META_PLUGIN_NONE:
-    break;
   case META_PLUGIN_MINIMIZE:
     {
       priv->minimize_in_progress--;
@@ -1182,12 +1176,20 @@ meta_window_actor_effect_completed (MetaWindowActor  *self,
 	priv->destroy_in_progress = 0;
       }
     break;
-  case META_PLUGIN_SIZE_CHANGE:
-    priv->size_change_in_progress--;
-    if (priv->size_change_in_progress < 0)
+  case META_PLUGIN_UNMAXIMIZE:
+    priv->unmaximize_in_progress--;
+    if (priv->unmaximize_in_progress < 0)
       {
-	g_warning ("Error in size change accounting.");
-	priv->size_change_in_progress = 0;
+	g_warning ("Error in unmaximize accounting.");
+	priv->unmaximize_in_progress = 0;
+      }
+    break;
+  case META_PLUGIN_MAXIMIZE:
+    priv->maximize_in_progress--;
+    if (priv->maximize_in_progress < 0)
+      {
+	g_warning ("Error in maximize accounting.");
+	priv->maximize_in_progress = 0;
       }
     break;
   case META_PLUGIN_SWITCH_WORKSPACE:
@@ -1298,7 +1300,7 @@ meta_window_actor_show (MetaWindowActor   *self,
 {
   MetaWindowActorPrivate *priv = self->priv;
   MetaCompositor *compositor = priv->compositor;
-  MetaPluginEffect event;
+  gulong event = 0;
 
   g_return_if_fail (!priv->visible);
 
@@ -1313,13 +1315,14 @@ meta_window_actor_show (MetaWindowActor   *self,
       event = META_PLUGIN_UNMINIMIZE;
       break;
     case META_COMP_EFFECT_NONE:
-      event = META_PLUGIN_NONE;
       break;
-    default:
+    case META_COMP_EFFECT_DESTROY:
+    case META_COMP_EFFECT_MINIMIZE:
       g_assert_not_reached();
     }
 
   if (compositor->switch_workspace_in_progress ||
+      event == 0 ||
       !start_simple_effect (self, event))
     {
       clutter_actor_show (CLUTTER_ACTOR (self));
@@ -1332,7 +1335,7 @@ meta_window_actor_hide (MetaWindowActor *self,
 {
   MetaWindowActorPrivate *priv = self->priv;
   MetaCompositor *compositor = priv->compositor;
-  MetaPluginEffect event;
+  gulong event = 0;
 
   g_return_if_fail (priv->visible);
 
@@ -1354,32 +1357,70 @@ meta_window_actor_hide (MetaWindowActor *self,
       event = META_PLUGIN_MINIMIZE;
       break;
     case META_COMP_EFFECT_NONE:
-      event = META_PLUGIN_NONE;
       break;
-    default:
+    case META_COMP_EFFECT_UNMINIMIZE:
+    case META_COMP_EFFECT_CREATE:
       g_assert_not_reached();
     }
 
-  if (!start_simple_effect (self, event))
+  if (event == 0 ||
+      !start_simple_effect (self, event))
     clutter_actor_hide (CLUTTER_ACTOR (self));
 }
 
 void
-meta_window_actor_size_change (MetaWindowActor    *self,
-                               MetaSizeChange      which_change,
-                               MetaRectangle      *old_frame_rect,
-                               MetaRectangle      *old_buffer_rect)
+meta_window_actor_maximize (MetaWindowActor    *self,
+                            MetaRectangle      *old_rect,
+                            MetaRectangle      *new_rect)
 {
   MetaWindowActorPrivate *priv = self->priv;
   MetaCompositor *compositor = priv->compositor;
 
-  self->priv->size_change_in_progress++;
+  /* The window has already been resized (in order to compute new_rect),
+   * which by side effect caused the actor to be resized. Restore it to the
+   * old size and position */
+  clutter_actor_set_position (CLUTTER_ACTOR (self), old_rect->x, old_rect->y);
+  clutter_actor_set_size (CLUTTER_ACTOR (self), old_rect->width, old_rect->height);
+
+  self->priv->maximize_in_progress++;
   meta_window_actor_freeze (self);
 
-  if (!meta_plugin_manager_event_size_change (compositor->plugin_mgr, self,
-                                              which_change, old_frame_rect, old_buffer_rect))
+  if (!meta_plugin_manager_event_maximize (compositor->plugin_mgr,
+                                           self,
+                                           META_PLUGIN_MAXIMIZE,
+                                           new_rect->x, new_rect->y,
+                                           new_rect->width, new_rect->height))
+
     {
-      self->priv->size_change_in_progress--;
+      self->priv->maximize_in_progress--;
+      meta_window_actor_thaw (self);
+    }
+}
+
+void
+meta_window_actor_unmaximize (MetaWindowActor   *self,
+                              MetaRectangle     *old_rect,
+                              MetaRectangle     *new_rect)
+{
+  MetaWindowActorPrivate *priv = self->priv;
+  MetaCompositor *compositor = priv->compositor;
+
+  /* The window has already been resized (in order to compute new_rect),
+   * which by side effect caused the actor to be resized. Restore it to the
+   * old size and position */
+  clutter_actor_set_position (CLUTTER_ACTOR (self), old_rect->x, old_rect->y);
+  clutter_actor_set_size (CLUTTER_ACTOR (self), old_rect->width, old_rect->height);
+
+  self->priv->unmaximize_in_progress++;
+  meta_window_actor_freeze (self);
+
+  if (!meta_plugin_manager_event_maximize (compositor->plugin_mgr,
+                                           self,
+                                           META_PLUGIN_UNMAXIMIZE,
+                                           new_rect->x, new_rect->y,
+                                           new_rect->width, new_rect->height))
+    {
+      self->priv->unmaximize_in_progress--;
       meta_window_actor_thaw (self);
     }
 }

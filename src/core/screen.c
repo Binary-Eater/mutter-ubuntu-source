@@ -40,10 +40,9 @@
 #include "keybindings-private.h"
 #include "stack.h"
 #include <meta/compositor.h>
-#include <meta/meta-enum-types.h>
+#include "mutter-enum-types.h"
 #include "core.h"
 #include "meta-cursor-tracker-private.h"
-#include "boxes-private.h"
 
 #include <X11/extensions/Xinerama.h>
 #include <X11/extensions/Xcomposite.h>
@@ -295,7 +294,7 @@ set_supported_hint (MetaScreen *screen)
   Atom atoms[] = {
 #define EWMH_ATOMS_ONLY
 #define item(x)  screen->display->atom_##x,
-#include <x11/atomnames.h>
+#include <meta/atomnames.h>
 #undef item
 #undef EWMH_ATOMS_ONLY
 
@@ -751,7 +750,7 @@ void
 meta_screen_init_workspaces (MetaScreen *screen)
 {
   MetaWorkspace *current_workspace;
-  uint32_t current_workspace_index = 0;
+  gulong current_workspace_index = 0;
   guint32 timestamp;
 
   g_return_if_fail (META_IS_SCREEN (screen));
@@ -1167,7 +1166,7 @@ update_num_workspaces (MetaScreen *screen,
   if (meta_prefs_get_dynamic_workspaces ())
     {
       int n_items;
-      uint32_t *list;
+      gulong *list;
 
       n_items = 0;
       list = NULL;
@@ -1256,47 +1255,21 @@ update_num_workspaces (MetaScreen *screen,
   g_object_notify (G_OBJECT (screen), "n-workspaces");
 }
 
-static void
-root_cursor_prepare_at (MetaCursorSprite *cursor_sprite,
-                        int x,
-                        int y,
-                        MetaScreen *screen)
-{
-  const MetaMonitorInfo *monitor;
-
-  monitor = meta_screen_get_monitor_for_point (screen, x, y);
-
-  /* Reload the cursor texture if the scale has changed. */
-  meta_cursor_sprite_set_theme_scale (cursor_sprite, monitor->scale);
-}
-
-static void
-manage_root_cursor_sprite_scale (MetaScreen *screen,
-                                 MetaCursorSprite *cursor_sprite)
-{
-  g_signal_connect_object (cursor_sprite,
-                           "prepare-at",
-                           G_CALLBACK (root_cursor_prepare_at),
-                           screen,
-                           0);
-}
-
 void
 meta_screen_update_cursor (MetaScreen *screen)
 {
   MetaDisplay *display = screen->display;
   MetaCursor cursor = screen->current_cursor;
   Cursor xcursor;
-  MetaCursorSprite *cursor_sprite;
+  MetaCursorReference *cursor_ref;
   MetaCursorTracker *tracker = meta_cursor_tracker_get_for_screen (screen);
 
-  cursor_sprite = meta_cursor_sprite_from_theme (cursor);
+  cursor_ref = meta_cursor_reference_from_theme (cursor);
+  if (cursor_ref == NULL)
+    meta_fatal ("Could not find cursor. Perhaps set XCURSOR_PATH?");
 
-  if (meta_is_wayland_compositor ())
-    manage_root_cursor_sprite_scale (screen, cursor_sprite);
-
-  meta_cursor_tracker_set_root_cursor (tracker, cursor_sprite);
-  g_object_unref (cursor_sprite);
+  meta_cursor_tracker_set_root_cursor (tracker, cursor_ref);
+  meta_cursor_reference_unref (cursor_ref);
 
   /* Set a cursor for X11 applications that don't specify their own */
   xcursor = meta_display_create_x_cursor (display, cursor);
@@ -1466,8 +1439,8 @@ meta_screen_get_monitor_for_rect (MetaScreen    *screen,
 }
 
 const MetaMonitorInfo*
-meta_screen_calculate_monitor_for_window (MetaScreen *screen,
-                                          MetaWindow *window)
+meta_screen_get_monitor_for_window (MetaScreen *screen,
+                                    MetaWindow *window)
 {
   MetaRectangle window_rect;
 
@@ -1482,25 +1455,6 @@ meta_screen_get_monitor_index_for_rect (MetaScreen    *screen,
 {
   const MetaMonitorInfo *monitor = meta_screen_get_monitor_for_rect (screen, rect);
   return monitor->number;
-}
-
-const MetaMonitorInfo *
-meta_screen_get_monitor_for_point (MetaScreen *screen,
-                                   int         x,
-                                   int         y)
-{
-  int i;
-
-  if (screen->n_monitor_infos == 1)
-    return &screen->monitor_infos[0];
-
-  for (i = 0; i < screen->n_monitor_infos; i++)
-    {
-      if (POINT_IN_RECT (x, y, screen->monitor_infos[i].rect))
-        return &screen->monitor_infos[i];
-    }
-
-  return NULL;
 }
 
 const MetaMonitorInfo*
@@ -1534,16 +1488,6 @@ meta_screen_get_monitor_neighbor (MetaScreen         *screen,
     }
 
   return NULL;
-}
-
-int
-meta_screen_get_monitor_neighbor_index (MetaScreen         *screen,
-                                        int                 which_monitor,
-                                        MetaScreenDirection direction)
-{
-  const MetaMonitorInfo *monitor;
-  monitor = meta_screen_get_monitor_neighbor (screen, which_monitor, direction);
-  return monitor ? monitor->number : -1;
 }
 
 void
@@ -1801,7 +1745,7 @@ meta_screen_get_monitor_geometry (MetaScreen    *screen,
 void
 meta_screen_update_workspace_layout (MetaScreen *screen)
 {
-  uint32_t *list;
+  gulong *list;
   int n_items;
 
   if (screen->workspace_layout_overridden)
@@ -2434,11 +2378,11 @@ on_monitors_changed (MetaMonitorManager *manager,
                        &changes);
     }
 
-  /* Fix up monitor for all windows on this screen */
-  meta_screen_foreach_window (screen, META_LIST_INCLUDE_OVERRIDE_REDIRECT, (MetaScreenWindowFunc) meta_window_update_for_monitors_changed, 0);
-
   /* Queue a resize on all the windows */
   meta_screen_foreach_window (screen, META_LIST_DEFAULT, meta_screen_resize_func, 0);
+
+  /* Fix up monitor for all windows on this screen */
+  meta_screen_foreach_window (screen, META_LIST_INCLUDE_OVERRIDE_REDIRECT, (MetaScreenWindowFunc) meta_window_update_for_monitors_changed, 0);
 
   meta_screen_queue_check_fullscreen (screen);
 

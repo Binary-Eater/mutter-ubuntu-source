@@ -60,10 +60,10 @@ SOFTWARE.
 #ifndef _XATOMTYPE_H_
 #define _XATOMTYPE_H_
 
-#define BOOL int32_t
-#define SIGNEDINT int32_t
-#define UNSIGNEDINT uint32_t
-#define RESOURCEID uint32_t
+#define BOOL long
+#define SIGNEDINT long
+#define UNSIGNEDINT unsigned long
+#define RESOURCEID unsigned long
 
 
 /* this structure may be extended, but do not change the order */

@@ -30,7 +30,6 @@
 #include <gio/gio.h>
 #include <meta/keybindings.h>
 #include <xkbcommon/xkbcommon.h>
-#include "meta-accel-parse.h"
 
 typedef struct _MetaKeyHandler MetaKeyHandler;
 struct _MetaKeyHandler
@@ -54,6 +53,7 @@ typedef struct _MetaResolvedKeyCombo {
  * @keycode: keycode
  * @modifiers: modifiers
  */
+typedef struct _MetaKeyCombo MetaKeyCombo;
 struct _MetaKeyCombo
 {
   unsigned int keysym;

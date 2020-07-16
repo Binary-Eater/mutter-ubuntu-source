@@ -33,11 +33,11 @@
  * found in some Motif reference guides online.
  */
 typedef struct {
-    uint32_t flags;
-    uint32_t functions;
-    uint32_t decorations;
-    uint32_t input_mode;
-    uint32_t status;
+    unsigned long flags;
+    unsigned long functions;
+    unsigned long decorations;
+    long input_mode;
+    unsigned long status;
 } MotifWmHints, MwmHints;
 
 #define MWM_HINTS_FUNCTIONS     (1L << 0)
@@ -71,6 +71,11 @@ typedef struct {
 /* These all return the memory from Xlib, so require an XFree()
  * when they return TRUE. They return TRUE on success.
  */
+gboolean meta_prop_get_atom_list     (MetaDisplay   *display,
+                                      Window         xwindow,
+                                      Atom           xatom,
+                                      Atom         **atoms_p,
+                                      int           *n_atoms_p);
 gboolean meta_prop_get_motif_hints   (MetaDisplay   *display,
                                       Window         xwindow,
                                       Atom           xatom,
@@ -78,13 +83,22 @@ gboolean meta_prop_get_motif_hints   (MetaDisplay   *display,
 gboolean meta_prop_get_cardinal_list (MetaDisplay   *display,
                                       Window         xwindow,
                                       Atom           xatom,
-                                      uint32_t     **cardinals_p,
+                                      gulong       **cardinals_p,
                                       int           *n_cardinals_p);
 gboolean meta_prop_get_latin1_string (MetaDisplay   *display,
                                       Window         xwindow,
                                       Atom           xatom,
                                       char         **str_p);
+gboolean meta_prop_get_utf8_string   (MetaDisplay   *display,
+                                      Window         xwindow,
+                                      Atom           xatom,
+                                      char         **str_p);
 gboolean meta_prop_get_utf8_list     (MetaDisplay   *display,
+                                      Window         xwindow,
+                                      Atom           xatom,
+                                      char        ***str_p,
+                                      int           *n_str_p);
+gboolean meta_prop_get_latin1_list   (MetaDisplay   *display,
                                       Window         xwindow,
                                       Atom           xatom,
                                       char        ***str_p,
@@ -101,12 +115,32 @@ gboolean meta_prop_get_window        (MetaDisplay   *display,
 gboolean meta_prop_get_cardinal      (MetaDisplay   *display,
                                       Window         xwindow,
                                       Atom           xatom,
-                                      uint32_t      *cardinal_p);
+                                      gulong        *cardinal_p);
 gboolean meta_prop_get_cardinal_with_atom_type (MetaDisplay   *display,
                                                 Window         xwindow,
                                                 Atom           xatom,
                                                 Atom           prop_type,
-                                                uint32_t      *cardinal_p);
+                                                gulong        *cardinal_p);
+gboolean meta_prop_get_text_property (MetaDisplay   *display,
+                                      Window         xwindow,
+                                      Atom           xatom,
+                                      char         **utf8_str_p);
+
+gboolean meta_prop_get_wm_hints      (MetaDisplay   *display,
+                                      Window         xwindow,
+                                      Atom           xatom,
+                                      XWMHints     **hints_p);
+
+gboolean meta_prop_get_class_hint    (MetaDisplay   *display,
+                                      Window         xwindow,
+                                      Atom           xatom,
+                                      XClassHint    *class_hint);
+
+gboolean meta_prop_get_size_hints    (MetaDisplay   *display,
+                                      Window         xwindow,
+                                      Atom           xatom,
+                                      XSizeHints   **hints_p,
+                                      gulong        *flags_p);
 
 typedef enum
 {
@@ -140,14 +174,14 @@ typedef struct
     char *str;
     MotifWmHints *motif_hints;
     Window xwindow;
-    uint32_t cardinal;
+    gulong cardinal;
     XWMHints *wm_hints;
     XClassHint class_hint;
     XSyncCounter xcounter;
     struct
     {
-      uint32_t *counters;
-      int       n_counters;
+      gulong *counters;
+      int     n_counters;
     } xcounter_list;
 
     struct
@@ -158,8 +192,8 @@ typedef struct
 
     struct
     {
-      uint32_t *cardinals;
-      int       n_cardinals;
+      gulong *cardinals;
+      int     n_cardinals;
     } cardinal_list;
 
     struct
@@ -170,8 +204,8 @@ typedef struct
 
     struct
     {
-      uint32_t *atoms;
-      int       n_atoms;
+      Atom *atoms;
+      int   n_atoms;
     } atom_list;
 
   } v;

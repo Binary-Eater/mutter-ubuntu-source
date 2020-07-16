@@ -1,5 +1,4 @@
 /* -*- mode: C; c-file-style: "gnu"; indent-tabs-mode: nil; -*- */
-
 /*
  * MetaWindowShape
  *
@@ -20,12 +19,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#include "config.h"
-
-#include <meta/meta-window-shape.h>
-
 #include <string.h>
+
+#include "meta-window-shape.h"
 #include "region-utils.h"
 
 struct _MetaWindowShape
@@ -254,5 +250,3 @@ meta_window_shape_to_region (MetaWindowShape *shape,
   return region;
 }
 
-G_DEFINE_BOXED_TYPE (MetaWindowShape, meta_window_shape,
-                     meta_window_shape_ref, meta_window_shape_unref)

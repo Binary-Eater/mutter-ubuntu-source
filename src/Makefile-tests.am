@@ -41,6 +41,9 @@ endif
 # Some random test programs for bits of the code
 
 testboxes_SOURCES = core/testboxes.c
-testboxes_LDADD = $(MUTTER_LIBS) libmutter.la
+testasyncgetprop_SOURCES = x11/testasyncgetprop.c
 
-noinst_PROGRAMS += testboxes
+noinst_PROGRAMS+=testboxes testasyncgetprop
+
+testboxes_LDADD = $(MUTTER_LIBS) libmutter.la
+testasyncgetprop_LDADD = $(MUTTER_LIBS) libmutter.la

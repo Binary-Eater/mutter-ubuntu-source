@@ -1,0 +1,5 @@
+  * Merge with Debian, Remaining Changes
+    - Add Replaces for previous libmutter sonames, so that the library
+      upgrades properly.
+  * Drop d/p/04_ignore_shadow_and_padding.patch: This is no longer possible
+    and would need to be rewritten to be done via CSS

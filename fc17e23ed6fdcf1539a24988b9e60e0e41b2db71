@@ -1,0 +1,2 @@
+  * Backport to eoan.
+  * debian/control, debian/gbp.conf: Update VCS branch to ubuntu/eoan

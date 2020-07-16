@@ -1,0 +1,3 @@
+  * Team upload
+  * Add debian/patches/02_switch_to_gtk-doc_syntax.patch:
+    - from upstream, fixes FTBFS with new gobject-introspection.

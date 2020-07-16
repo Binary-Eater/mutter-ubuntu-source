@@ -1,0 +1,2 @@
+  * New upstream release
+    - Fix screen update issue with NVidia driver (BGO: #728464)

@@ -1,0 +1,3 @@
+  * New upstream release
+  * debian/patches/git_fix_xrandr_backlight.patch: Dropped, included
+    in the new version

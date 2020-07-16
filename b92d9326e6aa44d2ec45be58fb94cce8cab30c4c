@@ -1,0 +1,3 @@
+  * debian/patches/14_wrong_colormap.patch:
+    - Use correct colormap, causes crash with client side decorations. Patch
+      from Fabien Tassin and Sarvatt

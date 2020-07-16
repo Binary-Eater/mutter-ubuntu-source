@@ -1,0 +1,3 @@
+  * Add 0012-Use-a-single-supported-scales.patch:
+    - Allow HiDPI scaling even when non-HiDPI displays are connected
+      (LP: #1724024)

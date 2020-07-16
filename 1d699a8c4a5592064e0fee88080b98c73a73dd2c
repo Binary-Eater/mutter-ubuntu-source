@@ -1,0 +1,9 @@
+  * New upstream release:
+    - Don't use JsonClutter but rather system one (LP: #614230)
+  * adapt debian/patches/01_Wcast-align.patch
+  * debian/control.in, debian/rules:
+    - build-dep on dh-autoreconf and launch it on build
+    - remove debian/patches/90_autotools.patch
+    - Breaks: unity << 0.2.24 and gnome-shell <= 2.31.2-1ubuntu1
+  * debian/mutter-common.install:
+    - locale no more installed

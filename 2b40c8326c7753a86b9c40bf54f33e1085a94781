@@ -1,0 +1,8 @@
+  [ Raphaël Hertzog ]
+  * Team upload.
+  * Urgency critical as gnome-shell is entirely broken in testing
+    for many users.
+  [ Jeremy Bicha ]
+  * Add git_dont_set_unavailable_scroll_methods.patch:
+    - Add patch from 3.22 branch that prevented logging into GNOME on X
+      for some users (LP: #1643370)

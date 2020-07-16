@@ -1,0 +1,7 @@
+  * New upstream git snapshot (LP: #1714330)
+  * Drop git_fix-wayland-color-inversion.patch: Applied
+  * debian/control.in:
+    - Bump minimum libgudev-dev to >= 232
+    - Drop Build-Depends on libgl1-mesa-dri
+  * debian/rules:
+    - Ignore test failures on Debian. See bug 874077.

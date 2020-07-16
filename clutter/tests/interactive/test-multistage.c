@@ -4,9 +4,6 @@
 static GList *stages = NULL;
 static gint n_stages = 1;
 
-int
-test_multistage_main (int argc, char *argv[]);
-
 static gboolean
 tex_button_cb (ClutterActor    *actor,
                ClutterEvent    *event,

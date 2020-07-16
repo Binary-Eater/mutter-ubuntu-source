@@ -29,7 +29,9 @@
  * of #ClutterMasterClock.
  */
 
+#ifdef HAVE_CONFIG_H
 #include "clutter-build-config.h"
+#endif
 
 #include "clutter-master-clock.h"
 #include "clutter-master-clock-default.h"
@@ -298,10 +300,10 @@ master_clock_next_frame_delay (ClutterMasterClockDefault *master_clock)
    * (NB: if there aren't even any timelines running then the master clock will
    * be completely stopped in master_clock_is_running())
    */
-  if (clutter_feature_available (CLUTTER_FEATURE_SWAP_THROTTLE) &&
+  if (clutter_feature_available (CLUTTER_FEATURE_SYNC_TO_VBLANK) &&
       !master_clock->idle)
     {
-      CLUTTER_NOTE (SCHEDULER, "swap throttling available and updated stages");
+      CLUTTER_NOTE (SCHEDULER, "vblank available and updated stages");
       return 0;
     }
 
@@ -470,8 +472,6 @@ clutter_clock_source_new (ClutterMasterClockDefault *master_clock)
   ClutterClockSource *clock_source = (ClutterClockSource *) source;
 
   g_source_set_name (source, "Clutter master clock");
-  g_source_set_priority (source, CLUTTER_PRIORITY_REDRAW);
-  g_source_set_can_recurse (source, FALSE);
   clock_source->master_clock = master_clock;
 
   return source;
@@ -617,6 +617,8 @@ clutter_master_clock_default_init (ClutterMasterClockDefault *self)
   self->frame_budget = G_USEC_PER_SEC / 60;
 #endif
 
+  g_source_set_priority (source, CLUTTER_PRIORITY_REDRAW);
+  g_source_set_can_recurse (source, FALSE);
   g_source_attach (source, NULL);
 }
 
@@ -674,16 +676,6 @@ clutter_master_clock_default_set_paused (ClutterMasterClock *clock,
                                          gboolean            paused)
 {
   ClutterMasterClockDefault *master_clock = (ClutterMasterClockDefault *) clock;
-
-  if (paused && !master_clock->paused)
-    {
-      g_clear_pointer (&master_clock->source, g_source_destroy);
-    }
-  else if (!paused && master_clock->paused)
-    {
-      master_clock->source = clutter_clock_source_new (master_clock);
-      g_source_attach (master_clock->source, NULL);
-    }
 
   master_clock->paused = !!paused;
 }

@@ -29,17 +29,17 @@
 #include "config.h"
 
 #include <string.h>
+#include <clutter/clutter.h>
 #include <X11/Xlib.h>
 #include <X11/extensions/sync.h>
 
-#include "backends/gsm-inhibitor-flag.h"
-#include "backends/meta-backend-private.h"
-#include "backends/meta-idle-monitor-private.h"
-#include "backends/meta-idle-monitor-dbus.h"
-#include "clutter/clutter.h"
-#include "meta/main.h"
-#include "meta/meta-idle-monitor.h"
-#include "meta/util.h"
+#include <meta/util.h>
+#include <meta/main.h>
+#include <meta/meta-idle-monitor.h>
+#include "gsm-inhibitor-flag.h"
+#include "meta-idle-monitor-private.h"
+#include "meta-idle-monitor-dbus.h"
+#include "meta-backend-private.h"
 
 G_STATIC_ASSERT(sizeof(unsigned long) == sizeof(gpointer));
 
@@ -226,7 +226,7 @@ meta_idle_monitor_inhibited_actions_changed (GDBusProxy  *session,
     {
       gboolean inhibited;
 
-      inhibited = !!(g_variant_get_uint32 (v) & GSM_INHIBITOR_FLAG_IDLE);
+      inhibited = g_variant_get_uint32 (v) & GSM_INHIBITOR_FLAG_IDLE;
       g_variant_unref (v);
 
       if (!inhibited)
@@ -265,8 +265,7 @@ meta_idle_monitor_init (MetaIdleMonitor *monitor)
                                         "InhibitedActions");
   if (v)
     {
-      monitor->inhibited = !!(g_variant_get_uint32 (v) &
-                              GSM_INHIBITOR_FLAG_IDLE);
+      monitor->inhibited = g_variant_get_uint32 (v) & GSM_INHIBITOR_FLAG_IDLE;
       g_variant_unref (v);
     }
 }

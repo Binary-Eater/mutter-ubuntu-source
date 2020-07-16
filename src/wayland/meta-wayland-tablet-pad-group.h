@@ -22,11 +22,12 @@
 #ifndef META_WAYLAND_TABLET_PAD_GROUP_H
 #define META_WAYLAND_TABLET_PAD_GROUP_H
 
-#include <glib.h>
 #include <wayland-server.h>
 
+#include <glib.h>
+
 #include "clutter/clutter.h"
-#include "wayland/meta-wayland-types.h"
+#include "meta-wayland-types.h"
 
 struct _MetaWaylandTabletPadGroup
 {

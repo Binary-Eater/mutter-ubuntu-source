@@ -21,44 +21,39 @@
 
 #include "config.h"
 
-#include "wayland/meta-wayland.h"
+#include "meta-wayland.h"
+
+#include <clutter/clutter.h>
+#include <clutter/wayland/clutter-wayland-compositor.h>
+#include <clutter/wayland/clutter-wayland-surface.h>
 
 #include <sys/time.h>
 #include <string.h>
 #include <stdlib.h>
+
 #include <wayland-server.h>
 
-#include "clutter/clutter.h"
-#include "clutter/wayland/clutter-wayland-compositor.h"
-#include "clutter/wayland/clutter-wayland-surface.h"
-#include "core/main-private.h"
-#include "wayland/meta-wayland-data-device.h"
-#include "wayland/meta-wayland-dma-buf.h"
-#include "wayland/meta-wayland-egl-stream.h"
-#include "wayland/meta-wayland-inhibit-shortcuts-dialog.h"
-#include "wayland/meta-wayland-inhibit-shortcuts.h"
-#include "wayland/meta-wayland-outputs.h"
-#include "wayland/meta-wayland-private.h"
-#include "wayland/meta-wayland-region.h"
-#include "wayland/meta-wayland-seat.h"
-#include "wayland/meta-wayland-subsurface.h"
-#include "wayland/meta-wayland-tablet-manager.h"
-#include "wayland/meta-wayland-xdg-foreign.h"
-#include "wayland/meta-xwayland-grab-keyboard.h"
-#include "wayland/meta-xwayland-private.h"
-#include "wayland/meta-xwayland.h"
+#include "meta-wayland-private.h"
+#include "meta-xwayland-private.h"
+#include "meta-wayland-region.h"
+#include "meta-wayland-seat.h"
+#include "meta-wayland-outputs.h"
+#include "meta-wayland-data-device.h"
+#include "meta-wayland-subsurface.h"
+#include "meta-wayland-tablet-manager.h"
+#include "meta-wayland-xdg-foreign.h"
+#include "meta-wayland-dma-buf.h"
+#include "meta-wayland-inhibit-shortcuts.h"
+#include "meta-wayland-inhibit-shortcuts-dialog.h"
+#include "meta-xwayland-grab-keyboard.h"
 
-static MetaWaylandCompositor *_meta_wayland_compositor = NULL;
+static MetaWaylandCompositor _meta_wayland_compositor;
 static char *_display_name_override;
-
-G_DEFINE_TYPE (MetaWaylandCompositor, meta_wayland_compositor, G_TYPE_OBJECT)
 
 MetaWaylandCompositor *
 meta_wayland_compositor_get_default (void)
 {
-  g_assert (_meta_wayland_compositor);
-
-  return _meta_wayland_compositor;
+  return &_meta_wayland_compositor;
 }
 
 typedef struct
@@ -309,33 +304,24 @@ meta_wayland_log_func (const char *fmt,
 static void
 meta_wayland_compositor_init (MetaWaylandCompositor *compositor)
 {
+  memset (compositor, 0, sizeof (MetaWaylandCompositor));
   wl_list_init (&compositor->frame_callbacks);
+}
 
-  compositor->scheduled_surface_associations = g_hash_table_new (NULL, NULL);
+void
+meta_wayland_pre_clutter_init (void)
+{
+  MetaWaylandCompositor *compositor = &_meta_wayland_compositor;
+
+  meta_wayland_compositor_init (compositor);
 
   wl_log_set_handler_server (meta_wayland_log_func);
 
   compositor->wayland_display = wl_display_create ();
   if (compositor->wayland_display == NULL)
     g_error ("Failed to create the global wl_display");
-}
 
-static void
-meta_wayland_compositor_class_init (MetaWaylandCompositorClass *klass)
-{
-}
-
-void
-meta_wayland_pre_clutter_init (void)
-{
-  MetaWaylandCompositor *compositor;
-
-  g_assert (!_meta_wayland_compositor);
-
-  compositor = g_object_new (META_TYPE_WAYLAND_COMPOSITOR, NULL);
   clutter_wayland_set_compositor_display (compositor->wayland_display);
-
-  _meta_wayland_compositor = compositor;
 }
 
 static bool
@@ -356,7 +342,7 @@ meta_xwayland_global_filter (const struct wl_client *client,
 }
 
 void
-meta_wayland_override_display_name (const char *display_name)
+meta_wayland_override_display_name (char *display_name)
 {
   g_clear_pointer (&_display_name_override, g_free);
   _display_name_override = g_strdup (display_name);
@@ -401,7 +387,6 @@ meta_wayland_init (void)
   meta_wayland_keyboard_shortcuts_inhibit_init (compositor);
   meta_wayland_surface_inhibit_shortcuts_dialog_init ();
   meta_wayland_text_input_init (compositor);
-  meta_wayland_gtk_text_input_init (compositor);
 
   /* Xwayland specific protocol, needs to be filtered out for all other clients */
   if (meta_xwayland_grab_keyboard_init (compositor))
@@ -409,15 +394,8 @@ meta_wayland_init (void)
                                   meta_xwayland_global_filter,
                                   compositor);
 
-#ifdef HAVE_WAYLAND_EGLSTREAM
-  meta_wayland_eglstream_controller_init (compositor);
-#endif
-
-  if (meta_should_autostart_x11_display ())
-    {
-      if (!meta_xwayland_start (&compositor->xwayland_manager, compositor->wayland_display))
-        g_error ("Failed to start X Wayland");
-    }
+  if (!meta_xwayland_start (&compositor->xwayland_manager, compositor->wayland_display))
+    g_error ("Failed to start X Wayland");
 
   if (_display_name_override)
     {
@@ -438,9 +416,7 @@ meta_wayland_init (void)
       compositor->display_name = g_strdup (display_name);
     }
 
-  if (meta_should_autostart_x11_display ())
-    set_gnome_env ("DISPLAY", meta_wayland_get_xwayland_display_name (compositor));
-
+  set_gnome_env ("DISPLAY", meta_wayland_get_xwayland_display_name (compositor));
   set_gnome_env ("WAYLAND_DISPLAY", meta_wayland_get_wayland_display_name (compositor));
 }
 
@@ -505,63 +481,4 @@ void
 meta_wayland_compositor_flush_clients (MetaWaylandCompositor *compositor)
 {
   wl_display_flush_clients (compositor->wayland_display);
-}
-
-static void on_scheduled_association_unmanaged (MetaWindow *window,
-                                                gpointer    user_data);
-
-static void
-meta_wayland_compositor_remove_surface_association (MetaWaylandCompositor *compositor,
-                                                    int                    id)
-{
-  MetaWindow *window;
-
-  window = g_hash_table_lookup (compositor->scheduled_surface_associations,
-                                GINT_TO_POINTER (id));
-  if (window)
-    {
-      g_signal_handlers_disconnect_by_func (window,
-                                            on_scheduled_association_unmanaged,
-                                            GINT_TO_POINTER (id));
-      g_hash_table_remove (compositor->scheduled_surface_associations,
-                           GINT_TO_POINTER (id));
-    }
-}
-
-static void
-on_scheduled_association_unmanaged (MetaWindow *window,
-                                    gpointer    user_data)
-{
-  MetaWaylandCompositor *compositor = meta_wayland_compositor_get_default ();
-
-  meta_wayland_compositor_remove_surface_association (compositor,
-                                                      GPOINTER_TO_INT (user_data));
-}
-
-void
-meta_wayland_compositor_schedule_surface_association (MetaWaylandCompositor *compositor,
-                                                      int                    id,
-                                                      MetaWindow            *window)
-{
-  g_signal_connect (window, "unmanaged",
-                    G_CALLBACK (on_scheduled_association_unmanaged),
-                    GINT_TO_POINTER (id));
-  g_hash_table_insert (compositor->scheduled_surface_associations,
-                       GINT_TO_POINTER (id), window);
-}
-
-void
-meta_wayland_compositor_notify_surface_id (MetaWaylandCompositor *compositor,
-                                           int                    id,
-                                           MetaWaylandSurface    *surface)
-{
-  MetaWindow *window;
-
-  window = g_hash_table_lookup (compositor->scheduled_surface_associations,
-                                GINT_TO_POINTER (id));
-  if (window)
-    {
-      meta_xwayland_associate_window_with_surface (window, surface);
-      meta_wayland_compositor_remove_surface_association (compositor, id);
-    }
 }

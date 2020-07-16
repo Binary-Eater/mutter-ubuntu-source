@@ -31,13 +31,16 @@
  *   Robert Bragg <robert@linux.intel.com>
  */
 
+#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
+#endif
 
 #include "cogl-debug.h"
 #include "cogl-context-private.h"
 #include "cogl-object.h"
 
 #include "cogl-pipeline-private.h"
+#include "cogl-pipeline-opengl-private.h"
 #include "cogl-pipeline-state-private.h"
 #include "cogl-pipeline-layer-state-private.h"
 #include "cogl-texture-private.h"
@@ -49,7 +52,6 @@
 #include "cogl-depth-state-private.h"
 #include "cogl1-context.h"
 #include "cogl-gtype-private.h"
-#include "driver/gl/cogl-pipeline-opengl-private.h"
 
 #include <glib.h>
 #include <glib/gprintf.h>
@@ -67,15 +69,30 @@ const CoglPipelineProgend *
 _cogl_pipeline_progends[MAX (COGL_PIPELINE_N_PROGENDS, 1)];
 
 #ifdef COGL_PIPELINE_FRAGEND_GLSL
-#include "driver/gl/cogl-pipeline-fragend-glsl-private.h"
+#include "cogl-pipeline-fragend-glsl-private.h"
+#endif
+#ifdef COGL_PIPELINE_FRAGEND_ARBFP
+#include "cogl-pipeline-fragend-arbfp-private.h"
+#endif
+#ifdef COGL_PIPELINE_FRAGEND_FIXED
+#include "cogl-pipeline-fragend-fixed-private.h"
 #endif
 
 #ifdef COGL_PIPELINE_VERTEND_GLSL
-#include "driver/gl/cogl-pipeline-vertend-glsl-private.h"
+#include "cogl-pipeline-vertend-glsl-private.h"
+#endif
+#ifdef COGL_PIPELINE_VERTEND_FIXED
+#include "cogl-pipeline-vertend-fixed-private.h"
 #endif
 
+#ifdef COGL_PIPELINE_PROGEND_FIXED_ARBFP
+#include "cogl-pipeline-progend-fixed-arbfp-private.h"
+#endif
+#ifdef COGL_PIPELINE_PROGEND_FIXED
+#include "cogl-pipeline-progend-fixed-private.h"
+#endif
 #ifdef COGL_PIPELINE_PROGEND_GLSL
-#include "driver/gl/cogl-pipeline-progend-glsl-private.h"
+#include "cogl-pipeline-progend-glsl-private.h"
 #endif
 
 COGL_OBJECT_DEFINE (Pipeline, pipeline);
@@ -110,6 +127,22 @@ _cogl_pipeline_init_default_pipeline (void)
   _cogl_pipeline_fragends[COGL_PIPELINE_FRAGEND_GLSL] =
     &_cogl_pipeline_glsl_fragend;
 #endif
+#ifdef COGL_PIPELINE_FRAGEND_ARBFP
+  _cogl_pipeline_fragends[COGL_PIPELINE_FRAGEND_ARBFP] =
+    &_cogl_pipeline_arbfp_fragend;
+#endif
+#ifdef COGL_PIPELINE_FRAGEND_FIXED
+  _cogl_pipeline_fragends[COGL_PIPELINE_FRAGEND_FIXED] =
+    &_cogl_pipeline_fixed_fragend;
+#endif
+#ifdef COGL_PIPELINE_PROGEND_FIXED
+  _cogl_pipeline_progends[COGL_PIPELINE_PROGEND_FIXED_ARBFP] =
+    &_cogl_pipeline_fixed_arbfp_progend;
+#endif
+#ifdef COGL_PIPELINE_PROGEND_FIXED
+  _cogl_pipeline_progends[COGL_PIPELINE_PROGEND_FIXED] =
+    &_cogl_pipeline_fixed_progend;
+#endif
 #ifdef COGL_PIPELINE_PROGEND_GLSL
   _cogl_pipeline_progends[COGL_PIPELINE_PROGEND_GLSL] =
     &_cogl_pipeline_glsl_progend;
@@ -118,6 +151,10 @@ _cogl_pipeline_init_default_pipeline (void)
 #ifdef COGL_PIPELINE_VERTEND_GLSL
   _cogl_pipeline_vertends[COGL_PIPELINE_VERTEND_GLSL] =
     &_cogl_pipeline_glsl_vertend;
+#endif
+#ifdef COGL_PIPELINE_VERTEND_FIXED
+  _cogl_pipeline_vertends[COGL_PIPELINE_VERTEND_FIXED] =
+    &_cogl_pipeline_fixed_vertend;
 #endif
 
   _cogl_pipeline_node_init (COGL_NODE (pipeline));

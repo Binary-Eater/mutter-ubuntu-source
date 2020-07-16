@@ -1,4 +1,6 @@
+#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
+#endif
 
 #ifdef COGL_ENABLE_PROFILE
 

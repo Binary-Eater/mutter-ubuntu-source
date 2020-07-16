@@ -40,7 +40,9 @@
  *   object type with properties for each column instead.
  */
 
+#ifdef HAVE_CONFIG_H
 #include "clutter-build-config.h"
+#endif
 
 #include <stdlib.h>
 #include <string.h>

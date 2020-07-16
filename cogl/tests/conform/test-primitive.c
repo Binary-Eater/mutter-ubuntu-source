@@ -2,7 +2,6 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "test-declarations.h"
 #include "test-utils.h"
 
 typedef struct _TestState

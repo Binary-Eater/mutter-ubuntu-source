@@ -31,7 +31,9 @@
  *   Robert Bragg <robert@linux.intel.com>
  */
 
+#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
+#endif
 
 #include "cogl-util.h"
 #include "cogl-context-private.h"
@@ -42,9 +44,9 @@
 #include "cogl-pipeline-layer-state-private.h"
 #include "cogl-pipeline-layer-state.h"
 #include "cogl-node-private.h"
+#include "cogl-pipeline-opengl-private.h"
 #include "cogl-context-private.h"
 #include "cogl-texture-private.h"
-#include "driver/gl/cogl-pipeline-opengl-private.h"
 
 #include <string.h>
 

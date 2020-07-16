@@ -12,8 +12,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: mutter\n"
 "Report-Msgid-Bugs-To: https://gitlab.gnome.org/GNOME/mutter/issues\n"
-"POT-Creation-Date: 2018-07-07 09:58+0000\n"
-"PO-Revision-Date: 2018-08-29 07:28+0200\n"
+"POT-Creation-Date: 2018-03-01 10:47+0000\n"
+"PO-Revision-Date: 2018-03-07 19:28+0100\n"
 "Last-Translator: Marek Černocký <marek@manet.cz>\n"
 "Language-Team: čeština <gnome-cs-list@gnome.org>\n"
 "Language: cs\n"
@@ -106,27 +106,27 @@ msgstr "Přepnout na minulý systémový ovládací prvek"
 
 #: data/50-mutter-navigation.xml:79
 msgid "Switch windows directly"
-msgstr "Přepnout přímo do okna"
+msgstr "Přepnout do minulého okna"
 
 #: data/50-mutter-navigation.xml:84
 msgid "Switch directly to previous window"
-msgstr "Přepnout přímo do předchozího okna"
+msgstr "Přepnout přímo na předchozí okno"
 
 #: data/50-mutter-navigation.xml:88
 msgid "Switch windows of an app directly"
-msgstr "Přepnout přímo do jiného okna aplikace"
+msgstr "Přepnout do jiného okna aplikace"
 
 #: data/50-mutter-navigation.xml:93
 msgid "Switch directly to previous window of an app"
-msgstr "Přepnout přímo do předchozího okna aplikace"
+msgstr "Přepnout do předchozího okna aplikace"
 
 #: data/50-mutter-navigation.xml:97
 msgid "Switch system controls directly"
-msgstr "Přepnout přímo na systémový ovládací prvek"
+msgstr "Přepnout na minulý systémový ovládací prvek"
 
 #: data/50-mutter-navigation.xml:102
 msgid "Switch directly to previous system control"
-msgstr "Přepnout přímo na předchozí systémový ovládací prvek"
+msgstr "Přepnout přímo na předchozí systémové ovládací prvky"
 
 #: data/50-mutter-navigation.xml:105
 msgid "Hide all normal windows"
@@ -222,7 +222,7 @@ msgstr "Přepnout okno na všechny/jednu pracovní plochu"
 
 #: data/50-mutter-windows.xml:29
 msgid "Raise window if covered, otherwise lower it"
-msgstr "Zakryté okno vynést do popředí, jinak odsunout do pozadí"
+msgstr "Když je okno zakryté vynést jej do popředí, jinak odsunout do pozadí"
 
 #: data/50-mutter-windows.xml:31
 msgid "Raise window above other windows"
@@ -396,7 +396,10 @@ msgid ""
 "proof. Currently possible keywords: • “scale-monitor-framebuffer” — makes "
 "mutter default to layout logical monitors in a logical pixel coordinate "
 "space, while scaling monitor framebuffers instead of window content, to "
-"manage HiDPI monitors. Does not require a restart."
+"manage HiDPI monitors. Does not require a restart. • “remote-desktop” — "
+"enables remote desktop support. To support remote desktop with screen "
+"sharing, “screen-cast” must also be enabled. • “screen-cast” — enables "
+"screen cast support."
 msgstr ""
 "Chcete-li povolit experimentální funkce, přidejte klíčové slovo funkce do "
 "seznamu. Zda funkce vyžaduje restartování kompozitoru, závisí na dané "
@@ -407,21 +410,23 @@ msgstr ""
 "mutter výchozí pro logické uspořádání monitorů v logickém souřadnicovém "
 "prostoru pixelů, zatímco škáluje přímo v grafické vyrovnávací paměti, "
 "namísto v obsahu oken, aby se postaral o správu montorů s HiDPI. Nevyžaduje "
-"restart."
+"restart. • „remote-desktop“ – zapne podporu pro vzdálenou pracovní plochu. "
+"Pro podporu vzdálené plochy se sdílením obrazovky musít být zapnuto také "
+"„screen-cast“. • „screen-cast“ – zapne podporu pro vysílání obsahu obrazovky."
 
-#: data/org.gnome.mutter.gschema.xml.in:141
+#: data/org.gnome.mutter.gschema.xml.in:145
 msgid "Select window from tab popup"
 msgstr "Vybrat okno z překryvné nabídky tabulátoru"
 
-#: data/org.gnome.mutter.gschema.xml.in:146
+#: data/org.gnome.mutter.gschema.xml.in:150
 msgid "Cancel tab popup"
 msgstr "Zrušit překryvné okno tabulátoru"
 
-#: data/org.gnome.mutter.gschema.xml.in:151
+#: data/org.gnome.mutter.gschema.xml.in:155
 msgid "Switch monitor configurations"
 msgstr "Přepnout nastavení monitoru"
 
-#: data/org.gnome.mutter.gschema.xml.in:156
+#: data/org.gnome.mutter.gschema.xml.in:160
 msgid "Rotates the built-in monitor configuration"
 msgstr "Postupně mění vestavěná nastavení monitoru"
 
@@ -543,22 +548,22 @@ msgstr "Přepnout monitor"
 msgid "Show on-screen help"
 msgstr "Zobrazit nápovědu na obrazovce"
 
-#: src/backends/meta-monitor-manager.c:907
+#: src/backends/meta-monitor-manager.c:900
 msgid "Built-in display"
 msgstr "Vestavěný displej"
 
-#: src/backends/meta-monitor-manager.c:930
+#: src/backends/meta-monitor-manager.c:923
 msgid "Unknown"
 msgstr "Neznámý"
 
-#: src/backends/meta-monitor-manager.c:932
+#: src/backends/meta-monitor-manager.c:925
 msgid "Unknown Display"
 msgstr "Neznámý displej"
 
 #. TRANSLATORS: this is a monitor vendor name, followed by a
 #. * size in inches, like 'Dell 15"'
 #.
-#: src/backends/meta-monitor-manager.c:940
+#: src/backends/meta-monitor-manager.c:933
 #, c-format
 msgid "%s %s"
 msgstr "%s %s"
@@ -571,65 +576,66 @@ msgid ""
 "Another compositing manager is already running on screen %i on display “%s”."
 msgstr "Jiný kompozitní správce již běží na obrazovce %i displeje „%s“."
 
-#: src/core/bell.c:254
+#: src/core/bell.c:194
 msgid "Bell event"
 msgstr "Událost zvonku"
 
-#: src/core/main.c:191
-msgid "Disable connection to session manager"
-msgstr "Zakázat připojení ke správci sezení"
+#: src/core/display.c:608
+#, c-format
+msgid "Failed to open X Window System display “%s”\n"
+msgstr "Nelze otevřít displej X Window System „%s“\n"
 
-#: src/core/main.c:197
+#: src/core/main.c:190
+msgid "Disable connection to session manager"
+msgstr "Zakáže připojení ke správci sezení"
+
+#: src/core/main.c:196
 msgid "Replace the running window manager"
 msgstr "Nahradí běžícího správce oken"
 
-#: src/core/main.c:203
+#: src/core/main.c:202
 msgid "Specify session management ID"
-msgstr "Určit ID správy sezení"
+msgstr "Určení ID správy sezení"
 
-#: src/core/main.c:208
+#: src/core/main.c:207
 msgid "X Display to use"
-msgstr "Displej X, který se má použít"
+msgstr "Displej X, který použije"
 
-#: src/core/main.c:214
+#: src/core/main.c:213
 msgid "Initialize session from savefile"
-msgstr "Spustit sezení z uloženého souboru"
+msgstr "Spustí sezení z uloženého souboru"
 
-#: src/core/main.c:220
+#: src/core/main.c:219
 msgid "Make X calls synchronous"
-msgstr "Provádět volání X synchronně"
+msgstr "Provede volání X synchronně"
 
-#: src/core/main.c:227
+#: src/core/main.c:226
 msgid "Run as a wayland compositor"
 msgstr "Spustit jako kompozitor protokolu Wayland"
 
-#: src/core/main.c:233
+#: src/core/main.c:232
 msgid "Run as a nested compositor"
 msgstr "Spustit jako podkladový kompozitor"
 
-#: src/core/main.c:239
-msgid "Run wayland compositor without starting Xwayland"
-msgstr "Spustit kompozitor wayland bez spuštění Xwayland"
-
-#: src/core/main.c:247
+#: src/core/main.c:240
 msgid "Run as a full display server, rather than nested"
 msgstr "Spustit jako plnohodnotný server displeje, nikoliv vnořeně"
 
-#: src/core/main.c:253
+#: src/core/main.c:246
 msgid "Run with X11 backend"
 msgstr "Spustit se serverem X11"
 
 #. Translators: %s is a window title
-#: src/core/meta-close-dialog-default.c:148
+#: src/core/meta-close-dialog-default.c:147
 #, c-format
 msgid "“%s” is not responding."
 msgstr "„%s“ nereaguje."
 
-#: src/core/meta-close-dialog-default.c:150
+#: src/core/meta-close-dialog-default.c:149
 msgid "Application is not responding."
 msgstr "Aplikace nereaguje."
 
-#: src/core/meta-close-dialog-default.c:155
+#: src/core/meta-close-dialog-default.c:154
 msgid ""
 "You may choose to wait a short while for it to continue or force the "
 "application to quit entirely."
@@ -637,11 +643,11 @@ msgstr ""
 "Je možné chvíli počkat, aby aplikace mohla pokračovat, nebo si vynutit úplné "
 "ukončení aplikace."
 
-#: src/core/meta-close-dialog-default.c:162
+#: src/core/meta-close-dialog-default.c:161
 msgid "_Force Quit"
 msgstr "_Vynutit ukončení"
 
-#: src/core/meta-close-dialog-default.c:162
+#: src/core/meta-close-dialog-default.c:161
 msgid "_Wait"
 msgstr "_Počkat"
 
@@ -669,10 +675,24 @@ msgstr "Vypsat verzi"
 msgid "Mutter plugin to use"
 msgstr "Zásuvný modul Mutter, který se má použít"
 
-#: src/core/prefs.c:1915
+#: src/core/prefs.c:1997
 #, c-format
 msgid "Workspace %d"
 msgstr "Plocha %d"
+
+#: src/core/screen.c:583
+#, c-format
+msgid ""
+"Display “%s” already has a window manager; try using the --replace option to "
+"replace the current window manager."
+msgstr ""
+"Displej „%s“ již správce oken má; zkuste prosím nahradit aktuálního správce "
+"oken pomocí přepínače --replace."
+
+#: src/core/screen.c:668
+#, c-format
+msgid "Screen %d on display “%s” is invalid\n"
+msgstr "Obrazovka %d na displeji „%s“ je neplatná\n"
 
 #: src/core/util.c:120
 msgid "Mutter was compiled without support for verbose mode\n"
@@ -683,30 +703,7 @@ msgstr "Mutter bylo přeloženo bez podpory podrobného režimu\n"
 msgid "Mode Switch: Mode %d"
 msgstr "Přepínač režimu: režim %d"
 
-#: src/x11/meta-x11-display.c:666
-#, c-format
-msgid ""
-"Display “%s” already has a window manager; try using the --replace option to "
-"replace the current window manager."
-msgstr ""
-"Displej „%s“ již správce oken má; zkuste prosím nahradit aktuálního správce "
-"oken pomocí přepínače --replace."
-
-#: src/x11/meta-x11-display.c:1010
-msgid "Failed to initialize GDK\n"
-msgstr "Selhala inicializace GDK\n"
-
-#: src/x11/meta-x11-display.c:1034
-#, c-format
-msgid "Failed to open X Window System display “%s”\n"
-msgstr "Nelze otevřít displej X Window System „%s“\n"
-
-#: src/x11/meta-x11-display.c:1117
-#, c-format
-msgid "Screen %d on display “%s” is invalid\n"
-msgstr "Obrazovka %d na displeji „%s“ je neplatná\n"
-
-#: src/x11/session.c:1819
+#: src/x11/session.c:1818
 msgid ""
 "These windows do not support “save current setup” and will have to be "
 "restarted manually next time you log in."
@@ -714,7 +711,22 @@ msgstr ""
 "Tato okna nepodporují „uložení aktuálního nastavení“ a po svém příštím "
 "přihlášení je budete muset spustit ručně."
 
-#: src/x11/window-props.c:565
+#: src/x11/window-props.c:559
 #, c-format
 msgid "%s (on %s)"
 msgstr "%s (na %s)"
+
+#~ msgid "Move window one workspace to the left"
+#~ msgstr "Přesunout okno o jednu pracovní plochu doleva"
+
+#~ msgid "Move window one workspace to the right"
+#~ msgstr "Přesunout okno o jednu pracovní plochu doprava"
+
+#~ msgid "Move to workspace left"
+#~ msgstr "Přesunout na plochu vlevo"
+
+#~ msgid "Move to workspace right"
+#~ msgstr "Přesunout na plochu vpravo"
+
+#~ msgid "Toggle shaded state"
+#~ msgstr "Přepnout stav svinutí"

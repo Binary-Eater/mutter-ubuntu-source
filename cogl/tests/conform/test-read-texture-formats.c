@@ -1,7 +1,6 @@
 #include <cogl/cogl.h>
 #include <stdarg.h>
 
-#include "test-declarations.h"
 #include "test-utils.h"
 
 /*

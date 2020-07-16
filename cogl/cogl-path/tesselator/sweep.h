@@ -36,7 +36,6 @@
 #define __sweep_h_
 
 #include "mesh.h"
-#include "tesselator.h"
 
 /* __gl_computeInterior( tess ) computes the planar arrangement specified
  * by the given contours, and further subdivides this arrangement

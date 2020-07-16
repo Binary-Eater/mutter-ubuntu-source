@@ -24,13 +24,12 @@
 
 #include "config.h"
 
-#include "core/meta-accel-parse.h"
+#include "meta-accel-parse.h"
+#include "keybindings-private.h"
 
-#include <stdlib.h>
-#include <string.h>
 #include <xkbcommon/xkbcommon.h>
-
-#include "core/keybindings-private.h"
+#include <string.h>
+#include <stdlib.h>
 
 /* This is copied from GTK+ and modified to work with mutter's
  * internal structures. Originating code comes from gtk/gtkaccelgroup.c

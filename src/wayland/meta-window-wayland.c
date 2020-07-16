@@ -24,23 +24,22 @@
 
 #include "config.h"
 
-#include "wayland/meta-window-wayland.h"
+#include "meta-window-wayland.h"
 
+#include <meta/errors.h>
 #include <errno.h>
-#include <string.h>
-
-#include "backends/meta-backend-private.h"
+#include <string.h> /* for strerror () */
+#include "window-private.h"
+#include "boxes-private.h"
+#include "stack-tracker.h"
+#include "meta-wayland-actor-surface.h"
+#include "meta-wayland-private.h"
+#include "meta-wayland-surface.h"
+#include "meta-wayland-xdg-shell.h"
 #include "backends/meta-backend-private.h"
 #include "backends/meta-logical-monitor.h"
 #include "compositor/meta-surface-actor-wayland.h"
-#include "core/boxes-private.h"
-#include "core/stack-tracker.h"
-#include "core/window-private.h"
-#include "meta/meta-x11-errors.h"
-#include "wayland/meta-wayland-actor-surface.h"
-#include "wayland/meta-wayland-private.h"
-#include "wayland/meta-wayland-surface.h"
-#include "wayland/meta-wayland-xdg-shell.h"
+#include "backends/meta-backend-private.h"
 
 struct _MetaWindowWayland
 {
@@ -58,8 +57,6 @@ struct _MetaWindowWayland
   int last_sent_y;
   int last_sent_width;
   int last_sent_height;
-
-  gboolean has_been_shown;
 };
 
 struct _MetaWindowWaylandClass
@@ -91,7 +88,7 @@ meta_window_wayland_manage (MetaWindow *window)
   meta_display_register_wayland_window (display, window);
 
   {
-    meta_stack_tracker_record_add (window->display->stack_tracker,
+    meta_stack_tracker_record_add (window->screen->stack_tracker,
                                    window->stamp,
                                    0);
   }
@@ -103,7 +100,7 @@ static void
 meta_window_wayland_unmanage (MetaWindow *window)
 {
   {
-    meta_stack_tracker_record_remove (window->display->stack_tracker,
+    meta_stack_tracker_record_remove (window->screen->stack_tracker,
                                       window->stamp,
                                       0);
   }
@@ -142,10 +139,10 @@ meta_window_wayland_focus (MetaWindow *window,
                            guint32     timestamp)
 {
   if (window->input)
-    meta_x11_display_set_input_focus_window (window->display->x11_display,
-                                             window,
-                                             FALSE,
-                                             timestamp);
+    meta_display_set_input_focus_window (window->display,
+                                         window,
+                                         FALSE,
+                                         timestamp);
 }
 
 static void
@@ -542,19 +539,6 @@ appears_focused_changed (GObject    *object,
 }
 
 static void
-on_window_shown (MetaWindow *window)
-{
-  MetaWindowWayland *wl_window = META_WINDOW_WAYLAND (window);
-  gboolean has_been_shown;
-
-  has_been_shown = wl_window->has_been_shown;
-  wl_window->has_been_shown = TRUE;
-
-  if (!has_been_shown)
-    meta_compositor_sync_updates_frozen (window->display->compositor, window);
-}
-
-static void
 meta_window_wayland_init (MetaWindowWayland *wl_window)
 {
   MetaWindow *window = META_WINDOW (wl_window);
@@ -563,8 +547,6 @@ meta_window_wayland_init (MetaWindowWayland *wl_window)
 
   g_signal_connect (window, "notify::appears-focused",
                     G_CALLBACK (appears_focused_changed), NULL);
-  g_signal_connect (window, "shown",
-                    G_CALLBACK (on_window_shown), NULL);
 }
 
 static void
@@ -591,14 +573,6 @@ meta_window_wayland_is_stackable (MetaWindow *window)
   return meta_wayland_surface_get_buffer (window->surface) != NULL;
 }
 
-static gboolean
-meta_window_wayland_are_updates_frozen (MetaWindow *window)
-{
-  MetaWindowWayland *wl_window = META_WINDOW_WAYLAND (window);
-
-  return !wl_window->has_been_shown;
-}
-
 static void
 meta_window_wayland_class_init (MetaWindowWaylandClass *klass)
 {
@@ -619,7 +593,6 @@ meta_window_wayland_class_init (MetaWindowWaylandClass *klass)
   window_class->force_restore_shortcuts = meta_window_wayland_force_restore_shortcuts;
   window_class->shortcuts_inhibited = meta_window_wayland_shortcuts_inhibited;
   window_class->is_stackable = meta_window_wayland_is_stackable;
-  window_class->are_updates_frozen = meta_window_wayland_are_updates_frozen;
 }
 
 MetaWindow *
@@ -627,6 +600,7 @@ meta_window_wayland_new (MetaDisplay        *display,
                          MetaWaylandSurface *surface)
 {
   XWindowAttributes attrs = { 0 };
+  MetaScreen *scr = display->screen;
   MetaWindow *window;
 
   /*
@@ -647,11 +621,12 @@ meta_window_wayland_new (MetaDisplay        *display,
    * X requests (passing a window xid of None) until we thoroughly audit all
    * the code to make sure it knows about non X based clients...
    */
-  meta_x11_error_trap_push (display->x11_display); /* Push a trap over all of window
-                                                * creation, to reduce XSync() calls
-                                                */
+  meta_error_trap_push (display); /* Push a trap over all of window
+                                   * creation, to reduce XSync() calls
+                                   */
 
   window = _meta_window_shared_new (display,
+                                    scr,
                                     META_WINDOW_CLIENT_TYPE_WAYLAND,
                                     surface,
                                     None,
@@ -660,7 +635,7 @@ meta_window_wayland_new (MetaDisplay        *display,
                                     &attrs);
   window->can_ping = TRUE;
 
-  meta_x11_error_trap_pop (display->x11_display); /* pop the XSync()-reducing trap */
+  meta_error_trap_pop (display); /* pop the XSync()-reducing trap */
 
   return window;
 }

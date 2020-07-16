@@ -29,7 +29,9 @@
  *   Robert Bragg <robert@linux.intel.com>
  */
 
+#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
+#endif
 
 #include <string.h>
 
@@ -38,11 +40,11 @@
 
 #include "cogl-display-private.h"
 #include "cogl-renderer-private.h"
+#include "cogl-winsys-private.h"
 #ifdef COGL_HAS_WAYLAND_EGL_SERVER_SUPPORT
 #include "cogl-wayland-server.h"
 #endif
 #include "cogl-gtype-private.h"
-#include "winsys/cogl-winsys-private.h"
 
 static void _cogl_display_free (CoglDisplay *display);
 

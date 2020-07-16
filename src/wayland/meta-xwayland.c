@@ -23,17 +23,18 @@
 
 #include "config.h"
 
-#include "wayland/meta-xwayland.h"
-#include "wayland/meta-xwayland-private.h"
+#include "meta-xwayland.h"
+#include "meta-xwayland-private.h"
 
-#include <errno.h>
-#include <glib-unix.h>
+#include <meta/main.h>
+
 #include <glib.h>
+#include <glib-unix.h>
+#include <errno.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 
 #include "compositor/meta-surface-actor-wayland.h"
-#include "meta/main.h"
 #include "wayland/meta-wayland-actor-surface.h"
 
 enum {
@@ -59,11 +60,9 @@ G_DEFINE_TYPE (MetaWaylandSurfaceRoleXWayland,
                meta_wayland_surface_role_xwayland,
                META_TYPE_WAYLAND_ACTOR_SURFACE)
 
-static int display_number_override = -1;
-
-void
-meta_xwayland_associate_window_with_surface (MetaWindow          *window,
-                                             MetaWaylandSurface  *surface)
+static void
+associate_window_with_surface (MetaWindow         *window,
+                               MetaWaylandSurface *surface)
 {
   MetaDisplay *display = window->display;
 
@@ -111,11 +110,56 @@ associate_window_with_surface_id (MetaXWaylandManager *manager,
   if (resource)
     {
       MetaWaylandSurface *surface = wl_resource_get_user_data (resource);
-      meta_xwayland_associate_window_with_surface (window, surface);
+      associate_window_with_surface (window, surface);
       return TRUE;
     }
   else
     return FALSE;
+}
+
+typedef struct {
+  MetaXWaylandManager *manager;
+  MetaWindow *window;
+  guint32 surface_id;
+  guint later_id;
+} AssociateWindowWithSurfaceOp;
+
+static void associate_window_with_surface_window_unmanaged (MetaWindow                   *window,
+                                                            AssociateWindowWithSurfaceOp *op);
+static void
+associate_window_with_surface_op_free (AssociateWindowWithSurfaceOp *op)
+{
+  if (op->later_id != 0)
+    meta_later_remove (op->later_id);
+  g_signal_handlers_disconnect_by_func (op->window,
+                                        (gpointer) associate_window_with_surface_window_unmanaged,
+                                        op);
+  g_free (op);
+}
+
+static void
+associate_window_with_surface_window_unmanaged (MetaWindow                   *window,
+                                                AssociateWindowWithSurfaceOp *op)
+{
+  associate_window_with_surface_op_free (op);
+}
+
+static gboolean
+associate_window_with_surface_later (gpointer user_data)
+{
+  AssociateWindowWithSurfaceOp *op = user_data;
+
+  op->later_id = 0;
+
+  if (!associate_window_with_surface_id (op->manager, op->window, op->surface_id))
+    {
+      /* Not here? Oh well... nothing we can do */
+      g_warning ("Unknown surface ID %d (from window %s)", op->surface_id, op->window->desc);
+    }
+
+  associate_window_with_surface_op_free (op);
+
+  return G_SOURCE_REMOVE;
 }
 
 void
@@ -127,11 +171,21 @@ meta_xwayland_handle_wl_surface_id (MetaWindow *window,
 
   if (!associate_window_with_surface_id (manager, window, surface_id))
     {
-      /* No surface ID yet, schedule this association for whenever the
-       * surface is made known.
+      /* No surface ID yet... it should arrive after the next
+       * iteration through the loop, so queue a later and see
+       * what happens.
        */
-      meta_wayland_compositor_schedule_surface_association (compositor,
-                                                            surface_id, window);
+      AssociateWindowWithSurfaceOp *op = g_new0 (AssociateWindowWithSurfaceOp, 1);
+      op->manager = manager;
+      op->window = window;
+      op->surface_id = surface_id;
+      op->later_id = meta_later_add (META_LATER_BEFORE_REDRAW,
+                                     associate_window_with_surface_later,
+                                     op,
+                                     NULL);
+
+      g_signal_connect (op->window, "unmanaged",
+                        G_CALLBACK (associate_window_with_surface_window_unmanaged), op);
     }
 }
 
@@ -373,12 +427,6 @@ x_io_error (Display *display)
   return 0;
 }
 
-void
-meta_xwayland_override_display_number (int number)
-{
-  display_number_override = number;
-}
-
 static gboolean
 choose_xdisplay (MetaXWaylandManager *manager)
 {
@@ -386,9 +434,11 @@ choose_xdisplay (MetaXWaylandManager *manager)
   char *lock_file = NULL;
   gboolean fatal = FALSE;
 
-  if (display_number_override != -1)
-    display = display_number_override;
-  else if (g_getenv ("RUNNING_UNDER_GDM"))
+  /* Hack to keep the unused Xwayland instance on
+   * the login screen from taking the prime :0 display
+   * number.
+   */
+  if (g_getenv ("RUNNING_UNDER_GDM") != NULL)
     display = 1024;
 
   do
@@ -555,15 +605,9 @@ out:
   return started;
 }
 
-static void
-on_x11_display_closing (MetaDisplay *display)
-{
-  meta_xwayland_shutdown_selection ();
-}
-
 /* To be called right after connecting */
 void
-meta_xwayland_complete_init (MetaDisplay *display)
+meta_xwayland_complete_init (void)
 {
   /* We install an X IO error handler in addition to the child watch,
      because after Xlib connects our child watch may not be called soon
@@ -572,8 +616,6 @@ meta_xwayland_complete_init (MetaDisplay *display)
   */
   XSetIOErrorHandler (x_io_error);
 
-  g_signal_connect (display, "x11-display-closing",
-                    G_CALLBACK (on_x11_display_closing), NULL);
   meta_xwayland_init_selection ();
 }
 
@@ -583,6 +625,7 @@ meta_xwayland_stop (MetaXWaylandManager *manager)
   char path[256];
 
   g_cancellable_cancel (manager->xserver_died_cancellable);
+  meta_xwayland_shutdown_selection ();
   g_clear_object (&manager->proc);
   g_clear_object (&manager->xserver_died_cancellable);
 

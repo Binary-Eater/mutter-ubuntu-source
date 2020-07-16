@@ -28,7 +28,9 @@
  *
  */
 
+#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
+#endif
 
 #include <string.h>
 
@@ -79,7 +81,6 @@ _cogl_driver_nop =
     _cogl_texture_2d_nop_get_gl_handle,
     _cogl_texture_2d_nop_generate_mipmap,
     _cogl_texture_2d_nop_copy_from_bitmap,
-    NULL, /* texture_2d_is_get_data_supported */
     NULL, /* texture_2d_get_data */
     _cogl_nop_flush_attributes_state,
     _cogl_clip_stack_nop_flush,

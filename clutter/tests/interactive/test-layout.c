@@ -40,6 +40,11 @@ enum
   PROP_USE_TRANSFORMED_BOX
 };
 
+G_DEFINE_TYPE (MyThing, my_thing, CLUTTER_TYPE_ACTOR)
+
+#define MY_THING_GET_PRIVATE(obj)    \
+(G_TYPE_INSTANCE_GET_PRIVATE ((obj), MY_TYPE_THING, MyThingPrivate))
+
 struct _MyThingPrivate
 {
   gfloat  spacing;
@@ -47,19 +52,6 @@ struct _MyThingPrivate
 
   guint   use_transformed_box : 1;
 };
-
-GType my_thing_get_type (void);
-
-int
-test_layout_main (int argc, char *argv[]);
-
-const char *
-test_layout_describe (void);
-
-G_DEFINE_TYPE_WITH_PRIVATE (MyThing, my_thing, CLUTTER_TYPE_ACTOR)
-
-#define MY_THING_GET_PRIVATE(obj)    \
-(G_TYPE_INSTANCE_GET_PRIVATE ((obj), MY_TYPE_THING, MyThingPrivate))
 
 static void
 my_thing_set_property (GObject      *gobject,
@@ -417,6 +409,8 @@ my_thing_class_init (MyThingClass *klass)
                                                          "Use transformed box when allocating",
                                                          FALSE,
                                                          G_PARAM_READWRITE));
+
+  g_type_class_add_private (klass, sizeof (MyThingPrivate));
 }
 
 static void
@@ -425,7 +419,7 @@ my_thing_init (MyThing *thing)
   thing->priv = MY_THING_GET_PRIVATE (thing);
 }
 
-static ClutterActor *
+ClutterActor *
 my_thing_new (gfloat padding,
               gfloat spacing)
 {

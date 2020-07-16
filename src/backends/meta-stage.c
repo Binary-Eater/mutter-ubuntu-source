@@ -20,27 +20,17 @@
  *     Jasper St. Pierre <jstpierre@mecheye.net>
  */
 
-#include "config.h"
+#include <config.h>
 
-#include "backends/meta-stage-private.h"
+#include "meta-stage-private.h"
 
+#include <meta/meta-backend.h>
+#include <meta/meta-monitor-manager.h>
+#include <meta/util.h>
 #include "backends/meta-backend-private.h"
 #include "clutter/clutter-mutter.h"
-#include "meta/meta-backend.h"
-#include "meta/meta-monitor-manager.h"
-#include "meta/util.h"
 
-enum
-{
-  ACTORS_PAINTED,
-
-  N_SIGNALS
-};
-
-static guint signals[N_SIGNALS];
-
-struct _MetaOverlay
-{
+struct _MetaOverlay {
   gboolean enabled;
 
   CoglPipeline *pipeline;
@@ -51,15 +41,13 @@ struct _MetaOverlay
   gboolean previous_is_valid;
 };
 
-struct _MetaStage
-{
-  ClutterStage parent;
-
+struct _MetaStagePrivate {
   GList *overlays;
   gboolean is_active;
 };
+typedef struct _MetaStagePrivate MetaStagePrivate;
 
-G_DEFINE_TYPE (MetaStage, meta_stage, CLUTTER_TYPE_STAGE);
+G_DEFINE_TYPE_WITH_PRIVATE (MetaStage, meta_stage, CLUTTER_TYPE_STAGE);
 
 static MetaOverlay *
 meta_overlay_new (void)
@@ -131,9 +119,9 @@ static void
 meta_stage_finalize (GObject *object)
 {
   MetaStage *stage = META_STAGE (object);
-  GList *l;
+  MetaStagePrivate *priv = meta_stage_get_instance_private (stage);
+  GList *l = priv->overlays;
 
-  l = stage->overlays;
   while (l)
     {
       meta_overlay_free (l->data);
@@ -147,13 +135,12 @@ static void
 meta_stage_paint (ClutterActor *actor)
 {
   MetaStage *stage = META_STAGE (actor);
+  MetaStagePrivate *priv = meta_stage_get_instance_private (stage);
   GList *l;
 
   CLUTTER_ACTOR_CLASS (meta_stage_parent_class)->paint (actor);
 
-  g_signal_emit (stage, signals[ACTORS_PAINTED], 0);
-
-  for (l = stage->overlays; l; l = l->next)
+  for (l = priv->overlays; l; l = l->next)
     meta_overlay_paint (l->data);
 }
 
@@ -161,20 +148,22 @@ static void
 meta_stage_activate (ClutterStage *actor)
 {
   MetaStage *stage = META_STAGE (actor);
+  MetaStagePrivate *priv = meta_stage_get_instance_private (stage);
 
   CLUTTER_STAGE_CLASS (meta_stage_parent_class)->activate (actor);
 
-  stage->is_active = TRUE;
+  priv->is_active = TRUE;
 }
 
 static void
 meta_stage_deactivate (ClutterStage *actor)
 {
   MetaStage *stage = META_STAGE (actor);
+  MetaStagePrivate *priv = meta_stage_get_instance_private (stage);
 
   CLUTTER_STAGE_CLASS (meta_stage_parent_class)->deactivate (actor);
 
-  stage->is_active = FALSE;
+  priv->is_active = FALSE;
 }
 
 static void
@@ -190,13 +179,6 @@ meta_stage_class_init (MetaStageClass *klass)
 
   stage_class->activate = meta_stage_activate;
   stage_class->deactivate = meta_stage_deactivate;
-
-  signals[ACTORS_PAINTED] = g_signal_new ("actors-painted",
-                                          G_TYPE_FROM_CLASS (klass),
-                                          G_SIGNAL_RUN_LAST,
-                                          0,
-                                          NULL, NULL, NULL,
-                                          G_TYPE_NONE, 0);
 }
 
 static void
@@ -244,10 +226,11 @@ queue_redraw_for_overlay (MetaStage   *stage,
 MetaOverlay *
 meta_stage_create_cursor_overlay (MetaStage *stage)
 {
+  MetaStagePrivate *priv = meta_stage_get_instance_private (stage);
   MetaOverlay *overlay;
 
   overlay = meta_overlay_new ();
-  stage->overlays = g_list_prepend (stage->overlays, overlay);
+  priv->overlays = g_list_prepend (priv->overlays, overlay);
 
   return overlay;
 }
@@ -256,13 +239,14 @@ void
 meta_stage_remove_cursor_overlay (MetaStage   *stage,
                                   MetaOverlay *overlay)
 {
+  MetaStagePrivate *priv = meta_stage_get_instance_private (stage);
   GList *link;
 
-  link = g_list_find (stage->overlays, overlay);
+  link = g_list_find (priv->overlays, overlay);
   if (!link)
     return;
 
-  stage->overlays = g_list_delete_link (stage->overlays, link);
+  priv->overlays = g_list_delete_link (priv->overlays, link);
   meta_overlay_free (overlay);
 }
 
@@ -282,6 +266,7 @@ void
 meta_stage_set_active (MetaStage *stage,
                        gboolean   is_active)
 {
+  MetaStagePrivate *priv = meta_stage_get_instance_private (stage);
   ClutterEvent event = { 0 };
 
   /* Used by the native backend to inform accessibility technologies
@@ -291,7 +276,7 @@ meta_stage_set_active (MetaStage *stage,
    * for us.
    */
 
-  if (stage->is_active == is_active)
+  if (priv->is_active == is_active)
     return;
 
   event.type = CLUTTER_STAGE_STATE;

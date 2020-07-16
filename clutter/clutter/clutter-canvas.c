@@ -42,7 +42,9 @@
  * #ClutterCanvas is available since Clutter 1.10.
  */
 
+#ifdef HAVE_CONFIG_H
 #include "clutter-build-config.h"
+#endif
 
 #include <cogl/cogl.h>
 #include <cairo-gobject.h>

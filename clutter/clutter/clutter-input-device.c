@@ -31,7 +31,9 @@
  * its contents are usually defined by the Clutter backend in use.
  */
 
+#ifdef HAVE_CONFIG_H
 #include "clutter-build-config.h"
+#endif
 
 #include "clutter-input-device.h"
 
@@ -2283,16 +2285,4 @@ clutter_input_device_is_grouped (ClutterInputDevice *device,
   g_return_val_if_fail (CLUTTER_IS_INPUT_DEVICE (other_device), FALSE);
 
   return CLUTTER_INPUT_DEVICE_GET_CLASS (device)->is_grouped (device, other_device);
-}
-
-gboolean
-clutter_input_device_get_physical_size (ClutterInputDevice *device,
-                                        gdouble            *width,
-                                        gdouble            *height)
-{
-  g_return_val_if_fail (CLUTTER_IS_INPUT_DEVICE (device), FALSE);
-
-  return CLUTTER_INPUT_DEVICE_GET_CLASS (device)->get_physical_size (device,
-                                                                     width,
-                                                                     height);
 }

@@ -23,12 +23,10 @@
 #include "backends/meta-crtc.h"
 #include "backends/meta-output.h"
 #include "compositor/meta-plugin-manager.h"
-#include "core/display-private.h"
 #include "core/main-private.h"
 #include "meta/main.h"
 #include "tests/meta-backend-test.h"
 #include "tests/meta-monitor-manager-test.h"
-#include "tests/test-utils.h"
 #include "wayland/meta-wayland.h"
 
 #define ALL_TRANSFORMS ((1 << (META_MONITOR_TRANSFORM_FLIPPED_270 + 1)) - 1)
@@ -84,12 +82,14 @@ static void
 meta_test_headless_monitor_getters (void)
 {
   MetaDisplay *display;
+  MetaScreen *screen;
   int index;
 
   display = meta_get_display ();
+  screen = display->screen;
 
-  index = meta_display_get_monitor_index_for_rect (display,
-                                                   &(MetaRectangle) { 0 });
+  index = meta_screen_get_monitor_index_for_rect (screen,
+                                                  &(MetaRectangle) { 0 });
   g_assert_cmpint (index, ==, -1);
 }
 
@@ -167,6 +167,9 @@ create_headless_test_setup (void)
 static void
 init_tests (int argc, char **argv)
 {
+  g_test_init (&argc, &argv, NULL);
+  g_test_bug_base ("http://bugzilla.gnome.org/show_bug.cgi?id=");
+
   MetaMonitorTestSetup *initial_test_setup;
 
   initial_test_setup = create_headless_test_setup ();
@@ -182,13 +185,13 @@ init_tests (int argc, char **argv)
 int
 main (int argc, char *argv[])
 {
-  test_init (&argc, &argv);
   init_tests (argc, argv);
 
-  meta_plugin_manager_load (test_get_plugin_name ());
+  meta_plugin_manager_load ("default");
 
   meta_override_compositor_configuration (META_COMPOSITOR_TYPE_WAYLAND,
                                           META_TYPE_BACKEND_TEST);
+  meta_wayland_override_display_name ("mutter-test-display");
 
   meta_init ();
   meta_register_with_session ();

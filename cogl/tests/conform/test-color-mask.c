@@ -1,6 +1,5 @@
 #include <cogl/cogl.h>
 
-#include "test-declarations.h"
 #include "test-utils.h"
 
 #define TEX_SIZE 128

@@ -26,12 +26,6 @@
 #define STAGE_WIDTH 800
 #define STAGE_HEIGHT 550
 
-int
-test_rotate_zoom_main (int argc, char *argv[]);
-
-const char *
-test_rotate_zoom_describe (void);
-
 static ClutterActor *
 create_hand (void)
 {

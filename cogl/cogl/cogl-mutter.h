@@ -39,9 +39,7 @@
 #include <cogl/cogl-error-private.h>
 #include <cogl/cogl-frame-info-private.h>
 #include <cogl/cogl-renderer-private.h>
-#if defined (COGL_HAS_EGL_SUPPORT)
 #include <cogl/winsys/cogl-winsys-egl-private.h>
-#endif
 #include <cogl/winsys/cogl-winsys-private.h>
 
 void cogl_renderer_set_custom_winsys (CoglRenderer                *renderer,

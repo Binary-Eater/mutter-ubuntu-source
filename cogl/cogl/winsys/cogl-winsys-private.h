@@ -79,7 +79,7 @@ typedef struct _CoglWinsysVtable
 
   /* Required functions */
 
-  GCallback
+  CoglFuncPtr
   (*renderer_get_proc_address) (CoglRenderer *renderer,
                                 const char *name,
                                 CoglBool in_core);
@@ -121,6 +121,9 @@ typedef struct _CoglWinsysVtable
   (*onscreen_swap_buffers_with_damage) (CoglOnscreen *onscreen,
                                         const int *rectangles,
                                         int n_rectangles);
+
+  void
+  (*onscreen_update_swap_throttled) (CoglOnscreen *onscreen);
 
   void
   (*onscreen_set_visibility) (CoglOnscreen *onscreen,

@@ -22,37 +22,31 @@
  *     Jasper St. Pierre <jstpierre@mecheye.net>
  */
 
-/**
- * SECTION:meta-backend-x11
- * @title: MetaBackendX11
- * @short_description: A X11 MetaBackend
- *
- * MetaBackendX11 is an implementation of #MetaBackend using X and X
- * extensions, like XInput and XKB.
- */
-
 #include "config.h"
 
-#include "backends/x11/meta-backend-x11.h"
+#include <string.h>
+#include <stdlib.h>
 
+#include "meta-backend-x11.h"
+
+#include <clutter.h>
+#include <clutter/x11/clutter-x11.h>
+
+#include <X11/extensions/sync.h>
 #include <X11/XKBlib.h>
 #include <X11/Xlib-xcb.h>
-#include <X11/extensions/sync.h>
-#include <stdlib.h>
-#include <string.h>
 #include <xkbcommon/xkbcommon-x11.h>
 
-#include "backends/meta-dnd-private.h"
-#include "backends/meta-idle-monitor-private.h"
 #include "backends/meta-stage-private.h"
 #include "backends/x11/meta-clutter-backend-x11.h"
 #include "backends/x11/meta-renderer-x11.h"
-#include "clutter/clutter.h"
-#include "clutter/x11/clutter-x11.h"
-#include "compositor/compositor-private.h"
-#include "core/display-private.h"
 #include "meta/meta-cursor-tracker.h"
-#include "meta/util.h"
+
+#include <meta/util.h>
+#include "display-private.h"
+#include "compositor/compositor-private.h"
+#include "backends/meta-dnd-private.h"
+#include "backends/meta-idle-monitor-private.h"
 
 struct _MetaBackendX11Private
 {
@@ -182,7 +176,7 @@ translate_device_event (MetaBackendX11 *x11,
 
   meta_backend_x11_translate_device_event (x11, device_event);
 
-  if (!device_event->send_event && device_event->time != META_CURRENT_TIME)
+  if (!device_event->send_event && device_event->time != CurrentTime)
     {
       if (XSERVER_TIME_IS_BEFORE (device_event->time, priv->latest_evtime))
         {
@@ -338,7 +332,7 @@ handle_host_xevent (MetaBackend *backend,
         if (meta_plugin_manager_xevent_filter (compositor->plugin_mgr, event))
           bypass_clutter = TRUE;
 
-        if (meta_dnd_handle_xdnd_event (backend, compositor, priv->xdisplay, event))
+        if (meta_dnd_handle_xdnd_event (backend, compositor, display, event))
           bypass_clutter = TRUE;
       }
   }
@@ -553,7 +547,7 @@ meta_backend_x11_grab_device (MetaBackend *backend,
   XIEventMask mask = { XIAllMasterDevices, sizeof (mask_bits), mask_bits };
   int ret;
 
-  if (timestamp != META_CURRENT_TIME &&
+  if (timestamp != CurrentTime &&
       XSERVER_TIME_IS_BEFORE (timestamp, priv->latest_evtime))
     timestamp = priv->latest_evtime;
 
@@ -586,7 +580,6 @@ meta_backend_x11_ungrab_device (MetaBackend *backend,
   int ret;
 
   ret = XIUngrabDevice (priv->xdisplay, device_id, timestamp);
-  XFlush (priv->xdisplay);
 
   return (ret == Success);
 }
@@ -809,14 +802,4 @@ meta_backend_x11_get_xwindow (MetaBackendX11 *x11)
 {
   ClutterActor *stage = meta_backend_get_stage (META_BACKEND (x11));
   return clutter_x11_get_stage_window (CLUTTER_STAGE (stage));
-}
-
-void
-meta_backend_x11_reload_cursor (MetaBackendX11 *x11)
-{
-  MetaBackend *backend = META_BACKEND (x11);
-  MetaCursorRenderer *cursor_renderer =
-    meta_backend_get_cursor_renderer (backend);
-
-  meta_cursor_renderer_force_update (cursor_renderer);
 }

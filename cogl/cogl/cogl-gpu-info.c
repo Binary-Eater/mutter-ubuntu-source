@@ -28,7 +28,9 @@
  *
  */
 
+#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
+#endif
 
 #include <string.h>
 #include <errno.h>
@@ -568,5 +570,13 @@ probed:
              gpu->architecture_name);
 
   /* Determine the driver bugs */
-  gpu->driver_bugs = 0;
+
+  /* In Mesa the glReadPixels implementation is really slow
+     when using the Intel driver. The Intel
+     driver has a fast blit path when reading into a PBO. Reading into
+     a temporary PBO and then memcpying back out to the application's
+     memory is faster than a regular glReadPixels in this case */
+  if (gpu->vendor == COGL_GPU_INFO_VENDOR_INTEL &&
+      gpu->driver_package == COGL_GPU_INFO_DRIVER_PACKAGE_MESA)
+    gpu->driver_bugs |= COGL_GPU_INFO_DRIVER_BUG_MESA_46631_SLOW_READ_PIXELS;
 }

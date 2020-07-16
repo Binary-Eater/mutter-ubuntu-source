@@ -33,8 +33,6 @@
 
 #include <glib.h>
 
-#include "cogl-context.h"
-#include "cogl-renderer.h"
 
 #define COGL_CHECK_GL_VERSION(driver_major, driver_minor, \
                               target_major, target_minor) \
@@ -43,7 +41,7 @@
 
 typedef enum
 {
-  COGL_EXT_IN_GL = (1 << 0),
+  COGL_EXT_IN_GLES = (1 << 0),
   COGL_EXT_IN_GLES2 = (1 << 1),
   COGL_EXT_IN_GLES3 = (1 << 2)
 } CoglExtGlesAvailability;

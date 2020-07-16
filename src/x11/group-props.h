@@ -22,16 +22,15 @@
 #ifndef META_GROUP_PROPS_H
 #define META_GROUP_PROPS_H
 
-#include "core/window-private.h"
-#include "meta/group.h"
+#include <meta/group.h>
+#include "window-private.h"
 
 void meta_group_reload_property         (MetaGroup   *group,
                                          Atom         property);
 void meta_group_reload_properties       (MetaGroup   *group,
                                          const Atom  *properties,
                                          int          n_properties);
-
-void meta_x11_display_init_group_prop_hooks (MetaX11Display *x11_display);
-void meta_x11_display_free_group_prop_hooks (MetaX11Display *x11_display);
+void meta_display_init_group_prop_hooks (MetaDisplay *display);
+void meta_display_free_group_prop_hooks (MetaDisplay *display);
 
 #endif /* META_GROUP_PROPS_H */

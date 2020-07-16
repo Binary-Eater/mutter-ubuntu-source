@@ -31,14 +31,16 @@
  *
  */
 
+#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
+#endif
 
 #include "cogl-renderer-private.h"
 #include "cogl-display-private.h"
 #include "cogl-context-private.h"
 #include "cogl-framebuffer-private.h"
 #include "cogl-private.h"
-#include "winsys/cogl-winsys-stub-private.h"
+#include "cogl-winsys-stub-private.h"
 
 #include <string.h>
 
@@ -49,7 +51,7 @@ static int _cogl_winsys_stub_dummy_ptr;
  * integration code.
  */
 
-static GCallback
+static CoglFuncPtr
 _cogl_winsys_renderer_get_proc_address (CoglRenderer *renderer,
                                         const char *name,
                                         CoglBool in_core)
@@ -144,6 +146,11 @@ _cogl_winsys_onscreen_swap_buffers_with_damage (CoglOnscreen *onscreen,
 }
 
 static void
+_cogl_winsys_onscreen_update_swap_throttled (CoglOnscreen *onscreen)
+{
+}
+
+static void
 _cogl_winsys_onscreen_set_visibility (CoglOnscreen *onscreen,
                                       CoglBool visibility)
 {
@@ -179,6 +186,8 @@ _cogl_winsys_stub_get_vtable (void)
       vtable.onscreen_bind = _cogl_winsys_onscreen_bind;
       vtable.onscreen_swap_buffers_with_damage =
         _cogl_winsys_onscreen_swap_buffers_with_damage;
+      vtable.onscreen_update_swap_throttled =
+        _cogl_winsys_onscreen_update_swap_throttled;
       vtable.onscreen_set_visibility = _cogl_winsys_onscreen_set_visibility;
 
       vtable_inited = TRUE;

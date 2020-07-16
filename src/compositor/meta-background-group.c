@@ -14,15 +14,10 @@
  * and details on implementation.
  */
 
-#include "config.h"
+#include <config.h>
 
-#include "compositor/meta-cullable.h"
-#include "meta/meta-background-group.h"
-
-struct _MetaBackgroundGroup
-{
-  ClutterActor parent;
-};
+#include <meta/meta-background-group.h>
+#include "meta-cullable.h"
 
 static void cullable_iface_init (MetaCullableInterface *iface);
 

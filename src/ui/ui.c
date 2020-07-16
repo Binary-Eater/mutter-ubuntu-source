@@ -19,19 +19,17 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "config.h"
+#include <config.h>
+#include <meta/prefs.h>
+#include "ui.h"
+#include "frames.h"
+#include <meta/util.h>
+#include "core.h"
+#include "theme-private.h"
 
-#include <cairo-xlib.h>
-#include <stdlib.h>
 #include <string.h>
-
-#include "core/core.h"
-#include "meta/prefs.h"
-#include "meta/util.h"
-#include "ui/frames.h"
-#include "ui/theme-private.h"
-#include "ui/ui.h"
-#include "x11/meta-x11-display-private.h"
+#include <stdlib.h>
+#include <cairo-xlib.h>
 
 struct _MetaUI
 {
@@ -46,18 +44,52 @@ struct _MetaUI
   guint32 button_click_time;
 };
 
-MetaUI *
-meta_ui_new (MetaX11Display *x11_display)
+void
+meta_ui_init (void)
 {
-  MetaUI *ui;
+  const char *gdk_gl_env = NULL;
+  gdk_set_allowed_backends ("x11");
+
+  gdk_gl_env = g_getenv ("GDK_GL");
+  g_setenv("GDK_GL", "disable", TRUE);
 
   if (!gtk_init_check (NULL, NULL))
-    meta_fatal ("Unable to initialize GTK");
+    meta_fatal ("Unable to open X display %s\n", XDisplayName (NULL));
 
-  g_assert (x11_display->gdk_display == gdk_display_get_default ());
+  if (gdk_gl_env)
+    g_setenv("GDK_GL", gdk_gl_env, TRUE);
+  else
+    unsetenv("GDK_GL");
+
+  /* We need to be able to fully trust that the window and monitor sizes
+     that Gdk reports corresponds to the X ones, so we disable the automatic
+     scale handling */
+  gdk_x11_display_set_window_scale (gdk_display_get_default (), 1);
+}
+
+Display*
+meta_ui_get_display (void)
+{
+  return GDK_DISPLAY_XDISPLAY (gdk_display_get_default ());
+}
+
+gint
+meta_ui_get_screen_number (void)
+{
+  return gdk_screen_get_number (gdk_screen_get_default ());
+}
+
+MetaUI*
+meta_ui_new (Display *xdisplay)
+{
+  GdkDisplay *gdisplay;
+  MetaUI *ui;
 
   ui = g_new0 (MetaUI, 1);
-  ui->xdisplay = x11_display->xdisplay;
+  ui->xdisplay = xdisplay;
+
+  gdisplay = gdk_x11_lookup_xdisplay (xdisplay);
+  g_assert (gdisplay == gdk_display_get_default ());
 
   ui->frames = meta_frames_new ();
   /* GTK+ needs the frame-sync protocol to work in order to properly
@@ -68,7 +100,7 @@ meta_ui_new (MetaX11Display *x11_display)
    */
   gtk_widget_show (GTK_WIDGET (ui->frames));
 
-  g_object_set_data (G_OBJECT (x11_display->gdk_display), "meta-ui", ui);
+  g_object_set_data (G_OBJECT (gdisplay), "meta-ui", ui);
 
   return ui;
 }
@@ -76,12 +108,12 @@ meta_ui_new (MetaX11Display *x11_display)
 void
 meta_ui_free (MetaUI *ui)
 {
-  GdkDisplay *gdk_display;
+  GdkDisplay *gdisplay;
 
   gtk_widget_destroy (GTK_WIDGET (ui->frames));
 
-  gdk_display = gdk_x11_lookup_xdisplay (ui->xdisplay);
-  g_object_set_data (G_OBJECT (gdk_display), "meta-ui", NULL);
+  gdisplay = gdk_x11_lookup_xdisplay (ui->xdisplay);
+  g_object_set_data (G_OBJECT (gdisplay), "meta-ui", NULL);
 
   g_free (ui);
 }

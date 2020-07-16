@@ -377,6 +377,9 @@ CoglPipelineLayer *
 _cogl_pipeline_layer_get_authority (CoglPipelineLayer *layer,
                                     unsigned long difference);
 
+CoglTexture *
+_cogl_pipeline_layer_get_texture (CoglPipelineLayer *layer);
+
 int
 _cogl_pipeline_layer_get_unit_index (CoglPipelineLayer *layer);
 

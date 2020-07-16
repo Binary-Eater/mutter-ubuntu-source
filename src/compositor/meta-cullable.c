@@ -22,9 +22,8 @@
  */
 
 #include "config.h"
-
-#include "compositor/clutter-utils.h"
-#include "compositor/meta-cullable.h"
+#include "meta-cullable.h"
+#include "clutter-utils.h"
 
 G_DEFINE_INTERFACE (MetaCullable, meta_cullable, CLUTTER_TYPE_ACTOR);
 

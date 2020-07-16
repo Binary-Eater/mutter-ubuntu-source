@@ -111,7 +111,9 @@
  * ]|
  */
 
+#ifdef HAVE_CONFIG_H
 #include "clutter-build-config.h"
+#endif
 
 #include "cogl/cogl.h"
 
@@ -333,7 +335,6 @@ clutter_shader_effect_create_shader (ClutterShaderEffect *self)
 
     default:
       g_assert_not_reached ();
-      return COGL_INVALID_HANDLE;
     }
 }
 

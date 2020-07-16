@@ -2,7 +2,6 @@
 
 #include <string.h>
 
-#include "test-declarations.h"
 #include "test-utils.h"
 
 #define TEX_WIDTH 8

@@ -21,7 +21,9 @@
  * Author: Jonas Ådahl <jadahl@gmail.com>
  */
 
+#ifdef HAVE_CONFIG_H
 #include "clutter-build-config.h"
+#endif
 
 #include <glib-object.h>
 
@@ -141,13 +143,8 @@ clutter_virtual_input_device_x11_notify_keyval (ClutterVirtualInputDevice *virtu
 
   if (!clutter_keymap_x11_keycode_for_keyval (keymap, keyval, &keycode, &level))
     {
-      level = 0;
-
-      if (!clutter_keymap_x11_reserve_keycode (keymap, keyval, &keycode))
-        {
-          g_warning ("No keycode found for keyval %x in current group", keyval);
-          return;
-        }
+      g_warning ("No keycode found for keyval %x in current group", keyval);
+      return;
     }
 
   if (!_clutter_keymap_x11_get_is_modifier (keymap, keycode) &&
@@ -158,13 +155,9 @@ clutter_virtual_input_device_x11_notify_keyval (ClutterVirtualInputDevice *virtu
                      (KeyCode) keycode,
                      key_state == CLUTTER_KEY_STATE_PRESSED, 0);
 
-
-  if (key_state == CLUTTER_KEY_STATE_RELEASED)
-    {
-      if (!_clutter_keymap_x11_get_is_modifier (keymap, keycode))
-        clutter_keymap_x11_latch_modifiers (keymap, level, FALSE);
-      clutter_keymap_x11_release_keycode_if_needed (keymap, keycode);
-    }
+  if (!_clutter_keymap_x11_get_is_modifier (keymap, keycode) &&
+      key_state == CLUTTER_KEY_STATE_RELEASED)
+    clutter_keymap_x11_latch_modifiers (keymap, level, FALSE);
 }
 
 static void

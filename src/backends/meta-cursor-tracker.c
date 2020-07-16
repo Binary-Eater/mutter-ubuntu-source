@@ -28,27 +28,26 @@
  */
 
 #include "config.h"
+#include "meta-cursor-tracker-private.h"
 
-#include "backends/meta-cursor-tracker-private.h"
+#include <string.h>
+#include <meta/main.h>
+#include <meta/util.h>
+#include <meta/errors.h>
+
+#include <cogl/cogl.h>
+#include <clutter/clutter.h>
 
 #include <gdk/gdk.h>
 #include <gdk/gdkx.h>
-#include <string.h>
+#include <X11/extensions/Xfixes.h>
 
-#include "backends/meta-backend-private.h"
-#include "backends/x11/cm/meta-cursor-sprite-xfixes.h"
-#include "cogl/cogl.h"
-#include "clutter/clutter.h"
-#include "meta/main.h"
-#include "meta/meta-x11-errors.h"
-#include "meta/util.h"
-#include "x11/meta-x11-display-private.h"
+#include "meta-backend-private.h"
 
 G_DEFINE_TYPE (MetaCursorTracker, meta_cursor_tracker, G_TYPE_OBJECT);
 
 enum {
   CURSOR_CHANGED,
-  CURSOR_MOVED,
   LAST_SIGNAL
 };
 
@@ -118,15 +117,11 @@ change_cursor_renderer (MetaCursorTracker *tracker)
 static void
 sync_cursor (MetaCursorTracker *tracker)
 {
-  gboolean cursor_changed = FALSE;
-
-  cursor_changed = update_displayed_cursor (tracker);
+  if (update_displayed_cursor (tracker))
+    g_signal_emit (tracker, signals[CURSOR_CHANGED], 0);
 
   if (update_effective_cursor (tracker))
     change_cursor_renderer (tracker);
-
-  if (cursor_changed)
-    g_signal_emit (tracker, signals[CURSOR_CHANGED], 0);
 }
 
 static void
@@ -163,27 +158,18 @@ meta_cursor_tracker_class_init (MetaCursorTrackerClass *klass)
                                           0,
                                           NULL, NULL, NULL,
                                           G_TYPE_NONE, 0);
-
-  signals[CURSOR_MOVED] = g_signal_new ("cursor-moved",
-                                        G_TYPE_FROM_CLASS (klass),
-                                        G_SIGNAL_RUN_LAST,
-                                        0,
-                                        NULL, NULL, NULL,
-                                        G_TYPE_NONE, 2,
-                                        G_TYPE_FLOAT,
-                                        G_TYPE_FLOAT);
 }
 
 /**
- * meta_cursor_tracker_get_for_display:
- * @display: the #MetaDisplay
+ * meta_cursor_tracker_get_for_screen:
+ * @screen: the #MetaScreen
  *
- * Retrieves the cursor tracker object for @display.
+ * Retrieves the cursor tracker object for @screen.
  *
  * Returns: (transfer none):
  */
 MetaCursorTracker *
-meta_cursor_tracker_get_for_display (MetaDisplay *display)
+meta_cursor_tracker_get_for_screen (MetaScreen *screen)
 {
   MetaBackend *backend = meta_get_backend ();
   MetaCursorTracker *tracker = meta_backend_get_cursor_tracker (backend);
@@ -209,13 +195,13 @@ gboolean
 meta_cursor_tracker_handle_xevent (MetaCursorTracker *tracker,
                                    XEvent            *xevent)
 {
-  MetaX11Display *x11_display = meta_get_display ()->x11_display;
+  MetaDisplay *display = meta_get_display ();
   XFixesCursorNotifyEvent *notify_event;
 
   if (meta_is_wayland_compositor ())
     return FALSE;
 
-  if (xevent->xany.type != x11_display->xfixes_event_base + XFixesCursorNotify)
+  if (xevent->xany.type != display->xfixes_event_base + XFixesCursorNotify)
     return FALSE;
 
   notify_event = (XFixesCursorNotifyEvent *)xevent;
@@ -232,14 +218,75 @@ static void
 ensure_xfixes_cursor (MetaCursorTracker *tracker)
 {
   MetaDisplay *display = meta_get_display ();
-  g_autoptr (GError) error = NULL;
+  XFixesCursorImage *cursor_image;
+  CoglTexture2D *sprite;
+  guint8 *cursor_data;
+  gboolean free_cursor_data;
+  CoglContext *ctx;
+  CoglError *error = NULL;
 
   if (tracker->xfixes_cursor)
     return;
 
-  tracker->xfixes_cursor = meta_cursor_sprite_xfixes_new (display, &error);
-  if (!tracker->xfixes_cursor)
-    g_warning ("Failed to create XFIXES cursor: %s", error->message);
+  cursor_image = XFixesGetCursorImage (display->xdisplay);
+  if (!cursor_image)
+    return;
+
+  /* Like all X APIs, XFixesGetCursorImage() returns arrays of 32-bit
+   * quantities as arrays of long; we need to convert on 64 bit */
+  if (sizeof(long) == 4)
+    {
+      cursor_data = (guint8 *)cursor_image->pixels;
+      free_cursor_data = FALSE;
+    }
+  else
+    {
+      int i, j;
+      guint32 *cursor_words;
+      gulong *p;
+      guint32 *q;
+
+      cursor_words = g_new (guint32, cursor_image->width * cursor_image->height);
+      cursor_data = (guint8 *)cursor_words;
+
+      p = cursor_image->pixels;
+      q = cursor_words;
+      for (j = 0; j < cursor_image->height; j++)
+        for (i = 0; i < cursor_image->width; i++)
+          *(q++) = *(p++);
+
+      free_cursor_data = TRUE;
+    }
+
+  ctx = clutter_backend_get_cogl_context (clutter_get_default_backend ());
+  sprite = cogl_texture_2d_new_from_data (ctx,
+                                          cursor_image->width,
+                                          cursor_image->height,
+                                          CLUTTER_CAIRO_FORMAT_ARGB32,
+                                          cursor_image->width * 4, /* stride */
+                                          cursor_data,
+                                          &error);
+
+  if (free_cursor_data)
+    g_free (cursor_data);
+
+  if (error != NULL)
+    {
+      meta_warning ("Failed to allocate cursor sprite texture: %s\n", error->message);
+      cogl_error_free (error);
+    }
+
+  if (sprite != NULL)
+    {
+      MetaCursorSprite *cursor_sprite = meta_cursor_sprite_new ();
+      meta_cursor_sprite_set_texture (cursor_sprite,
+                                      COGL_TEXTURE (sprite),
+                                      cursor_image->xhot,
+                                      cursor_image->yhot);
+      cogl_object_unref (sprite);
+      tracker->xfixes_cursor = cursor_sprite;
+    }
+  XFree (cursor_image);
 }
 
 /**
@@ -261,7 +308,7 @@ meta_cursor_tracker_get_sprite (MetaCursorTracker *tracker)
   else
     {
       ensure_xfixes_cursor (tracker);
-      cursor_sprite = META_CURSOR_SPRITE (tracker->xfixes_cursor);
+      cursor_sprite = tracker->xfixes_cursor;
     }
 
   if (cursor_sprite)
@@ -298,7 +345,7 @@ meta_cursor_tracker_get_hot (MetaCursorTracker *tracker,
   else
     {
       ensure_xfixes_cursor (tracker);
-      cursor_sprite = META_CURSOR_SPRITE (tracker->xfixes_cursor);
+      cursor_sprite = tracker->xfixes_cursor;
     }
 
   if (cursor_sprite)
@@ -325,14 +372,6 @@ meta_cursor_tracker_unset_window_cursor (MetaCursorTracker *tracker)
   set_window_cursor (tracker, FALSE, NULL);
 }
 
-/**
- * meta_cursor_tracker_set_root_cursor:
- * @tracker: a #MetaCursorTracker object.
- * @cursor_sprite: (transfer none): the new root cursor
- *
- * Sets the root cursor (the cursor that is shown if not modified by a window).
- * The #MetaCursorTracker will take a strong reference to the sprite.
- */
 void
 meta_cursor_tracker_set_root_cursor (MetaCursorTracker *tracker,
                                      MetaCursorSprite  *cursor_sprite)
@@ -356,8 +395,6 @@ meta_cursor_tracker_update_position (MetaCursorTracker *tracker,
   g_assert (meta_is_wayland_compositor ());
 
   meta_cursor_renderer_set_position (cursor_renderer, new_x, new_y);
-
-  g_signal_emit (tracker, signals[CURSOR_MOVED], 0, new_x, new_y);
 }
 
 static void

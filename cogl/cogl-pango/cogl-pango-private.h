@@ -38,7 +38,7 @@
 
 #include "cogl-pango.h"
 
-G_BEGIN_DECLS
+COGL_BEGIN_DECLS
 
 PangoRenderer *
 _cogl_pango_renderer_new (CoglContext *context);
@@ -60,6 +60,6 @@ _cogl_pango_font_map_get_cogl_context (CoglPangoFontMap *fm);
 PangoRenderer *
 _cogl_pango_font_map_get_renderer (CoglPangoFontMap *fm);
 
-G_END_DECLS
+COGL_END_DECLS
 
 #endif /* __COGL_PANGO_PRIVATE_H__ */

@@ -8,22 +8,17 @@
 
 #include "config.h"
 
-#include "meta/barrier.h"
-#include "backends/meta-barrier-private.h"
-
 #include <glib-object.h>
 
-#include "backends/x11/meta-backend-x11.h"
-#include "backends/x11/meta-barrier-x11.h"
-#include "meta/meta-enum-types.h"
-#include "meta/util.h"
-
-#ifdef HAVE_NATIVE_BACKEND
+#include <meta/util.h>
+#include <meta/barrier.h>
 #include "backends/native/meta-backend-native.h"
 #include "backends/native/meta-barrier-native.h"
-#endif
+#include "backends/x11/meta-backend-x11.h"
+#include "backends/x11/meta-barrier-x11.h"
+#include <meta/meta-enum-types.h>
 
-G_DEFINE_TYPE_WITH_PRIVATE (MetaBarrier, meta_barrier, G_TYPE_OBJECT)
+G_DEFINE_TYPE (MetaBarrier, meta_barrier, G_TYPE_OBJECT)
 G_DEFINE_TYPE (MetaBarrierImpl, meta_barrier_impl, G_TYPE_OBJECT)
 
 enum {
@@ -180,9 +175,11 @@ meta_barrier_constructed (GObject *object)
   if (META_IS_BACKEND_NATIVE (meta_get_backend ()))
     priv->impl = meta_barrier_impl_native_new (barrier);
 #endif
+#if defined(HAVE_XI23)
   if (META_IS_BACKEND_X11 (meta_get_backend ()) &&
       !meta_is_wayland_compositor ())
     priv->impl = meta_barrier_impl_x11_new (barrier);
+#endif
 
   if (priv->impl == NULL)
     g_warning ("Created a non-working barrier");
@@ -284,6 +281,8 @@ meta_barrier_class_init (MetaBarrierClass *klass)
                   NULL, NULL, NULL,
                   G_TYPE_NONE, 1,
                   META_TYPE_BARRIER_EVENT);
+
+  g_type_class_add_private (object_class, sizeof(MetaBarrierPrivate));
 }
 
 void

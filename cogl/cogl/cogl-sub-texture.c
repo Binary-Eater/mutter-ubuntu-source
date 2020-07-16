@@ -31,7 +31,9 @@
  *  Neil Roberts   <neil@linux.intel.com>
  */
 
+#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
+#endif
 
 #include "cogl-util.h"
 #include "cogl-texture-private.h"
@@ -42,8 +44,8 @@
 #include "cogl-texture-driver.h"
 #include "cogl-texture-rectangle-private.h"
 #include "cogl-texture-2d.h"
+#include "cogl-texture-gl-private.h"
 #include "cogl-gtype-private.h"
-#include "driver/gl/cogl-texture-gl-private.h"
 
 #include <string.h>
 #include <math.h>
@@ -428,14 +430,6 @@ _cogl_sub_texture_set_region (CoglTexture *tex,
                                                error);
 }
 
-static CoglBool
-_cogl_sub_texture_is_get_data_supported (CoglTexture *tex)
-{
-  CoglSubTexture *sub_tex = COGL_SUB_TEXTURE (tex);
-
-  return cogl_texture_is_get_data_supported (sub_tex->full_texture);
-}
-
 static CoglPixelFormat
 _cogl_sub_texture_get_format (CoglTexture *tex)
 {
@@ -466,7 +460,6 @@ cogl_sub_texture_vtable =
     FALSE, /* not primitive */
     _cogl_sub_texture_allocate,
     _cogl_sub_texture_set_region,
-    _cogl_sub_texture_is_get_data_supported,
     NULL, /* get_data */
     _cogl_sub_texture_foreach_sub_texture_in_region,
     _cogl_sub_texture_get_max_waste,

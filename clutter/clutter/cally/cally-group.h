@@ -77,9 +77,9 @@ struct _CallyGroupClass
   gpointer _padding_dummy[8];
 };
 
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_1_4
 GType      cally_group_get_type (void) G_GNUC_CONST;
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_1_4
 AtkObject* cally_group_new      (ClutterActor *actor);
 
 G_END_DECLS

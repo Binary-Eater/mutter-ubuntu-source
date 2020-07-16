@@ -4,7 +4,6 @@
 
 #include <string.h>
 
-#include "test-declarations.h"
 #include "test-utils.h"
 
 #define QUAD_WIDTH 20

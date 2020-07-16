@@ -30,7 +30,9 @@
  * #ClutterPropertyTransition is available since Clutter 1.10
  */
 
+#ifdef HAVE_CONFIG_H
 #include "clutter-build-config.h"
+#endif
 
 #include "clutter-property-transition.h"
 

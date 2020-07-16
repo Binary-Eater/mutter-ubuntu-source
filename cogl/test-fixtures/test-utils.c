@@ -98,7 +98,7 @@ check_flags (TestFlags flags,
   return TRUE;
 }
 
-static CoglBool
+CoglBool
 is_boolean_env_set (const char *variable)
 {
   char *val = getenv (variable);

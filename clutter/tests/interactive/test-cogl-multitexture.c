@@ -30,11 +30,6 @@ typedef struct _TestMultiLayerMaterialState
 
 } TestMultiLayerMaterialState;
 
-int
-test_cogl_multitexture_main (int argc, char *argv[]);
-
-const char *
-test_cogl_multitexture_describe (void);
 
 static void
 frame_cb (ClutterTimeline  *timeline,

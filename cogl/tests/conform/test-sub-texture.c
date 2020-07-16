@@ -1,7 +1,6 @@
 #include <cogl/cogl.h>
 #include <string.h>
 
-#include "test-declarations.h"
 #include "test-utils.h"
 
 #define SOURCE_SIZE        32

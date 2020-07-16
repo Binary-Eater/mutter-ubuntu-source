@@ -32,6 +32,7 @@
 #define __COGL_CONTEXT_PRIVATE_H
 
 #include "cogl-context.h"
+#include "cogl-winsys-private.h"
 #include "cogl-flags.h"
 
 #ifdef COGL_HAS_XLIB_SUPPORT
@@ -61,7 +62,6 @@
 #include "cogl-poll-private.h"
 #include "cogl-path/cogl-path-types.h"
 #include "cogl-private.h"
-#include "winsys/cogl-winsys-private.h"
 
 typedef struct
 {
@@ -360,7 +360,7 @@ struct _CoglContext
 };
 
 CoglContext *
-_cogl_context_get_default (void);
+_cogl_context_get_default ();
 
 const CoglWinsysVtable *
 _cogl_context_get_winsys (CoglContext *context);

@@ -761,7 +761,6 @@ typedef enum { /*< prefix=CLUTTER_DRAG >*/
  * ClutterEventFlags:
  * @CLUTTER_EVENT_NONE: No flag set
  * @CLUTTER_EVENT_FLAG_SYNTHETIC: Synthetic event
- * @CLUTTER_EVENT_FLAG_REPEATED: Auto-repeated event
  *
  * Flags for the #ClutterEvent
  *
@@ -770,8 +769,7 @@ typedef enum { /*< prefix=CLUTTER_DRAG >*/
 typedef enum { /*< flags prefix=CLUTTER_EVENT >*/
   CLUTTER_EVENT_NONE              = 0,
   CLUTTER_EVENT_FLAG_SYNTHETIC    = 1 << 0,
-  CLUTTER_EVENT_FLAG_INPUT_METHOD = 1 << 1,
-  CLUTTER_EVENT_FLAG_REPEATED     = 1 << 2
+  CLUTTER_EVENT_FLAG_INPUT_METHOD = 1 << 1
 } ClutterEventFlags;
 
 /**
@@ -884,7 +882,7 @@ typedef enum {
 /**
  * ClutterFeatureFlags:
  * @CLUTTER_FEATURE_TEXTURE_NPOT: Set if NPOTS textures supported.
- * @CLUTTER_FEATURE_SWAP_THROTTLE: Set if backend throttles buffer swaps.
+ * @CLUTTER_FEATURE_SYNC_TO_VBLANK: Set if vblank syncing supported.
  * @CLUTTER_FEATURE_TEXTURE_YUV: Set if YUV based textures supported.
  * @CLUTTER_FEATURE_TEXTURE_READ_PIXELS: Set if texture pixels can be read.
  * @CLUTTER_FEATURE_STAGE_STATIC: Set if stage size if fixed (i.e framebuffer)
@@ -903,7 +901,7 @@ typedef enum {
 typedef enum
 {
   CLUTTER_FEATURE_TEXTURE_NPOT           = (1 << 2),
-  CLUTTER_FEATURE_SWAP_THROTTLE          = (1 << 3),
+  CLUTTER_FEATURE_SYNC_TO_VBLANK         = (1 << 3),
   CLUTTER_FEATURE_TEXTURE_YUV            = (1 << 4),
   CLUTTER_FEATURE_TEXTURE_READ_PIXELS    = (1 << 5),
   CLUTTER_FEATURE_STAGE_STATIC           = (1 << 6),

@@ -28,13 +28,17 @@
  *
  */
 
+#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
+#endif
 
 #include "cogl-debug.h"
 #include "cogl-context-private.h"
 #include "cogl-journal-private.h"
 #include "cogl-texture-private.h"
 #include "cogl-pipeline-private.h"
+#include "cogl-pipeline-opengl-private.h"
+#include "cogl-vertex-buffer-private.h"
 #include "cogl-framebuffer-private.h"
 #include "cogl-attribute-private.h"
 #include "cogl-private.h"
@@ -42,8 +46,6 @@
 #include "cogl-framebuffer-private.h"
 #include "cogl1-context.h"
 #include "cogl-primitives-private.h"
-#include "driver/gl/cogl-pipeline-opengl-private.h"
-#include "deprecated/cogl-vertex-buffer-private.h"
 
 #include <string.h>
 #include <math.h>

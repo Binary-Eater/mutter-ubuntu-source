@@ -32,7 +32,7 @@
 #include <glib.h>
 #include "cogl-pango-pipeline-cache.h"
 
-G_BEGIN_DECLS
+COGL_BEGIN_DECLS
 
 typedef struct _CoglPangoDisplayList CoglPangoDisplayList;
 
@@ -79,6 +79,6 @@ _cogl_pango_display_list_clear (CoglPangoDisplayList *dl);
 void
 _cogl_pango_display_list_free (CoglPangoDisplayList *dl);
 
-G_END_DECLS
+COGL_END_DECLS
 
 #endif /* __COGL_PANGO_DISPLAY_LIST_H__ */

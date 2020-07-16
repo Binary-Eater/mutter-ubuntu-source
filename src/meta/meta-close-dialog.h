@@ -27,7 +27,6 @@
 
 #define META_TYPE_CLOSE_DIALOG (meta_close_dialog_get_type ())
 
-META_EXPORT
 G_DECLARE_INTERFACE (MetaCloseDialog, meta_close_dialog,
 		     META, CLOSE_DIALOG, GObject)
 
@@ -46,19 +45,11 @@ struct _MetaCloseDialogInterface
   void (* focus) (MetaCloseDialog *dialog);
 };
 
-META_EXPORT
 void              meta_close_dialog_show (MetaCloseDialog *dialog);
-
-META_EXPORT
 void              meta_close_dialog_hide (MetaCloseDialog *dialog);
-
-META_EXPORT
 void              meta_close_dialog_focus (MetaCloseDialog *dialog);
-
-META_EXPORT
 gboolean          meta_close_dialog_is_visible (MetaCloseDialog *dialog);
 
-META_EXPORT
 void              meta_close_dialog_response (MetaCloseDialog         *dialog,
                                               MetaCloseDialogResponse  response);
 

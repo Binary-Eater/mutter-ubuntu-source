@@ -25,8 +25,7 @@
 #define META_ACCEL_PARSE_H
 
 #include <glib.h>
-
-#include "meta/common.h"
+#include <meta/common.h>
 
 typedef struct _MetaKeyCombo MetaKeyCombo;
 

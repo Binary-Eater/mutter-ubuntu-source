@@ -5,11 +5,11 @@
 
 #include <X11/extensions/Xfixes.h>
 
-#include "clutter/clutter.h"
-#include "compositor/meta-plugin-manager.h"
-#include "compositor/meta-window-actor-private.h"
-#include "meta/compositor.h"
-#include "meta/display.h"
+#include <meta/compositor.h>
+#include <meta/display.h>
+#include "meta-plugin-manager.h"
+#include "meta-window-actor-private.h"
+#include <clutter/clutter.h>
 
 struct _MetaCompositor
 {
@@ -22,6 +22,7 @@ struct _MetaCompositor
   gint64          server_time_offset;
 
   guint           server_time_is_monotonic_time : 1;
+  guint           no_mipmaps  : 1;
 
   ClutterActor          *stage, *window_group, *top_window_group, *feedback_group;
   ClutterActor          *background_actor;

@@ -35,7 +35,7 @@
 
 #include "cogl-context.h"
 
-G_BEGIN_DECLS
+COGL_BEGIN_DECLS
 
 /**
  * SECTION:cogl-texture-rectangle
@@ -211,6 +211,6 @@ cogl_texture_rectangle_new_from_foreign (CoglContext *ctx,
                                          int height,
                                          CoglPixelFormat format);
 
-G_END_DECLS
+COGL_END_DECLS
 
 #endif /* __COGL_TEXURE_RECTANGLE_H */

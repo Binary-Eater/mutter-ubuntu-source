@@ -88,26 +88,26 @@ main (int argc, char *argv[]) \
   return clutter_test_run (); \
 }
 
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_1_18
 void            clutter_test_init               (int            *argc,
                                                  char         ***argv);
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_1_18
 int             clutter_test_run                (void);
 
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_1_18
 void            clutter_test_add                (const char     *test_path,
                                                  GTestFunc       test_func);
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_1_18
 void            clutter_test_add_data           (const char     *test_path,
                                                  GTestDataFunc   test_func,
                                                  gpointer        test_data);
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_1_18
 void            clutter_test_add_data_full      (const char     *test_path,
                                                  GTestDataFunc   test_func,
                                                  gpointer        test_data,
                                                  GDestroyNotify  test_notify);
 
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_1_18
 ClutterActor *  clutter_test_get_stage          (void);
 
 #define clutter_test_assert_actor_at_point(stage,point,actor) \
@@ -148,12 +148,12 @@ G_STMT_START { \
   } \
 } G_STMT_END
 
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_1_18
 gboolean        clutter_test_check_actor_at_point       (ClutterActor       *stage,
                                                          const ClutterPoint *point,
                                                          ClutterActor       *actor,
                                                          ClutterActor      **result);
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_1_18
 gboolean        clutter_test_check_color_at_point       (ClutterActor       *stage,
                                                          const ClutterPoint *point,
                                                          const ClutterColor *color,

@@ -3,9 +3,6 @@
 #include <gmodule.h>
 #include <clutter/clutter.h>
 
-int
-test_texture_material_main (int argc, char *argv[]);
-
 G_MODULE_EXPORT int
 test_texture_material_main (int argc, char *argv[])
 {

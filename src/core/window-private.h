@@ -32,19 +32,21 @@
 #ifndef META_WINDOW_PRIVATE_H
 #define META_WINDOW_PRIVATE_H
 
+#include <config.h>
+#include <meta/compositor.h>
+#include <meta/window.h>
+#include <meta/meta-close-dialog.h>
+#include "screen-private.h"
+#include <meta/util.h>
+#include "stack.h"
 #include <X11/Xutil.h>
 #include <cairo.h>
 #include <gdk-pixbuf/gdk-pixbuf.h>
+#include <clutter/clutter.h>
 
-#include "backends/meta-logical-monitor.h"
-#include "clutter/clutter.h"
-#include "core/stack.h"
-#include "meta/compositor.h"
-#include "meta/meta-close-dialog.h"
-#include "meta/util.h"
-#include "meta/window.h"
-#include "wayland/meta-wayland-types.h"
 #include "x11/group-private.h"
+
+#include "wayland/meta-wayland-types.h"
 
 typedef struct _MetaWindowQueue MetaWindowQueue;
 
@@ -151,7 +153,7 @@ struct _MetaWindow
   GObject parent_instance;
 
   MetaDisplay *display;
-  uint64_t id;
+  MetaScreen *screen;
   guint64 stamp;
   MetaLogicalMonitor *monitor;
   MetaWorkspace *workspace;
@@ -190,6 +192,7 @@ struct _MetaWindow
   char *gtk_app_menu_object_path;
   char *gtk_menubar_object_path;
 
+  int hide_titlebar_when_maximized;
   int net_wm_pid;
 
   Window xtransient_for;
@@ -216,23 +219,21 @@ struct _MetaWindow
   guint minimize_after_placement : 1;
 
   /* The current tile mode */
-  MetaTileMode tile_mode;
-
+  guint tile_mode : 2;
   /* The last "full" maximized/unmaximized state. We need to keep track of
    * that to toggle between normal/tiled or maximized/tiled states. */
   guint saved_maximize : 1;
   int tile_monitor_number;
 
-  struct {
-    MetaEdgeConstraint top;
-    MetaEdgeConstraint right;
-    MetaEdgeConstraint bottom;
-    MetaEdgeConstraint left;
-  } edge_constraints;
+  /* 0 - top
+   * 1 - right
+   * 2 - bottom
+   * 3 - left */
+  MetaEdgeConstraint edge_constraints[4];
 
   double tile_hfraction;
 
-  uint64_t preferred_output_winsys_id;
+  int preferred_output_winsys_id;
 
   /* Whether we're shaded */
   guint shaded : 1;
@@ -525,9 +526,6 @@ struct _MetaWindow
   guint bypass_compositor;
 
   MetaPlacementRule *placement_rule;
-  gboolean placement_rule_constrained;
-  int constrained_placement_rule_offset_x;
-  int constrained_placement_rule_offset_y;
 };
 
 struct _MetaWindowClass
@@ -571,7 +569,6 @@ struct _MetaWindowClass
   gboolean (*shortcuts_inhibited) (MetaWindow         *window,
                                    ClutterInputDevice *source);
   gboolean (*is_stackable)        (MetaWindow *window);
-  gboolean (*are_updates_frozen)  (MetaWindow *window);
 };
 
 /* These differ from window->has_foo_func in that they consider
@@ -600,6 +597,7 @@ struct _MetaWindowClass
 #define META_WINDOW_ALLOWS_VERTICAL_RESIZE(w)   (META_WINDOW_ALLOWS_RESIZE_EXCEPT_HINTS (w) && (w)->size_hints.min_height < (w)->size_hints.max_height)
 
 MetaWindow * _meta_window_shared_new       (MetaDisplay         *display,
+                                            MetaScreen          *screen,
                                             MetaWindowClientType client_type,
                                             MetaWaylandSurface  *surface,
                                             Window               xwindow,

@@ -38,7 +38,9 @@
  * #ClutterBackend is available since Clutter 0.4
  */
 
+#ifdef HAVE_CONFIG_H
 #include "clutter-build-config.h"
+#endif
 
 #define CLUTTER_ENABLE_EXPERIMENTAL_API
 
@@ -51,6 +53,7 @@
 #include "clutter-stage-manager-private.h"
 #include "clutter-stage-private.h"
 #include "clutter-stage-window.h"
+#include "clutter-version.h"
 #include "clutter-device-manager-private.h"
 
 #define CLUTTER_DISABLE_DEPRECATION_WARNINGS
@@ -430,7 +433,7 @@ clutter_backend_real_get_features (ClutterBackend *backend)
   if (cogl_clutter_winsys_has_feature (COGL_WINSYS_FEATURE_SWAP_THROTTLE))
     {
       CLUTTER_NOTE (BACKEND, "Cogl supports swap buffers throttling");
-      flags |= CLUTTER_FEATURE_SWAP_THROTTLE;
+      flags |= CLUTTER_FEATURE_SYNC_TO_VBLANK;
     }
   else
     CLUTTER_NOTE (BACKEND, "Cogl doesn't support swap buffers throttling");
@@ -577,18 +580,6 @@ clutter_backend_real_get_device_manager (ClutterBackend *backend)
   return backend->device_manager;
 }
 
-static ClutterKeymap *
-clutter_backend_real_get_keymap (ClutterBackend *backend)
-{
-  if (G_UNLIKELY (backend->keymap == NULL))
-    {
-      g_critical ("No keymap available, expect broken keyboard input");
-      return NULL;
-    }
-
-  return backend->keymap;
-}
-
 static gboolean
 clutter_backend_real_translate_event (ClutterBackend *backend,
                                       gpointer        native,
@@ -687,7 +678,6 @@ clutter_backend_class_init (ClutterBackendClass *klass)
   klass->translate_event = clutter_backend_real_translate_event;
   klass->create_context = clutter_backend_real_create_context;
   klass->get_features = clutter_backend_real_get_features;
-  klass->get_keymap = clutter_backend_real_get_keymap;
 }
 
 static void
@@ -1411,18 +1401,4 @@ clutter_backend_set_input_method (ClutterBackend     *backend,
                                   ClutterInputMethod *method)
 {
   g_set_object (&backend->input_method, method);
-}
-
-/**
- * clutter_backend_get_keymap:
- * @backend: the #ClutterBackend
- *
- * Gets the keymap used by Clutter
- *
- * Returns: (transfer none): the keymap
- **/
-ClutterKeymap *
-clutter_backend_get_keymap (ClutterBackend *backend)
-{
-  return CLUTTER_BACKEND_GET_CLASS (backend)->get_keymap (backend);
 }

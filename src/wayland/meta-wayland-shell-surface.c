@@ -42,12 +42,21 @@ meta_wayland_shell_surface_calculate_geometry (MetaWaylandShellSurface *shell_su
     META_WAYLAND_SURFACE_ROLE (shell_surface);
   MetaWaylandSurface *surface =
     meta_wayland_surface_role_get_surface (surface_role);
+  MetaWaylandBuffer *buffer;
+  CoglTexture *texture;
   MetaRectangle geometry;
   GList *l;
 
+  buffer = surface->buffer_ref.buffer;
+  if (!buffer)
+    return;
+
+  texture = meta_wayland_buffer_get_texture (buffer);
   geometry = (MetaRectangle) {
-    .width = meta_wayland_surface_get_width (surface),
-    .height = meta_wayland_surface_get_height (surface),
+    .x = 0,
+    .y = 0,
+    .width = cogl_texture_get_width (texture) / surface->scale,
+    .height = cogl_texture_get_height (texture) / surface->scale,
   };
 
   for (l = surface->subsurfaces; l; l = l->next)
@@ -62,23 +71,6 @@ meta_wayland_shell_surface_calculate_geometry (MetaWaylandShellSurface *shell_su
     }
 
   *out_geometry = geometry;
-}
-
-void
-meta_wayland_shell_surface_determine_geometry (MetaWaylandShellSurface *shell_surface,
-                                               MetaRectangle           *set_geometry,
-                                               MetaRectangle           *out_geometry)
-{
-  MetaRectangle bounding_geometry = { 0 };
-  MetaRectangle intersected_geometry = { 0 };
-
-  meta_wayland_shell_surface_calculate_geometry (shell_surface,
-                                                 &bounding_geometry);
-
-  meta_rectangle_intersect (set_geometry, &bounding_geometry,
-                            &intersected_geometry);
-
-  *out_geometry = intersected_geometry;
 }
 
 void

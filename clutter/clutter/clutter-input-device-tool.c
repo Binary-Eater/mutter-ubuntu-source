@@ -21,7 +21,9 @@
  * Author: Carlos Garnacho <carlosg@gnome.org>
  */
 
+#ifdef HAVE_CONFIG_H
 #include "clutter-build-config.h"
+#endif
 
 #include "clutter-input-device-tool.h"
 #include "clutter-private.h"

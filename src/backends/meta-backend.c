@@ -22,60 +22,34 @@
  *     Jasper St. Pierre <jstpierre@mecheye.net>
  */
 
-/**
- * SECTION:meta-backend
- * @title: MetaBackend
- * @short_description: Handles monitor config, modesetting, cursor sprites, ...
- *
- * MetaBackend is the abstraction that deals with several things like:
- * - Modesetting (depending on the backend, this can be done either by X or KMS)
- * - Initializing the #MetaSettings
- * - Setting up Monitor configuration
- * - Input device configuration (using the #ClutterDeviceManager)
- * - Creating the #MetaRenderer
- * - Setting up the stage of the scene graph (using #MetaStage)
- * - Creating the object that deals wih the cursor (using #MetaCursorTracker)
- *     and its possible pointer constraint (using #MetaPointerConstraint)
- * - Setting the cursor sprite (using #MetaCursorRenderer)
- * - Interacting with logind (using the appropriate D-Bus interface)
- * - Querying UPower (over D-Bus) to know when the lid is closed
- * - Setup Remote Desktop / Screencasting (#MetaRemoteDesktop)
- * - Setup the #MetaEgl object
- *
- * Note that the #MetaBackend is not a subclass of #ClutterBackend. It is
- * responsible for creating the correct one, based on the backend that is
- * used (#MetaBackendNative or #MetaBackendX11).
- */
-
 #include "config.h"
-
-#include "backends/meta-backend-private.h"
 
 #include <stdlib.h>
 
-#include "backends/meta-cursor-tracker-private.h"
-#include "backends/meta-idle-monitor-private.h"
-#include "backends/meta-input-settings-private.h"
-#include "backends/meta-logical-monitor.h"
-#include "backends/meta-monitor-manager-dummy.h"
-#include "backends/meta-settings-private.h"
-#include "backends/meta-stage-private.h"
+#include <clutter/clutter-mutter.h>
+#include <meta/meta-backend.h>
+#include <meta/main.h>
+#include <meta/util.h>
+#include "meta-backend-private.h"
+#include "meta-input-settings-private.h"
 #include "backends/x11/meta-backend-x11.h"
-#include "clutter/clutter-mutter.h"
-#include "meta/main.h"
-#include "meta/meta-backend.h"
-#include "meta/util.h"
+#include "meta-cursor-tracker-private.h"
+#include "meta-stage-private.h"
 
 #ifdef HAVE_REMOTE_DESKTOP
 #include "backends/meta-dbus-session-watcher.h"
-#include "backends/meta-remote-access-controller-private.h"
-#include "backends/meta-remote-desktop.h"
 #include "backends/meta-screen-cast.h"
+#include "backends/meta-remote-desktop.h"
 #endif
 
 #ifdef HAVE_NATIVE_BACKEND
 #include "backends/native/meta-backend-native.h"
 #endif
+
+#include "backends/meta-idle-monitor-private.h"
+#include "backends/meta-logical-monitor.h"
+#include "backends/meta-monitor-manager-dummy.h"
+#include "backends/meta-settings-private.h"
 
 #define META_IDLE_MONITOR_CORE_DEVICE 0
 
@@ -84,7 +58,6 @@ enum
   KEYMAP_CHANGED,
   KEYMAP_LAYOUT_GROUP_CHANGED,
   LAST_DEVICE_CHANGED,
-  LID_IS_CLOSED_CHANGED,
 
   N_SIGNALS
 };
@@ -116,12 +89,9 @@ struct _MetaBackendPrivate
   MetaCursorRenderer *cursor_renderer;
   MetaInputSettings *input_settings;
   MetaRenderer *renderer;
-#ifdef HAVE_EGL
   MetaEgl *egl;
-#endif
   MetaSettings *settings;
 #ifdef HAVE_REMOTE_DESKTOP
-  MetaRemoteAccessController *remote_access_controller;
   MetaDbusSessionWatcher *dbus_session_watcher;
   MetaScreenCast *screen_cast;
   MetaRemoteDesktop *remote_desktop;
@@ -141,15 +111,10 @@ struct _MetaBackendPrivate
   MetaPointerConstraint *client_pointer_constraint;
   MetaDnd *dnd;
 
-  guint upower_watch_id;
-  GDBusProxy *upower_proxy;
-  gboolean lid_is_closed;
-
+  UpClient *up_client;
   guint sleep_signal_id;
   GCancellable *cancellable;
   GDBusConnection *system_bus;
-
-  gboolean was_headless;
 };
 typedef struct _MetaBackendPrivate MetaBackendPrivate;
 
@@ -174,17 +139,14 @@ meta_backend_finalize (GObject *object)
   g_clear_object (&priv->remote_desktop);
   g_clear_object (&priv->screen_cast);
   g_clear_object (&priv->dbus_session_watcher);
-  g_clear_object (&priv->remote_access_controller);
 #endif
 
+  g_object_unref (priv->up_client);
   if (priv->sleep_signal_id)
     g_dbus_connection_signal_unsubscribe (priv->system_bus, priv->sleep_signal_id);
-  if (priv->upower_watch_id)
-    g_bus_unwatch_name (priv->upower_watch_id);
   g_cancellable_cancel (priv->cancellable);
   g_clear_object (&priv->cancellable);
   g_clear_object (&priv->system_bus);
-  g_clear_object (&priv->upower_proxy);
 
   if (priv->device_update_idle_id)
     g_source_remove (priv->device_update_idle_id);
@@ -250,19 +212,6 @@ meta_backend_monitors_changed (MetaBackend *backend)
     }
 
   meta_cursor_renderer_force_update (priv->cursor_renderer);
-
-  if (meta_monitor_manager_is_headless (priv->monitor_manager) &&
-      !priv->was_headless)
-    {
-      clutter_stage_freeze_updates (CLUTTER_STAGE (priv->stage));
-      priv->was_headless = TRUE;
-    }
-  else if (!meta_monitor_manager_is_headless (priv->monitor_manager) &&
-           priv->was_headless)
-    {
-      clutter_stage_thaw_updates (CLUTTER_STAGE (priv->stage));
-      priv->was_headless = FALSE;
-    }
 }
 
 void
@@ -469,6 +418,28 @@ meta_backend_create_input_settings (MetaBackend *backend)
   return META_BACKEND_GET_CLASS (backend)->create_input_settings (backend);
 }
 
+#ifdef HAVE_REMOTE_DESKTOP
+static gboolean
+is_screen_cast_enabled (MetaBackend *backend)
+{
+  MetaSettings *settings = meta_backend_get_settings (backend);
+
+  return meta_settings_is_experimental_feature_enabled (
+    settings,
+    META_EXPERIMENTAL_FEATURE_SCREEN_CAST);
+}
+
+static gboolean
+is_remote_desktop_enabled (MetaBackend *backend)
+{
+  MetaSettings *settings = meta_backend_get_settings (backend);
+
+  return meta_settings_is_experimental_feature_enabled (
+    settings,
+    META_EXPERIMENTAL_FEATURE_REMOTE_DESKTOP);
+}
+#endif /* HAVE_REMOTE_DESKTOP */
+
 static void
 meta_backend_real_post_init (MetaBackend *backend)
 {
@@ -501,12 +472,11 @@ meta_backend_real_post_init (MetaBackend *backend)
   priv->input_settings = meta_backend_create_input_settings (backend);
 
 #ifdef HAVE_REMOTE_DESKTOP
-  priv->remote_access_controller =
-    g_object_new (META_TYPE_REMOTE_ACCESS_CONTROLLER, NULL);
   priv->dbus_session_watcher = g_object_new (META_TYPE_DBUS_SESSION_WATCHER, NULL);
-  priv->screen_cast = meta_screen_cast_new (backend,
-                                            priv->dbus_session_watcher);
-  priv->remote_desktop = meta_remote_desktop_new (priv->dbus_session_watcher);
+  if (is_screen_cast_enabled (backend))
+    priv->screen_cast = meta_screen_cast_new (priv->dbus_session_watcher);
+  if (is_remote_desktop_enabled (backend))
+    priv->remote_desktop = meta_remote_desktop_new (priv->dbus_session_watcher);
 #endif /* HAVE_REMOTE_DESKTOP */
 
   if (!meta_monitor_manager_is_headless (priv->monitor_manager))
@@ -557,144 +527,6 @@ meta_backend_real_get_relative_motion_deltas (MetaBackend *backend,
   return FALSE;
 }
 
-static gboolean
-meta_backend_real_is_lid_closed (MetaBackend *backend)
-{
-  MetaBackendPrivate *priv = meta_backend_get_instance_private (backend);
-
-  return priv->lid_is_closed;
-}
-
-gboolean
-meta_backend_is_lid_closed (MetaBackend *backend)
-{
-  return META_BACKEND_GET_CLASS (backend)->is_lid_closed (backend);
-}
-
-static void
-upower_properties_changed (GDBusProxy *proxy,
-                           GVariant   *changed_properties,
-                           GStrv       invalidated_properties,
-                           gpointer    user_data)
-{
-  MetaBackend *backend = user_data;
-  MetaBackendPrivate *priv = meta_backend_get_instance_private (backend);
-  GVariant *v;
-  gboolean lid_is_closed;
-
-  v = g_variant_lookup_value (changed_properties,
-                              "LidIsClosed",
-                              G_VARIANT_TYPE_BOOLEAN);
-  if (!v)
-    return;
-
-  lid_is_closed = g_variant_get_boolean (v);
-  g_variant_unref (v);
-
-  if (lid_is_closed == priv->lid_is_closed)
-    return;
-
-  priv->lid_is_closed = lid_is_closed;
-  g_signal_emit (backend, signals[LID_IS_CLOSED_CHANGED], 0,
-                 priv->lid_is_closed);
-
-  if (lid_is_closed)
-    return;
-
-  meta_idle_monitor_reset_idletime (meta_idle_monitor_get_core ());
-}
-
-static void
-upower_ready_cb (GObject      *source_object,
-                 GAsyncResult *res,
-                 gpointer      user_data)
-{
-  MetaBackend *backend;
-  MetaBackendPrivate *priv;
-  GDBusProxy *proxy;
-  GError *error = NULL;
-  GVariant *v;
-
-  proxy = g_dbus_proxy_new_finish (res, &error);
-  if (!proxy)
-    {
-      if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
-        g_warning ("Failed to create UPower proxy: %s", error->message);
-      g_error_free (error);
-      return;
-    }
-
-  backend = META_BACKEND (user_data);
-  priv = meta_backend_get_instance_private (backend);
-
-  priv->upower_proxy = proxy;
-  g_signal_connect (proxy, "g-properties-changed",
-                    G_CALLBACK (upower_properties_changed), backend);
-
-  v = g_dbus_proxy_get_cached_property (proxy, "LidIsClosed");
-  if (!v)
-    return;
-  priv->lid_is_closed = g_variant_get_boolean (v);
-  g_variant_unref (v);
-
-  if (priv->lid_is_closed)
-    {
-      g_signal_emit (backend, signals[LID_IS_CLOSED_CHANGED], 0,
-                     priv->lid_is_closed);
-    }
-}
-
-static void
-upower_appeared (GDBusConnection *connection,
-                 const gchar     *name,
-                 const gchar     *name_owner,
-                 gpointer         user_data)
-{
-  MetaBackend *backend = META_BACKEND (user_data);
-  MetaBackendPrivate *priv = meta_backend_get_instance_private (backend);
-
-  g_dbus_proxy_new (connection,
-                    G_DBUS_PROXY_FLAGS_NONE,
-                    NULL,
-                    "org.freedesktop.UPower",
-                    "/org/freedesktop/UPower",
-                    "org.freedesktop.UPower",
-                    priv->cancellable,
-                    upower_ready_cb,
-                    backend);
-}
-
-static void
-upower_vanished (GDBusConnection *connection,
-                 const gchar     *name,
-                 gpointer         user_data)
-{
-  MetaBackend *backend = META_BACKEND (user_data);
-  MetaBackendPrivate *priv = meta_backend_get_instance_private (backend);
-
-  g_clear_object (&priv->upower_proxy);
-}
-
-static void
-meta_backend_constructed (GObject *object)
-{
-  MetaBackend *backend = META_BACKEND (object);
-  MetaBackendPrivate *priv = meta_backend_get_instance_private (backend);
-  MetaBackendClass *backend_class =
-   META_BACKEND_GET_CLASS (backend);
-
-  if (backend_class->is_lid_closed != meta_backend_real_is_lid_closed)
-    return;
-
-  priv->upower_watch_id = g_bus_watch_name (G_BUS_TYPE_SYSTEM,
-                                            "org.freedesktop.UPower",
-                                            G_BUS_NAME_WATCHER_FLAGS_NONE,
-                                            upower_appeared,
-                                            upower_vanished,
-                                            backend,
-                                            NULL);
-}
-
 static void
 meta_backend_class_init (MetaBackendClass *klass)
 {
@@ -702,7 +534,6 @@ meta_backend_class_init (MetaBackendClass *klass)
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
   object_class->finalize = meta_backend_finalize;
-  object_class->constructed = meta_backend_constructed;
 
   klass->post_init = meta_backend_real_post_init;
   klass->create_cursor_renderer = meta_backend_real_create_cursor_renderer;
@@ -710,7 +541,6 @@ meta_backend_class_init (MetaBackendClass *klass)
   klass->ungrab_device = meta_backend_real_ungrab_device;
   klass->select_stage_events = meta_backend_real_select_stage_events;
   klass->get_relative_motion_deltas = meta_backend_real_get_relative_motion_deltas;
-  klass->is_lid_closed = meta_backend_real_is_lid_closed;
 
   signals[KEYMAP_CHANGED] =
     g_signal_new ("keymap-changed",
@@ -733,16 +563,29 @@ meta_backend_class_init (MetaBackendClass *klass)
                   0,
                   NULL, NULL, NULL,
                   G_TYPE_NONE, 1, G_TYPE_INT);
-  signals[LID_IS_CLOSED_CHANGED] =
-    g_signal_new ("lid-is-closed-changed",
-                  G_TYPE_FROM_CLASS (object_class),
-                  G_SIGNAL_RUN_LAST,
-                  0,
-                  NULL, NULL, NULL,
-                  G_TYPE_NONE, 1, G_TYPE_BOOLEAN);
 
   mutter_stage_views = g_getenv ("MUTTER_STAGE_VIEWS");
   stage_views_disabled = g_strcmp0 (mutter_stage_views, "0") == 0;
+}
+
+static void
+experimental_features_changed (MetaSettings            *settings,
+                               MetaExperimentalFeature  old_experimental_features,
+                               MetaBackend             *backend)
+{
+#ifdef HAVE_REMOTE_DESKTOP
+  MetaBackendPrivate *priv = meta_backend_get_instance_private (backend);
+
+  if (is_screen_cast_enabled (backend) && !priv->screen_cast)
+    priv->screen_cast = meta_screen_cast_new (priv->dbus_session_watcher);
+  else if (!is_screen_cast_enabled (backend))
+    g_clear_object (&priv->screen_cast);
+
+  if (is_remote_desktop_enabled (backend) && !priv->remote_desktop)
+    priv->remote_desktop = meta_remote_desktop_new (priv->dbus_session_watcher);
+  else if (!is_remote_desktop_enabled (backend))
+    g_clear_object (&priv->remote_desktop);
+#endif /* HAVE_REMOTE_DESKTOP */
 }
 
 static MetaMonitorManager *
@@ -761,6 +604,17 @@ meta_backend_create_renderer (MetaBackend *backend,
                               GError     **error)
 {
   return META_BACKEND_GET_CLASS (backend)->create_renderer (backend, error);
+}
+
+static void
+lid_is_closed_changed_cb (UpClient   *client,
+                          GParamSpec *pspec,
+                          gpointer    user_data)
+{
+  if (up_client_get_lid_is_closed (client))
+    return;
+
+  meta_idle_monitor_reset_idletime (meta_idle_monitor_get_core ());
 }
 
 static void
@@ -816,10 +670,11 @@ meta_backend_initable_init (GInitable     *initable,
   MetaBackendPrivate *priv = meta_backend_get_instance_private (backend);
 
   priv->settings = meta_settings_new (backend);
+  g_signal_connect (priv->settings, "experimental-features-changed",
+                    G_CALLBACK (experimental_features_changed),
+                    backend);
 
-#ifdef HAVE_EGL
   priv->egl = g_object_new (META_TYPE_EGL, NULL);
-#endif
 
   priv->orientation_manager = g_object_new (META_TYPE_ORIENTATION_MANAGER, NULL);
 
@@ -834,6 +689,10 @@ meta_backend_initable_init (GInitable     *initable,
   priv->cursor_tracker = g_object_new (META_TYPE_CURSOR_TRACKER, NULL);
 
   priv->dnd = g_object_new (META_TYPE_DND, NULL);
+
+  priv->up_client = up_client_new ();
+  g_signal_connect (priv->up_client, "notify::lid-is-closed",
+                    G_CALLBACK (lid_is_closed_changed_cb), NULL);
 
   priv->cancellable = g_cancellable_new ();
   g_bus_get (G_BUS_TYPE_SYSTEM,
@@ -930,7 +789,6 @@ meta_backend_get_renderer (MetaBackend *backend)
   return priv->renderer;
 }
 
-#ifdef HAVE_EGL
 /**
  * meta_backend_get_egl: (skip)
  */
@@ -941,7 +799,6 @@ meta_backend_get_egl (MetaBackend *backend)
 
   return priv->egl;
 }
-#endif /* HAVE_EGL */
 
 /**
  * meta_backend_get_settings: (skip)
@@ -966,24 +823,6 @@ meta_backend_get_remote_desktop (MetaBackend *backend)
   return priv->remote_desktop;
 }
 #endif /* HAVE_REMOTE_DESKTOP */
-
-/**
- * meta_backend_get_remote_access_controller:
- * @backend: A #MetaBackend
- *
- * Return Value: (transfer none): The #MetaRemoteAccessController
- */
-MetaRemoteAccessController *
-meta_backend_get_remote_access_controller (MetaBackend *backend)
-{
-#ifdef HAVE_REMOTE_DESKTOP
-  MetaBackendPrivate *priv = meta_backend_get_instance_private (backend);
-
-  return priv->remote_access_controller;
-#else
-  return NULL;
-#endif
-}
 
 /**
  * meta_backend_grab_device: (skip)
@@ -1164,15 +1003,6 @@ meta_backend_get_client_pointer_constraint (MetaBackend *backend)
   return priv->client_pointer_constraint;
 }
 
-/**
- * meta_backend_set_client_pointer_constraint:
- * @backend: a #MetaBackend object.
- * @constraint: (nullable): the client constraint to follow.
- *
- * Sets the current pointer constraint and removes (and unrefs) the previous
- * one. If @constrant is %NULL, this means that there is no
- * #MetaPointerConstraint active.
- */
 void
 meta_backend_set_client_pointer_constraint (MetaBackend           *backend,
                                             MetaPointerConstraint *constraint)
@@ -1295,14 +1125,6 @@ meta_clutter_init (void)
   meta_backend_post_init (_backend);
 }
 
-/**
- * meta_is_stage_views_enabled:
- *
- * Returns whether the #ClutterStage can be rendered using multiple stage views.
- * In practice, this means we can define a separate framebuffer for each
- * #MetaLogicalMonitor, rather than rendering everything into a single
- * framebuffer. For example: in X11, onle one single framebuffer is allowed.
- */
 gboolean
 meta_is_stage_views_enabled (void)
 {

@@ -31,7 +31,9 @@
  *   Robert Bragg <robert@linux.intel.com>
  */
 
+#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
+#endif
 
 #include "cogl-util.h"
 #include "cogl-context-private.h"
@@ -41,15 +43,15 @@
 #include "cogl-attribute-private.h"
 #include "cogl-pipeline.h"
 #include "cogl-pipeline-private.h"
+#include "cogl-pipeline-opengl-private.h"
 #include "cogl-texture-private.h"
 #include "cogl-framebuffer-private.h"
 #include "cogl-indices-private.h"
+#ifdef COGL_PIPELINE_PROGEND_GLSL
+#include "cogl-pipeline-progend-glsl-private.h"
+#endif
 #include "cogl-private.h"
 #include "cogl-gtype-private.h"
-#include "driver/gl/cogl-pipeline-opengl-private.h"
-#ifdef COGL_PIPELINE_PROGEND_GLSL
-#include "driver/gl/cogl-pipeline-progend-glsl-private.h"
-#endif
 
 #include <string.h>
 #include <stdio.h>
@@ -67,7 +69,7 @@ COGL_GTYPE_DEFINE_CLASS (Attribute, attribute);
 
 static CoglBool
 validate_cogl_attribute_name (const char *name,
-                              const char **real_attribute_name,
+                              char **real_attribute_name,
                               CoglAttributeNameID *name_id,
                               CoglBool *normalized,
                               int *layer_number)

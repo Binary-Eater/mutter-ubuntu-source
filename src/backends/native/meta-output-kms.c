@@ -2,7 +2,6 @@
 
 /*
  * Copyright (C) 2013-2017 Red Hat
- * Copyright (C) 2018 DisplayLink (UK) Ltd.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -30,8 +29,7 @@
 
 #include "backends/meta-crtc.h"
 #include "backends/native/meta-crtc-kms.h"
-
-#include "meta-default-modes.h"
+#include "backends/native/meta-default-modes.h"
 
 #define SYNC_TOLERANCE 0.01    /* 1 percent */
 
@@ -75,14 +73,6 @@ meta_output_kms_set_underscan (MetaOutput *output)
   meta_crtc_kms_set_underscan (crtc, output->is_underscanning);
 }
 
-uint32_t
-meta_output_kms_get_connector_id (MetaOutput *output)
-{
-  MetaOutputKms *output_kms = output->driver_private;
-
-  return output_kms->connector->connector_id;
-}
-
 void
 meta_output_kms_set_power_save_mode (MetaOutput *output,
                                      uint64_t    state)
@@ -96,7 +86,7 @@ meta_output_kms_set_power_save_mode (MetaOutput *output,
       int fd;
 
       fd = meta_gpu_kms_get_fd (gpu_kms);
-      if (drmModeObjectSetProperty (fd, output_kms->connector->connector_id,
+      if (drmModeObjectSetProperty (fd, output->winsys_id,
                                     DRM_MODE_OBJECT_CONNECTOR,
                                     output_kms->dpms_prop_id, state) < 0)
         g_warning ("Failed to set power save mode for output %s: %s",
@@ -512,7 +502,6 @@ meta_create_kms_output (MetaGpuKms        *gpu_kms,
   unsigned int i;
   unsigned int crtc_mask;
   int fd;
-  uint32_t id;
 
   output = g_object_new (META_TYPE_OUTPUT, NULL);
 
@@ -521,10 +510,8 @@ meta_create_kms_output (MetaGpuKms        *gpu_kms,
   output->driver_notify = (GDestroyNotify) meta_output_destroy_notify;
 
   output->gpu = gpu;
+  output->winsys_id = connector->connector_id;
   output->name = make_output_name (connector);
-
-  id = meta_gpu_kms_get_id (gpu_kms);
-  output->winsys_id = ((uint64_t) id << 32) | connector->connector_id;
 
   switch (connector->subpixel)
     {

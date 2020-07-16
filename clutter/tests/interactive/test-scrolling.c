@@ -20,9 +20,6 @@ static const gchar *rect_color[N_RECTS] = {
 static ClutterActor *rectangle[N_RECTS]; 
 static ClutterActor *viewport = NULL;
 
-int
-test_scrolling_main (int argc, char *argv[]);
-
 static void
 on_drag_end (ClutterDragAction   *action,
              ClutterActor        *actor,

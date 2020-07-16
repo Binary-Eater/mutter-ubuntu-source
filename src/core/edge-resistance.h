@@ -22,7 +22,7 @@
 #ifndef META_EDGE_RESISTANCE_H
 #define META_EDGE_RESISTANCE_H
 
-#include "core/window-private.h"
+#include "window-private.h"
 
 void        meta_window_edge_resistance_for_move   (MetaWindow  *window,
                                                     int         *new_x,

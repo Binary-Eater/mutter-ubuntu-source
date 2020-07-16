@@ -22,40 +22,34 @@
  *     Jasper St. Pierre <jstpierre@mecheye.net>
  */
 
-/**
- * SECTION:meta-backend-native
- * @title: MetaBackendNative
- * @short_description: A native (KMS/evdev) MetaBackend
- *
- * MetaBackendNative is an implementation of #MetaBackend that uses "native"
- * technologies like DRM/KMS and libinput/evdev to perform the necessary
- * functions.
- */
-
 #include "config.h"
 
-#include "backends/native/meta-backend-native.h"
-#include "backends/native/meta-backend-native-private.h"
+#include "meta-backend-native.h"
+#include "meta-backend-native-private.h"
 
-#include <stdlib.h>
+#include <meta/main.h>
+#include <clutter/evdev/clutter-evdev.h>
+#include <libupower-glib/upower.h>
 
+#include "clutter/egl/clutter-egl.h"
+#include "clutter/evdev/clutter-evdev.h"
+#include "meta-barrier-native.h"
+#include "meta-border.h"
+#include "meta-monitor-manager-kms.h"
+#include "meta-cursor-renderer-native.h"
+#include "meta-launcher.h"
 #include "backends/meta-cursor-tracker-private.h"
 #include "backends/meta-idle-monitor-private.h"
 #include "backends/meta-logical-monitor.h"
 #include "backends/meta-monitor-manager-private.h"
 #include "backends/meta-pointer-constraint.h"
 #include "backends/meta-stage-private.h"
-#include "backends/native/meta-barrier-native.h"
 #include "backends/native/meta-clutter-backend-native.h"
-#include "backends/native/meta-cursor-renderer-native.h"
 #include "backends/native/meta-input-settings-native.h"
-#include "backends/native/meta-launcher.h"
-#include "backends/native/meta-monitor-manager-kms.h"
 #include "backends/native/meta-renderer-native.h"
 #include "backends/native/meta-stage-native.h"
-#include "clutter/evdev/clutter-evdev.h"
-#include "core/meta-border.h"
-#include "meta/main.h"
+
+#include <stdlib.h>
 
 struct _MetaBackendNative
 {
@@ -164,17 +158,17 @@ constrain_all_screen_monitors (ClutterInputDevice *device,
       bottom = top + logical_monitor->rect.height;
 
       if ((cx >= left) && (cx < right) && (cy >= top) && (cy < bottom))
-        {
-          if (*x < left)
-            *x = left;
-          if (*x >= right)
-            *x = right - 1;
-          if (*y < top)
-            *y = top;
-          if (*y >= bottom)
-            *y = bottom - 1;
+	{
+	  if (*x < left)
+	    *x = left;
+	  if (*x >= right)
+	    *x = right - 1;
+	  if (*y < top)
+	    *y = top;
+	  if (*y >= bottom)
+	    *y = bottom - 1;
 
-          return;
+	  return;
         }
     }
 }
@@ -218,7 +212,7 @@ relative_motion_across_outputs (MetaMonitorManager *monitor_manager,
   MetaLogicalMonitor *cur = current;
   float x = cur_x, y = cur_y;
   float dx = *dx_inout, dy = *dy_inout;
-  MetaDisplayDirection direction = -1;
+  MetaScreenDirection direction = -1;
 
   while (cur)
     {
@@ -226,38 +220,38 @@ relative_motion_across_outputs (MetaMonitorManager *monitor_manager,
       MetaVector2 intersection;
 
       motion = (MetaLine2) {
-          .a = { x, y },
-            .b = { x + (dx * cur->scale), y + (dy * cur->scale) }
+        .a = { x, y },
+        .b = { x + (dx * cur->scale), y + (dy * cur->scale) }
       };
       left = (MetaLine2) {
-            { cur->rect.x, cur->rect.y },
-              { cur->rect.x, cur->rect.y + cur->rect.height }
+        { cur->rect.x, cur->rect.y },
+        { cur->rect.x, cur->rect.y + cur->rect.height }
       };
       right = (MetaLine2) {
-            { cur->rect.x + cur->rect.width, cur->rect.y },
-              { cur->rect.x + cur->rect.width, cur->rect.y + cur->rect.height }
+        { cur->rect.x + cur->rect.width, cur->rect.y },
+        { cur->rect.x + cur->rect.width, cur->rect.y + cur->rect.height }
       };
       top = (MetaLine2) {
-            { cur->rect.x, cur->rect.y },
-              { cur->rect.x + cur->rect.width, cur->rect.y }
+        { cur->rect.x, cur->rect.y },
+        { cur->rect.x + cur->rect.width, cur->rect.y }
       };
       bottom = (MetaLine2) {
-            { cur->rect.x, cur->rect.y + cur->rect.height },
-              { cur->rect.x + cur->rect.width, cur->rect.y + cur->rect.height }
+        { cur->rect.x, cur->rect.y + cur->rect.height },
+        { cur->rect.x + cur->rect.width, cur->rect.y + cur->rect.height }
       };
 
-      if (direction != META_DISPLAY_RIGHT &&
+      if (direction != META_SCREEN_RIGHT &&
           meta_line2_intersects_with (&motion, &left, &intersection))
-        direction = META_DISPLAY_LEFT;
-      else if (direction != META_DISPLAY_LEFT &&
+        direction = META_SCREEN_LEFT;
+      else if (direction != META_SCREEN_LEFT &&
                meta_line2_intersects_with (&motion, &right, &intersection))
-        direction = META_DISPLAY_RIGHT;
-      else if (direction != META_DISPLAY_DOWN &&
+        direction = META_SCREEN_RIGHT;
+      else if (direction != META_SCREEN_DOWN &&
                meta_line2_intersects_with (&motion, &top, &intersection))
-        direction = META_DISPLAY_UP;
-      else if (direction != META_DISPLAY_UP &&
+        direction = META_SCREEN_UP;
+      else if (direction != META_SCREEN_UP &&
                meta_line2_intersects_with (&motion, &bottom, &intersection))
-        direction = META_DISPLAY_DOWN;
+        direction = META_SCREEN_DOWN;
       else
         {
           /* We reached the dest logical monitor */
@@ -633,14 +627,13 @@ void
 meta_backend_native_pause (MetaBackendNative *native)
 {
   MetaBackend *backend = META_BACKEND (native);
-  ClutterStage *stage = CLUTTER_STAGE (meta_backend_get_stage (backend));
   MetaMonitorManager *monitor_manager =
     meta_backend_get_monitor_manager (backend);
   MetaMonitorManagerKms *monitor_manager_kms =
     META_MONITOR_MANAGER_KMS (monitor_manager);
 
   clutter_evdev_release_devices ();
-  clutter_stage_freeze_updates (stage);
+  clutter_egl_freeze_master_clock ();
 
   meta_monitor_manager_kms_pause (monitor_manager_kms);
 }
@@ -648,19 +641,26 @@ meta_backend_native_pause (MetaBackendNative *native)
 void meta_backend_native_resume (MetaBackendNative *native)
 {
   MetaBackend *backend = META_BACKEND (native);
-  ClutterStage *stage = CLUTTER_STAGE (meta_backend_get_stage (backend));
   MetaMonitorManager *monitor_manager =
     meta_backend_get_monitor_manager (backend);
   MetaMonitorManagerKms *monitor_manager_kms =
     META_MONITOR_MANAGER_KMS (monitor_manager);
+  MetaCursorRenderer *cursor_renderer;
+  MetaCursorRendererNative *cursor_renderer_native;
+  ClutterActor *stage;
   MetaIdleMonitor *idle_monitor;
 
   meta_monitor_manager_kms_resume (monitor_manager_kms);
 
   clutter_evdev_reclaim_devices ();
-  clutter_stage_thaw_updates (stage);
+  clutter_egl_thaw_master_clock ();
 
-  clutter_actor_queue_redraw (CLUTTER_ACTOR (stage));
+  stage = meta_backend_get_stage (backend);
+  clutter_actor_queue_redraw (stage);
+
+  cursor_renderer = meta_backend_get_cursor_renderer (backend);
+  cursor_renderer_native = META_CURSOR_RENDERER_NATIVE (cursor_renderer);
+  meta_cursor_renderer_native_force_update (cursor_renderer_native);
 
   idle_monitor = meta_backend_get_idle_monitor (backend, 0);
   meta_idle_monitor_reset_idletime (idle_monitor);

@@ -21,24 +21,25 @@
  */
 
 #include "config.h"
+#include "events.h"
 
-#include "core/events.h"
+#include <meta/meta-backend.h>
 
-#include "backends/meta-cursor-tracker-private.h"
-#include "backends/meta-idle-monitor-private.h"
+#include "display-private.h"
+#include "window-private.h"
 #include "backends/x11/meta-backend-x11.h"
-#include "compositor/meta-surface-actor.h"
-#include "core/display-private.h"
-#include "core/window-private.h"
-#include "meta/meta-backend.h"
+#include "backends/meta-cursor-tracker-private.h"
 
 #ifdef HAVE_NATIVE_BACKEND
 #include "backends/native/meta-backend-native.h"
 #endif
 
+#include "backends/meta-idle-monitor-private.h"
+
 #ifdef HAVE_WAYLAND
 #include "wayland/meta-wayland-private.h"
 #endif
+#include "meta-surface-actor.h"
 
 #define IS_GESTURE_EVENT(e) ((e)->type == CLUTTER_TOUCHPAD_SWIPE || \
                              (e)->type == CLUTTER_TOUCHPAD_PINCH || \
@@ -86,7 +87,6 @@ get_window_for_event (MetaDisplay        *display,
       return display->grab_window;
     default:
       g_assert_not_reached ();
-      return NULL;
     }
 }
 
@@ -269,7 +269,7 @@ meta_display_handle_event (MetaDisplay        *display,
        event->type == CLUTTER_BUTTON_PRESS ||
        event->type == CLUTTER_TOUCH_BEGIN))
     {
-      if (META_CURRENT_TIME == display->current_time)
+      if (CurrentTime == display->current_time)
         {
           /* We can't use missing (i.e. invalid) timestamps to set user time,
            * nor do we want to use them to sanity check other timestamps.
@@ -410,7 +410,7 @@ meta_display_handle_event (MetaDisplay        *display,
     }
 #endif
 
-  display->current_time = META_CURRENT_TIME;
+  display->current_time = CurrentTime;
   return bypass_clutter;
 }
 

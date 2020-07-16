@@ -3,7 +3,6 @@
 #include <cogl/cogl-gles2.h>
 #include <string.h>
 
-#include "test-declarations.h"
 #include "test-utils.h"
 
 typedef struct _TestState

@@ -22,15 +22,6 @@
  *     Jonas Ådahl <jadahl@gmail.com>
  */
 
-/**
- * SECTION:meta-pointer-lock-wayland
- * @title: MetaPointerLockWayland
- * @short_description: A #MetaPointerConstraint implementing pointer lock.
- *
- * A MetaPointerLockConstraint implements the client pointer constraint "pointer
- * lock": the cursor should not make any movement.
- */
-
 #include "config.h"
 
 #include "wayland/meta-pointer-lock-wayland.h"

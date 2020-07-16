@@ -35,7 +35,7 @@
 #include <glib.h>
 #include "cogl-util.h"
 
-G_BEGIN_DECLS
+COGL_BEGIN_DECLS
 
 /*
  * CoglBitmask implements a growable array of bits. A CoglBitmask can
@@ -307,6 +307,6 @@ _cogl_bitmask_popcount_upto (const CoglBitmask *bitmask,
                                  ((1UL << upto) - 1));
 }
 
-G_END_DECLS
+COGL_END_DECLS
 
 #endif /* __COGL_BITMASK_H */

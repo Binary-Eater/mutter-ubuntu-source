@@ -58,7 +58,7 @@
 #include <GL/glx.h>
 #include <cogl/cogl-types.h>
 
-G_BEGIN_DECLS
+COGL_BEGIN_DECLS
 
 /**
  * cogl_glx_context_get_glx_context:
@@ -76,7 +76,7 @@ G_BEGIN_DECLS
 GLXContext
 cogl_glx_context_get_glx_context (CoglContext *context);
 
-G_END_DECLS
+COGL_END_DECLS
 
 /* The gobject introspection scanner seems to parse public headers in
  * isolation which means we need to be extra careful about how we

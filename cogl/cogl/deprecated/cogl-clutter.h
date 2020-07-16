@@ -33,10 +33,10 @@
 #ifndef __COGL_CLUTTER_H__
 #define __COGL_CLUTTER_H__
 
-G_BEGIN_DECLS
+COGL_BEGIN_DECLS
 
 #define cogl_clutter_check_extension cogl_clutter_check_extension_CLUTTER
-COGL_DEPRECATED
+COGL_DEPRECATED_IN_1_16
 CoglBool
 cogl_clutter_check_extension (const char *name, const char *ext);
 
@@ -49,6 +49,6 @@ cogl_clutter_winsys_has_feature (CoglWinsysFeature feature);
 void
 cogl_onscreen_clutter_backend_set_size (int width, int height);
 
-G_END_DECLS
+COGL_END_DECLS
 
 #endif /* __COGL_CLUTTER_H__ */

@@ -34,7 +34,9 @@
  * #ClutterAlignConstraint is available since Clutter 1.4
  */
 
+#ifdef HAVE_CONFIG_H
 #include "clutter-build-config.h"
+#endif
 
 #include "clutter-align-constraint.h"
 

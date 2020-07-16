@@ -74,9 +74,9 @@ struct _CallyRootClass
   gpointer _padding_dummy[16];
 };
 
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_1_4
 GType      cally_root_get_type (void) G_GNUC_CONST;
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_1_4
 AtkObject *cally_root_new      (void);
 
 G_END_DECLS

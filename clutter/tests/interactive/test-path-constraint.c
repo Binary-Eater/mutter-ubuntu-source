@@ -11,10 +11,6 @@
 
 static gboolean toggled = FALSE;
 
-int
-test_path_constraint_main (int   argc,
-                           char *argv[]);
-
 static gboolean
 on_button_press (ClutterActor *actor,
                  const ClutterEvent *event,

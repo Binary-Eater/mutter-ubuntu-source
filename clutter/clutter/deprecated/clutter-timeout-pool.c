@@ -30,7 +30,9 @@
  * Based on similar code by Tristan van Berkom
  */
 
+#ifdef HAVE_CONFIG_H
 #include "clutter-build-config.h"
+#endif
 
 #define CLUTTER_DISABLE_DEPRECATION_WARNINGS
 #include "deprecated/clutter-main.h"

@@ -4,7 +4,6 @@
 
 #include <string.h>
 
-#include "test-declarations.h"
 #include "test-utils.h"
 
 /* Size the texture so that it is just off a power of two to encourage

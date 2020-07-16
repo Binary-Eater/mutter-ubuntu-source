@@ -1,6 +1,5 @@
 #include <cogl/cogl.h>
 
-#include "test-declarations.h"
 #include "test-utils.h"
 
 /* Keep track of the number of textures that we've created and are

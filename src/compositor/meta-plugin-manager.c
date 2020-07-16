@@ -20,21 +20,20 @@
  */
 
 #include "config.h"
+#include "compositor-private.h"
+#include "meta-plugin-manager.h"
+#include <meta/prefs.h>
+#include <meta/errors.h>
+#include <meta/workspace.h>
+#include "meta-module.h"
+#include "window-private.h"
+#include "meta-close-dialog-default-private.h"
+#include "meta-inhibit-shortcuts-dialog-default-private.h"
 
-#include "compositor/meta-plugin-manager.h"
-
-#include <stdlib.h>
 #include <string.h>
+#include <stdlib.h>
 
-#include "clutter/x11/clutter-x11.h"
-#include "compositor/compositor-private.h"
-#include "compositor/meta-module.h"
-#include "core/meta-close-dialog-default-private.h"
-#include "core/meta-inhibit-shortcuts-dialog-default-private.h"
-#include "core/window-private.h"
-#include "meta/meta-x11-errors.h"
-#include "meta/prefs.h"
-#include "meta/workspace.h"
+#include <clutter/x11/clutter-x11.h>
 
 static GType plugin_type = G_TYPE_NONE;
 

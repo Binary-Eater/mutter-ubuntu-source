@@ -23,22 +23,20 @@
 
 #include "config.h"
 
-#include "backends/x11/meta-input-settings-x11.h"
+#include "meta-backend-x11.h"
+#include "meta-input-settings-x11.h"
 
-#include <gdk/gdkx.h>
 #include <string.h>
+#include <gdk/gdkx.h>
 #include <X11/Xatom.h>
 #include <X11/extensions/XInput2.h>
 #include <X11/XKBlib.h>
-
 #ifdef HAVE_LIBGUDEV
 #include <gudev/gudev.h>
 #endif
 
+#include <meta/errors.h>
 #include "backends/meta-logical-monitor.h"
-#include "backends/x11/meta-backend-x11.h"
-#include "core/display-private.h"
-#include "meta/meta-x11-errors.h"
 
 typedef struct _MetaInputSettingsX11Private
 {
@@ -65,9 +63,9 @@ device_free_xdevice (gpointer user_data)
   Display *xdisplay = meta_backend_x11_get_xdisplay (META_BACKEND_X11 (backend));
   XDevice *xdev = user_data;
 
-  meta_x11_error_trap_push (display->x11_display);
+  meta_error_trap_push (display);
   XCloseDevice (xdisplay, xdev);
-  meta_x11_error_trap_pop (display->x11_display);
+  meta_error_trap_pop (display);
 }
 
 static XDevice *
@@ -83,9 +81,9 @@ device_ensure_xdevice (ClutterInputDevice *device)
   if (xdev)
     return xdev;
 
-  meta_x11_error_trap_push (display->x11_display);
+  meta_error_trap_push (display);
   xdev = XOpenDevice (xdisplay, device_id);
-  meta_x11_error_trap_pop (display->x11_display);
+  meta_error_trap_pop (display);
 
   if (xdev)
     {
@@ -488,14 +486,7 @@ has_udev_property (MetaInputSettings  *settings,
   g_object_unref (parent_udev_device);
   return FALSE;
 #else
-  static gboolean warned_once = FALSE;
-
-  if (!warned_once)
-    {
-      g_warning ("Failed to set acceleration profile: no udev support");
-      warned_once = TRUE;
-    }
-
+  g_warning ("Failed to set acceleration profile: no udev support");
   return FALSE;
 #endif
 }
@@ -509,10 +500,10 @@ is_mouse (MetaInputSettings  *settings,
 }
 
 static gboolean
-meta_input_settings_x11_is_trackball_device (MetaInputSettings  *settings,
-                                             ClutterInputDevice *device)
+is_trackball (MetaInputSettings  *settings,
+              ClutterInputDevice *device)
 {
-  return has_udev_property (settings, device, "ID_INPUT_TRACKBALL");
+  return meta_input_device_is_trackball (device);
 }
 
 static void
@@ -575,7 +566,7 @@ meta_input_settings_x11_set_trackball_accel_profile (MetaInputSettings          
                                                      ClutterInputDevice         *device,
                                                      GDesktopPointerAccelProfile profile)
 {
-  if (!meta_input_settings_x11_is_trackball_device (settings, device))
+  if (!is_trackball (settings, device))
     return;
 
   set_device_accel_profile (device, profile);
@@ -595,7 +586,7 @@ meta_input_settings_x11_set_tablet_mapping (MetaInputSettings     *settings,
     return;
 
   /* Grab the puke bucket! */
-  meta_x11_error_trap_push (display->x11_display);
+  meta_error_trap_push (display);
   xdev = device_ensure_xdevice (device);
   if (xdev)
     {
@@ -604,7 +595,7 @@ meta_input_settings_x11_set_tablet_mapping (MetaInputSettings     *settings,
                       Absolute : Relative);
     }
 
-  if (meta_x11_error_trap_pop_with_return (display->x11_display))
+  if (meta_error_trap_pop_with_return (display))
     {
       g_warning ("Could not set tablet mapping for %s",
                  clutter_input_device_get_device_name (device));
@@ -791,7 +782,7 @@ meta_input_settings_x11_set_stylus_button_map (MetaInputSettings          *setti
     return;
 
   /* Grab the puke bucket! */
-  meta_x11_error_trap_push (display->x11_display);
+  meta_error_trap_push (display);
   xdev = device_ensure_xdevice (device);
   if (xdev)
     {
@@ -809,7 +800,7 @@ meta_input_settings_x11_set_stylus_button_map (MetaInputSettings          *setti
       XSetDeviceButtonMapping (xdisplay, xdev, map, G_N_ELEMENTS (map));
     }
 
-  if (meta_x11_error_trap_pop_with_return (display->x11_display))
+  if (meta_error_trap_pop_with_return (display))
     {
       g_warning ("Could not set stylus button map for %s",
                  clutter_input_device_get_device_name (device));
@@ -861,7 +852,6 @@ meta_input_settings_x11_class_init (MetaInputSettingsX11Class *klass)
   input_settings_class->set_stylus_button_map = meta_input_settings_x11_set_stylus_button_map;
 
   input_settings_class->has_two_finger_scroll = meta_input_settings_x11_has_two_finger_scroll;
-  input_settings_class->is_trackball_device = meta_input_settings_x11_is_trackball_device;
 }
 
 static void

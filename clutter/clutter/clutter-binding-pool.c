@@ -94,7 +94,9 @@
  * #ClutterBindingPool is available since Clutter 1.0
  */
 
+#ifdef HAVE_CONFIG_H
 #include "clutter-build-config.h"
+#endif
 
 #include "clutter-binding-pool.h"
 #include "clutter-debug.h"

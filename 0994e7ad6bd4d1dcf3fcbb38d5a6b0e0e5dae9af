@@ -1,0 +1,3 @@
+  [ Daniel van Vugt ]
+  * d/p/backend-x11-Reintroduce-XInitThreads.patch:
+    Fix a very common crash when running in X11 (LP: #1877075)

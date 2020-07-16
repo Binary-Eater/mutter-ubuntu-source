@@ -1,0 +1,3 @@
+  * debian/patches/03_link_gles2.patch: Link to clutter-glx-1.0
+    explicitily at the end of link flags, to bring in libGLESv2 on armel.
+    Fixes FTBFS (LP:#726827)

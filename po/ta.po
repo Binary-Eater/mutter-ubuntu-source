@@ -14,8 +14,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: metacity.gnome-2-26.ta\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2012-12-09 14:48+0530\n"
-"PO-Revision-Date: 2012-12-09 15:30+0530\n"
+"POT-Creation-Date: 2012-12-02 17:25+0530\n"
+"PO-Revision-Date: 2012-12-02 18:58+0530\n"
 "Last-Translator: Dr.T.Vasudevan <drtvasudevan@gmail.com>\n"
 "Language-Team: American English <gnome-tamil-translation@googlegroups.com>\n"
 "Language: en_US\n"
@@ -29,15 +29,189 @@ msgstr ""
 "\n"
 "\n"
 
+#: ../src/50-mutter-navigation.xml.in.h:1
+msgid "Navigation"
+msgstr "திசையறிதல்"
+
+#: ../src/50-mutter-navigation.xml.in.h:2
+msgid "Move window to workspace 1"
+msgstr "பணியிடம் 1 க்கு சாளரத்தை நகர்த்தவும்"
+
+#: ../src/50-mutter-navigation.xml.in.h:3
+msgid "Move window to workspace 2"
+msgstr "பணியிடம் 2 க்கு சாளரத்தை நகர்த்தவும்"
+
+#: ../src/50-mutter-navigation.xml.in.h:4
+msgid "Move window to workspace 3"
+msgstr "பணியிடம் 3 க்கு சாளரத்தை நகர்த்தவும்"
+
+#: ../src/50-mutter-navigation.xml.in.h:5
+msgid "Move window to workspace 4"
+msgstr "பணியிடம் 4 க்கு சாளரத்தை நகர்த்தவும்"
+
+#: ../src/50-mutter-navigation.xml.in.h:6
+msgid "Move window one workspace to the left"
+msgstr "ஒருபணியிடத்திற்கு இடது பக்கம் சாளரத்தை நகர்த்தவும்"
+
+#: ../src/50-mutter-navigation.xml.in.h:7
+msgid "Move window one workspace to the right"
+msgstr "ஒருபணியிடத்திற்கு வலதுபக்கம் சாளரத்தை நகர்த்தவும்"
+
+#: ../src/50-mutter-navigation.xml.in.h:8
+msgid "Move window one workspace up"
+msgstr "ஒருபணியிடத்திற்கு மேலே சாளரத்தை நகர்த்தவும்"
+
+#: ../src/50-mutter-navigation.xml.in.h:9
+msgid "Move window one workspace down"
+msgstr "ஒருபணியிடத்திற்கு கீழே சாளரத்தை நகர்த்தவும்"
+
+#: ../src/50-mutter-navigation.xml.in.h:10
+msgid "Switch applications"
+msgstr "பயன்பாடுகளுக்கிடையே மாறவும்"
+
+#: ../src/50-mutter-navigation.xml.in.h:11
+msgid "Switch windows of an application"
+msgstr "ஒரு பயன்பாட்டின் சாளரங்களிடையே மாறவும்"
+
+#: ../src/50-mutter-navigation.xml.in.h:12
+msgid "Switch system controls"
+msgstr "கணினி கட்டுப்பாடுகளை மாற்றவும்"
+
+#: ../src/50-mutter-navigation.xml.in.h:13
+msgid "Switch windows directly"
+msgstr "சாளரங்களிடையே உடனடியாக நகரவும்"
+
+#: ../src/50-mutter-navigation.xml.in.h:14
+msgid "Switch windows of an app directly"
+msgstr "ஒரு பயன்பாட்டின் சாளரங்களிடையே நேரடியாக நகரவும்"
+
+#: ../src/50-mutter-navigation.xml.in.h:15
+msgid "Switch system controls directly"
+msgstr "கணினி கட்டுப்பாடுகளை நேரடியாக மாற்றவும்"
+
+#: ../src/50-mutter-navigation.xml.in.h:16
+msgid "Hide all normal windows"
+msgstr "எல்லா வழக்கமான சாளரங்களையும் மறை"
+
+#: ../src/50-mutter-navigation.xml.in.h:17
+msgid "Switch to workspace 1"
+msgstr "பணியிடம் 1க்கு மாறு"
+
+#: ../src/50-mutter-navigation.xml.in.h:18
+msgid "Switch to workspace 2"
+msgstr "பணியிடம் 2 க்கு மாறு"
+
+#: ../src/50-mutter-navigation.xml.in.h:19
+msgid "Switch to workspace 3"
+msgstr "பணியிடம் 3 க்கு மாறு"
+
+#: ../src/50-mutter-navigation.xml.in.h:20
+msgid "Switch to workspace 4"
+msgstr "பணியிடம் 4 க்கு மாறு"
+
+#: ../src/50-mutter-navigation.xml.in.h:21
+msgid "Move to workspace left"
+msgstr "வேலையிடத்தை இடப்பக்கத்திற்கு நகர்த்தவும்"
+
+#: ../src/50-mutter-navigation.xml.in.h:22
+msgid "Move to workspace right"
+msgstr "வேலையிடத்தை வலப்பக்கத்திற்கு நகர்த்தவும்"
+
+#: ../src/50-mutter-navigation.xml.in.h:23
+msgid "Move to workspace above"
+msgstr "வேலையிடத்தை மேல்பக்கத்திற்கு நகர்த்தவும்"
+
+#: ../src/50-mutter-navigation.xml.in.h:24
+msgid "Move to workspace below"
+msgstr "வேலையிடத்தை கீழே நகர்த்தவும் "
+
+#: ../src/50-mutter-system.xml.in.h:1
+msgid "System"
+msgstr "கணினி"
+
+#: ../src/50-mutter-system.xml.in.h:2
+msgid "Show the run command prompt"
+msgstr "இயக்கு கட்டளையின் தூண்டலைக் காட்டு"
+
+#: ../src/50-mutter-system.xml.in.h:3
+msgid "Show the activities overview"
+msgstr "செயல்பாடுகளின் மேல் பார்வையை காட்டுக"
+
 #: ../src/50-mutter-windows.xml.in.h:1
 msgid "Windows"
 msgstr "சாளரங்கள்"
 
 #: ../src/50-mutter-windows.xml.in.h:2
+msgid "Activate the window menu"
+msgstr "சாளர பட்டியலை செயல்படுத்து "
+
+#: ../src/50-mutter-windows.xml.in.h:3
+msgid "Toggle fullscreen mode"
+msgstr "எப்போதும் முழுதிரை பாங்கிற்கு செல்"
+
+#: ../src/50-mutter-windows.xml.in.h:4
+msgid "Toggle maximization state"
+msgstr "எப்போதும் பெரிய சாளர நிலைக்கு செல்"
+
+#: ../src/50-mutter-windows.xml.in.h:5
+msgid "Maximize window"
+msgstr "சாளரத்தை பெரிதாக்கு"
+
+#: ../src/50-mutter-windows.xml.in.h:6
+msgid "Restore window"
+msgstr "சாளரத்தை மீட்டமை"
+
+#: ../src/50-mutter-windows.xml.in.h:7
+msgid "Toggle shaded state"
+msgstr "எப்போதும் நிழை நிலைக்கு செல்"
+
+#: ../src/50-mutter-windows.xml.in.h:8
+msgid "Close window"
+msgstr "சாளரம் மூடவும்"
+
+#: ../src/50-mutter-windows.xml.in.h:9
+msgid "Minimize window"
+msgstr "சாளரத்தை சிறிதாக்கு"
+
+#: ../src/50-mutter-windows.xml.in.h:10
+msgid "Move window"
+msgstr "சாளரத்தை நகர்த்தவும்"
+
+#: ../src/50-mutter-windows.xml.in.h:11
+msgid "Resize window"
+msgstr "சாளரத்தின் அளவை மாற்று"
+
+#: ../src/50-mutter-windows.xml.in.h:12
+msgid "Toggle window on all workspaces or one"
+msgstr ""
+"சாளரம் அனைத்து பணியிடங்களிலும் இருக்குமா அல்லது ஒரே பணியிடத்திலா என்பதை நிலை "
+
+#: ../src/50-mutter-windows.xml.in.h:13
+msgid "Raise window if covered, otherwise lower it"
+msgstr ""
+"வேறொரு சாளரத்தால் மறைக்கப்பட்டிருந்தால் சாளரத்தை உயர்த்து, அல்லது கீழிறக்கு"
+
+#: ../src/50-mutter-windows.xml.in.h:14
+msgid "Raise window above other windows"
+msgstr "மற்ற சாளரத்திற்கு மேல் இந்த சாளரத்தை உயர்த்து"
+
+#: ../src/50-mutter-windows.xml.in.h:15
+msgid "Lower window below other windows"
+msgstr "மற்ற சாளரத்திற்கு கீழே சாளரத்தை வைக்கவும்"
+
+#: ../src/50-mutter-windows.xml.in.h:16
+msgid "Maximize window vertically"
+msgstr "சாளரத்தை இடவலமாக பெரிதாக்கு "
+
+#: ../src/50-mutter-windows.xml.in.h:17
+msgid "Maximize window horizontally"
+msgstr "சாளரத்தை செங்குத்தாக பெரிதாக்கு "
+
+#: ../src/50-mutter-windows.xml.in.h:18
 msgid "View split on left"
 msgstr "இடது பக்கத்தில் பிளந்து பார்"
 
-#: ../src/50-mutter-windows.xml.in.h:3
+#: ../src/50-mutter-windows.xml.in.h:19
 msgid "View split on right"
 msgstr "வலது பக்கத்தில் பிளந்து பார்"
 
@@ -60,16 +234,16 @@ msgstr "மணி நிகழ்ச்சி"
 msgid "Unknown window information request: %d"
 msgstr "தெரியாத சாளர தகவல் வேண்டுகோள்: %d"
 
-#: ../src/core/delete.c:113
+#: ../src/core/delete.c:111
 #, c-format
-msgid "%s is not responding."
-msgstr "%s பதிலளிக்கவில்லை"
+msgid "“%s” is not responding."
+msgstr "\"%s\" பதிலளிக்கவில்லை"
 
-#: ../src/core/delete.c:117
+#: ../src/core/delete.c:113
 msgid "Application is not responding."
 msgstr "பயன்பாடு இயங்கவில்லை"
 
-#: ../src/core/delete.c:122
+#: ../src/core/delete.c:118
 msgid ""
 "You may choose to wait a short while for it to continue or force the "
 "application to quit entirely."
@@ -78,25 +252,25 @@ msgstr ""
 "வெளியேறு "
 "செய்யலாம்."
 
-#: ../src/core/delete.c:129
+#: ../src/core/delete.c:125
 msgid "_Wait"
 msgstr "_காத்திரு"
 
-#: ../src/core/delete.c:129
+#: ../src/core/delete.c:125
 msgid "_Force Quit"
 msgstr "கட்டாய வெளியேற்றம் (_F)"
 
-#: ../src/core/display.c:399
+#: ../src/core/display.c:397
 #, c-format
 msgid "Missing %s extension required for compositing"
 msgstr "நீட்சி  %s  காணப்படவில்லை பவின் ஆக்கத்துக்கு அது அவசியம்"
 
-#: ../src/core/display.c:496
+#: ../src/core/display.c:494
 #, c-format
 msgid "Failed to open X Window System display '%s'\n"
 msgstr "X சாளர காட்சியை திறப்பதில் தோல்வி '%s'\n"
 
-#: ../src/core/keybindings.c:853
+#: ../src/core/keybindings.c:860
 #, c-format
 msgid ""
 "Some other program is already using the key %s with modifiers %x as a "
@@ -190,14 +364,14 @@ msgid ""
 msgstr ""
 "அமைப்பு பாங்கில் உள்ள \"%s\" சுட்டி பட்டன் மாற்றியில் செல்லாத மதிப்பு\n"
 
-#: ../src/core/prefs.c:1747
+#: ../src/core/prefs.c:1757
 #, c-format
 msgid ""
 "\"%s\" found in configuration database is not a valid value for keybinding "
 "\"%s\"\n"
 msgstr "\"%s\" அமைப்பு தரவுத்தளத்தில் உள்ள மதிப்பு செல்லாத கீபைன்டிங்\"%s\"\n"
 
-#: ../src/core/prefs.c:1844
+#: ../src/core/prefs.c:1854
 #, c-format
 msgid "Workspace %d"
 msgstr "வேலையிடம் %d"
@@ -325,7 +499,7 @@ msgid "Window manager error: "
 msgstr "சாளர மேலாளர் பிழை"
 
 #. first time through
-#: ../src/core/window.c:7237
+#: ../src/core/window.c:7240
 #, c-format
 msgid ""
 "Window %s sets SM_CLIENT_ID on itself, instead of on the WM_CLIENT_LEADER "
@@ -342,7 +516,7 @@ msgstr ""
 #. * MWM but not WM_NORMAL_HINTS are basically broken. We complain
 #. * about these apps but make them work.
 #.
-#: ../src/core/window.c:7902
+#: ../src/core/window.c:7905
 #, c-format
 msgid ""
 "Window %s sets an MWM hint indicating it isn't resizable, but sets min size "
@@ -1650,18 +1824,6 @@ msgstr "%d அச்சு கூற்று பகுக்கப்பட்�
 #~ msgid "Put Window On Only One Workspace"
 #~ msgstr "சாளரத்தை ஒரே ஒரு பணியிடத்தில் மட்டும் வைக்கவும்"
 
-#~ msgid "Switch to workspace 1"
-#~ msgstr "பணியிடம் 1க்கு மாறு"
-
-#~ msgid "Switch to workspace 2"
-#~ msgstr "பணியிடம் 2 க்கு மாறு"
-
-#~ msgid "Switch to workspace 3"
-#~ msgstr "பணியிடம் 3 க்கு மாறு"
-
-#~ msgid "Switch to workspace 4"
-#~ msgstr "பணியிடம் 4 க்கு மாறு"
-
 #~ msgid "Switch to workspace 5"
 #~ msgstr "பணியிடம் 5 க்கு மாறு"
 
@@ -1756,54 +1918,12 @@ msgstr "%d அச்சு கூற்று பகுக்கப்பட்�
 #~ msgid "Run a terminal"
 #~ msgstr "முனையம் ஒன்றை இயக்கு"
 
-#~ msgid "Activate the window menu"
-#~ msgstr "சாளர பட்டியலை செயல்படுத்து "
-
-#~ msgid "Toggle fullscreen mode"
-#~ msgstr "எப்போதும் முழுதிரை பாங்கிற்கு செல்"
-
-#~ msgid "Toggle maximization state"
-#~ msgstr "எப்போதும் பெரிய சாளர நிலைக்கு செல்"
-
 #~ msgid "Toggle whether a window will always be visible over other windows"
 #~ msgstr "ஒரு சாளரம் மற்றவற்றின் மேலே எப்போதும் இருக்குமா என்பதை  நிலைமாற்று"
-
-#~ msgid "Maximize window"
-#~ msgstr "சாளரத்தை பெரிதாக்கு"
-
-#~ msgid "Restore window"
-#~ msgstr "சாளரத்தை மீட்டமை"
-
-#~ msgid "Toggle shaded state"
-#~ msgstr "எப்போதும் நிழை நிலைக்கு செல்"
-
-#~ msgid "Minimize window"
-#~ msgstr "சாளரத்தை சிறிதாக்கு"
-
-#~ msgid "Close window"
-#~ msgstr "சாளரம் மூடவும்"
-
-#~ msgid "Move window"
-#~ msgstr "சாளரத்தை நகர்த்தவும்"
-
-#~ msgid "Resize window"
-#~ msgstr "சாளரத்தின் அளவை மாற்று"
 
 #~ msgid "Toggle whether window is on all workspaces or just one"
 #~ msgstr ""
 #~ "சாளரம்  எல்லா பணியிடங்களிலும் இருக்குமா அல்லது ஒள்றில் மட்டுமா என்பதை  நிலைமாற்று"
-
-#~ msgid "Move window to workspace 1"
-#~ msgstr "பணியிடம் 1 க்கு சாளரத்தை நகர்த்தவும்"
-
-#~ msgid "Move window to workspace 2"
-#~ msgstr "பணியிடம் 2 க்கு சாளரத்தை நகர்த்தவும்"
-
-#~ msgid "Move window to workspace 3"
-#~ msgstr "பணியிடம் 3 க்கு சாளரத்தை நகர்த்தவும்"
-
-#~ msgid "Move window to workspace 4"
-#~ msgstr "பணியிடம் 4 க்கு சாளரத்தை நகர்த்தவும்"
 
 #~ msgid "Move window to workspace 5"
 #~ msgstr "பணியிடம் 5 க்கு சாளரத்தை நகர்த்தவும்"
@@ -1829,32 +1949,8 @@ msgstr "%d அச்சு கூற்று பகுக்கப்பட்�
 #~ msgid "Move window to workspace 12"
 #~ msgstr "பணியிடம் 12 க்கு சாளரத்தை நகர்த்தவும்"
 
-#~ msgid "Move window one workspace to the left"
-#~ msgstr "ஒருபணியிடத்திற்கு இடது பக்கம் சாளரத்தை நகர்த்தவும்"
-
-#~ msgid "Move window one workspace to the right"
-#~ msgstr "ஒருபணியிடத்திற்கு வலதுபக்கம் சாளரத்தை நகர்த்தவும்"
-
-#~ msgid "Move window one workspace up"
-#~ msgstr "ஒருபணியிடத்திற்கு மேலே சாளரத்தை நகர்த்தவும்"
-
-#~ msgid "Move window one workspace down"
-#~ msgstr "ஒருபணியிடத்திற்கு கீழே சாளரத்தை நகர்த்தவும்"
-
 #~ msgid "Raise window if it's covered by another window, otherwise lower it"
 #~ msgstr "வேறு சாளரத்தால் சாளரம் மூடப்பட்டு இருந்தால் அதை உயர்த்து இல்லையானால் தாழ்த்து"
-
-#~ msgid "Raise window above other windows"
-#~ msgstr "மற்ற சாளரத்திற்கு மேல் இந்த சாளரத்தை உயர்த்து"
-
-#~ msgid "Lower window below other windows"
-#~ msgstr "மற்ற சாளரத்திற்கு கீழே சாளரத்தை வைக்கவும்"
-
-#~ msgid "Maximize window vertically"
-#~ msgstr "சாளரத்தை இடவலமாக பெரிதாக்கு "
-
-#~ msgid "Maximize window horizontally"
-#~ msgstr "சாளரத்தை செங்குத்தாக பெரிதாக்கு "
 
 #~ msgid "Move window to north-west (top left) corner"
 #~ msgstr "சாளரத்தை வடமேற்கே (மேல் இடது) மூலைக்கு நகர்த்து "

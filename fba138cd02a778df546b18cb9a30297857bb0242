@@ -1,0 +1,3 @@
+  * New upstream development release.
+  * debian/rules:
+  - update makeshlibs argument to require >= 2.29.0

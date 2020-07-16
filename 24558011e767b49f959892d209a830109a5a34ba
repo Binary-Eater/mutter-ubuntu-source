@@ -1,0 +1,3 @@
+  * d/p/clutter-*: Cherry-pick from upstream to fix a crash. During
+    animations, which was particularly bad when using Dash-to-Dock in
+    auto-hide mode. (LP: #1841794)

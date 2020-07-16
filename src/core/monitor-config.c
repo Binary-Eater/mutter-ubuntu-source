@@ -20,9 +20,7 @@
  * General Public License for more details.
  * 
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -99,8 +97,9 @@ static gboolean meta_monitor_config_assign_crtcs (MetaConfiguration  *config,
                                                   GPtrArray          *crtcs,
                                                   GPtrArray          *outputs);
 
-static void     power_client_changed_cb (UpClient *client,
-                                         gpointer  user_data);
+static void     power_client_changed_cb (UpClient   *client,
+                                         GParamSpec *pspec,
+                                         gpointer    user_data);
 
 static void
 free_output_key (MetaOutputKey *key)
@@ -232,7 +231,7 @@ meta_monitor_config_init (MetaMonitorConfig *self)
   self->up_client = up_client_new ();
   self->lid_is_closed = up_client_get_lid_is_closed (self->up_client);
 
-  g_signal_connect_object (self->up_client, "changed",
+  g_signal_connect_object (self->up_client, "notify::lid-is-closed",
                            G_CALLBACK (power_client_changed_cb), self, 0);
 }
 
@@ -1360,8 +1359,9 @@ turn_off_laptop_display (MetaMonitorConfig  *self,
 }
 
 static void
-power_client_changed_cb (UpClient *client,
-                         gpointer  user_data)
+power_client_changed_cb (UpClient   *client,
+                         GParamSpec *pspec,
+                         gpointer    user_data)
 {
   MetaMonitorManager *manager = meta_monitor_manager_get ();
   MetaMonitorConfig *self = user_data;

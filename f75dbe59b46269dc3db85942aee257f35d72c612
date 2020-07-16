@@ -1,0 +1,2 @@
+  * debian/control.in:
+  - adapt for the new GObject introspection policy

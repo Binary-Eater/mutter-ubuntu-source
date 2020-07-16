@@ -1,0 +1,3 @@
+  * New upstream release
+  * debian/patches/02-dont-select-for-XI2-events.patch:
+    + Dropped, fixed X server is available in sid now

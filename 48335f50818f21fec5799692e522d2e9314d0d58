@@ -1,0 +1,3 @@
+  * control: Add Breaks on budgie-desktop verions broken by this upload.
+    budgie-desktop needs a fix in 10.4+git20171031.10.g9f71bb8-1.2ubuntu1.2
+    for compatibility with this mutter.

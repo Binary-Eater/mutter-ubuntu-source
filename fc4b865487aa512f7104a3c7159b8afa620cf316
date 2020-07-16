@@ -1,0 +1,5 @@
+  [ Simon McVittie ]
+  * Build-depend on libgnome-desktop-3-dev (>= 3.27.90) to carry out
+    libgnome-desktop-3-17 transition
+  [ Jeremy Bicha ]
+  * Release to unstable

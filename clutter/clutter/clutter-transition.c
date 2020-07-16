@@ -30,7 +30,9 @@
  * computes the interpolation between two values, stored by a #ClutterInterval.
  */
 
+#ifdef HAVE_CONFIG_H
 #include "clutter-build-config.h"
+#endif
 
 #include "clutter-transition.h"
 

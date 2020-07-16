@@ -110,8 +110,7 @@ clutter_input_device_xi2_finalize (GObject *object)
   if (device_xi2->wacom_device)
     libwacom_destroy (device_xi2->wacom_device);
 
-  if (device_xi2->group_modes)
-    g_array_unref (device_xi2->group_modes);
+  g_array_unref (device_xi2->group_modes);
 #endif
 
   G_OBJECT_CLASS (clutter_input_device_xi2_parent_class)->finalize (object);

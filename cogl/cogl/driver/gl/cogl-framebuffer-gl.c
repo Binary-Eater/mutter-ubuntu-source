@@ -4,7 +4,6 @@
  * A Low Level GPU Graphics and Utilities API
  *
  * Copyright (C) 2007,2008,2009,2012 Intel Corporation.
- * Copyright (C) 2018 DisplayLink (UK) Ltd.
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -29,16 +28,18 @@
  *
  */
 
+#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
+#endif
 
 #include "cogl-context-private.h"
+#include "cogl-util-gl-private.h"
 #include "cogl-framebuffer-private.h"
+#include "cogl-framebuffer-gl-private.h"
+#include "cogl-buffer-gl-private.h"
 #include "cogl-error-private.h"
+#include "cogl-texture-gl-private.h"
 #include "cogl-texture-private.h"
-#include "driver/gl/cogl-util-gl-private.h"
-#include "driver/gl/cogl-framebuffer-gl-private.h"
-#include "driver/gl/cogl-buffer-gl-private.h"
-#include "driver/gl/cogl-texture-gl-private.h"
 
 #include <glib.h>
 #include <string.h>
@@ -536,6 +537,9 @@ try_creating_renderbuffers (CoglContext *ctx,
 
       /* WebGL adds a GL_DEPTH_STENCIL_ATTACHMENT and requires that we
        * use the GL_DEPTH_STENCIL format. */
+#ifdef HAVE_COGL_WEBGL
+      format = GL_DEPTH_STENCIL;
+#else
       /* Although GL_OES_packed_depth_stencil is mostly equivalent to
        * GL_EXT_packed_depth_stencil, one notable difference is that
        * GL_OES_packed_depth_stencil doesn't allow GL_DEPTH_STENCIL to
@@ -552,6 +556,7 @@ try_creating_renderbuffers (CoglContext *ctx,
             NULL);
           format = GL_DEPTH24_STENCIL8;
         }
+#endif
 
       /* Create a renderbuffer for depth and stenciling */
       GE (ctx, glGenRenderbuffers (1, &gl_depth_stencil_handle));
@@ -567,6 +572,12 @@ try_creating_renderbuffers (CoglContext *ctx,
       GE (ctx, glBindRenderbuffer (GL_RENDERBUFFER, 0));
 
 
+#ifdef HAVE_COGL_WEBGL
+      GE (ctx, glFramebufferRenderbuffer (GL_FRAMEBUFFER,
+                                          GL_DEPTH_STENCIL_ATTACHMENT,
+                                          GL_RENDERBUFFER,
+                                          gl_depth_stencil_handle));
+#else
       GE (ctx, glFramebufferRenderbuffer (GL_FRAMEBUFFER,
                                           GL_STENCIL_ATTACHMENT,
                                           GL_RENDERBUFFER,
@@ -575,6 +586,7 @@ try_creating_renderbuffers (CoglContext *ctx,
                                           GL_DEPTH_ATTACHMENT,
                                           GL_RENDERBUFFER,
                                           gl_depth_stencil_handle));
+#endif
       renderbuffers =
         g_list_prepend (renderbuffers,
                         GUINT_TO_POINTER (gl_depth_stencil_handle));
@@ -649,7 +661,7 @@ delete_renderbuffers (CoglContext *ctx, GList *renderbuffers)
  * CoglTexture as the given CoglOffscreen. This function shouldn't
  * modify anything in
  */
-static gboolean
+static CoglBool
 try_creating_fbo (CoglContext *ctx,
                   CoglTexture *texture,
                   int texture_level,
@@ -763,7 +775,7 @@ try_creating_fbo (CoglContext *ctx,
   return TRUE;
 }
 
-gboolean
+CoglBool
 _cogl_framebuffer_try_creating_gl_fbo (CoglContext *ctx,
                                        CoglTexture *texture,
                                        int texture_level,
@@ -785,7 +797,7 @@ _cogl_framebuffer_try_creating_gl_fbo (CoglContext *ctx,
                            gl_framebuffer);
 }
 
-gboolean
+CoglBool
 _cogl_offscreen_gl_allocate (CoglOffscreen *offscreen,
                              CoglError **error)
 {
@@ -862,10 +874,12 @@ _cogl_offscreen_gl_allocate (CoglOffscreen *offscreen,
       (
        /* NB: WebGL introduces a DEPTH_STENCIL_ATTACHMENT and doesn't
         * need an extension to handle _FLAG_DEPTH_STENCIL */
+#ifndef HAVE_COGL_WEBGL
        (_cogl_has_private_feature
         (ctx, COGL_PRIVATE_FEATURE_EXT_PACKED_DEPTH_STENCIL) ||
         _cogl_has_private_feature
         (ctx, COGL_PRIVATE_FEATURE_OES_PACKED_DEPTH_STENCIL)) &&
+#endif
        try_creating_fbo (ctx,
                          offscreen->texture,
                          offscreen->texture_level,
@@ -1241,7 +1255,97 @@ _cogl_framebuffer_gl_draw_indexed_attributes (CoglFramebuffer *framebuffer,
   _cogl_buffer_gl_unbind (buffer);
 }
 
-gboolean
+static CoglBool
+mesa_46631_slow_read_pixels_workaround (CoglFramebuffer *framebuffer,
+                                        int x,
+                                        int y,
+                                        CoglReadPixelsFlags source,
+                                        CoglBitmap *bitmap,
+                                        CoglError **error)
+{
+  CoglContext *ctx;
+  CoglPixelFormat format;
+  CoglBitmap *pbo;
+  int width;
+  int height;
+  CoglBool res;
+  uint8_t *dst;
+  const uint8_t *src;
+
+  ctx = cogl_framebuffer_get_context (framebuffer);
+
+  width = cogl_bitmap_get_width (bitmap);
+  height = cogl_bitmap_get_height (bitmap);
+  format = cogl_bitmap_get_format (bitmap);
+
+  pbo = cogl_bitmap_new_with_size (ctx, width, height, format);
+
+  /* Read into the pbo. We need to disable the flipping because the
+     blit fast path in the driver does not work with
+     GL_PACK_INVERT_MESA is set */
+  res = _cogl_framebuffer_read_pixels_into_bitmap (framebuffer,
+                                                   x, y,
+                                                   source |
+                                                   COGL_READ_PIXELS_NO_FLIP,
+                                                   pbo,
+                                                   error);
+  if (!res)
+    {
+      cogl_object_unref (pbo);
+      return FALSE;
+    }
+
+  /* Copy the pixels back into application's buffer */
+  dst = _cogl_bitmap_map (bitmap,
+                          COGL_BUFFER_ACCESS_WRITE,
+                          COGL_BUFFER_MAP_HINT_DISCARD,
+                          error);
+  if (!dst)
+    {
+      cogl_object_unref (pbo);
+      return FALSE;
+    }
+
+  src = _cogl_bitmap_map (pbo,
+                          COGL_BUFFER_ACCESS_READ,
+                          0, /* hints */
+                          error);
+  if (src)
+    {
+      int src_rowstride = cogl_bitmap_get_rowstride (pbo);
+      int dst_rowstride = cogl_bitmap_get_rowstride (bitmap);
+      int to_copy =
+        _cogl_pixel_format_get_bytes_per_pixel (format) * width;
+      int y;
+
+      /* If the framebuffer is onscreen we need to flip the
+         data while copying */
+      if (!cogl_is_offscreen (framebuffer))
+        {
+          src += src_rowstride * (height - 1);
+          src_rowstride = -src_rowstride;
+        }
+
+      for (y = 0; y < height; y++)
+        {
+          memcpy (dst, src, to_copy);
+          dst += dst_rowstride;
+          src += src_rowstride;
+        }
+
+      _cogl_bitmap_unmap (pbo);
+    }
+  else
+    res = FALSE;
+
+  _cogl_bitmap_unmap (bitmap);
+
+  cogl_object_unref (pbo);
+
+  return res;
+}
+
+CoglBool
 _cogl_framebuffer_gl_read_pixels_into_bitmap (CoglFramebuffer *framebuffer,
                                               int x,
                                               int y,
@@ -1258,8 +1362,42 @@ _cogl_framebuffer_gl_read_pixels_into_bitmap (CoglFramebuffer *framebuffer,
   GLenum gl_intformat;
   GLenum gl_format;
   GLenum gl_type;
-  gboolean pack_invert_set;
+  CoglBool pack_invert_set;
   int status = FALSE;
+
+  /* Workaround for cases where its faster to read into a temporary
+   * PBO. This is only worth doing if:
+   *
+   * • The GPU is an Intel GPU. In that case there is a known
+   *   fast-path when reading into a PBO that will use the blitter
+   *   instead of the Mesa fallback code. The driver bug will only be
+   *   set if this is the case.
+   * • We're not already reading into a PBO.
+   * • The target format is BGRA. The fast-path blit does not get hit
+   *   otherwise.
+   * • The size of the data is not trivially small. This isn't a
+   *   requirement to hit the fast-path blit but intuitively it feels
+   *   like if the amount of data is too small then the cost of
+   *   allocating a PBO will outweigh the cost of temporarily
+   *   converting the data to floats.
+   */
+  if ((ctx->gpu.driver_bugs &
+       COGL_GPU_INFO_DRIVER_BUG_MESA_46631_SLOW_READ_PIXELS) &&
+      (width > 8 || height > 8) &&
+      (format & ~COGL_PREMULT_BIT) == COGL_PIXEL_FORMAT_BGRA_8888 &&
+      cogl_bitmap_get_buffer (bitmap) == NULL)
+    {
+      CoglError *ignore_error = NULL;
+
+      if (mesa_46631_slow_read_pixels_workaround (framebuffer,
+                                                  x, y,
+                                                  source,
+                                                  bitmap,
+                                                  &ignore_error))
+        return TRUE;
+      else
+        cogl_error_free (ignore_error);
+    }
 
   _cogl_framebuffer_flush_state (framebuffer,
                                  framebuffer,
@@ -1274,11 +1412,12 @@ _cogl_framebuffer_gl_read_pixels_into_bitmap (CoglFramebuffer *framebuffer,
   if (!cogl_is_offscreen (framebuffer))
     y = framebuffer_height - y - height;
 
-  required_format = ctx->driver_vtable->pixel_format_to_gl (ctx,
-                                                            format,
-                                                            &gl_intformat,
-                                                            &gl_format,
-                                                            &gl_type);
+  required_format = ctx->driver_vtable->pixel_format_to_gl_with_target (ctx,
+                                                                        framebuffer->internal_format,
+                                                                        format,
+                                                                        &gl_intformat,
+                                                                        &gl_format,
+                                                                        &gl_type);
 
   /* NB: All offscreen rendering is done upside down so there is no need
    * to flip in this case... */
@@ -1312,7 +1451,7 @@ _cogl_framebuffer_gl_read_pixels_into_bitmap (CoglFramebuffer *framebuffer,
       CoglPixelFormat read_format;
       int bpp, rowstride;
       uint8_t *tmp_data;
-      gboolean succeeded;
+      CoglBool succeeded;
 
       if (_cogl_has_private_feature
           (ctx, COGL_PRIVATE_FEATURE_READ_PIXELS_ANY_FORMAT))
@@ -1369,7 +1508,7 @@ _cogl_framebuffer_gl_read_pixels_into_bitmap (CoglFramebuffer *framebuffer,
       CoglBitmap *shared_bmp;
       CoglPixelFormat bmp_format;
       int bpp, rowstride;
-      gboolean succeeded = FALSE;
+      CoglBool succeeded = FALSE;
       uint8_t *pixels;
       CoglError *internal_error = NULL;
 

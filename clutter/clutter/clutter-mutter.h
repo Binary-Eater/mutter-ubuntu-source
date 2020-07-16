@@ -31,29 +31,20 @@
 #include "cogl/clutter-stage-cogl.h"
 #include "x11/clutter-stage-x11.h"
 
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_MUTTER
 void clutter_set_custom_backend_func (ClutterBackend *(* func) (void));
 
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_MUTTER
+gboolean        _clutter_get_sync_to_vblank     (void);
+
+CLUTTER_AVAILABLE_IN_MUTTER
 int64_t clutter_stage_get_frame_counter (ClutterStage *stage);
 
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_MUTTER
 void clutter_stage_capture_into (ClutterStage          *stage,
                                  gboolean               paint,
                                  cairo_rectangle_int_t *rect,
                                  uint8_t               *data);
-
-CLUTTER_EXPORT
-void clutter_stage_freeze_updates (ClutterStage *stage);
-
-CLUTTER_EXPORT
-void clutter_stage_thaw_updates (ClutterStage *stage);
-
-CLUTTER_EXPORT
-void clutter_stage_update_resource_scales (ClutterStage *stage);
-
-CLUTTER_EXPORT
-gboolean clutter_actor_has_damage (ClutterActor *actor);
 
 #undef __CLUTTER_H_INSIDE__
 

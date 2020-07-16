@@ -48,7 +48,7 @@ typedef struct _CoglAttribute CoglAttribute;
 
 #include <glib-object.h>
 
-G_BEGIN_DECLS
+COGL_BEGIN_DECLS
 
 /**
  * SECTION:cogl-attribute
@@ -402,7 +402,7 @@ CoglAttribute *
 cogl_attribute_new_const_2x2fv (CoglContext *context,
                                 const char *name,
                                 const float *matrix2x2,
-                                gboolean transpose);
+                                CoglBool transpose);
 
 /**
  * cogl_attribute_new_const_3x3fv:
@@ -437,7 +437,7 @@ CoglAttribute *
 cogl_attribute_new_const_3x3fv (CoglContext *context,
                                 const char *name,
                                 const float *matrix3x3,
-                                gboolean transpose);
+                                CoglBool transpose);
 
 /**
  * cogl_attribute_new_const_4x4fv:
@@ -472,7 +472,7 @@ CoglAttribute *
 cogl_attribute_new_const_4x4fv (CoglContext *context,
                                 const char *name,
                                 const float *matrix4x4,
-                                gboolean transpose);
+                                CoglBool transpose);
 
 /**
  * cogl_attribute_set_normalized:
@@ -494,7 +494,7 @@ cogl_attribute_new_const_4x4fv (CoglContext *context,
  */
 void
 cogl_attribute_set_normalized (CoglAttribute *attribute,
-                               gboolean normalized);
+                               CoglBool normalized);
 
 /**
  * cogl_attribute_get_normalized:
@@ -506,7 +506,7 @@ cogl_attribute_set_normalized (CoglAttribute *attribute,
  * Stability: unstable
  * Since: 1.10
  */
-gboolean
+CoglBool
 cogl_attribute_get_normalized (CoglAttribute *attribute);
 
 /**
@@ -545,10 +545,10 @@ cogl_attribute_set_buffer (CoglAttribute *attribute,
  * Return value: %TRUE if the @object references a #CoglAttribute,
  *   %FALSE otherwise
  */
-gboolean
+CoglBool
 cogl_is_attribute (void *object);
 
-G_END_DECLS
+COGL_END_DECLS
 
 #endif /* __COGL_ATTRIBUTE_H__ */
 

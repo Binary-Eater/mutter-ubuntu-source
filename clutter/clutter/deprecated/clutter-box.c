@@ -69,7 +69,9 @@
  * layout properties while adding the new child to the box.
  */
 
+#ifdef HAVE_CONFIG_H
 #include "clutter-build-config.h"
+#endif
 
 #include <glib-object.h>
 #include <gobject/gvaluecollector.h>

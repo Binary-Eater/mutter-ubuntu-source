@@ -31,7 +31,7 @@
 #ifndef __COGL_WINSYS_EGL_X11_PRIVATE_H
 #define __COGL_WINSYS_EGL_X11_PRIVATE_H
 
-#include "winsys/cogl-winsys-private.h"
+#include "cogl-winsys-private.h"
 
 const CoglWinsysVtable *
 _cogl_winsys_egl_xlib_get_vtable (void);

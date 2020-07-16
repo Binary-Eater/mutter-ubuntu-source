@@ -26,7 +26,7 @@
 
 #define CLUTTER_TYPE_INPUT_FOCUS (clutter_input_focus_get_type ())
 
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_MUTTER
 G_DECLARE_DERIVABLE_TYPE (ClutterInputFocus, clutter_input_focus,
                           CLUTTER, INPUT_FOCUS, GObject)
 
@@ -51,34 +51,33 @@ struct _ClutterInputFocusClass
                              guint              cursor);
 };
 
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_MUTTER
 gboolean clutter_input_focus_is_focused (ClutterInputFocus *focus);
 
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_MUTTER
 void clutter_input_focus_reset (ClutterInputFocus *focus);
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_MUTTER
 void clutter_input_focus_set_cursor_location (ClutterInputFocus *focus,
                                               const ClutterRect *rect);
 
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_MUTTER
 void clutter_input_focus_set_surrounding (ClutterInputFocus *focus,
                                           const gchar       *text,
                                           guint              cursor,
                                           guint              anchor);
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_MUTTER
 void clutter_input_focus_set_content_hints (ClutterInputFocus            *focus,
                                             ClutterInputContentHintFlags  hint);
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_MUTTER
 void clutter_input_focus_set_content_purpose (ClutterInputFocus          *focus,
                                               ClutterInputContentPurpose  purpose);
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_MUTTER
 gboolean clutter_input_focus_filter_key_event (ClutterInputFocus     *focus,
                                                const ClutterKeyEvent *key);
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_MUTTER
 void clutter_input_focus_set_can_show_preedit (ClutterInputFocus *focus,
                                                gboolean           can_show_preedit);
-CLUTTER_EXPORT
-void clutter_input_focus_set_input_panel_state (ClutterInputFocus      *focus,
-                                                ClutterInputPanelState  state);
+CLUTTER_AVAILABLE_IN_MUTTER
+void clutter_input_focus_request_toggle_input_panel (ClutterInputFocus *focus);
 
 #endif /* __CLUTTER_INPUT_FOCUS_H__ */

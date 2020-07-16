@@ -40,7 +40,7 @@
 
 #include <glib-object.h>
 
-G_BEGIN_DECLS
+COGL_BEGIN_DECLS
 
 /**
  * SECTION:cogl-renderer
@@ -103,7 +103,7 @@ GType cogl_renderer_get_gtype (void);
  * Since: 1.10
  * Stability: unstable
  */
-gboolean
+CoglBool
 cogl_is_renderer (void *object);
 
 /**
@@ -231,7 +231,7 @@ cogl_renderer_get_n_fragment_texture_units (CoglRenderer *renderer);
  * Since: 1.10
  * Stability: unstable
  */
-gboolean
+CoglBool
 cogl_renderer_check_onscreen_template (CoglRenderer *renderer,
                                        CoglOnscreenTemplate *onscreen_template,
                                        CoglError **error);
@@ -253,7 +253,7 @@ cogl_renderer_check_onscreen_template (CoglRenderer *renderer,
  * Since: 1.10
  * Stability: unstable
  */
-gboolean
+CoglBool
 cogl_renderer_connect (CoglRenderer *renderer, CoglError **error);
 
 /**
@@ -333,6 +333,7 @@ cogl_renderer_remove_constraint (CoglRenderer *renderer,
  * @COGL_DRIVER_GL3: An OpenGL driver using the core GL 3.1 profile
  * @COGL_DRIVER_GLES1: An OpenGL ES 1.1 driver.
  * @COGL_DRIVER_GLES2: An OpenGL ES 2.0 driver.
+ * @COGL_DRIVER_WEBGL: A WebGL driver.
  *
  * Identifiers for underlying hardware drivers that may be used by
  * Cogl for rendering.
@@ -346,7 +347,9 @@ typedef enum
   COGL_DRIVER_NOP,
   COGL_DRIVER_GL,
   COGL_DRIVER_GL3,
+  COGL_DRIVER_GLES1,
   COGL_DRIVER_GLES2,
+  COGL_DRIVER_WEBGL
 } CoglDriver;
 
 /**
@@ -418,7 +421,7 @@ cogl_renderer_foreach_output (CoglRenderer *renderer,
                               CoglOutputCallback callback,
                               void *user_data);
 
-G_END_DECLS
+COGL_END_DECLS
 
 #endif /* __COGL_RENDERER_H__ */
 

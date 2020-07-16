@@ -31,7 +31,9 @@
  *   Robert Bragg <robert@linux.intel.com>
  */
 
+#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
+#endif
 
 #include "cogl-context-private.h"
 #include "cogl-pipeline-private.h"
@@ -48,7 +50,7 @@ typedef struct
   int indent;
 } PrintDebugState;
 
-static gboolean
+static CoglBool
 dump_layer_cb (CoglNode *node, void *user_data)
 {
   CoglPipelineLayer *layer = COGL_PIPELINE_LAYER (node);
@@ -56,7 +58,7 @@ dump_layer_cb (CoglNode *node, void *user_data)
   int layer_id = *state->node_id_ptr;
   PrintDebugState state_out;
   GString *changes_label;
-  gboolean changes = FALSE;
+  CoglBool changes = FALSE;
 
   if (state->parent_id >= 0)
     g_string_append_printf (state->graph, "%*slayer%p -> layer%p;\n",
@@ -121,7 +123,7 @@ dump_layer_cb (CoglNode *node, void *user_data)
   return TRUE;
 }
 
-static gboolean
+static CoglBool
 dump_layer_ref_cb (CoglPipelineLayer *layer, void *data)
 {
   PrintDebugState *state = data;
@@ -136,7 +138,7 @@ dump_layer_ref_cb (CoglPipelineLayer *layer, void *data)
   return TRUE;
 }
 
-static gboolean
+static CoglBool
 dump_pipeline_cb (CoglNode *node, void *user_data)
 {
   CoglPipeline *pipeline = COGL_PIPELINE (node);
@@ -144,8 +146,8 @@ dump_pipeline_cb (CoglNode *node, void *user_data)
   int pipeline_id = *state->node_id_ptr;
   PrintDebugState state_out;
   GString *changes_label;
-  gboolean changes = FALSE;
-  gboolean layers = FALSE;
+  CoglBool changes = FALSE;
+  CoglBool layers = FALSE;
 
   if (state->parent_id >= 0)
     g_string_append_printf (state->graph, "%*spipeline%d -> pipeline%d;\n",

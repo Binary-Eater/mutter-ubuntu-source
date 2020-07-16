@@ -25,7 +25,6 @@
 #include "clutter/clutter-input-method.h"
 #include "clutter/clutter-input-method-private.h"
 #include "clutter/clutter-input-focus-private.h"
-#include "clutter/clutter-device-manager-private.h"
 
 typedef struct _ClutterInputMethodPrivate ClutterInputMethodPrivate;
 
@@ -37,8 +36,7 @@ struct _ClutterInputMethodPrivate
   gboolean can_show_preedit;
 };
 
-enum
-{
+enum {
   COMMIT,
   DELETE_SURROUNDING,
   REQUEST_SURROUNDING,
@@ -47,8 +45,7 @@ enum
   N_SIGNALS,
 };
 
-enum
-{
+enum {
   PROP_0,
   PROP_CONTENT_HINTS,
   PROP_CONTENT_PURPOSE,
@@ -266,6 +263,9 @@ clutter_input_method_focus_out (ClutterInputMethod *im)
 
   klass = CLUTTER_INPUT_METHOD_GET_CLASS (im);
   klass->focus_out (im);
+
+  g_signal_emit (im, signals[INPUT_PANEL_STATE],
+                 0, CLUTTER_INPUT_PANEL_STATE_OFF);
 }
 
 ClutterInputFocus *
@@ -360,12 +360,12 @@ clutter_input_method_notify_key_event (ClutterInputMethod *im,
 }
 
 void
-clutter_input_method_set_input_panel_state (ClutterInputMethod     *im,
-                                            ClutterInputPanelState  state)
+clutter_input_method_toggle_input_panel (ClutterInputMethod *im)
 {
   g_return_if_fail (CLUTTER_IS_INPUT_METHOD (im));
 
-  g_signal_emit (im, signals[INPUT_PANEL_STATE], 0, state);
+  g_signal_emit (im, signals[INPUT_PANEL_STATE], 0,
+                 CLUTTER_INPUT_PANEL_STATE_TOGGLE);
 }
 
 void
@@ -441,47 +441,4 @@ clutter_input_method_filter_key_event (ClutterInputMethod    *im,
     return FALSE;
 
   return im_class->filter_key_event (im, (const ClutterEvent *) key);
-}
-
-void
-clutter_input_method_forward_key (ClutterInputMethod *im,
-                                  uint32_t            keyval,
-                                  uint32_t            keycode,
-                                  uint32_t            state,
-                                  uint64_t            time_,
-                                  gboolean            press)
-{
-  ClutterInputMethodPrivate *priv;
-  ClutterDeviceManager *device_manager;
-  ClutterInputDevice *keyboard;
-  ClutterStage *stage;
-  ClutterEvent *event;
-
-  g_return_if_fail (CLUTTER_IS_INPUT_METHOD (im));
-
-  priv = clutter_input_method_get_instance_private (im);
-  if (!priv->focus)
-    return;
-
-  device_manager = clutter_device_manager_get_default ();
-  keyboard = clutter_device_manager_get_core_device (device_manager,
-                                                     CLUTTER_KEYBOARD_DEVICE);
-  stage = _clutter_input_device_get_stage (keyboard);
-  if (stage == NULL)
-    return;
-
-  event = clutter_event_new (press ? CLUTTER_KEY_PRESS : CLUTTER_KEY_RELEASE);
-  event->key.time = time_;
-  event->key.flags = CLUTTER_EVENT_FLAG_INPUT_METHOD;
-  event->key.modifier_state = state;
-  event->key.keyval = keyval;
-  event->key.hardware_keycode = keycode;
-  event->key.unicode_value = clutter_keysym_to_unicode (keyval);
-
-  clutter_event_set_device (event, keyboard);
-  clutter_event_set_source_device (event, keyboard);
-  clutter_event_set_stage (event, stage);
-
-  clutter_event_put (event);
-  clutter_event_free (event);
 }

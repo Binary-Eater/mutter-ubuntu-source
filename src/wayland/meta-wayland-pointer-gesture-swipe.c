@@ -23,14 +23,12 @@
 
 #include "config.h"
 
-#include "wayland/meta-wayland-pointer-gesture-swipe.h"
-
 #include <glib.h>
 
-#include "wayland/meta-wayland-pointer.h"
-#include "wayland/meta-wayland-seat.h"
-#include "wayland/meta-wayland-surface.h"
-
+#include "meta-wayland-pointer-gesture-swipe.h"
+#include "meta-wayland-pointer.h"
+#include "meta-wayland-seat.h"
+#include "meta-wayland-surface.h"
 #include "pointer-gestures-unstable-v1-server-protocol.h"
 
 static void

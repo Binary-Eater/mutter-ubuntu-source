@@ -34,16 +34,16 @@
 #include "cogl-config.h"
 
 #include "cogl-debug.h"
+#include "cogl-util-gl-private.h"
+#include "cogl-pipeline-opengl-private.h"
 #include "cogl-pipeline-private.h"
 #include "cogl-context-private.h"
 #include "cogl-texture-private.h"
 #include "cogl-framebuffer-private.h"
 #include "cogl-offscreen.h"
-#include "driver/gl/cogl-util-gl-private.h"
-#include "driver/gl/cogl-pipeline-opengl-private.h"
-#include "driver/gl/cogl-texture-gl-private.h"
+#include "cogl-texture-gl-private.h"
 
-#include "driver/gl/cogl-pipeline-progend-glsl-private.h"
+#include "cogl-pipeline-progend-glsl-private.h"
 
 #include <test-fixtures/test-unit.h>
 
@@ -167,7 +167,7 @@ _cogl_set_active_texture_unit (int unit_index)
 void
 _cogl_bind_gl_texture_transient (GLenum gl_target,
                                  GLuint gl_texture,
-                                 gboolean is_foreign)
+                                 CoglBool is_foreign)
 {
   CoglTextureUnit *unit;
 
@@ -283,12 +283,29 @@ _cogl_use_fragment_program (GLuint gl_program, CoglPipelineProgramType type)
               COGL_PIPELINE_PROGRAM_TYPE_GLSL)
             set_glsl_program (0);
           break;
+
+        case COGL_PIPELINE_PROGRAM_TYPE_ARBFP:
+#ifdef HAVE_COGL_GL
+          GE( ctx, glDisable (GL_FRAGMENT_PROGRAM_ARB) );
+#endif
+          break;
+
+        case COGL_PIPELINE_PROGRAM_TYPE_FIXED:
+          /* don't need to to anything */
+          break;
         }
 
       /* ... and enable the new type */
       switch (type)
         {
+        case COGL_PIPELINE_PROGRAM_TYPE_ARBFP:
+#ifdef HAVE_COGL_GL
+          GE( ctx, glEnable (GL_FRAGMENT_PROGRAM_ARB) );
+#endif
+          break;
+
         case COGL_PIPELINE_PROGRAM_TYPE_GLSL:
+        case COGL_PIPELINE_PROGRAM_TYPE_FIXED:
           /* don't need to to anything */
           break;
         }
@@ -305,6 +322,10 @@ _cogl_use_fragment_program (GLuint gl_program, CoglPipelineProgramType type)
 
 #endif /* COGL_PIPELINE_FRAGEND_GLSL */
     }
+#ifndef COGL_PIPELINE_FRAGEND_ARBFP
+  else if (type == COGL_PIPELINE_PROGRAM_TYPE_ARBFP)
+    g_warning ("Unexpected use of ARBFP fragend!");
+#endif /* COGL_PIPELINE_FRAGEND_ARBFP */
 
   ctx->current_fragment_program_type = type;
 }
@@ -327,12 +348,27 @@ _cogl_use_vertex_program (GLuint gl_program, CoglPipelineProgramType type)
               COGL_PIPELINE_PROGRAM_TYPE_GLSL)
             set_glsl_program (0);
           break;
+
+        case COGL_PIPELINE_PROGRAM_TYPE_ARBFP:
+          /* It doesn't make sense to enable ARBfp for the vertex program */
+          g_assert_not_reached ();
+          break;
+
+        case COGL_PIPELINE_PROGRAM_TYPE_FIXED:
+          /* don't need to to anything */
+          break;
         }
 
       /* ... and enable the new type */
       switch (type)
         {
+        case COGL_PIPELINE_PROGRAM_TYPE_ARBFP:
+          /* It doesn't make sense to enable ARBfp for the vertex program */
+          g_assert_not_reached ();
+          break;
+
         case COGL_PIPELINE_PROGRAM_TYPE_GLSL:
+        case COGL_PIPELINE_PROGRAM_TYPE_FIXED:
           /* don't need to to anything */
           break;
         }
@@ -349,13 +385,17 @@ _cogl_use_vertex_program (GLuint gl_program, CoglPipelineProgramType type)
 
 #endif /* COGL_PIPELINE_VERTEND_GLSL */
     }
+#ifndef COGL_PIPELINE_VERTEND_ARBFP
+  else if (type == COGL_PIPELINE_PROGRAM_TYPE_ARBFP)
+    g_warning ("Unexpected use of ARBFP vertend!");
+#endif /* COGL_PIPELINE_VERTEND_ARBFP */
 
   ctx->current_vertex_program_type = type;
 }
 
 #if defined(HAVE_COGL_GLES2) || defined(HAVE_COGL_GL)
 
-static gboolean
+static CoglBool
 blend_factor_uses_constant (GLenum blend_factor)
 {
   return (blend_factor == GL_CONSTANT_COLOR ||
@@ -370,7 +410,7 @@ static void
 flush_depth_state (CoglContext *ctx,
                    CoglDepthState *depth_state)
 {
-  gboolean depth_writing_enabled = depth_state->write_enabled;
+  CoglBool depth_writing_enabled = depth_state->write_enabled;
 
   if (ctx->current_draw_buffer)
     depth_writing_enabled &= ctx->current_draw_buffer->depth_writing_enabled;
@@ -378,11 +418,7 @@ flush_depth_state (CoglContext *ctx,
   if (ctx->depth_test_enabled_cache != depth_state->test_enabled)
     {
       if (depth_state->test_enabled == TRUE)
-        {
-          GE (ctx, glEnable (GL_DEPTH_TEST));
-          if (ctx->current_draw_buffer)
-            ctx->current_draw_buffer->depth_buffer_clear_needed = TRUE;
-        }
+        GE (ctx, glEnable (GL_DEPTH_TEST));
       else
         GE (ctx, glDisable (GL_DEPTH_TEST));
       ctx->depth_test_enabled_cache = depth_state->test_enabled;
@@ -402,7 +438,8 @@ flush_depth_state (CoglContext *ctx,
       ctx->depth_writing_enabled_cache = depth_writing_enabled;
     }
 
-  if ((ctx->depth_range_near_cache != depth_state->range_near ||
+  if (ctx->driver != COGL_DRIVER_GLES1 &&
+      (ctx->depth_range_near_cache != depth_state->range_near ||
        ctx->depth_range_far_cache != depth_state->range_far))
     {
       if (_cogl_has_private_feature (ctx, COGL_PRIVATE_FEATURE_GL_EMBEDDED))
@@ -453,7 +490,7 @@ static void
 _cogl_pipeline_flush_color_blend_alpha_depth_state (
                                             CoglPipeline *pipeline,
                                             unsigned long pipelines_difference,
-                                            gboolean      with_color_attrib)
+                                            CoglBool      with_color_attrib)
 {
   _COGL_GET_CONTEXT (ctx, NO_RETVAL);
 
@@ -483,51 +520,59 @@ _cogl_pipeline_flush_color_blend_alpha_depth_state (
         &authority->big_state->blend_state;
 
       /* GLES 1 only has glBlendFunc */
-#if defined(HAVE_COGL_GLES2) || defined(HAVE_COGL_GL)
-      if (blend_factor_uses_constant (blend_state->blend_src_factor_rgb) ||
-          blend_factor_uses_constant (blend_state
-                                      ->blend_src_factor_alpha) ||
-          blend_factor_uses_constant (blend_state->blend_dst_factor_rgb) ||
-          blend_factor_uses_constant (blend_state->blend_dst_factor_alpha))
+      if (ctx->driver == COGL_DRIVER_GLES1)
         {
-          float red =
-            cogl_color_get_red_float (&blend_state->blend_constant);
-          float green =
-            cogl_color_get_green_float (&blend_state->blend_constant);
-          float blue =
-            cogl_color_get_blue_float (&blend_state->blend_constant);
-          float alpha =
-            cogl_color_get_alpha_float (&blend_state->blend_constant);
-
-
-          GE (ctx, glBlendColor (red, green, blue, alpha));
+          GE (ctx, glBlendFunc (blend_state->blend_src_factor_rgb,
+                                blend_state->blend_dst_factor_rgb));
         }
-
-      if (ctx->glBlendEquationSeparate &&
-          blend_state->blend_equation_rgb !=
-          blend_state->blend_equation_alpha)
-        GE (ctx,
-            glBlendEquationSeparate (blend_state->blend_equation_rgb,
-                                     blend_state->blend_equation_alpha));
+#if defined(HAVE_COGL_GLES2) || defined(HAVE_COGL_GL)
       else
-        GE (ctx, glBlendEquation (blend_state->blend_equation_rgb));
+        {
+          if (blend_factor_uses_constant (blend_state->blend_src_factor_rgb) ||
+              blend_factor_uses_constant (blend_state
+                                          ->blend_src_factor_alpha) ||
+              blend_factor_uses_constant (blend_state->blend_dst_factor_rgb) ||
+              blend_factor_uses_constant (blend_state->blend_dst_factor_alpha))
+            {
+              float red =
+                cogl_color_get_red_float (&blend_state->blend_constant);
+              float green =
+                cogl_color_get_green_float (&blend_state->blend_constant);
+              float blue =
+                cogl_color_get_blue_float (&blend_state->blend_constant);
+              float alpha =
+                cogl_color_get_alpha_float (&blend_state->blend_constant);
 
-      if (ctx->glBlendFuncSeparate &&
-          (blend_state->blend_src_factor_rgb !=
-           blend_state->blend_src_factor_alpha ||
-           (blend_state->blend_dst_factor_rgb !=
-            blend_state->blend_dst_factor_alpha)))
-        GE (ctx, glBlendFuncSeparate (blend_state->blend_src_factor_rgb,
-                                      blend_state->blend_dst_factor_rgb,
-                                      blend_state->blend_src_factor_alpha,
-                                      blend_state->blend_dst_factor_alpha));
-      else
-        GE (ctx, glBlendFunc (blend_state->blend_src_factor_rgb,
-                              blend_state->blend_dst_factor_rgb));
-    }
+
+              GE (ctx, glBlendColor (red, green, blue, alpha));
+            }
+
+          if (ctx->glBlendEquationSeparate &&
+              blend_state->blend_equation_rgb !=
+              blend_state->blend_equation_alpha)
+            GE (ctx,
+                glBlendEquationSeparate (blend_state->blend_equation_rgb,
+                                         blend_state->blend_equation_alpha));
+          else
+            GE (ctx, glBlendEquation (blend_state->blend_equation_rgb));
+
+          if (ctx->glBlendFuncSeparate &&
+              (blend_state->blend_src_factor_rgb !=
+               blend_state->blend_src_factor_alpha ||
+               (blend_state->blend_dst_factor_rgb !=
+                blend_state->blend_dst_factor_alpha)))
+            GE (ctx, glBlendFuncSeparate (blend_state->blend_src_factor_rgb,
+                                          blend_state->blend_dst_factor_rgb,
+                                          blend_state->blend_src_factor_alpha,
+                                          blend_state->blend_dst_factor_alpha));
+          else
+            GE (ctx, glBlendFunc (blend_state->blend_src_factor_rgb,
+                                  blend_state->blend_dst_factor_rgb));
+        }
 #endif
+    }
 
-#ifdef HAVE_COGL_GL
+#if defined (HAVE_COGL_GL) || defined (HAVE_COGL_GLES)
 
   if (_cogl_has_private_feature (ctx, COGL_PRIVATE_FEATURE_ALPHA_TEST))
     {
@@ -609,7 +654,7 @@ _cogl_pipeline_flush_color_blend_alpha_depth_state (
         GE( ctx, glDisable (GL_CULL_FACE) );
       else
         {
-          gboolean invert_winding;
+          CoglBool invert_winding;
 
           GE( ctx, glEnable (GL_CULL_FACE) );
 
@@ -694,7 +739,8 @@ get_max_activateable_texture_units (void)
              defines the number of texture coordinates that can be
              uploaded (but doesn't necessarily relate to how many texture
              images can be sampled) */
-          if (cogl_has_feature (ctx, COGL_FEATURE_ID_GLSL))
+          if (cogl_has_feature (ctx, COGL_FEATURE_ID_GLSL) ||
+              cogl_has_feature (ctx, COGL_FEATURE_ID_ARBFP))
             /* Previously this code subtracted the value by one but there
                was no explanation for why it did this and it doesn't seem
                to make sense so it has been removed */
@@ -723,7 +769,7 @@ get_max_activateable_texture_units (void)
         }
 #endif
 
-#ifdef HAVE_COGL_GL
+#if defined (HAVE_COGL_GL) || defined (HAVE_COGL_GLES)
       if (_cogl_has_private_feature (ctx, COGL_PRIVATE_FEATURE_GL_FIXED))
         {
           /* GL_MAX_TEXTURE_UNITS defines the number of units that are
@@ -756,7 +802,7 @@ typedef struct
   unsigned long *layer_differences;
 } CoglPipelineFlushLayerState;
 
-static gboolean
+static CoglBool
 flush_layers_common_gl_state_cb (CoglPipelineLayer *layer, void *user_data)
 {
   CoglPipelineFlushLayerState *flush_state = user_data;
@@ -772,7 +818,7 @@ flush_layers_common_gl_state_cb (CoglPipelineLayer *layer, void *user_data)
    */
   if (G_UNLIKELY (unit_index >= get_max_activateable_texture_units ()))
     {
-      static gboolean shown_warning = FALSE;
+      static CoglBool shown_warning = FALSE;
 
       if (!shown_warning)
         {
@@ -868,7 +914,7 @@ flush_layers_common_gl_state_cb (CoglPipelineLayer *layer, void *user_data)
    * this point we can't currently tell if we are using the fixed or
    * glsl progend.
    */
-#ifdef HAVE_COGL_GL
+#if defined (HAVE_COGL_GLES) || defined (HAVE_COGL_GL)
   if (_cogl_has_private_feature (ctx, COGL_PRIVATE_FEATURE_GL_FIXED) &&
       (layers_difference & COGL_PIPELINE_LAYER_STATE_POINT_SPRITE_COORDS))
     {
@@ -900,7 +946,7 @@ static void
 _cogl_pipeline_flush_common_gl_state (CoglPipeline  *pipeline,
                                       unsigned long  pipelines_difference,
                                       unsigned long *layer_differences,
-                                      gboolean       with_color_attrib)
+                                      CoglBool       with_color_attrib)
 {
   CoglPipelineFlushLayerState state;
 
@@ -1015,7 +1061,7 @@ typedef struct
   unsigned long *layer_differences;
 } CoglPipelineCompareLayersState;
 
-static gboolean
+static CoglBool
 compare_layer_differences_cb (CoglPipelineLayer *layer, void *user_data)
 {
   CoglPipelineCompareLayersState *state = user_data;
@@ -1056,11 +1102,11 @@ typedef struct
   const CoglPipelineFragend *fragend;
   CoglPipeline *pipeline;
   unsigned long *layer_differences;
-  gboolean error_adding_layer;
-  gboolean added_layer;
+  CoglBool error_adding_layer;
+  CoglBool added_layer;
 } CoglPipelineAddLayerState;
 
-static gboolean
+static CoglBool
 vertend_add_layer_cb (CoglPipelineLayer *layer,
                       void *user_data)
 {
@@ -1085,7 +1131,7 @@ vertend_add_layer_cb (CoglPipelineLayer *layer,
   return TRUE;
 }
 
-static gboolean
+static CoglBool
 fragend_add_layer_cb (CoglPipelineLayer *layer,
                       void *user_data)
 {
@@ -1163,8 +1209,8 @@ void
 _cogl_pipeline_flush_gl_state (CoglContext *ctx,
                                CoglPipeline *pipeline,
                                CoglFramebuffer *framebuffer,
-                               gboolean with_color_attrib,
-                               gboolean unknown_color_alpha)
+                               CoglBool with_color_attrib,
+                               CoglBool unknown_color_alpha)
 {
   CoglPipeline *current_pipeline = ctx->current_pipeline;
   unsigned long pipelines_difference;
@@ -1207,7 +1253,7 @@ _cogl_pipeline_flush_gl_state (CoglContext *ctx,
           if (pipelines_difference & COGL_PIPELINE_STATE_AFFECTS_BLENDING ||
               pipeline->unknown_color_alpha != unknown_color_alpha)
             {
-              gboolean save_real_blend_enable = pipeline->real_blend_enable;
+              CoglBool save_real_blend_enable = pipeline->real_blend_enable;
 
               _cogl_pipeline_update_real_blend_enable (pipeline,
                                                        unknown_color_alpha);

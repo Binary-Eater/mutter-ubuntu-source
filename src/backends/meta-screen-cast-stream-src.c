@@ -32,7 +32,6 @@
 #include <stdint.h>
 #include <sys/mman.h>
 
-#include "backends/meta-screen-cast-session.h"
 #include "backends/meta-screen-cast-stream.h"
 #include "clutter/clutter-mutter.h"
 #include "core/meta-fraction.h"
@@ -40,10 +39,6 @@
 
 #define PRIVATE_OWNER_FROM_FIELD(TypeName, field_ptr, field_name) \
   (TypeName *)((guint8 *)(field_ptr) - G_PRIVATE_OFFSET (TypeName, field_name))
-
-#define CURSOR_META_SIZE(width, height) \
-  (sizeof (struct spa_meta_cursor) + \
-   sizeof (struct spa_meta_bitmap) + width * height * 4)
 
 enum
 {
@@ -68,7 +63,6 @@ typedef struct _MetaSpaType
   struct spa_type_media_subtype media_subtype;
   struct spa_type_format_video format_video;
   struct spa_type_video_format video_format;
-  uint32_t meta_cursor;
 } MetaSpaType;
 
 typedef struct _MetaPipeWireSource
@@ -97,9 +91,6 @@ typedef struct _MetaScreenCastStreamSrcPrivate
   struct spa_video_info_raw video_format;
 
   uint64_t last_frame_timestamp_us;
-
-  int stream_width;
-  int stream_height;
 } MetaScreenCastStreamSrcPrivate;
 
 static void
@@ -126,290 +117,14 @@ meta_screen_cast_stream_src_get_specs (MetaScreenCastStreamSrc *src,
   klass->get_specs (src, width, height, frame_rate);
 }
 
-static gboolean
-meta_screen_cast_stream_src_get_videocrop (MetaScreenCastStreamSrc *src,
-                                           MetaRectangle           *crop_rect)
-{
-  MetaScreenCastStreamSrcClass *klass =
-    META_SCREEN_CAST_STREAM_SRC_GET_CLASS (src);
-
-  if (klass->get_videocrop)
-    return klass->get_videocrop (src, crop_rect);
-
-  return FALSE;
-}
-
-static gboolean
+static void
 meta_screen_cast_stream_src_record_frame (MetaScreenCastStreamSrc *src,
                                           uint8_t                 *data)
 {
   MetaScreenCastStreamSrcClass *klass =
     META_SCREEN_CAST_STREAM_SRC_GET_CLASS (src);
 
-  return klass->record_frame (src, data);
-}
-
-static void
-meta_screen_cast_stream_src_set_cursor_metadata (MetaScreenCastStreamSrc *src,
-                                                 struct spa_meta_cursor  *spa_meta_cursor)
-{
-  MetaScreenCastStreamSrcClass *klass =
-    META_SCREEN_CAST_STREAM_SRC_GET_CLASS (src);
-
-  if (klass->set_cursor_metadata)
-    klass->set_cursor_metadata (src, spa_meta_cursor);
-}
-
-static gboolean
-draw_cursor_sprite_via_offscreen (MetaScreenCastStreamSrc  *src,
-                                  CoglTexture              *cursor_texture,
-                                  int                       bitmap_width,
-                                  int                       bitmap_height,
-                                  uint8_t                  *bitmap_data,
-                                  GError                  **error)
-{
-  MetaScreenCastStream *stream = meta_screen_cast_stream_src_get_stream (src);
-  MetaScreenCastSession *session = meta_screen_cast_stream_get_session (stream);
-  MetaScreenCast *screen_cast =
-    meta_screen_cast_session_get_screen_cast (session);
-  MetaBackend *backend = meta_screen_cast_get_backend (screen_cast);
-  ClutterBackend *clutter_backend = meta_backend_get_clutter_backend (backend);
-  CoglContext *cogl_context =
-    clutter_backend_get_cogl_context (clutter_backend);
-  CoglTexture2D *bitmap_texture;
-  CoglOffscreen *offscreen;
-  CoglFramebuffer *fb;
-  CoglPipeline *pipeline;
-  CoglColor clear_color;
-
-  bitmap_texture = cogl_texture_2d_new_with_size (cogl_context,
-                                                  bitmap_width, bitmap_height);
-  cogl_primitive_texture_set_auto_mipmap (COGL_PRIMITIVE_TEXTURE (bitmap_texture),
-                                          FALSE);
-  if (!cogl_texture_allocate (COGL_TEXTURE (bitmap_texture), error))
-    {
-      cogl_object_unref (bitmap_texture);
-      return FALSE;
-    }
-
-  offscreen = cogl_offscreen_new_with_texture (COGL_TEXTURE (bitmap_texture));
-  fb = COGL_FRAMEBUFFER (offscreen);
-  cogl_object_unref (bitmap_texture);
-  if (!cogl_framebuffer_allocate (fb, error))
-    {
-      cogl_object_unref (fb);
-      return FALSE;
-    }
-
-  pipeline = cogl_pipeline_new (cogl_context);
-  cogl_pipeline_set_layer_texture (pipeline, 0, cursor_texture);
-  cogl_pipeline_set_layer_filters (pipeline, 0,
-                                   COGL_PIPELINE_FILTER_LINEAR,
-                                   COGL_PIPELINE_FILTER_LINEAR);
-  cogl_color_init_from_4ub (&clear_color, 0, 0, 0, 0);
-  cogl_framebuffer_clear (fb, COGL_BUFFER_BIT_COLOR, &clear_color);
-  cogl_framebuffer_draw_rectangle (fb, pipeline,
-                                   -1, 1, 1, -1);
-  cogl_object_unref (pipeline);
-
-  cogl_framebuffer_read_pixels (fb,
-                                0, 0,
-                                bitmap_width, bitmap_height,
-                                COGL_PIXEL_FORMAT_RGBA_8888_PRE,
-                                bitmap_data);
-  cogl_object_unref (fb);
-
-  return TRUE;
-}
-
-gboolean
-meta_screen_cast_stream_src_draw_cursor_into (MetaScreenCastStreamSrc  *src,
-                                              CoglTexture              *cursor_texture,
-                                              float                     scale,
-                                              uint8_t                  *data,
-                                              GError                  **error)
-{
-  int texture_width, texture_height;
-  int width, height;
-
-  texture_width = cogl_texture_get_width (cursor_texture);
-  texture_height = cogl_texture_get_height (cursor_texture);
-  width = texture_width * scale;
-  height = texture_height * scale;
-
-  if (texture_width == width &&
-      texture_height == height)
-    {
-      cogl_texture_get_data (cursor_texture,
-                             COGL_PIXEL_FORMAT_RGBA_8888_PRE,
-                             texture_width * 4,
-                             data);
-    }
-  else
-    {
-      if (!draw_cursor_sprite_via_offscreen (src,
-                                             cursor_texture,
-                                             width,
-                                             height,
-                                             data,
-                                             error))
-        return FALSE;
-    }
-
-  return TRUE;
-}
-
-void
-meta_screen_cast_stream_src_unset_cursor_metadata (MetaScreenCastStreamSrc *src,
-                                                   struct spa_meta_cursor  *spa_meta_cursor)
-{
-  spa_meta_cursor->id = 1;
-}
-
-void
-meta_screen_cast_stream_src_set_cursor_position_metadata (MetaScreenCastStreamSrc *src,
-                                                          struct spa_meta_cursor  *spa_meta_cursor,
-                                                          int                      x,
-                                                          int                      y)
-{
-  spa_meta_cursor->id = 1;
-  spa_meta_cursor->position.x = x;
-  spa_meta_cursor->position.y = y;
-  spa_meta_cursor->hotspot.x = 0;
-  spa_meta_cursor->hotspot.y = 0;
-  spa_meta_cursor->bitmap_offset = 0;
-}
-
-void
-meta_screen_cast_stream_src_set_empty_cursor_sprite_metadata (MetaScreenCastStreamSrc *src,
-                                                              struct spa_meta_cursor  *spa_meta_cursor,
-                                                              int                      x,
-                                                              int                      y)
-{
-  MetaScreenCastStreamSrcPrivate *priv =
-    meta_screen_cast_stream_src_get_instance_private (src);
-  MetaSpaType *spa_type = &priv->spa_type;
-  struct spa_meta_bitmap *spa_meta_bitmap;
-
-  spa_meta_cursor->id = 1;
-  spa_meta_cursor->position.x = x;
-  spa_meta_cursor->position.y = y;
-
-  spa_meta_cursor->bitmap_offset = sizeof (struct spa_meta_cursor);
-
-  spa_meta_bitmap = SPA_MEMBER (spa_meta_cursor,
-                                spa_meta_cursor->bitmap_offset,
-                                struct spa_meta_bitmap);
-  spa_meta_bitmap->format = spa_type->video_format.RGBA;
-  spa_meta_bitmap->offset = sizeof (struct spa_meta_bitmap);
-
-  spa_meta_cursor->hotspot.x = 0;
-  spa_meta_cursor->hotspot.y = 0;
-
-  *spa_meta_bitmap = (struct spa_meta_bitmap) { 0 };
-}
-
-void
-meta_screen_cast_stream_src_set_cursor_sprite_metadata (MetaScreenCastStreamSrc *src,
-                                                        struct spa_meta_cursor  *spa_meta_cursor,
-                                                        MetaCursorSprite        *cursor_sprite,
-                                                        int                      x,
-                                                        int                      y,
-                                                        float                    scale)
-{
-  MetaScreenCastStreamSrcPrivate *priv =
-    meta_screen_cast_stream_src_get_instance_private (src);
-  MetaSpaType *spa_type = &priv->spa_type;
-  CoglTexture *cursor_texture;
-  struct spa_meta_bitmap *spa_meta_bitmap;
-  int hotspot_x, hotspot_y;
-  int texture_width, texture_height;
-  int bitmap_width, bitmap_height;
-  uint8_t *bitmap_data;
-  GError *error = NULL;
-
-  cursor_texture = meta_cursor_sprite_get_cogl_texture (cursor_sprite);
-  if (!cursor_texture)
-    {
-      meta_screen_cast_stream_src_set_empty_cursor_sprite_metadata (src,
-                                                                    spa_meta_cursor,
-                                                                    x, y);
-      return;
-    }
-
-  spa_meta_cursor->id = 1;
-  spa_meta_cursor->position.x = x;
-  spa_meta_cursor->position.y = y;
-
-  spa_meta_cursor->bitmap_offset = sizeof (struct spa_meta_cursor);
-
-  spa_meta_bitmap = SPA_MEMBER (spa_meta_cursor,
-                                spa_meta_cursor->bitmap_offset,
-                                struct spa_meta_bitmap);
-  spa_meta_bitmap->format = spa_type->video_format.RGBA;
-  spa_meta_bitmap->offset = sizeof (struct spa_meta_bitmap);
-
-  meta_cursor_sprite_get_hotspot (cursor_sprite, &hotspot_x, &hotspot_y);
-  spa_meta_cursor->hotspot.x = (int32_t) roundf (hotspot_x * scale);
-  spa_meta_cursor->hotspot.y = (int32_t) roundf (hotspot_y * scale);
-
-  texture_width = cogl_texture_get_width (cursor_texture);
-  texture_height = cogl_texture_get_height (cursor_texture);
-  bitmap_width = texture_width * scale;
-  bitmap_height = texture_height * scale;
-
-  spa_meta_bitmap->size.width = bitmap_width;
-  spa_meta_bitmap->size.height = bitmap_height;
-  spa_meta_bitmap->stride = bitmap_width * 4;
-
-  bitmap_data = SPA_MEMBER (spa_meta_bitmap,
-                            spa_meta_bitmap->offset,
-                            uint8_t);
-
-  if (!meta_screen_cast_stream_src_draw_cursor_into (src,
-                                                     cursor_texture,
-                                                     scale,
-                                                     bitmap_data,
-                                                     &error))
-    {
-      g_warning ("Failed to draw cursor: %s", error->message);
-      g_error_free (error);
-      spa_meta_cursor->id = 0;
-    }
-}
-
-static void
-add_cursor_metadata (MetaScreenCastStreamSrc *src,
-                     struct spa_buffer       *spa_buffer)
-{
-  MetaScreenCastStreamSrcPrivate *priv =
-    meta_screen_cast_stream_src_get_instance_private (src);
-  MetaSpaType *spa_type = &priv->spa_type;
-  struct spa_meta_cursor *spa_meta_cursor;
-
-  spa_meta_cursor = spa_buffer_find_meta (spa_buffer, spa_type->meta_cursor);
-  if (spa_meta_cursor)
-    meta_screen_cast_stream_src_set_cursor_metadata (src, spa_meta_cursor);
-}
-
-static void
-maybe_record_cursor (MetaScreenCastStreamSrc *src,
-                     struct spa_buffer       *spa_buffer,
-                     uint8_t                 *data)
-{
-  MetaScreenCastStream *stream = meta_screen_cast_stream_src_get_stream (src);
-
-  switch (meta_screen_cast_stream_get_cursor_mode (stream))
-    {
-    case META_SCREEN_CAST_CURSOR_MODE_HIDDEN:
-    case META_SCREEN_CAST_CURSOR_MODE_EMBEDDED:
-      return;
-    case META_SCREEN_CAST_CURSOR_MODE_METADATA:
-      add_cursor_metadata (src, spa_buffer);
-      return;
-    }
-
-  g_assert_not_reached ();
+  klass->record_frame (src, data);
 }
 
 void
@@ -417,9 +132,8 @@ meta_screen_cast_stream_src_maybe_record_frame (MetaScreenCastStreamSrc *src)
 {
   MetaScreenCastStreamSrcPrivate *priv =
     meta_screen_cast_stream_src_get_instance_private (src);
-  MetaRectangle crop_rect;
-  struct pw_buffer *buffer;
-  struct spa_buffer *spa_buffer;
+  uint32_t buffer_id;
+  struct spa_buffer *buffer;
   uint8_t *map = NULL;
   uint8_t *data;
   uint64_t now_us;
@@ -434,24 +148,22 @@ meta_screen_cast_stream_src_maybe_record_frame (MetaScreenCastStreamSrc *src)
   if (!priv->pipewire_stream)
     return;
 
-  buffer = pw_stream_dequeue_buffer (priv->pipewire_stream);
+  buffer_id = pw_stream_get_empty_buffer (priv->pipewire_stream);
+  if (buffer_id == SPA_ID_INVALID)
+    return;
+
+  buffer = pw_stream_peek_buffer (priv->pipewire_stream, buffer_id);
   if (!buffer)
     {
-      g_warning ("Failed to dequeue at PipeWire buffer");
+      g_warning ("Failed to peek at PipeWire buffer");
       return;
     }
 
-  spa_buffer = buffer->buffer;
-
-  if (spa_buffer->datas[0].data)
+  if (buffer->datas[0].type == priv->pipewire_type->data.MemFd)
     {
-      data = spa_buffer->datas[0].data;
-    }
-  else if (spa_buffer->datas[0].type == priv->pipewire_type->data.MemFd)
-    {
-      map = mmap (NULL, spa_buffer->datas[0].maxsize + spa_buffer->datas[0].mapoffset,
+      map = mmap (NULL, buffer->datas[0].maxsize + buffer->datas[0].mapoffset,
                   PROT_READ | PROT_WRITE, MAP_SHARED,
-                  spa_buffer->datas[0].fd, 0);
+                  buffer->datas[0].fd, 0);
       if (map == MAP_FAILED)
         {
           g_warning ("Failed to mmap pipewire stream buffer: %s\n",
@@ -459,54 +171,26 @@ meta_screen_cast_stream_src_maybe_record_frame (MetaScreenCastStreamSrc *src)
           return;
         }
 
-      data = SPA_MEMBER (map, spa_buffer->datas[0].mapoffset, uint8_t);
+      data = SPA_MEMBER (map, buffer->datas[0].mapoffset, uint8_t);
+    }
+  else if (buffer->datas[0].type == priv->pipewire_type->data.MemPtr)
+    {
+      data = buffer->datas[0].data;
     }
   else
     {
-      g_warning ("Unhandled spa buffer type: %d", spa_buffer->datas[0].type);
       return;
     }
 
-  if (meta_screen_cast_stream_src_record_frame (src, data))
-    {
-      struct spa_meta_video_crop *spa_meta_video_crop;
-
-      spa_buffer->datas[0].chunk->size = spa_buffer->datas[0].maxsize;
-
-      /* Update VideoCrop if needed */
-      spa_meta_video_crop =
-        spa_buffer_find_meta (spa_buffer, priv->pipewire_type->meta.VideoCrop);
-      if (spa_meta_video_crop)
-        {
-          if (meta_screen_cast_stream_src_get_videocrop (src, &crop_rect))
-            {
-              spa_meta_video_crop->x = crop_rect.x;
-              spa_meta_video_crop->y = crop_rect.y;
-              spa_meta_video_crop->width = crop_rect.width;
-              spa_meta_video_crop->height = crop_rect.height;
-            }
-          else
-            {
-              spa_meta_video_crop->x = 0;
-              spa_meta_video_crop->y = 0;
-              spa_meta_video_crop->width = priv->stream_width;
-              spa_meta_video_crop->height = priv->stream_height;
-            }
-        }
-    }
-  else
-    {
-      spa_buffer->datas[0].chunk->size = 0;
-    }
-
-  maybe_record_cursor (src, spa_buffer, data);
-
+  meta_screen_cast_stream_src_record_frame (src, data);
   priv->last_frame_timestamp_us = now_us;
 
   if (map)
-    munmap (map, spa_buffer->datas[0].maxsize + spa_buffer->datas[0].mapoffset);
+    munmap (map, buffer->datas[0].maxsize + buffer->datas[0].mapoffset);
 
-  pw_stream_queue_buffer (priv->pipewire_stream, buffer);
+  buffer->datas[0].chunk->size = buffer->datas[0].maxsize;
+
+  pw_stream_send_buffer (priv->pipewire_stream, buffer_id);
 }
 
 static gboolean
@@ -582,8 +266,8 @@ on_stream_state_changed (void                 *data,
 }
 
 static void
-on_stream_format_changed (void                 *data,
-                          const struct spa_pod *format)
+on_stream_format_changed (void           *data,
+                          struct spa_pod *format)
 {
   MetaScreenCastStreamSrc *src = data;
   MetaScreenCastStreamSrcPrivate *priv =
@@ -592,7 +276,7 @@ on_stream_format_changed (void                 *data,
   uint8_t params_buffer[1024];
   int32_t width, height, stride, size;
   struct spa_pod_builder pod_builder;
-  const struct spa_pod *params[3];
+  struct spa_pod *params[1];
   const int bpp = 4;
 
   if (!format)
@@ -620,18 +304,6 @@ on_stream_format_changed (void                 *data,
     ":", pipewire_type->param_buffers.buffers, "iru", 16, PROP_RANGE (2, 16),
     ":", pipewire_type->param_buffers.align, "i", 16);
 
-  params[1] = spa_pod_builder_object (
-    &pod_builder,
-    pipewire_type->param.idMeta, pipewire_type->param_meta.Meta,
-    ":", pipewire_type->param_meta.type, "I", pipewire_type->meta.VideoCrop,
-    ":", pipewire_type->param_meta.size, "i", sizeof (struct spa_meta_video_crop));
-
-  params[2] = spa_pod_builder_object (
-    &pod_builder,
-    pipewire_type->param.idMeta, pipewire_type->param_meta.Meta,
-    ":", pipewire_type->param_meta.type, "I", priv->spa_type.meta_cursor,
-    ":", pipewire_type->param_meta.size, "i", CURSOR_META_SIZE (64, 64));
-
   pw_stream_finish_format (priv->pipewire_stream, 0,
                            params, G_N_ELEMENTS (params));
 }
@@ -654,6 +326,7 @@ create_pipewire_stream (MetaScreenCastStreamSrc  *src,
     SPA_POD_BUILDER_INIT (buffer, sizeof (buffer));
   MetaSpaType *spa_type = &priv->spa_type;
   struct pw_type *pipewire_type = priv->pipewire_type;
+  int width, height;
   float frame_rate;
   MetaFraction frame_rate_fraction;
   struct spa_fraction max_framerate;
@@ -672,10 +345,7 @@ create_pipewire_stream (MetaScreenCastStreamSrc  *src,
       return NULL;
     }
 
-  meta_screen_cast_stream_src_get_specs (src,
-                                         &priv->stream_width,
-                                         &priv->stream_height,
-                                         &frame_rate);
+  meta_screen_cast_stream_src_get_specs (src, &width, &height, &frame_rate);
   frame_rate_fraction = meta_fraction_from_double (frame_rate);
 
   min_framerate = SPA_FRACTION (1, 1);
@@ -688,8 +358,7 @@ create_pipewire_stream (MetaScreenCastStreamSrc  *src,
     "I", spa_type->media_type.video,
     "I", spa_type->media_subtype.raw,
     ":", spa_type->format_video.format, "I", spa_type->video_format.BGRx,
-    ":", spa_type->format_video.size, "R", &SPA_RECTANGLE (priv->stream_width,
-                                                           priv->stream_height),
+    ":", spa_type->format_video.size, "R", &SPA_RECTANGLE (width, height),
     ":", spa_type->format_video.framerate, "F", &SPA_FRACTION (0, 1),
     ":", spa_type->format_video.max_framerate, "Fru", &max_framerate,
                                                       PROP_RANGE (&min_framerate,
@@ -703,8 +372,7 @@ create_pipewire_stream (MetaScreenCastStreamSrc  *src,
   result = pw_stream_connect (pipewire_stream,
                               PW_DIRECTION_OUTPUT,
                               NULL,
-                              (PW_STREAM_FLAG_DRIVER |
-                               PW_STREAM_FLAG_MAP_BUFFERS),
+                              PW_STREAM_FLAG_NONE,
                               params, G_N_ELEMENTS (params));
   if (result != 0)
     {
@@ -801,7 +469,6 @@ init_spa_type (MetaSpaType         *type,
   spa_type_media_subtype_map (map, &type->media_subtype);
   spa_type_format_video_map (map, &type->format_video);
   spa_type_video_format_map (map, &type->video_format);
-  type->meta_cursor = spa_type_map_get_id(map, SPA_TYPE_META__Cursor);
 }
 
 static MetaPipeWireSource *
@@ -911,9 +578,9 @@ meta_screen_cast_stream_src_finalize (GObject *object)
   if (meta_screen_cast_stream_src_is_enabled (src))
     meta_screen_cast_stream_src_disable (src);
 
-  g_clear_pointer (&priv->pipewire_stream, pw_stream_destroy);
-  g_clear_pointer (&priv->pipewire_remote, pw_remote_destroy);
-  g_clear_pointer (&priv->pipewire_core, pw_core_destroy);
+  g_clear_pointer (&priv->pipewire_stream, (GDestroyNotify) pw_stream_destroy);
+  g_clear_pointer (&priv->pipewire_remote, (GDestroyNotify) pw_remote_destroy);
+  g_clear_pointer (&priv->pipewire_core, (GDestroyNotify) pw_core_destroy);
   g_source_destroy (&priv->pipewire_source->base);
 
   G_OBJECT_CLASS (meta_screen_cast_stream_src_parent_class)->finalize (object);

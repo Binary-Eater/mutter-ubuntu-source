@@ -42,7 +42,7 @@ struct _CoglDriverVtable
 {
   /* TODO: factor this out since this is OpenGL specific and
    * so can be ignored by non-OpenGL drivers. */
-  gboolean
+  CoglBool
   (* pixel_format_from_gl_internal) (CoglContext *context,
                                      GLenum gl_int_format,
                                      CoglPixelFormat *out_format);
@@ -55,12 +55,19 @@ struct _CoglDriverVtable
                           GLenum *out_glintformat,
                           GLenum *out_glformat,
                           GLenum *out_gltype);
+  CoglPixelFormat
+  (* pixel_format_to_gl_with_target) (CoglContext *context,
+                                      CoglPixelFormat format,
+                                      CoglPixelFormat target_format,
+                                      GLenum *out_glintformat,
+                                      GLenum *out_glformat,
+                                      GLenum *out_gltype);
 
-  gboolean
+  CoglBool
   (* update_features) (CoglContext *context,
                        CoglError **error);
 
-  gboolean
+  CoglBool
   (* offscreen_allocate) (CoglOffscreen *offscreen,
                           CoglError **error);
 
@@ -112,7 +119,7 @@ struct _CoglDriverVtable
                                            int n_attributes,
                                            CoglDrawFlags flags);
 
-  gboolean
+  CoglBool
   (* framebuffer_read_pixels_into_bitmap) (CoglFramebuffer *framebuffer,
                                            int x,
                                            int y,
@@ -128,7 +135,7 @@ struct _CoglDriverVtable
   /* Returns TRUE if the driver can support creating a 2D texture with
    * the given geometry and specified internal format.
    */
-  gboolean
+  CoglBool
   (* texture_2d_can_create) (CoglContext *ctx,
                              int width,
                              int height,
@@ -144,7 +151,7 @@ struct _CoglDriverVtable
 
   /* Allocates (uninitialized) storage for the given texture according
    * to the configured size and format of the texture */
-  gboolean
+  CoglBool
   (* texture_2d_allocate) (CoglTexture *tex,
                            CoglError **error);
 
@@ -180,7 +187,7 @@ struct _CoglDriverVtable
    * Since this may need to create the underlying storage first
    * it may throw a NO_MEMORY error.
    */
-  gboolean
+  CoglBool
   (* texture_2d_copy_from_bitmap) (CoglTexture2D *tex_2d,
                                    int src_x,
                                    int src_y,
@@ -191,9 +198,6 @@ struct _CoglDriverVtable
                                    int dst_y,
                                    int level,
                                    CoglError **error);
-
-  gboolean
-  (* texture_2d_is_get_data_supported) (CoglTexture2D *tex_2d);
 
   /* Reads back the full contents of the given texture and write it to
    * @data in the given @format and with the given @rowstride.
@@ -247,7 +251,7 @@ struct _CoglDriverVtable
 
   /* Uploads data to the buffer without needing to map it necessarily
    */
-  gboolean
+  CoglBool
   (* buffer_set_data) (CoglBuffer *buffer,
                        unsigned int offset,
                        const void *data,
@@ -257,8 +261,7 @@ struct _CoglDriverVtable
 
 #define COGL_DRIVER_ERROR (_cogl_driver_error_quark ())
 
-typedef enum /*< prefix=COGL_DRIVER_ERROR >*/
-{
+typedef enum { /*< prefix=COGL_DRIVER_ERROR >*/
   COGL_DRIVER_ERROR_UNKNOWN_VERSION,
   COGL_DRIVER_ERROR_INVALID_VERSION,
   COGL_DRIVER_ERROR_NO_SUITABLE_DRIVER_FOUND,

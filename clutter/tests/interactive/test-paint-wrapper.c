@@ -56,12 +56,6 @@ static GOptionEntry super_oh_entries[] = {
   { NULL }
 };
 
-int
-test_paint_wrapper_main (int argc, char *argv[]);
-
-const char *
-test_paint_wrapper_describe (void);
-
 static gboolean
 on_button_press_event (ClutterActor *actor,
                        ClutterEvent *event,

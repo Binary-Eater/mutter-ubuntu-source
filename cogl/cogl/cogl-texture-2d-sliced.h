@@ -78,7 +78,7 @@ typedef struct _CoglTexture2DSliced CoglTexture2DSliced;
 GType cogl_texture_2d_sliced_get_gtype (void);
 
 /**
- * cogl_texture_2d_sliced_new_with_size: (skip)
+ * cogl_texture_2d_sliced_new_with_size:
  * @ctx: A #CoglContext
  * @width: The virtual width of your sliced texture.
  * @height: The virtual height of your sliced texture.
@@ -125,7 +125,7 @@ cogl_texture_2d_sliced_new_with_size (CoglContext *ctx,
                                       int max_waste);
 
 /**
- * cogl_texture_2d_sliced_new_from_file: (skip)
+ * cogl_texture_2d_sliced_new_from_file:
  * @ctx: A #CoglContext
  * @filename: the file to load
  * @max_waste: The threshold of how wide a strip of wasted texels
@@ -173,7 +173,7 @@ cogl_texture_2d_sliced_new_from_file (CoglContext *ctx,
                                       CoglError **error);
 
 /**
- * cogl_texture_2d_sliced_new_from_data: (skip)
+ * cogl_texture_2d_sliced_new_from_data:
  * @ctx: A #CoglContext
  * @width: width of texture in pixels
  * @height: height of texture in pixels
@@ -293,7 +293,7 @@ cogl_texture_2d_sliced_new_from_bitmap (CoglBitmap *bmp,
  * Since: 1.10
  * Stability: unstable
  */
-gboolean
+CoglBool
 cogl_is_texture_2d_sliced (void *object);
 
 #endif /* __COGL_TEXURE_2D_SLICED_H */

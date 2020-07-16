@@ -28,7 +28,9 @@
  *
  */
 
+#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
+#endif
 
 #include <string.h>
 
@@ -43,6 +45,7 @@
 #include "cogl-onscreen-template-private.h"
 #include "cogl-clip-stack.h"
 #include "cogl-journal-private.h"
+#include "cogl-winsys-private.h"
 #include "cogl-pipeline-state-private.h"
 #include "cogl-matrix-private.h"
 #include "cogl-primitive-private.h"
@@ -51,9 +54,8 @@
 #include "cogl-private.h"
 #include "cogl-primitives-private.h"
 #include "cogl-error-private.h"
+#include "cogl-texture-gl-private.h"
 #include "cogl-gtype-private.h"
-#include "driver/gl/cogl-texture-gl-private.h"
-#include "winsys/cogl-winsys-private.h"
 
 extern CoglObjectClass _cogl_onscreen_class;
 
@@ -66,8 +68,7 @@ static void _cogl_offscreen_free (CoglOffscreen *offscreen);
 COGL_OBJECT_DEFINE_WITH_CODE_GTYPE (Offscreen, offscreen,
                                     _cogl_offscreen_class.virt_unref =
                                     _cogl_framebuffer_unref);
-COGL_GTYPE_DEFINE_CLASS (Offscreen, offscreen,
-                         COGL_GTYPE_IMPLEMENT_INTERFACE (framebuffer));
+COGL_GTYPE_DEFINE_CLASS (Offscreen, offscreen);
 COGL_OBJECT_DEFINE_DEPRECATED_REF_COUNTING (offscreen);
 COGL_GTYPE_DEFINE_INTERFACE (Framebuffer, framebuffer);
 
@@ -83,7 +84,7 @@ cogl_framebuffer_error_quark (void)
   return g_quark_from_static_string ("cogl-framebuffer-error-quark");
 }
 
-gboolean
+CoglBool
 cogl_is_framebuffer (void *object)
 {
   CoglObject *obj = object;
@@ -116,7 +117,6 @@ _cogl_framebuffer_init (CoglFramebuffer *framebuffer,
   framebuffer->viewport_age_for_scissor_workaround = -1;
   framebuffer->dither_enabled = TRUE;
   framebuffer->depth_writing_enabled = TRUE;
-  framebuffer->depth_buffer_clear_needed = TRUE;
 
   framebuffer->modelview_stack = cogl_matrix_stack_new (ctx);
   framebuffer->projection_stack = cogl_matrix_stack_new (ctx);
@@ -224,7 +224,7 @@ _cogl_framebuffer_clear_without_flush4f (CoglFramebuffer *framebuffer,
 
   if (!buffers)
     {
-      static gboolean shown = FALSE;
+      static CoglBool shown = FALSE;
 
       if (!shown)
         {
@@ -266,14 +266,7 @@ cogl_framebuffer_clear4f (CoglFramebuffer *framebuffer,
   int scissor_y0;
   int scissor_x1;
   int scissor_y1;
-  gboolean saved_viewport_scissor_workaround;
-
-  if (!framebuffer->depth_buffer_clear_needed &&
-      (buffers & COGL_BUFFER_BIT_DEPTH))
-    buffers &= ~(COGL_BUFFER_BIT_DEPTH);
-
-  if (buffers == 0)
-    return;
+  CoglBool saved_viewport_scissor_workaround;
 
   _cogl_clip_stack_get_bounds (clip_stack,
                                &scissor_x0, &scissor_y0,
@@ -421,9 +414,6 @@ cleared:
 
   _cogl_framebuffer_mark_mid_scene (framebuffer);
   _cogl_framebuffer_mark_clear_clip_dirty (framebuffer);
-
-  if (buffers & COGL_BUFFER_BIT_DEPTH)
-    framebuffer->depth_buffer_clear_needed = FALSE;
 
   if (buffers & COGL_BUFFER_BIT_COLOR && buffers & COGL_BUFFER_BIT_DEPTH)
     {
@@ -741,7 +731,7 @@ _cogl_offscreen_free (CoglOffscreen *offscreen)
   g_free (offscreen);
 }
 
-gboolean
+CoglBool
 cogl_framebuffer_allocate (CoglFramebuffer *framebuffer,
                            CoglError **error)
 {
@@ -1126,7 +1116,7 @@ cogl_framebuffer_set_stereo_mode (CoglFramebuffer *framebuffer,
       COGL_FRAMEBUFFER_STATE_STEREO_MODE;
 }
 
-gboolean
+CoglBool
 cogl_framebuffer_get_depth_write_enabled (CoglFramebuffer *framebuffer)
 {
   return framebuffer->depth_writing_enabled;
@@ -1134,7 +1124,7 @@ cogl_framebuffer_get_depth_write_enabled (CoglFramebuffer *framebuffer)
 
 void
 cogl_framebuffer_set_depth_write_enabled (CoglFramebuffer *framebuffer,
-                                          gboolean depth_write_enabled)
+                                          CoglBool depth_write_enabled)
 {
   if (framebuffer->depth_writing_enabled == depth_write_enabled)
     return;
@@ -1149,7 +1139,7 @@ cogl_framebuffer_set_depth_write_enabled (CoglFramebuffer *framebuffer,
       COGL_FRAMEBUFFER_STATE_DEPTH_WRITE;
 }
 
-gboolean
+CoglBool
 cogl_framebuffer_get_dither_enabled (CoglFramebuffer *framebuffer)
 {
   return framebuffer->dither_enabled;
@@ -1157,7 +1147,7 @@ cogl_framebuffer_get_dither_enabled (CoglFramebuffer *framebuffer)
 
 void
 cogl_framebuffer_set_dither_enabled (CoglFramebuffer *framebuffer,
-                                     gboolean dither_enabled)
+                                     CoglBool dither_enabled)
 {
   if (framebuffer->dither_enabled == dither_enabled)
     return;
@@ -1172,14 +1162,14 @@ cogl_framebuffer_set_dither_enabled (CoglFramebuffer *framebuffer,
 
 void
 cogl_framebuffer_set_depth_texture_enabled (CoglFramebuffer *framebuffer,
-                                            gboolean enabled)
+                                            CoglBool enabled)
 {
   _COGL_RETURN_IF_FAIL (!framebuffer->allocated);
 
   framebuffer->config.depth_texture_enabled = enabled;
 }
 
-gboolean
+CoglBool
 cogl_framebuffer_get_depth_texture_enabled (CoglFramebuffer *framebuffer)
 {
   return framebuffer->config.depth_texture_enabled;
@@ -1268,14 +1258,14 @@ cogl_framebuffer_get_context (CoglFramebuffer *framebuffer)
   return framebuffer->context;
 }
 
-static gboolean
+static CoglBool
 _cogl_framebuffer_try_fast_read_pixel (CoglFramebuffer *framebuffer,
                                        int x,
                                        int y,
                                        CoglReadPixelsFlags source,
                                        CoglBitmap *bitmap)
 {
-  gboolean found_intersection;
+  CoglBool found_intersection;
   CoglPixelFormat format;
 
   if (G_UNLIKELY (COGL_DEBUG_ENABLED (COGL_DEBUG_DISABLE_FAST_READ_PIXEL)))
@@ -1347,7 +1337,7 @@ _cogl_framebuffer_try_fast_read_pixel (CoglFramebuffer *framebuffer,
   return FALSE;
 }
 
-gboolean
+CoglBool
 _cogl_framebuffer_read_pixels_into_bitmap (CoglFramebuffer *framebuffer,
                                            int x,
                                            int y,
@@ -1397,7 +1387,7 @@ _cogl_framebuffer_read_pixels_into_bitmap (CoglFramebuffer *framebuffer,
                                                                   error);
 }
 
-gboolean
+CoglBool
 cogl_framebuffer_read_pixels_into_bitmap (CoglFramebuffer *framebuffer,
                                           int x,
                                           int y,
@@ -1405,7 +1395,7 @@ cogl_framebuffer_read_pixels_into_bitmap (CoglFramebuffer *framebuffer,
                                           CoglBitmap *bitmap)
 {
   CoglError *ignore_error = NULL;
-  gboolean status =
+  CoglBool status =
     _cogl_framebuffer_read_pixels_into_bitmap (framebuffer,
                                                x, y, source, bitmap,
                                                &ignore_error);
@@ -1414,7 +1404,7 @@ cogl_framebuffer_read_pixels_into_bitmap (CoglFramebuffer *framebuffer,
   return status;
 }
 
-gboolean
+CoglBool
 cogl_framebuffer_read_pixels (CoglFramebuffer *framebuffer,
                               int x,
                               int y,
@@ -1425,7 +1415,7 @@ cogl_framebuffer_read_pixels (CoglFramebuffer *framebuffer,
 {
   int bpp = _cogl_pixel_format_get_bytes_per_pixel (format);
   CoglBitmap *bitmap;
-  gboolean ret;
+  CoglBool ret;
 
   bitmap = cogl_bitmap_new_for_data (framebuffer->context,
                                      width, height,
@@ -2097,7 +2087,7 @@ get_wire_line_indices (CoglContext *ctx,
   return ret;
 }
 
-static gboolean
+static CoglBool
 remove_layer_cb (CoglPipeline *pipeline,
                  int layer_index,
                  void *user_data)

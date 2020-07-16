@@ -2,7 +2,6 @@
 #include <math.h>
 #include <string.h>
 
-#include "test-declarations.h"
 #include "test-utils.h"
 
 /* Macros are used here instead of functions so that the

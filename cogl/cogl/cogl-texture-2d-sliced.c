@@ -33,7 +33,9 @@
  *  Robert Bragg   <robert@linux.intel.com>
  */
 
+#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
+#endif
 
 #include "cogl-debug.h"
 #include "cogl-private.h"
@@ -44,17 +46,17 @@
 #include "cogl-texture-2d-gl.h"
 #include "cogl-texture-2d-private.h"
 #include "cogl-texture-2d-sliced-private.h"
+#include "cogl-texture-gl-private.h"
 #include "cogl-texture-driver.h"
 #include "cogl-context-private.h"
 #include "cogl-object-private.h"
 #include "cogl-spans.h"
 #include "cogl-journal-private.h"
+#include "cogl-pipeline-opengl-private.h"
 #include "cogl-primitive-texture.h"
 #include "cogl-error-private.h"
+#include "cogl-texture-gl-private.h"
 #include "cogl-gtype-private.h"
-#include "driver/gl/cogl-texture-gl-private.h"
-#include "driver/gl/cogl-pipeline-opengl-private.h"
-#include "driver/gl/cogl-texture-gl-private.h"
 
 #include <string.h>
 #include <stdlib.h>
@@ -178,7 +180,7 @@ _cogl_texture_2d_sliced_allocate_waste_buffer (CoglTexture2DSliced *tex_2ds,
   return waste_buf;
 }
 
-static gboolean
+static CoglBool
 _cogl_texture_2d_sliced_set_waste (CoglTexture2DSliced *tex_2ds,
                                    CoglBitmap *source_bmp,
                                    CoglTexture2D *slice_tex,
@@ -193,7 +195,7 @@ _cogl_texture_2d_sliced_set_waste (CoglTexture2DSliced *tex_2ds,
                                    int dst_y,
                                    CoglError **error)
 {
-  gboolean need_x, need_y;
+  CoglBool need_x, need_y;
   CoglContext *ctx = COGL_TEXTURE (tex_2ds)->context;
 
   /* If the x_span is sliced and the upload touches the
@@ -339,7 +341,7 @@ _cogl_texture_2d_sliced_set_waste (CoglTexture2DSliced *tex_2ds,
   return TRUE;
 }
 
-static gboolean
+static CoglBool
 _cogl_texture_2d_sliced_upload_bitmap (CoglTexture2DSliced *tex_2ds,
                                        CoglBitmap *bmp,
                                        CoglError **error)
@@ -429,7 +431,7 @@ _cogl_texture_2d_sliced_upload_bitmap (CoglTexture2DSliced *tex_2ds,
   return TRUE;
 }
 
-static gboolean
+static CoglBool
 _cogl_texture_2d_sliced_upload_subregion (CoglTexture2DSliced *tex_2ds,
                                           int src_x,
                                           int src_y,
@@ -683,7 +685,7 @@ free_spans (CoglTexture2DSliced *tex_2ds)
     }
 }
 
-static gboolean
+static CoglBool
 setup_spans (CoglContext *ctx,
              CoglTexture2DSliced *tex_2ds,
              int width,
@@ -834,7 +836,7 @@ free_slices (CoglTexture2DSliced *tex_2ds)
   free_spans (tex_2ds);
 }
 
-static gboolean
+static CoglBool
 allocate_slices (CoglTexture2DSliced *tex_2ds,
                  int width,
                  int height,
@@ -955,7 +957,7 @@ cogl_texture_2d_sliced_new_with_size (CoglContext *ctx,
 CoglTexture2DSliced *
 _cogl_texture_2d_sliced_new_from_bitmap (CoglBitmap *bmp,
                                          int max_waste,
-                                         gboolean can_convert_in_place)
+                                         CoglBool can_convert_in_place)
 {
   CoglTextureLoader *loader;
 
@@ -1094,7 +1096,7 @@ cogl_texture_2d_sliced_new_from_file (CoglContext *ctx,
   return tex_2ds;
 }
 
-static gboolean
+static CoglBool
 allocate_with_size (CoglTexture2DSliced *tex_2ds,
                     CoglTextureLoader *loader,
                     CoglError **error)
@@ -1120,7 +1122,7 @@ allocate_with_size (CoglTexture2DSliced *tex_2ds,
     return FALSE;
 }
 
-static gboolean
+static CoglBool
 allocate_from_bitmap (CoglTexture2DSliced *tex_2ds,
                       CoglTextureLoader *loader,
                       CoglError **error)
@@ -1129,7 +1131,7 @@ allocate_from_bitmap (CoglTexture2DSliced *tex_2ds,
   CoglBitmap *bmp = loader->src.bitmap.bitmap;
   int width = cogl_bitmap_get_width (bmp);
   int height = cogl_bitmap_get_height (bmp);
-  gboolean can_convert_in_place = loader->src.bitmap.can_convert_in_place;
+  CoglBool can_convert_in_place = loader->src.bitmap.can_convert_in_place;
   CoglPixelFormat internal_format;
   CoglBitmap *upload_bmp;
 
@@ -1173,7 +1175,7 @@ allocate_from_bitmap (CoglTexture2DSliced *tex_2ds,
   return TRUE;
 }
 
-static gboolean
+static CoglBool
 allocate_from_gl_foreign (CoglTexture2DSliced *tex_2ds,
                           CoglTextureLoader *loader,
                           CoglError **error)
@@ -1238,7 +1240,7 @@ allocate_from_gl_foreign (CoglTexture2DSliced *tex_2ds,
   return TRUE;
 }
 
-static gboolean
+static CoglBool
 _cogl_texture_2d_sliced_allocate (CoglTexture *tex,
                                   CoglError **error)
 {
@@ -1262,7 +1264,7 @@ _cogl_texture_2d_sliced_allocate (CoglTexture *tex,
   g_return_val_if_reached (FALSE);
 }
 
-static gboolean
+static CoglBool
 _cogl_texture_2d_sliced_is_foreign (CoglTexture *tex)
 {
   CoglTexture2DSliced *tex_2ds = COGL_TEXTURE_2D_SLICED (tex);
@@ -1285,7 +1287,7 @@ _cogl_texture_2d_sliced_get_max_waste (CoglTexture *tex)
   return tex_2ds->max_waste;
 }
 
-static gboolean
+static CoglBool
 _cogl_texture_2d_sliced_is_sliced (CoglTexture *tex)
 {
   CoglTexture2DSliced *tex_2ds = COGL_TEXTURE_2D_SLICED (tex);
@@ -1302,7 +1304,7 @@ _cogl_texture_2d_sliced_is_sliced (CoglTexture *tex)
     return FALSE;
 }
 
-static gboolean
+static CoglBool
 _cogl_texture_2d_sliced_can_hardware_repeat (CoglTexture *tex)
 {
   CoglTexture2DSliced *tex_2ds = COGL_TEXTURE_2D_SLICED (tex);
@@ -1353,7 +1355,7 @@ static CoglTransformResult
 _cogl_texture_2d_sliced_transform_quad_coords_to_gl (CoglTexture *tex,
                                                      float *coords)
 {
-  gboolean need_repeat = FALSE;
+  CoglBool need_repeat = FALSE;
   int i;
 
   /* This is a bit lazy - in the case where the quad lies entirely
@@ -1378,7 +1380,7 @@ _cogl_texture_2d_sliced_transform_quad_coords_to_gl (CoglTexture *tex,
           ? COGL_TRANSFORM_HARDWARE_REPEAT : COGL_TRANSFORM_NO_REPEAT);
 }
 
-static gboolean
+static CoglBool
 _cogl_texture_2d_sliced_get_gl_texture (CoglTexture *tex,
                                         GLuint *out_gl_handle,
                                         GLenum *out_gl_target)
@@ -1455,7 +1457,7 @@ _cogl_texture_2d_sliced_ensure_non_quad_rendering (CoglTexture *tex)
     }
 }
 
-static gboolean
+static CoglBool
 _cogl_texture_2d_sliced_set_region (CoglTexture *tex,
                                     int src_x,
                                     int src_y,
@@ -1469,7 +1471,7 @@ _cogl_texture_2d_sliced_set_region (CoglTexture *tex,
 {
   CoglTexture2DSliced *tex_2ds = COGL_TEXTURE_2D_SLICED (tex);
   CoglBitmap *upload_bmp;
-  gboolean status;
+  CoglBool status;
 
   upload_bmp = _cogl_bitmap_convert_for_upload (bmp,
                                                 _cogl_texture_get_format (tex),
@@ -1524,7 +1526,6 @@ cogl_texture_2d_sliced_vtable =
     FALSE, /* not primitive */
     _cogl_texture_2d_sliced_allocate,
     _cogl_texture_2d_sliced_set_region,
-    NULL, /* is_get_data_supported */
     NULL, /* get_data */
     _cogl_texture_2d_sliced_foreach_sub_texture_in_region,
     _cogl_texture_2d_sliced_get_max_waste,

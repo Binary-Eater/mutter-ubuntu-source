@@ -42,7 +42,7 @@
 #include "cogl-context.h"
 #include "cogl-gl-header.h"
 
-G_BEGIN_DECLS
+COGL_BEGIN_DECLS
 
 typedef struct _CoglBufferVtable CoglBufferVtable;
 
@@ -57,7 +57,7 @@ struct _CoglBufferVtable
 
   void (* unmap) (CoglBuffer *buffer);
 
-  gboolean (* set_data) (CoglBuffer *buffer,
+  CoglBool (* set_data) (CoglBuffer *buffer,
                          unsigned int offset,
                          const void *data,
                          unsigned int size,
@@ -72,15 +72,13 @@ typedef enum _CoglBufferFlags
   COGL_BUFFER_FLAG_MAPPED_FALLBACK = 1UL << 2
 } CoglBufferFlags;
 
-typedef enum
-{
+typedef enum {
   COGL_BUFFER_USAGE_HINT_TEXTURE,
   COGL_BUFFER_USAGE_HINT_ATTRIBUTE_BUFFER,
   COGL_BUFFER_USAGE_HINT_INDEX_BUFFER
 } CoglBufferUsageHint;
 
-typedef enum
-{
+typedef enum {
   COGL_BUFFER_BIND_TARGET_PIXEL_PACK,
   COGL_BUFFER_BIND_TARGET_PIXEL_UNPACK,
   COGL_BUFFER_BIND_TARGET_ATTRIBUTE_BUFFER,
@@ -148,7 +146,7 @@ _cogl_buffer_immutable_ref (CoglBuffer *buffer);
 void
 _cogl_buffer_immutable_unref (CoglBuffer *buffer);
 
-gboolean
+CoglBool
 _cogl_buffer_set_data (CoglBuffer *buffer,
                        size_t offset,
                        const void *data,
@@ -177,6 +175,6 @@ _cogl_buffer_map_for_fill_or_fallback (CoglBuffer *buffer);
 void
 _cogl_buffer_unmap_for_fill_or_fallback (CoglBuffer *buffer);
 
-G_END_DECLS
+COGL_END_DECLS
 
 #endif /* __COGL_BUFFER_PRIVATE_H__ */

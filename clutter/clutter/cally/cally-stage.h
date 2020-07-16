@@ -74,9 +74,9 @@ struct _CallyStageClass
   gpointer _padding_dummy[16];
 };
 
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_1_4
 GType      cally_stage_get_type (void) G_GNUC_CONST;
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_1_4
 AtkObject *cally_stage_new      (ClutterActor *actor);
 
 G_END_DECLS

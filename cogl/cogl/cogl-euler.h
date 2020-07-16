@@ -40,7 +40,7 @@
 
 #include <glib-object.h>
 
-G_BEGIN_DECLS
+COGL_BEGIN_DECLS
 
 /**
  * SECTION:cogl-euler
@@ -230,7 +230,7 @@ cogl_euler_init_from_quaternion (CoglEuler *euler,
  * Returns: %TRUE if @v1 and @v2 are equal else %FALSE.
  * Since: 2.0
  */
-gboolean
+CoglBool
 cogl_euler_equal (const void *v1, const void *v2);
 
 /**
@@ -259,7 +259,7 @@ cogl_euler_copy (const CoglEuler *src);
 void
 cogl_euler_free (CoglEuler *euler);
 
-G_END_DECLS
+COGL_END_DECLS
 
 #endif /* __COGL_EULER_H */
 

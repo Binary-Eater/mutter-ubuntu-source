@@ -31,9 +31,12 @@
  *   Neil Roberts <neil@linux.intel.com>
  */
 
+#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
+#endif
 
 #include "cogl-context-private.h"
+#include "cogl-util-gl-private.h"
 #include "cogl-matrix-stack.h"
 #include "cogl-framebuffer-private.h"
 #include "cogl-object-private.h"
@@ -41,7 +44,6 @@
 #include "cogl-matrix-private.h"
 #include "cogl-magazine-private.h"
 #include "cogl-gtype-private.h"
-#include "driver/gl/cogl-util-gl-private.h"
 
 static void _cogl_matrix_stack_free (CoglMatrixStack *stack);
 
@@ -427,7 +429,7 @@ cogl_matrix_stack_pop (CoglMatrixStack *stack)
   stack->last_entry = new_top;
 }
 
-gboolean
+CoglBool
 cogl_matrix_stack_get_inverse (CoglMatrixStack *stack,
                                 CoglMatrix *inverse)
 {
@@ -686,7 +688,7 @@ _cogl_matrix_entry_skip_saves (CoglMatrixEntry *entry)
   return entry;
 }
 
-gboolean
+CoglBool
 cogl_matrix_entry_calculate_translation (CoglMatrixEntry *entry0,
                                          CoglMatrixEntry *entry1,
                                          float *x,
@@ -813,7 +815,7 @@ cogl_matrix_entry_calculate_translation (CoglMatrixEntry *entry0,
   return TRUE;
 }
 
-gboolean
+CoglBool
 cogl_matrix_entry_is_identity (CoglMatrixEntry *entry)
 {
   return entry ? entry->op == COGL_MATRIX_OP_LOAD_IDENTITY : FALSE;
@@ -821,13 +823,13 @@ cogl_matrix_entry_is_identity (CoglMatrixEntry *entry)
 
 static void
 _cogl_matrix_flush_to_gl_builtin (CoglContext *ctx,
-                                  gboolean is_identity,
+                                  CoglBool is_identity,
                                   CoglMatrix *matrix,
                                   CoglMatrixMode mode)
 {
   g_assert (_cogl_has_private_feature (ctx, COGL_PRIVATE_FEATURE_GL_FIXED));
 
-#ifdef HAVE_COGL_GL
+#if defined (HAVE_COGL_GL) || defined (HAVE_COGL_GLES)
   if (ctx->flushed_matrix_mode != mode)
     {
       GLenum gl_mode = 0;
@@ -863,13 +865,13 @@ _cogl_matrix_entry_flush_to_gl_builtins (CoglContext *ctx,
                                          CoglMatrixEntry *entry,
                                          CoglMatrixMode mode,
                                          CoglFramebuffer *framebuffer,
-                                         gboolean disable_flip)
+                                         CoglBool disable_flip)
 {
   g_assert (_cogl_has_private_feature (ctx, COGL_PRIVATE_FEATURE_GL_FIXED));
 
-#ifdef HAVE_COGL_GL
+#if defined (HAVE_COGL_GL) || defined (HAVE_COGL_GLES)
   {
-    gboolean needs_flip;
+    CoglBool needs_flip;
     CoglMatrixEntryCache *cache;
 
     if (mode == COGL_MATRIX_PROJECTION)
@@ -901,7 +903,7 @@ _cogl_matrix_entry_flush_to_gl_builtins (CoglContext *ctx,
     if (!cache ||
         _cogl_matrix_entry_cache_maybe_update (cache, entry, needs_flip))
       {
-        gboolean is_identity;
+        CoglBool is_identity;
         CoglMatrix matrix;
 
         if (entry->op == COGL_MATRIX_OP_LOAD_IDENTITY)
@@ -940,7 +942,7 @@ _cogl_matrix_entry_flush_to_gl_builtins (CoglContext *ctx,
 #endif
 }
 
-gboolean
+CoglBool
 cogl_matrix_entry_equal (CoglMatrixEntry *entry0,
                          CoglMatrixEntry *entry1)
 {
@@ -1162,13 +1164,13 @@ _cogl_matrix_entry_cache_init (CoglMatrixEntryCache *cache)
 
 /* NB: This function can report false negatives since it never does a
  * deep comparison of the stack matrices. */
-gboolean
+CoglBool
 _cogl_matrix_entry_cache_maybe_update (CoglMatrixEntryCache *cache,
                                        CoglMatrixEntry *entry,
-                                       gboolean flip)
+                                       CoglBool flip)
 {
-  gboolean is_identity;
-  gboolean updated = FALSE;
+  CoglBool is_identity;
+  CoglBool updated = FALSE;
 
   if (cache->flipped != flip)
     {

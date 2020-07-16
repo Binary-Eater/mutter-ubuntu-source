@@ -48,32 +48,32 @@ G_BEGIN_DECLS
 typedef struct _ClutterSnapConstraint           ClutterSnapConstraint;
 typedef struct _ClutterSnapConstraintClass      ClutterSnapConstraintClass;
 
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_1_6
 GType clutter_snap_constraint_get_type (void) G_GNUC_CONST;
 
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_1_6
 ClutterConstraint *     clutter_snap_constraint_new             (ClutterActor          *source,
                                                                  ClutterSnapEdge        from_edge,
                                                                  ClutterSnapEdge        to_edge,
                                                                  gfloat                 offset);
 
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_1_6
 void                    clutter_snap_constraint_set_source      (ClutterSnapConstraint *constraint,
                                                                  ClutterActor          *source);
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_1_6
 ClutterActor *          clutter_snap_constraint_get_source      (ClutterSnapConstraint *constraint);
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_1_6
 void                    clutter_snap_constraint_set_edges       (ClutterSnapConstraint *constraint,
                                                                  ClutterSnapEdge        from_edge,
                                                                  ClutterSnapEdge        to_edge);
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_1_6
 void                    clutter_snap_constraint_get_edges       (ClutterSnapConstraint *constraint,
                                                                  ClutterSnapEdge       *from_edge,
                                                                  ClutterSnapEdge       *to_edge);
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_1_6
 void                    clutter_snap_constraint_set_offset      (ClutterSnapConstraint *constraint,
                                                                  gfloat                 offset);
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_1_6
 gfloat                  clutter_snap_constraint_get_offset      (ClutterSnapConstraint *constraint);
 
 G_END_DECLS

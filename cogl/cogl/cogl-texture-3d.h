@@ -36,7 +36,7 @@
 #ifndef __COGL_TEXTURE_3D_H
 #define __COGL_TEXTURE_3D_H
 
-G_BEGIN_DECLS
+COGL_BEGIN_DECLS
 
 /**
  * SECTION:cogl-texture-3d
@@ -194,9 +194,9 @@ cogl_texture_3d_new_from_bitmap (CoglBitmap *bitmap,
  * Since: 1.4
  * Stability: Unstable
  */
-gboolean
+CoglBool
 cogl_is_texture_3d (void *object);
 
-G_END_DECLS
+COGL_END_DECLS
 
 #endif /* __COGL_TEXTURE_3D_H */

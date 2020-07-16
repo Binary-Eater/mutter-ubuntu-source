@@ -28,7 +28,9 @@
  *
  */
 
+#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
+#endif
 
 #include <stdlib.h>
 
@@ -77,6 +79,8 @@ static const GDebugKey cogl_behavioural_debug_keys[] = {
   { "disable-atlas", COGL_DEBUG_DISABLE_ATLAS },
   { "disable-shared-atlas", COGL_DEBUG_DISABLE_SHARED_ATLAS },
   { "disable-texturing", COGL_DEBUG_DISABLE_TEXTURING},
+  { "disable-arbfp", COGL_DEBUG_DISABLE_ARBFP},
+  { "disable-fixed", COGL_DEBUG_DISABLE_FIXED},
   { "disable-glsl", COGL_DEBUG_DISABLE_GLSL},
   { "disable-blending", COGL_DEBUG_DISABLE_BLENDING},
   { "disable-npot-textures", COGL_DEBUG_DISABLE_NPOT_TEXTURES},
@@ -93,7 +97,7 @@ GHashTable *_cogl_debug_instances;
 
 static void
 _cogl_parse_debug_string_for_keys (const char *value,
-                                   gboolean enable,
+                                   CoglBool enable,
                                    const GDebugKey *keys,
                                    unsigned int nkeys)
 {
@@ -151,8 +155,8 @@ _cogl_parse_debug_string_for_keys (const char *value,
 
 void
 _cogl_parse_debug_string (const char *value,
-                          gboolean enable,
-                          gboolean ignore_help)
+                          CoglBool enable,
+                          CoglBool ignore_help)
 {
   if (ignore_help && strcmp (value, "help") == 0)
     return;
@@ -210,7 +214,7 @@ _cogl_parse_debug_string (const char *value,
 }
 
 #ifdef COGL_ENABLE_DEBUG
-static gboolean
+static CoglBool
 cogl_arg_debug_cb (const char *key,
                    const char *value,
                    void *user_data)
@@ -221,7 +225,7 @@ cogl_arg_debug_cb (const char *key,
   return TRUE;
 }
 
-static gboolean
+static CoglBool
 cogl_arg_no_debug_cb (const char *key,
                       const char *value,
                       void *user_data)
@@ -267,7 +271,7 @@ _cogl_debug_check_environment (void)
     }
 }
 
-static gboolean
+static CoglBool
 pre_parse_hook (GOptionContext *context,
                 GOptionGroup *group,
                 void *data,

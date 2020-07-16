@@ -148,7 +148,8 @@
  * cogl-path now gets built after cogl and some cogl-path headers are
  * only generated at build time...
  */
-#if !defined (COGL_COMPILATION) && \
+#if defined (COGL_HAS_COGL_PATH_SUPPORT) && \
+  !defined (COGL_COMPILATION) && \
   !defined (COGL_GIR_SCANNING)
 #include <cogl-path/cogl-path.h>
 #endif

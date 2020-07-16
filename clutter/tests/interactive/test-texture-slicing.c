@@ -3,13 +3,7 @@
 
 #include <clutter/clutter.h>
 
-int
-test_textures_main (int argc, char *argv[]);
-
-const char *
-test_texture_slicing_describe (void);
-
-static guchar *
+guchar*
 make_rgba_data (int width, int height, int bpp, int has_alpha, int *rowstride_p)
 {
 #define CHECK_SIZE 20

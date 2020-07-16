@@ -21,23 +21,24 @@
  * Author: Carlos Garnacho <carlosg@gnome.org>
  */
 
+#define _GNU_SOURCE
+
 #include "config.h"
 
 #include <wayland-server.h>
+#include "tablet-unstable-v2-server-protocol.h"
 
-#include "compositor/meta-surface-actor-wayland.h"
-#include "wayland/meta-wayland-tablet-pad-group.h"
-#include "wayland/meta-wayland-tablet-pad-ring.h"
-#include "wayland/meta-wayland-tablet-pad-strip.h"
-#include "wayland/meta-wayland-tablet-pad.h"
-#include "wayland/meta-wayland-tablet-seat.h"
+#include "meta-surface-actor-wayland.h"
+#include "meta-wayland-tablet-seat.h"
+#include "meta-wayland-tablet-pad.h"
+#include "meta-wayland-tablet-pad-group.h"
+#include "meta-wayland-tablet-pad-ring.h"
+#include "meta-wayland-tablet-pad-strip.h"
 
 #ifdef HAVE_NATIVE_BACKEND
+#include <clutter/evdev/clutter-evdev.h>
 #include "backends/native/meta-backend-native.h"
-#include "clutter/evdev/clutter-evdev.h"
 #endif
-
-#include "tablet-unstable-v2-server-protocol.h"
 
 static void
 unbind_resource (struct wl_resource *resource)
@@ -122,9 +123,9 @@ gboolean
 meta_wayland_tablet_pad_group_has_button (MetaWaylandTabletPadGroup *group,
                                           guint                      button)
 {
-#ifdef HAVE_NATIVE_BACKEND
   MetaBackend *backend = meta_get_backend ();
 
+#ifdef HAVE_NATIVE_BACKEND
   if (META_IS_BACKEND_NATIVE (backend))
     {
       struct libinput_device *libinput_device;

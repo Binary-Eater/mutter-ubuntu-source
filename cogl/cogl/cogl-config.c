@@ -30,7 +30,9 @@
  *   Robert Bragg <robert@linux.intel.com>
  */
 
+#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
+#endif
 
 #include "cogl-debug.h"
 #include "cogl-config-private.h"
@@ -99,7 +101,7 @@ _cogl_config_read (void)
   GKeyFile *key_file = g_key_file_new ();
   const char * const *system_dirs = g_get_system_config_dirs ();
   char *filename;
-  gboolean status = FALSE;
+  CoglBool status = FALSE;
   int i;
 
   for (i = 0; system_dirs[i]; i++)

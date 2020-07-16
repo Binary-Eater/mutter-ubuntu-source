@@ -2,7 +2,6 @@
 
 #include <string.h>
 
-#include "test-declarations.h"
 #include "test-utils.h"
 
 /* Non-power-of-two sized texture that should cause slicing */

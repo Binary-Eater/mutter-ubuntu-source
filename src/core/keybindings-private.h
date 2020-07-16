@@ -28,10 +28,9 @@
 #define META_KEYBINDINGS_PRIVATE_H
 
 #include <gio/gio.h>
+#include <meta/keybindings.h>
 #include <xkbcommon/xkbcommon.h>
-
-#include "core/meta-accel-parse.h"
-#include "meta/keybindings.h"
+#include "meta-accel-parse.h"
 
 typedef struct _MetaKeyHandler MetaKeyHandler;
 struct _MetaKeyHandler
@@ -128,6 +127,8 @@ typedef struct
 
 void     meta_display_init_keys             (MetaDisplay *display);
 void     meta_display_shutdown_keys         (MetaDisplay *display);
+void     meta_screen_grab_keys              (MetaScreen  *screen);
+void     meta_screen_ungrab_keys            (MetaScreen  *screen);
 void     meta_window_grab_keys              (MetaWindow  *window);
 void     meta_window_ungrab_keys            (MetaWindow  *window);
 gboolean meta_window_grab_all_keys          (MetaWindow  *window,
@@ -150,8 +151,5 @@ gboolean meta_prefs_remove_keybinding       (const char    *name);
 GList *meta_prefs_get_keybindings (void);
 void meta_prefs_get_overlay_binding (MetaKeyCombo *combo);
 const char *meta_prefs_get_iso_next_group_option (void);
-
-void meta_x11_display_grab_keys   (MetaX11Display *x11_display);
-void meta_x11_display_ungrab_keys (MetaX11Display *x11_display);
 
 #endif

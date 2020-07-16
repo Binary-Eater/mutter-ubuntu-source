@@ -45,8 +45,8 @@ struct _CoglTexture3D
      CoglPixelFormat */
   CoglPixelFormat internal_format;
   int depth;
-  gboolean auto_mipmap;
-  gboolean mipmaps_dirty;
+  CoglBool auto_mipmap;
+  CoglBool mipmaps_dirty;
 
   /* TODO: factor out these OpenGL specific members into some form
    * of driver private state. */

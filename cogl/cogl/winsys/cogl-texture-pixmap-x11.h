@@ -52,7 +52,7 @@
 
 #include <glib-object.h>
 
-G_BEGIN_DECLS
+COGL_BEGIN_DECLS
 
 /**
  * SECTION:cogl-texture-pixmap-x11
@@ -101,8 +101,7 @@ typedef enum
  *
  * Since: 1.10
  */
-typedef enum
-{
+typedef enum {
   COGL_TEXTURE_PIXMAP_X11_ERROR_X11,
 } CoglTexturePixmapX11Error;
 
@@ -129,7 +128,7 @@ uint32_t cogl_texture_pixmap_x11_error_quark (void);
 CoglTexturePixmapX11 *
 cogl_texture_pixmap_x11_new (CoglContext *context,
                              uint32_t pixmap,
-                             gboolean automatic_updates,
+                             CoglBool automatic_updates,
                              CoglError **error);
 
 /**
@@ -168,7 +167,7 @@ cogl_texture_pixmap_x11_new (CoglContext *context,
 CoglTexturePixmapX11 *
 cogl_texture_pixmap_x11_new_left (CoglContext *context,
                                   uint32_t pixmap,
-                                  gboolean automatic_updates,
+                                  CoglBool automatic_updates,
                                   CoglError **error);
 
 /**
@@ -226,7 +225,7 @@ cogl_texture_pixmap_x11_update_area (CoglTexturePixmapX11 *texture,
  * Since: 1.4
  * Stability: Unstable
  */
-gboolean
+CoglBool
 cogl_texture_pixmap_x11_is_using_tfp_extension (CoglTexturePixmapX11 *texture);
 
 /**
@@ -266,10 +265,10 @@ cogl_texture_pixmap_x11_set_damage_object (CoglTexturePixmapX11 *texture,
  * Since: 1.4
  * Stability: Unstable
  */
-gboolean
+CoglBool
 cogl_is_texture_pixmap_x11 (void *object);
 
-G_END_DECLS
+COGL_END_DECLS
 
 /* The gobject introspection scanner seems to parse public headers in
  * isolation which means we need to be extra careful about how we

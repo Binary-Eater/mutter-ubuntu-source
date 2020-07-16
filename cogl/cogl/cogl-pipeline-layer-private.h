@@ -188,7 +188,7 @@ typedef struct
   CoglPipelineSnippetList vertex_snippets;
   CoglPipelineSnippetList fragment_snippets;
 
-  gboolean point_sprite_coords;
+  CoglBool point_sprite_coords;
 } CoglPipelineLayerBigState;
 
 struct _CoglPipelineLayer
@@ -260,7 +260,7 @@ struct _CoglPipelineLayer
 
 };
 
-typedef gboolean
+typedef CoglBool
 (*CoglPipelineLayerStateComparitor) (CoglPipelineLayer *authority0,
                                      CoglPipelineLayer *authority1);
 
@@ -284,7 +284,7 @@ _cogl_pipeline_layer_resolve_authorities (CoglPipelineLayer *layer,
                                           unsigned long differences,
                                           CoglPipelineLayer **authorities);
 
-gboolean
+CoglBool
 _cogl_pipeline_layer_equal (CoglPipelineLayer *layer0,
                             CoglPipelineLayer *layer1,
                             unsigned long differences_mask,
@@ -298,10 +298,10 @@ _cogl_pipeline_layer_pre_change_notify (CoglPipeline *required_owner,
 void
 _cogl_pipeline_layer_prune_redundant_ancestry (CoglPipelineLayer *layer);
 
-gboolean
+CoglBool
 _cogl_pipeline_layer_has_alpha (CoglPipelineLayer *layer);
 
-gboolean
+CoglBool
 _cogl_pipeline_layer_has_user_matrix (CoglPipeline *pipeline,
                                       int layer_index);
 
@@ -333,8 +333,7 @@ _cogl_pipeline_get_layer_filters (CoglPipeline *pipeline,
                                   CoglPipelineFilter *min_filter,
                                   CoglPipelineFilter *mag_filter);
 
-typedef enum
-{
+typedef enum {
   COGL_PIPELINE_LAYER_TYPE_TEXTURE
 } CoglPipelineLayerType;
 
@@ -378,10 +377,13 @@ CoglPipelineLayer *
 _cogl_pipeline_layer_get_authority (CoglPipelineLayer *layer,
                                     unsigned long difference);
 
+CoglTexture *
+_cogl_pipeline_layer_get_texture (CoglPipelineLayer *layer);
+
 int
 _cogl_pipeline_layer_get_unit_index (CoglPipelineLayer *layer);
 
-gboolean
+CoglBool
 _cogl_pipeline_layer_needs_combine_separate
                                        (CoglPipelineLayer *combine_authority);
 

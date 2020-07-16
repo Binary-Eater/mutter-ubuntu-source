@@ -24,30 +24,29 @@
 
 #include "config.h"
 
-#include "compositor/meta-surface-actor-wayland.h"
+#include "meta-surface-actor-wayland.h"
 
 #include <math.h>
+#include <cogl/cogl-wayland-server.h>
+#include "meta-shaped-texture-private.h"
 
-#include "backends/meta-backend-private.h"
 #include "backends/meta-logical-monitor.h"
-#include "cogl/cogl-wayland-server.h"
-#include "compositor/meta-shaped-texture-private.h"
-#include "compositor/region-utils.h"
 #include "wayland/meta-wayland-buffer.h"
 #include "wayland/meta-wayland-private.h"
 #include "wayland/meta-window-wayland.h"
 
-struct _MetaSurfaceActorWayland
-{
-  MetaSurfaceActor parent;
+#include "backends/meta-backend-private.h"
+#include "compositor/region-utils.h"
 
+typedef struct _MetaSurfaceActorWaylandPrivate
+{
   MetaWaylandSurface *surface;
   struct wl_list frame_callback_list;
-};
+} MetaSurfaceActorWaylandPrivate;
 
-G_DEFINE_TYPE (MetaSurfaceActorWayland,
-               meta_surface_actor_wayland,
-               META_TYPE_SURFACE_ACTOR)
+G_DEFINE_TYPE_WITH_PRIVATE (MetaSurfaceActorWayland,
+                            meta_surface_actor_wayland,
+                            META_TYPE_SURFACE_ACTOR)
 
 static void
 meta_surface_actor_wayland_process_damage (MetaSurfaceActor *actor,
@@ -95,7 +94,9 @@ void
 meta_surface_actor_wayland_add_frame_callbacks (MetaSurfaceActorWayland *self,
                                                 struct wl_list *frame_callbacks)
 {
-  wl_list_insert_list (&self->frame_callback_list, frame_callbacks);
+  MetaSurfaceActorWaylandPrivate *priv = meta_surface_actor_wayland_get_instance_private (self);
+
+  wl_list_insert_list (&priv->frame_callback_list, frame_callbacks);
 }
 
 static MetaWindow *
@@ -162,13 +163,15 @@ static void
 meta_surface_actor_wayland_paint (ClutterActor *actor)
 {
   MetaSurfaceActorWayland *self = META_SURFACE_ACTOR_WAYLAND (actor);
+  MetaSurfaceActorWaylandPrivate *priv =
+    meta_surface_actor_wayland_get_instance_private (self);
 
-  if (self->surface)
+  if (priv->surface)
     {
-      MetaWaylandCompositor *compositor = self->surface->compositor;
+      MetaWaylandCompositor *compositor = priv->surface->compositor;
 
-      wl_list_insert_list (&compositor->frame_callbacks, &self->frame_callback_list);
-      wl_list_init (&self->frame_callback_list);
+      wl_list_insert_list (&compositor->frame_callbacks, &priv->frame_callback_list);
+      wl_list_init (&priv->frame_callback_list);
     }
 
   CLUTTER_ACTOR_CLASS (meta_surface_actor_wayland_parent_class)->paint (actor);
@@ -178,19 +181,21 @@ static void
 meta_surface_actor_wayland_dispose (GObject *object)
 {
   MetaSurfaceActorWayland *self = META_SURFACE_ACTOR_WAYLAND (object);
+  MetaSurfaceActorWaylandPrivate *priv =
+    meta_surface_actor_wayland_get_instance_private (self);
   MetaWaylandFrameCallback *cb, *next;
   MetaShapedTexture *stex =
     meta_surface_actor_get_texture (META_SURFACE_ACTOR (self));
 
   meta_shaped_texture_set_texture (stex, NULL);
-  if (self->surface)
+  if (priv->surface)
     {
-      g_object_remove_weak_pointer (G_OBJECT (self->surface),
-                                    (gpointer *) &self->surface);
-      self->surface = NULL;
+      g_object_remove_weak_pointer (G_OBJECT (priv->surface),
+                                    (gpointer *) &priv->surface);
+      priv->surface = NULL;
     }
 
-  wl_list_for_each_safe (cb, next, &self->frame_callback_list, link)
+  wl_list_for_each_safe (cb, next, &priv->frame_callback_list, link)
     wl_resource_destroy (cb->resource);
 
   G_OBJECT_CLASS (meta_surface_actor_wayland_parent_class)->dispose (object);
@@ -229,13 +234,14 @@ MetaSurfaceActor *
 meta_surface_actor_wayland_new (MetaWaylandSurface *surface)
 {
   MetaSurfaceActorWayland *self = g_object_new (META_TYPE_SURFACE_ACTOR_WAYLAND, NULL);
+  MetaSurfaceActorWaylandPrivate *priv = meta_surface_actor_wayland_get_instance_private (self);
 
   g_assert (meta_is_wayland_compositor ());
 
-  wl_list_init (&self->frame_callback_list);
-  self->surface = surface;
-  g_object_add_weak_pointer (G_OBJECT (self->surface),
-                             (gpointer *) &self->surface);
+  wl_list_init (&priv->frame_callback_list);
+  priv->surface = surface;
+  g_object_add_weak_pointer (G_OBJECT (priv->surface),
+                             (gpointer *) &priv->surface);
 
   return META_SURFACE_ACTOR (self);
 }
@@ -243,5 +249,6 @@ meta_surface_actor_wayland_new (MetaWaylandSurface *surface)
 MetaWaylandSurface *
 meta_surface_actor_wayland_get_surface (MetaSurfaceActorWayland *self)
 {
-  return self->surface;
+  MetaSurfaceActorWaylandPrivate *priv = meta_surface_actor_wayland_get_instance_private (self);
+  return priv->surface;
 }

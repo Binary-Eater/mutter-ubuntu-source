@@ -1,18 +1,11 @@
 #include <stdlib.h>
 #include <clutter/clutter.h>
 
-enum
-{
+enum {
   VERTICAL      = 0,
   HORIZONTAL    = 1,
   BOTH          = 2
 };
-
-int
-test_swipe_action_main (int argc, char *argv[]);
-
-const char *
-test_swipe_action_describe (void);
 
 static void
 swept_cb (ClutterSwipeAction    *action,

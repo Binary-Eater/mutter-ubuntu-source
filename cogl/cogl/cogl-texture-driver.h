@@ -70,10 +70,10 @@ struct _CoglTextureDriver
    *
    * XXX: sorry for the ridiculous number of arguments :-(
    */
-  gboolean
+  CoglBool
   (* upload_subregion_to_gl) (CoglContext *ctx,
                               CoglTexture *texture,
-                              gboolean is_foreign,
+                              CoglBool is_foreign,
                               int src_x,
                               int src_y,
                               int dst_x,
@@ -92,11 +92,11 @@ struct _CoglTextureDriver
    * to copy the bitmap if the rowstride is not a multiple of a possible
    * alignment value because there is no GL_UNPACK_ROW_LENGTH
    */
-  gboolean
+  CoglBool
   (* upload_to_gl) (CoglContext *ctx,
                     GLenum gl_target,
                     GLuint gl_handle,
-                    gboolean is_foreign,
+                    CoglBool is_foreign,
                     CoglBitmap *source_bmp,
                     GLint internal_gl_format,
                     GLuint source_gl_format,
@@ -110,11 +110,11 @@ struct _CoglTextureDriver
    * is the number of rows between images) is inferred by dividing the
    * height of the bitmap by the depth.
    */
-  gboolean
+  CoglBool
   (* upload_to_gl_3d) (CoglContext *ctx,
                        GLenum gl_target,
                        GLuint gl_handle,
-                       gboolean is_foreign,
+                       CoglBool is_foreign,
                        GLint height,
                        GLint depth,
                        CoglBitmap *source_bmp,
@@ -143,7 +143,7 @@ struct _CoglTextureDriver
    * renders the texture and reads it back from the framebuffer. (See
    * _cogl_texture_draw_and_read () )
    */
-  gboolean
+  CoglBool
   (* gl_get_tex_image) (CoglContext *ctx,
                         GLenum gl_target,
                         GLenum dest_gl_format,
@@ -153,7 +153,7 @@ struct _CoglTextureDriver
   /*
    * It may depend on the driver as to what texture sizes are supported...
    */
-  gboolean
+  CoglBool
   (* size_supported) (CoglContext *ctx,
                       GLenum gl_target,
                       GLenum gl_intformat,
@@ -162,7 +162,7 @@ struct _CoglTextureDriver
                       int width,
                       int height);
 
-  gboolean
+  CoglBool
   (* size_supported_3d) (CoglContext *ctx,
                          GLenum gl_target,
                          GLenum gl_format,
@@ -172,11 +172,20 @@ struct _CoglTextureDriver
                          int depth);
 
   /*
+   * This driver abstraction is needed because GLES doesn't support setting
+   * a texture border color.
+   */
+  void
+  (* try_setting_gl_border_color) (CoglContext *ctx,
+                                   GLuint gl_target,
+                                   const GLfloat *transparent_color);
+
+  /*
    * It may depend on the driver as to what texture targets may be used when
    * creating a foreign texture. E.g. OpenGL supports ARB_texture_rectangle
    * but GLES doesn't
    */
-  gboolean
+  CoglBool
   (* allows_foreign_gl_target) (CoglContext *ctx,
                                 GLenum gl_target);
 
@@ -189,6 +198,7 @@ struct _CoglTextureDriver
   CoglPixelFormat
   (* find_best_gl_get_data_format) (CoglContext     *context,
                                     CoglPixelFormat format,
+                                    CoglPixelFormat target_format,
                                     GLenum *closest_gl_format,
                                     GLenum *closest_gl_type);
 };

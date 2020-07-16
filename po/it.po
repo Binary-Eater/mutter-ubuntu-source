@@ -2,18 +2,18 @@
 # Based on Italian translation for Metacity
 # This file is distributed under the same license as metacity package
 # Copyright (C) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017 Free Software Foundation, Inc.
-# Copyright (C) 2018, 2019 Free Software Foundation, Inc.
+# Copyright (C) 2018 Free Software Foundation, Inc.
 # Pier Luigi Fiorini <plfiorini@libero.it>, 2002.
 # Lapo Calamandrei <lapo.calamandrei@virgilio.it>, 2003.
 # Luca Ferretti <lferrett@gnome.org>, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012.
-# Milo Casagrande <milo@milo.name>, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019.
+# Milo Casagrande <milo@milo.name>, 2012, 2013, 2014, 2015, 2016, 2017, 2018.
 #
 msgid ""
 msgstr ""
 "Project-Id-Version: mutter\n"
 "Report-Msgid-Bugs-To: https://gitlab.gnome.org/GNOME/mutter/issues\n"
-"POT-Creation-Date: 2019-02-04 17:52+0000\n"
-"PO-Revision-Date: 2019-02-15 15:48+0100\n"
+"POT-Creation-Date: 2018-02-06 04:14+0000\n"
+"PO-Revision-Date: 2018-02-09 16:49+0100\n"
 "Last-Translator: Milo Casagrande <milo@milo.name>\n"
 "Language-Team: Italian <tp@lists.linux.it>\n"
 "Language: it\n"
@@ -21,7 +21,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n!=1);\n"
-"X-Generator: Poedit 2.2.1\n"
+"X-Generator: Poedit 2.0.4\n"
 
 #: data/50-mutter-navigation.xml:6
 msgid "Navigation"
@@ -81,7 +81,7 @@ msgstr "Evidenzia l'applicazione precedente"
 
 #: data/50-mutter-navigation.xml:52
 msgid "Switch windows"
-msgstr "Evidenzia le finestre"
+msgstr "Evidenzia direttamente le finestre"
 
 #: data/50-mutter-navigation.xml:57
 msgid "Switch to previous window"
@@ -113,7 +113,7 @@ msgstr "Evidenzia direttamente la finestra precedente"
 
 #: data/50-mutter-navigation.xml:88
 msgid "Switch windows of an app directly"
-msgstr "Evidenzia direttamente le finestre di un'applicazione"
+msgstr "Evidenzia direttamente le finestre di una applicazione"
 
 #: data/50-mutter-navigation.xml:93
 msgid "Switch directly to previous window of an app"
@@ -205,7 +205,7 @@ msgstr "Chiudi la finestra"
 
 #: data/50-mutter-windows.xml:20
 msgid "Hide window"
-msgstr "Nascondi la finestra"
+msgstr "Ridimensiona la finestra"
 
 #: data/50-mutter-windows.xml:22
 msgid "Move window"
@@ -217,7 +217,8 @@ msgstr "Ridimensiona la finestra"
 
 #: data/50-mutter-windows.xml:27
 msgid "Toggle window on all workspaces or one"
-msgstr "Attiva/Disattiva la finestra su uno o su tutti gli spazi di lavoro"
+msgstr ""
+"Attiva/Disattiva la stato «su tutti gli spazi di lavoro» per la finestra"
 
 #: data/50-mutter-windows.xml:29
 msgid "Raise window if covered, otherwise lower it"
@@ -265,11 +266,11 @@ msgid ""
 "key” on PC hardware. It’s expected that this binding either the default or "
 "set to the empty string."
 msgstr ""
-"Questa chiave inizializza l'\"overlay\", cioè una combinazione tra la "
+"Questa chiave pone inizio alla \"overlay\", cioè una combinazione tra la "
 "panoramica delle finestre e il sistema di lancio delle applicazioni. Il "
 "valore predefinito è il \"tasto Windows\" su hardware PC. È atteso che "
-"questa scorciatoia sia o il valore predefinito oppure che sia impostata alla "
-"stringa vuota."
+"questa scorciatoia sia o il valore predefinito, oppure che sia impostata "
+"alla stringa vuota."
 
 #: data/org.gnome.mutter.gschema.xml.in:20
 msgid "Attach modal dialogs"
@@ -406,7 +407,10 @@ msgid ""
 "proof. Currently possible keywords: • “scale-monitor-framebuffer” — makes "
 "mutter default to layout logical monitors in a logical pixel coordinate "
 "space, while scaling monitor framebuffers instead of window content, to "
-"manage HiDPI monitors. Does not require a restart."
+"manage HiDPI monitors. Does not require a restart. • “remote-desktop” — "
+"enables remote desktop support. To support remote desktop with screen "
+"sharing, “screen-cast” must also be enabled. • “screen-cast” — enables "
+"screen cast support."
 msgstr ""
 "Per abilitare le funzionalità sperimentali, aggiungere la parola chiave di "
 "tale funzionalità nella lista. Se la funzionalità desiderata richiede il "
@@ -417,21 +421,24 @@ msgstr ""
 "modo che mutter disponga gli schermi logici secondo uno spazio logico di "
 "coordinate pixel, applicando il ridimensionamento ai framebuffer invece che "
 "al contenuto della finestra, per gestire schermi HiDPI (non richiede il "
-"riavvio)."
+"riavvio). • \"remote-desktop\" — Abilita il supporto al desktop remoto. Per "
+"supportare il desktop remoto con la condivisione dello schermo, è necessario "
+"abilitare anche \"screen-cast\". • “screen-cast” — Abilita il supporto alla "
+"registrazione dello schermo."
 
-#: data/org.gnome.mutter.gschema.xml.in:141
+#: data/org.gnome.mutter.gschema.xml.in:145
 msgid "Select window from tab popup"
 msgstr "Seleziona finestra dal tab popup"
 
-#: data/org.gnome.mutter.gschema.xml.in:146
+#: data/org.gnome.mutter.gschema.xml.in:150
 msgid "Cancel tab popup"
 msgstr "Annulla tab popup"
 
-#: data/org.gnome.mutter.gschema.xml.in:151
+#: data/org.gnome.mutter.gschema.xml.in:155
 msgid "Switch monitor configurations"
 msgstr "Cambia le configurazioni del monitor"
 
-#: data/org.gnome.mutter.gschema.xml.in:156
+#: data/org.gnome.mutter.gschema.xml.in:160
 msgid "Rotates the built-in monitor configuration"
 msgstr "Passa da una configurazione integrata all'altra del monitor"
 
@@ -537,7 +544,7 @@ msgstr ""
 #. TRANSLATORS: This string refers to a button that switches between
 #. * different modes.
 #.
-#: src/backends/meta-input-settings.c:2423
+#: src/backends/meta-input-settings.c:2260
 #, c-format
 msgid "Mode Switch (Group %d)"
 msgstr "Cambio modalità (gruppo %d)"
@@ -545,44 +552,37 @@ msgstr "Cambio modalità (gruppo %d)"
 #. TRANSLATORS: This string refers to an action, cycles drawing tablets'
 #. * mapping through the available outputs.
 #.
-#: src/backends/meta-input-settings.c:2446
+#: src/backends/meta-input-settings.c:2283
 msgid "Switch monitor"
 msgstr "Cambia monitor"
 
-#: src/backends/meta-input-settings.c:2448
+#: src/backends/meta-input-settings.c:2285
 msgid "Show on-screen help"
 msgstr "Mostra aiuto sullo schermo"
 
-#: src/backends/meta-monitor-manager.c:954
+#: src/backends/meta-monitor-manager.c:900
 msgid "Built-in display"
 msgstr "Display integrato"
 
-#: src/backends/meta-monitor-manager.c:986
+#: src/backends/meta-monitor-manager.c:923
 msgid "Unknown"
 msgstr "Sconosciuto"
 
-#: src/backends/meta-monitor-manager.c:988
+#: src/backends/meta-monitor-manager.c:925
 msgid "Unknown Display"
 msgstr "Display sconosciuto"
 
-#: src/backends/meta-monitor-manager.c:996
+#. TRANSLATORS: this is a monitor vendor name, followed by a
+#. * size in inches, like 'Dell 15"'
+#.
+#: src/backends/meta-monitor-manager.c:933
 #, c-format
-msgctxt ""
-"This is a monitor vendor name, followed by a size in inches, like 'Dell 15\"'"
-msgid "%s %s"
-msgstr "%s %s"
-
-#: src/backends/meta-monitor-manager.c:1004
-#, c-format
-msgctxt ""
-"This is a monitor vendor name followed by product/model name where size in "
-"inches could not be calculated, e.g. Dell U2414H"
 msgid "%s %s"
 msgstr "%s %s"
 
 #. This probably means that a non-WM compositor like xcompmgr is running;
 #. * we have no way to get it to exit
-#: src/compositor/compositor.c:482
+#: src/compositor/compositor.c:481
 #, c-format
 msgid ""
 "Another compositing manager is already running on screen %i on display “%s”."
@@ -590,65 +590,66 @@ msgstr ""
 "Un altro compositing manager è già in esecuzione sullo schermo %i sul "
 "display «%s»."
 
-#: src/core/bell.c:252
+#: src/core/bell.c:194
 msgid "Bell event"
 msgstr "Evento campanella"
 
-#: src/core/main.c:185
+#: src/core/display.c:608
+#, c-format
+msgid "Failed to open X Window System display “%s”\n"
+msgstr "Apertura del display «%s» di X Window System non riuscita\n"
+
+#: src/core/main.c:190
 msgid "Disable connection to session manager"
 msgstr "Disabilita la connessione al gestore di sessione"
 
-#: src/core/main.c:191
+#: src/core/main.c:196
 msgid "Replace the running window manager"
 msgstr "Sostituisce il window manager in esecuzione"
 
-#: src/core/main.c:197
+#: src/core/main.c:202
 msgid "Specify session management ID"
 msgstr "Specifica l'ID di gestione sessione"
 
-#: src/core/main.c:202
+#: src/core/main.c:207
 msgid "X Display to use"
 msgstr "Display X da usare"
 
-#: src/core/main.c:208
+#: src/core/main.c:213
 msgid "Initialize session from savefile"
 msgstr "Inizializza la sessione da file salvato"
 
-#: src/core/main.c:214
+#: src/core/main.c:219
 msgid "Make X calls synchronous"
 msgstr "Rende le chiamate X sincrone"
 
-#: src/core/main.c:221
+#: src/core/main.c:226
 msgid "Run as a wayland compositor"
 msgstr "Esegui come compositor Wayland"
 
-#: src/core/main.c:227
+#: src/core/main.c:232
 msgid "Run as a nested compositor"
 msgstr "Esegui come compositor annidato"
 
-#: src/core/main.c:233
-msgid "Run wayland compositor without starting Xwayland"
-msgstr "Esegui il compositor Wayland senza avviare Xwayland"
-
-#: src/core/main.c:241
+#: src/core/main.c:240
 msgid "Run as a full display server, rather than nested"
 msgstr "Esegui come display server invece che annidato"
 
-#: src/core/main.c:247
+#: src/core/main.c:246
 msgid "Run with X11 backend"
 msgstr "Esegui con sistema X11"
 
 #. Translators: %s is a window title
-#: src/core/meta-close-dialog-default.c:150
+#: src/core/meta-close-dialog-default.c:147
 #, c-format
 msgid "“%s” is not responding."
 msgstr "Nessuna risposta da %s."
 
-#: src/core/meta-close-dialog-default.c:152
+#: src/core/meta-close-dialog-default.c:149
 msgid "Application is not responding."
 msgstr "L'applicazione non risponde."
 
-#: src/core/meta-close-dialog-default.c:157
+#: src/core/meta-close-dialog-default.c:154
 msgid ""
 "You may choose to wait a short while for it to continue or force the "
 "application to quit entirely."
@@ -656,15 +657,15 @@ msgstr ""
 "È possibile scegliere di attendere un po' lasciando che l'applicazione "
 "continui, oppure forzare la terminazione dell'applicazione."
 
-#: src/core/meta-close-dialog-default.c:164
+#: src/core/meta-close-dialog-default.c:161
 msgid "_Force Quit"
 msgstr "_Forza uscita"
 
-#: src/core/meta-close-dialog-default.c:164
+#: src/core/meta-close-dialog-default.c:161
 msgid "_Wait"
 msgstr "_Attendi"
 
-#: src/core/mutter.c:38
+#: src/core/mutter.c:39
 #, c-format
 msgid ""
 "mutter %s\n"
@@ -679,30 +680,20 @@ msgstr ""
 "NON è fornita alcuna garanzia; neanche di COMMERCIABILITÀ o\n"
 "APPLICABILITÀ PER UNO SCOPO PARTICOLARE.\n"
 
-#: src/core/mutter.c:52
+#: src/core/mutter.c:53
 msgid "Print version"
 msgstr "Stampa la versione"
 
-#: src/core/mutter.c:58
+#: src/core/mutter.c:59
 msgid "Mutter plugin to use"
 msgstr "Plugin Mutter da usare"
 
-#: src/core/prefs.c:1786
+#: src/core/prefs.c:1997
 #, c-format
 msgid "Workspace %d"
 msgstr "Spazio di lavoro %d"
 
-#: src/core/util.c:121
-msgid "Mutter was compiled without support for verbose mode\n"
-msgstr ""
-"Mutter è stato compilato escludendo il supporto per la modalità prolissa\n"
-
-#: src/wayland/meta-wayland-tablet-pad.c:567
-#, c-format
-msgid "Mode Switch: Mode %d"
-msgstr "Cambio modalità: modalità %d"
-
-#: src/x11/meta-x11-display.c:666
+#: src/core/screen.c:583
 #, c-format
 msgid ""
 "Display “%s” already has a window manager; try using the --replace option to "
@@ -711,21 +702,22 @@ msgstr ""
 "Il display «%s» ha già un window manager; provare a utilizzare l'opzione --"
 "replace per sostituirlo."
 
-#: src/x11/meta-x11-display.c:1008
-msgid "Failed to initialize GDK\n"
-msgstr "Inizializzazione GDK non riuscita\n"
-
-#: src/x11/meta-x11-display.c:1032
-#, c-format
-msgid "Failed to open X Window System display “%s”\n"
-msgstr "Apertura del display «%s» di X Window System non riuscita\n"
-
-#: src/x11/meta-x11-display.c:1115
+#: src/core/screen.c:668
 #, c-format
 msgid "Screen %d on display “%s” is invalid\n"
 msgstr "Lo schermo %d sul display «%s» non è valido\n"
 
-#: src/x11/session.c:1821
+#: src/core/util.c:120
+msgid "Mutter was compiled without support for verbose mode\n"
+msgstr ""
+"Mutter è stato compilato escludendo il supporto per la modalità prolissa\n"
+
+#: src/wayland/meta-wayland-tablet-pad.c:563
+#, c-format
+msgid "Mode Switch: Mode %d"
+msgstr "Cambio modalità: modalità %d"
+
+#: src/x11/session.c:1818
 msgid ""
 "These windows do not support “save current setup” and will have to be "
 "restarted manually next time you log in."
@@ -733,7 +725,7 @@ msgstr ""
 "Queste finestre non supportano la funzione «salva impostazioni attuali» e "
 "dovranno essere riavviate manualmente al prossimo accesso."
 
-#: src/x11/window-props.c:568
+#: src/x11/window-props.c:559
 #, c-format
 msgid "%s (on %s)"
 msgstr "%s (su %s)"

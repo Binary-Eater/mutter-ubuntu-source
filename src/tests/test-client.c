@@ -17,12 +17,9 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "config.h"
-
 #include <gio/gunixinputstream.h>
 #include <gtk/gtk.h>
 #include <gdk/gdkx.h>
-#include <gdk/gdkwayland.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
@@ -34,19 +31,6 @@ GHashTable *windows;
 
 static void read_next_line (GDataInputStream *in);
 
-static void
-window_export_handle_cb (GdkWindow  *window,
-                         const char *handle_str,
-                         gpointer    user_data)
-{
-  GdkWindow *gdk_window = gtk_widget_get_window (GTK_WIDGET (user_data));
-
-  if (!gdk_wayland_window_set_transient_for_exported (gdk_window,
-                                                      (gchar *) handle_str))
-    g_print ("Fail to set transient_for exported window handle %s", handle_str);
-  gdk_window_set_modal_hint (gdk_window, TRUE);
-}
-
 static GtkWidget *
 lookup_window (const char *window_id)
 {
@@ -55,6 +39,16 @@ lookup_window (const char *window_id)
     g_print ("Window %s doesn't exist", window_id);
 
   return window;
+}
+
+static void
+on_after_paint  (GdkFrameClock *clock,
+                 GMainLoop     *loop)
+{
+  g_signal_handlers_disconnect_by_func (clock,
+                                        (gpointer) on_after_paint,
+                                        loop);
+  g_main_loop_quit (loop);
 }
 
 static void
@@ -146,7 +140,7 @@ process_line (const char *line)
     {
       if (argc != 3)
         {
-          g_print ("usage: set_parent <window-id> <parent-id>");
+          g_print ("usage: menu <window-id> <parent-id>");
           goto out;
         }
 
@@ -167,35 +161,6 @@ process_line (const char *line)
       gtk_window_set_transient_for (GTK_WINDOW (window),
                                     GTK_WINDOW (parent_window));
     }
-  else if (strcmp (argv[0], "set_parent_exported") == 0)
-    {
-      if (argc != 3)
-        {
-          g_print ("usage: set_parent_exported <window-id> <parent-id>");
-          goto out;
-        }
-
-      GtkWidget *window = lookup_window (argv[1]);
-      if (!window)
-        {
-          g_print ("unknown window %s", argv[1]);
-          goto out;
-        }
-
-      GtkWidget *parent_window = lookup_window (argv[2]);
-      if (!parent_window)
-        {
-          g_print ("unknown parent window %s", argv[2]);
-          goto out;
-        }
-
-      GdkWindow *parent_gdk_window = gtk_widget_get_window (parent_window);
-      if (!gdk_wayland_window_export_handle (parent_gdk_window,
-                                             window_export_handle_cb,
-                                             window,
-                                             NULL))
-        g_print ("Fail to export handle for window id %s", argv[2]);
-    }
   else if (strcmp (argv[0], "show") == 0)
     {
       if (argc != 2)
@@ -205,11 +170,25 @@ process_line (const char *line)
         }
 
       GtkWidget *window = lookup_window (argv[1]);
+      GdkWindow *gdk_window = gtk_widget_get_window (window);
       if (!window)
         goto out;
 
       gtk_widget_show (window);
-      gdk_display_sync (gdk_display_get_default ());
+
+      /* When a Wayland client, we cannot be really sure that the window has
+       * been mappable until after we have painted. So, in order to have the
+       * test runner rely on the "show" command to have done what the client
+       * needs to do in order for a window to be mappable compositor side, lets
+       * wait with returning until after the first frame.
+       */
+      GdkFrameClock *frame_clock = gdk_window_get_frame_clock (gdk_window);
+      GMainLoop *loop = g_main_loop_new (NULL, FALSE);
+      g_signal_connect (frame_clock, "after-paint",
+                        G_CALLBACK (on_after_paint),
+                        loop);
+      g_main_loop_run (loop);
+      g_main_loop_unref (loop);
     }
   else if (strcmp (argv[0], "hide") == 0)
     {
@@ -238,22 +217,6 @@ process_line (const char *line)
         goto out;
 
       gtk_window_present (GTK_WINDOW (window));
-    }
-  else if (strcmp (argv[0], "resize") == 0)
-    {
-      if (argc != 4)
-        {
-          g_print ("usage: resize <id> <width> <height>");
-          goto out;
-        }
-
-      GtkWidget *window = lookup_window (argv[1]);
-      if (!window)
-        goto out;
-
-      int width = atoi (argv[2]);
-      int height = atoi (argv[3]);
-      gtk_window_resize (GTK_WINDOW (window), width, height);
     }
   else if (strcmp (argv[0], "raise") == 0)
     {

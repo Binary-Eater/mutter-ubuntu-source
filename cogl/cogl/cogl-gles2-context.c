@@ -33,7 +33,9 @@
  *
  */
 
+#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
+#endif
 
 #include <string.h>
 
@@ -43,15 +45,15 @@
 #include "cogl-context-private.h"
 #include "cogl-display-private.h"
 #include "cogl-framebuffer-private.h"
+#include "cogl-framebuffer-gl-private.h"
 #include "cogl-onscreen-template-private.h"
 #include "cogl-renderer-private.h"
 #include "cogl-swap-chain-private.h"
 #include "cogl-texture-2d-gl.h"
 #include "cogl-texture-2d-private.h"
+#include "cogl-pipeline-opengl-private.h"
 #include "cogl-error-private.h"
 #include "cogl-gtype-private.h"
-#include "driver/gl/cogl-framebuffer-gl-private.h"
-#include "driver/gl/cogl-pipeline-opengl-private.h"
 
 static void _cogl_gles2_context_free (CoglGLES2Context *gles2_context);
 
@@ -90,8 +92,7 @@ main_wrapper_function[] =
   "}\n"
   MAIN_WRAPPER_END;
 
-enum
-{
+enum {
   RESTORE_FB_NONE,
   RESTORE_FB_FROM_OFFSCREEN,
   RESTORE_FB_FROM_ONSCREEN,
@@ -140,7 +141,7 @@ detach_shader (CoglGLES2ProgramData *program_data,
     }
 }
 
-static gboolean
+static CoglBool
 is_symbol_character (char ch)
 {
   return g_ascii_isalnum (ch) || ch == '_';
@@ -1776,7 +1777,7 @@ _cogl_gles2_offscreen_allocate (CoglOffscreen *offscreen,
   return gles2_offscreen;
 }
 
-gboolean
+CoglBool
 cogl_push_gles2_context (CoglContext *ctx,
                          CoglGLES2Context *gles2_ctx,
                          CoglFramebuffer *read_buffer,
@@ -1956,7 +1957,7 @@ cogl_gles2_texture_2d_new_from_handle (CoglContext *ctx,
                                               format);
 }
 
-gboolean
+CoglBool
 cogl_gles2_texture_get_handle (CoglTexture *texture,
                                unsigned int *handle,
                                unsigned int *target)

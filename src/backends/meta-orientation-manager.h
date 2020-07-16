@@ -22,8 +22,6 @@
 #ifndef META_ORIENTATION_MANAGER_H
 #define META_ORIENTATION_MANAGER_H
 
-#include <glib-object.h>
-
 typedef enum
 {
   META_ORIENTATION_UNDEFINED,

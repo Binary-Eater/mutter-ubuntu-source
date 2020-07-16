@@ -46,7 +46,7 @@ typedef struct _CoglPipeline CoglPipeline;
 
 #include <glib-object.h>
 
-G_BEGIN_DECLS
+COGL_BEGIN_DECLS
 
 /**
  * SECTION:cogl-pipeline
@@ -72,7 +72,7 @@ G_BEGIN_DECLS
 GType cogl_pipeline_get_gtype (void);
 
 /**
- * cogl_pipeline_new: (skip)
+ * cogl_pipeline_new:
  * @context: a #CoglContext
  *
  * Allocates and initializes a default simple pipeline that will color
@@ -119,7 +119,7 @@ cogl_pipeline_copy (CoglPipeline *source);
  * Since: 2.0
  * Stability: Unstable
  */
-gboolean
+CoglBool
 cogl_is_pipeline (void *object);
 
 /**
@@ -134,7 +134,7 @@ cogl_is_pipeline (void *object);
  * Since: 2.0
  * Stability: Unstable
  */
-typedef gboolean (*CoglPipelineLayerCallback) (CoglPipeline *pipeline,
+typedef CoglBool (*CoglPipelineLayerCallback) (CoglPipeline *pipeline,
                                                int layer_index,
                                                void *user_data);
 
@@ -180,6 +180,6 @@ int
 cogl_pipeline_get_uniform_location (CoglPipeline *pipeline,
                                     const char *uniform_name);
 
-G_END_DECLS
+COGL_END_DECLS
 
 #endif /* __COGL_PIPELINE_H__ */

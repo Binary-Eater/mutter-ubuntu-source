@@ -31,7 +31,9 @@
  * its contents are usually defined by the Clutter backend in use.
  */
 
+#ifdef HAVE_CONFIG_H
 #include "clutter-build-config.h"
+#endif
 
 #include "clutter-input-device.h"
 

@@ -32,12 +32,14 @@
  *   Robert Bragg <robert@linux.intel.com>
  */
 
+#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
+#endif
 
 #include "cogl-context-private.h"
-#include "driver/gl/cogl-buffer-gl-private.h"
+#include "cogl-buffer-gl-private.h"
 #include "cogl-error-private.h"
-#include "driver/gl/cogl-util-gl-private.h"
+#include "cogl-util-gl-private.h"
 
 /*
  * GL/GLES compatibility defines for the buffer API:
@@ -105,14 +107,14 @@ update_hints_to_gl_enum (CoglBuffer *buffer)
     case COGL_BUFFER_UPDATE_HINT_STREAM:
       /* OpenGL ES 1.1 only knows about STATIC_DRAW and DYNAMIC_DRAW */
 #if defined(HAVE_COGL_GL) || defined(HAVE_COGL_GLES2)
-      return GL_STREAM_DRAW;
+      if (buffer->context->driver != COGL_DRIVER_GLES1)
+        return GL_STREAM_DRAW;
 #else
       return GL_DYNAMIC_DRAW;
 #endif
     }
 
   g_assert_not_reached ();
-  return 0;
 }
 
 static GLenum
@@ -133,7 +135,7 @@ convert_bind_target_to_gl_target (CoglBufferBindTarget target)
     }
 }
 
-static gboolean
+static CoglBool
 recreate_store (CoglBuffer *buffer,
                 CoglError **error)
 {
@@ -241,7 +243,7 @@ _cogl_buffer_gl_map_range (CoglBuffer *buffer,
   if (ctx->glMapBufferRange)
     {
       GLbitfield gl_access = 0;
-      gboolean should_recreate_store = !buffer->store_created;
+      CoglBool should_recreate_store = !buffer->store_created;
 
       if ((access & COGL_BUFFER_ACCESS_READ))
         gl_access |= GL_MAP_READ_BIT;
@@ -346,7 +348,7 @@ _cogl_buffer_gl_unmap (CoglBuffer *buffer)
   _cogl_buffer_gl_unbind (buffer);
 }
 
-gboolean
+CoglBool
 _cogl_buffer_gl_set_data (CoglBuffer *buffer,
                           unsigned int offset,
                           const void *data,
@@ -356,7 +358,7 @@ _cogl_buffer_gl_set_data (CoglBuffer *buffer,
   CoglBufferBindTarget target;
   GLenum gl_target;
   CoglContext *ctx = buffer->context;
-  gboolean status = TRUE;
+  CoglBool status = TRUE;
   CoglError *internal_error = NULL;
 
   target = buffer->last_target;

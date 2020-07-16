@@ -23,41 +23,30 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-/**
- * SECTION:meta-monitor-manager-xrandr
- * @title: MetaMonitorManagerXrandr
- * @short_description: A subclass of #MetaMonitorManager using XRadR
- *
- * #MetaMonitorManagerXrandr is a subclass of #MetaMonitorManager which
- * implements its functionality using the RandR X protocol.
- *
- * See also #MetaMonitorManagerKms for a native implementation using Linux DRM
- * and udev.
- */
-
 #include "config.h"
 
-#include "backends/x11/meta-monitor-manager-xrandr.h"
+#include "meta-monitor-manager-xrandr.h"
 
-#include <math.h>
-#include <stdlib.h>
 #include <string.h>
-#include <X11/Xlib-xcb.h>
+#include <stdlib.h>
+#include <math.h>
+#include <clutter/clutter.h>
+
 #include <X11/Xlibint.h>
 #include <X11/extensions/dpms.h>
+#include <X11/Xlib-xcb.h>
 #include <xcb/randr.h>
 
+#include "meta-backend-x11.h"
+#include <meta/main.h>
+#include <meta/errors.h>
 #include "backends/meta-crtc.h"
-#include "backends/meta-logical-monitor.h"
 #include "backends/meta-monitor-config-manager.h"
+#include "backends/meta-logical-monitor.h"
 #include "backends/meta-output.h"
-#include "backends/x11/meta-backend-x11.h"
 #include "backends/x11/meta-crtc-xrandr.h"
 #include "backends/x11/meta-gpu-xrandr.h"
 #include "backends/x11/meta-output-xrandr.h"
-#include "clutter/clutter.h"
-#include "meta/main.h"
-#include "meta/meta-x11-errors.h"
 
 /* Look for DPI_FALLBACK in:
  * http://git.gnome.org/browse/gnome-settings-daemon/tree/plugins/xsettings/gsd-xsettings-manager.c
@@ -82,7 +71,9 @@ struct _MetaMonitorManagerXrandr
 
   xcb_timestamp_t last_xrandr_set_timestamp;
 
+#ifdef HAVE_XRANDR15
   GHashTable *tiled_monitor_atoms;
+#endif /* HAVE_XRANDR15 */
 
   float *supported_scales;
   int n_supported_scales;
@@ -95,12 +86,14 @@ struct _MetaMonitorManagerXrandrClass
 
 G_DEFINE_TYPE (MetaMonitorManagerXrandr, meta_monitor_manager_xrandr, META_TYPE_MONITOR_MANAGER);
 
+#ifdef HAVE_XRANDR15
 typedef struct _MetaMonitorXrandrData
 {
   Atom xrandr_name;
 } MetaMonitorXrandrData;
 
 GQuark quark_meta_monitor_xrandr_data;
+#endif /* HAVE_RANDR15 */
 
 Display *
 meta_monitor_manager_xrandr_get_xdisplay (MetaMonitorManagerXrandr *manager_xrandr)
@@ -119,50 +112,6 @@ meta_monitor_manager_xrandr_read_edid (MetaMonitorManager *manager,
                                        MetaOutput         *output)
 {
   return meta_output_xrandr_read_edid (output);
-}
-
-static MetaPowerSave
-x11_dpms_state_to_power_save (CARD16 dpms_state)
-{
-  switch (dpms_state)
-    {
-    case DPMSModeOn:
-      return META_POWER_SAVE_ON;
-    case DPMSModeStandby:
-      return META_POWER_SAVE_STANDBY;
-    case DPMSModeSuspend:
-      return META_POWER_SAVE_SUSPEND;
-    case DPMSModeOff:
-      return META_POWER_SAVE_OFF;
-    default:
-      return META_POWER_SAVE_UNSUPPORTED;
-    }
-}
-
-static void
-meta_monitor_manager_xrandr_read_current_state (MetaMonitorManager *manager)
-{
-  MetaMonitorManagerXrandr *manager_xrandr =
-    META_MONITOR_MANAGER_XRANDR (manager);
-  MetaMonitorManagerClass *parent_class =
-    META_MONITOR_MANAGER_CLASS (meta_monitor_manager_xrandr_parent_class);
-  Display *xdisplay = meta_monitor_manager_xrandr_get_xdisplay (manager_xrandr);
-  BOOL dpms_capable, dpms_enabled;
-  CARD16 dpms_state;
-  MetaPowerSave power_save_mode;
-
-  dpms_capable = DPMSCapable (xdisplay);
-
-  if (dpms_capable &&
-      DPMSInfo (xdisplay, &dpms_state, &dpms_enabled) &&
-      dpms_enabled)
-    power_save_mode = x11_dpms_state_to_power_save (dpms_state);
-  else
-    power_save_mode = META_POWER_SAVE_UNSUPPORTED;
-
-  meta_monitor_manager_power_save_mode_changed (manager, power_save_mode);
-
-  parent_class->read_current_state (manager);
 }
 
 static void
@@ -217,7 +166,6 @@ meta_monitor_transform_to_xrandr (MetaMonitorTransform transform)
     }
 
   g_assert_not_reached ();
-  return 0;
 }
 
 static gboolean
@@ -722,6 +670,7 @@ meta_monitor_manager_xrandr_set_crtc_gamma (MetaMonitorManager *manager,
   XRRFreeGamma (gamma);
 }
 
+#ifdef HAVE_XRANDR15
 static MetaMonitorXrandrData *
 meta_monitor_xrandr_data_from_monitor (MetaMonitor *monitor)
 {
@@ -882,6 +831,7 @@ meta_monitor_manager_xrandr_init_monitors (MetaMonitorManagerXrandr *manager_xra
     }
   XRRFreeMonitors (m);
 }
+#endif
 
 static gboolean
 meta_monitor_manager_xrandr_is_transform_handled (MetaMonitorManager  *manager,
@@ -973,11 +923,11 @@ ensure_supported_monitor_scales (MetaMonitorManager *manager)
 }
 
 static float *
-meta_monitor_manager_xrandr_calculate_supported_scales (MetaMonitorManager           *manager,
-                                                        MetaLogicalMonitorLayoutMode  layout_mode,
-                                                        MetaMonitor                  *monitor,
-                                                        MetaMonitorMode              *monitor_mode,
-                                                        int                          *n_supported_scales)
+meta_monitor_manager_xrandr_calculate_supported_scales (MetaMonitorManager          *manager,
+                                                        MetaLogicalMonitorLayoutMode layout_mode,
+                                                        MetaMonitor                 *monitor,
+                                                        MetaMonitorMode             *monitor_mode,
+                                                        int                         *n_supported_scales)
 {
   MetaMonitorManagerXrandr *manager_xrandr =
     META_MONITOR_MANAGER_XRANDR (manager);
@@ -1050,6 +1000,7 @@ meta_monitor_manager_xrandr_constructed (GObject *object)
       manager_xrandr->has_randr15 = FALSE;
       XRRQueryVersion (manager_xrandr->xdisplay, &major_version,
                        &minor_version);
+#ifdef HAVE_XRANDR15
       if (major_version > 1 ||
           (major_version == 1 &&
            minor_version >= 5))
@@ -1058,6 +1009,7 @@ meta_monitor_manager_xrandr_constructed (GObject *object)
           manager_xrandr->tiled_monitor_atoms = g_hash_table_new (NULL, NULL);
         }
       meta_monitor_manager_xrandr_init_monitors (manager_xrandr);
+#endif
     }
 
   G_OBJECT_CLASS (meta_monitor_manager_xrandr_parent_class)->constructed (object);
@@ -1090,15 +1042,16 @@ meta_monitor_manager_xrandr_class_init (MetaMonitorManagerXrandrClass *klass)
   object_class->constructed = meta_monitor_manager_xrandr_constructed;
 
   manager_class->read_edid = meta_monitor_manager_xrandr_read_edid;
-  manager_class->read_current_state = meta_monitor_manager_xrandr_read_current_state;
   manager_class->ensure_initial_config = meta_monitor_manager_xrandr_ensure_initial_config;
   manager_class->apply_monitors_config = meta_monitor_manager_xrandr_apply_monitors_config;
   manager_class->set_power_save_mode = meta_monitor_manager_xrandr_set_power_save_mode;
   manager_class->change_backlight = meta_monitor_manager_xrandr_change_backlight;
   manager_class->get_crtc_gamma = meta_monitor_manager_xrandr_get_crtc_gamma;
   manager_class->set_crtc_gamma = meta_monitor_manager_xrandr_set_crtc_gamma;
+#ifdef HAVE_XRANDR15
   manager_class->tiled_monitor_added = meta_monitor_manager_xrandr_tiled_monitor_added;
   manager_class->tiled_monitor_removed = meta_monitor_manager_xrandr_tiled_monitor_removed;
+#endif
   manager_class->is_transform_handled = meta_monitor_manager_xrandr_is_transform_handled;
   manager_class->calculate_monitor_mode_scale = meta_monitor_manager_xrandr_calculate_monitor_mode_scale;
   manager_class->calculate_supported_scales = meta_monitor_manager_xrandr_calculate_supported_scales;

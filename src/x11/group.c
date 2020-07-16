@@ -25,21 +25,17 @@
  *
  */
 
-#include "config.h"
-
-#include "x11/group-private.h"
-
+#include <config.h>
+#include <meta/util.h>
+#include "group-private.h"
+#include "group-props.h"
+#include "window-private.h"
+#include <meta/window.h>
 #include <X11/Xlib-xcb.h>
 
-#include "core/window-private.h"
-#include "meta/util.h"
-#include "meta/window.h"
-#include "x11/group-props.h"
-#include "x11/meta-x11-display-private.h"
-
 static MetaGroup*
-meta_group_new (MetaX11Display *x11_display,
-                Window          group_leader)
+meta_group_new (MetaDisplay *display,
+                Window       group_leader)
 {
   MetaGroup *group;
 #define N_INITIAL_PROPS 3
@@ -50,12 +46,12 @@ meta_group_new (MetaX11Display *x11_display,
 
   group = g_new0 (MetaGroup, 1);
 
-  group->x11_display = x11_display;
+  group->display = display;
   group->windows = NULL;
   group->group_leader = group_leader;
   group->refcount = 1; /* owned by caller, hash table has only weak ref */
 
-  xcb_connection_t *xcb_conn = XGetXCBConnection (x11_display->xdisplay);
+  xcb_connection_t *xcb_conn = XGetXCBConnection (display->xdisplay);
   xcb_generic_error_t *e;
   g_autofree xcb_get_window_attributes_reply_t *attrs =
     xcb_get_window_attributes_reply (xcb_conn,
@@ -68,21 +64,21 @@ meta_group_new (MetaX11Display *x11_display,
   xcb_change_window_attributes (xcb_conn, group_leader,
                                 XCB_CW_EVENT_MASK, events);
 
-  if (x11_display->groups_by_leader == NULL)
-    x11_display->groups_by_leader = g_hash_table_new (meta_unsigned_long_hash,
-                                                      meta_unsigned_long_equal);
+  if (display->groups_by_leader == NULL)
+    display->groups_by_leader = g_hash_table_new (meta_unsigned_long_hash,
+                                                  meta_unsigned_long_equal);
 
-  g_assert (g_hash_table_lookup (x11_display->groups_by_leader, &group_leader) == NULL);
+  g_assert (g_hash_table_lookup (display->groups_by_leader, &group_leader) == NULL);
 
-  g_hash_table_insert (x11_display->groups_by_leader,
+  g_hash_table_insert (display->groups_by_leader,
                        &group->group_leader,
                        group);
 
   /* Fill these in the order we want them to be gotten */
   i = 0;
-  initial_props[i++] = x11_display->atom_WM_CLIENT_MACHINE;
-  initial_props[i++] = x11_display->atom__NET_WM_PID;
-  initial_props[i++] = x11_display->atom__NET_STARTUP_ID;
+  initial_props[i++] = display->atom_WM_CLIENT_MACHINE;
+  initial_props[i++] = display->atom__NET_WM_PID;
+  initial_props[i++] = display->atom__NET_STARTUP_ID;
   g_assert (N_INITIAL_PROPS == i);
 
   meta_group_reload_properties (group, initial_props, N_INITIAL_PROPS);
@@ -106,16 +102,16 @@ meta_group_unref (MetaGroup *group)
                   "Destroying group with leader 0x%lx\n",
                   group->group_leader);
 
-      g_assert (group->x11_display->groups_by_leader != NULL);
+      g_assert (group->display->groups_by_leader != NULL);
 
-      g_hash_table_remove (group->x11_display->groups_by_leader,
+      g_hash_table_remove (group->display->groups_by_leader,
                            &group->group_leader);
 
       /* mop up hash table, this is how it gets freed on display close */
-      if (g_hash_table_size (group->x11_display->groups_by_leader) == 0)
+      if (g_hash_table_size (group->display->groups_by_leader) == 0)
         {
-          g_hash_table_destroy (group->x11_display->groups_by_leader);
-          group->x11_display->groups_by_leader = NULL;
+          g_hash_table_destroy (group->display->groups_by_leader);
+          group->display->groups_by_leader = NULL;
         }
 
       g_free (group->wm_client_machine);
@@ -144,7 +140,6 @@ meta_window_compute_group (MetaWindow* window)
 {
   MetaGroup *group;
   MetaWindow *ancestor;
-  MetaX11Display *x11_display = window->display->x11_display;
 
   /* use window->xwindow if no window->xgroup_leader */
 
@@ -155,15 +150,15 @@ meta_window_compute_group (MetaWindow* window)
    */
   ancestor = meta_window_find_root_ancestor (window);
 
-  if (x11_display->groups_by_leader)
+  if (window->display->groups_by_leader)
     {
       if (ancestor != window)
         group = ancestor->group;
       else if (window->xgroup_leader != None)
-        group = g_hash_table_lookup (x11_display->groups_by_leader,
+        group = g_hash_table_lookup (window->display->groups_by_leader,
                                      &window->xgroup_leader);
       else
-        group = g_hash_table_lookup (x11_display->groups_by_leader,
+        group = g_hash_table_lookup (window->display->groups_by_leader,
                                      &window->xwindow);
     }
 
@@ -175,13 +170,13 @@ meta_window_compute_group (MetaWindow* window)
   else
     {
       if (ancestor != window && ancestor->xgroup_leader != None)
-        group = meta_group_new (x11_display,
+        group = meta_group_new (window->display,
                                 ancestor->xgroup_leader);
       else if (window->xgroup_leader != None)
-        group = meta_group_new (x11_display,
+        group = meta_group_new (window->display,
                                 window->xgroup_leader);
       else
-        group = meta_group_new (x11_display,
+        group = meta_group_new (window->display,
                                 window->xwindow);
 
       window->group = group;
@@ -228,21 +223,21 @@ meta_window_shutdown_group (MetaWindow *window)
 }
 
 /**
- * meta_x11_display_lookup_group: (skip)
- * @x11_display: a #MetaX11Display
+ * meta_display_lookup_group: (skip)
+ * @display: a #MetaDisplay
  * @group_leader: a X window
  *
  */
-MetaGroup *
-meta_x11_display_lookup_group (MetaX11Display *x11_display,
-                               Window          group_leader)
+MetaGroup*
+meta_display_lookup_group (MetaDisplay *display,
+                           Window       group_leader)
 {
   MetaGroup *group;
 
   group = NULL;
 
-  if (x11_display->groups_by_leader)
-    group = g_hash_table_lookup (x11_display->groups_by_leader,
+  if (display->groups_by_leader)
+    group = g_hash_table_lookup (display->groups_by_leader,
                                  &group_leader);
 
   return group;
@@ -279,10 +274,10 @@ meta_group_update_layers (MetaGroup *group)
        * but doesn't hurt anything. have to handle
        * groups that span 2 screens.
        */
-      meta_stack_freeze (window->display->stack);
-      frozen_stacks = g_slist_prepend (frozen_stacks, window->display->stack);
+      meta_stack_freeze (window->screen->stack);
+      frozen_stacks = g_slist_prepend (frozen_stacks, window->screen->stack);
 
-      meta_stack_update_layer (window->display->stack,
+      meta_stack_update_layer (window->screen->stack,
                                window);
 
       tmp = tmp->next;

@@ -24,7 +24,9 @@
  *      Emmanuele Bassi <ebassi@linux.intel.com>
  */
 
+#ifdef HAVE_CONFIG_H
 #include "clutter-build-config.h"
+#endif
 
 #include <string.h>
 #include <stdlib.h>
@@ -2208,9 +2210,8 @@ _clutter_script_construct_object (ClutterScript *script,
     }
   else
     {
-      g_autoptr (GPtrArray) param_names = NULL;
-      GArray *param_values;
       GList *properties = oinfo->properties;
+      GParameter *parameters;
 
       /* every other object: first, we get the construction parameters */
       oinfo->properties =
@@ -2220,22 +2221,10 @@ _clutter_script_construct_object (ClutterScript *script,
                                              properties,
                                              &params);
 
-      /* Convert GParameter → (GStrv, GValue[]) */
-      param_names = g_ptr_array_sized_new (params->len);
-      param_values = g_array_sized_new (TRUE, FALSE, sizeof (GValue), params->len);
-      for (i = 0; i < params->len; i++)
-        {
-          GParameter *param = &g_array_index (params, GParameter, i);
-
-          g_ptr_array_add (param_names, (gchar *) param->name);
-          g_array_append_val (param_values, param->value);
-        }
-      g_ptr_array_add (param_names, NULL);
-
-      oinfo->object = g_object_new_with_properties (oinfo->gtype,
-                                                    params->len,
-                                                    (const gchar **) param_names->pdata,
-                                                    (const GValue *) param_values->data);
+      parameters = (GParameter *) (void *) params->data;
+      oinfo->object = g_object_newv (oinfo->gtype,
+                                     params->len,
+                                     parameters);
 
       /* by sinking the floating reference, we make sure that the reference
        * count is correct whether the object is referenced from somewhere
@@ -2251,7 +2240,6 @@ _clutter_script_construct_object (ClutterScript *script,
           g_value_unset (&param->value);
         }
 
-      g_array_free (param_values, FALSE);
       g_array_free (params, TRUE);
    }
 

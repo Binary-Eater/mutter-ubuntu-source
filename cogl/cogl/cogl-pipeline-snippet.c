@@ -31,7 +31,9 @@
  *   Neil Roberts <neil@linux.intel.com>
  */
 
+#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
+#endif
 
 #include <string.h>
 
@@ -268,7 +270,7 @@ _cogl_pipeline_snippet_list_hash (CoglPipelineSnippetList *list,
     }
 }
 
-gboolean
+CoglBool
 _cogl_pipeline_snippet_list_equal (CoglPipelineSnippetList *list0,
                                    CoglPipelineSnippetList *list1)
 {

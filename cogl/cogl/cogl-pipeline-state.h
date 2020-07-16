@@ -39,7 +39,7 @@
 #include <cogl/cogl-color.h>
 #include <cogl/cogl-depth-state.h>
 
-G_BEGIN_DECLS
+COGL_BEGIN_DECLS
 
 /**
  * cogl_pipeline_set_color:
@@ -325,8 +325,7 @@ cogl_pipeline_get_emission (CoglPipeline *pipeline,
  * incoming alpha value and a reference alpha value. The #CoglPipelineAlphaFunc
  * determines how the comparison is done.
  */
-typedef enum
-{
+typedef enum {
   COGL_PIPELINE_ALPHA_FUNC_NEVER    = 0x0200,
   COGL_PIPELINE_ALPHA_FUNC_LESS	    = 0x0201,
   COGL_PIPELINE_ALPHA_FUNC_EQUAL    = 0x0202,
@@ -467,7 +466,7 @@ cogl_pipeline_get_alpha_test_reference (CoglPipeline *pipeline);
  * Since: 2.0
  * Stability: Unstable
  */
-gboolean
+CoglBool
 cogl_pipeline_set_blend (CoglPipeline *pipeline,
                          const char   *blend_string,
                          CoglError      **error);
@@ -553,9 +552,9 @@ cogl_pipeline_get_point_size (CoglPipeline *pipeline);
  * Stability: Unstable
  * Return value: %TRUE if the change suceeded or %FALSE otherwise
  */
-gboolean
+CoglBool
 cogl_pipeline_set_per_vertex_point_size (CoglPipeline *pipeline,
-                                         gboolean enable,
+                                         CoglBool enable,
                                          CoglError **error);
 
 /**
@@ -568,7 +567,7 @@ cogl_pipeline_set_per_vertex_point_size (CoglPipeline *pipeline,
  *   enabled or %FALSE otherwise. The per-vertex point size can be
  *   enabled with cogl_pipeline_set_per_vertex_point_size().
  */
-gboolean
+CoglBool
 cogl_pipeline_get_per_vertex_point_size (CoglPipeline *pipeline);
 
 /**
@@ -670,7 +669,7 @@ cogl_pipeline_set_user_program (CoglPipeline *pipeline,
                                 CoglHandle program);
 
 /**
- * cogl_pipeline_set_depth_state: (skip)
+ * cogl_pipeline_set_depth_state:
  * @pipeline: A #CoglPipeline object
  * @state: A #CoglDepthState struct
  * @error: A #CoglError to report failures to setup the given @state.
@@ -689,13 +688,13 @@ cogl_pipeline_set_user_program (CoglPipeline *pipeline,
  * Since: 2.0
  * Stability: Unstable
  */
-gboolean
+CoglBool
 cogl_pipeline_set_depth_state (CoglPipeline *pipeline,
                                const CoglDepthState *state,
                                CoglError **error);
 
 /**
- * cogl_pipeline_get_depth_state: (skip)
+ * cogl_pipeline_get_depth_state:
  * @pipeline: A #CoglPipeline object
  * @state_out: (out): A destination #CoglDepthState struct
  *
@@ -952,11 +951,11 @@ cogl_pipeline_set_uniform_matrix (CoglPipeline *pipeline,
                                   int uniform_location,
                                   int dimensions,
                                   int count,
-                                  gboolean transpose,
+                                  CoglBool transpose,
                                   const float *value);
 
 /**
- * cogl_pipeline_add_snippet: (skip)
+ * cogl_pipeline_add_snippet:
  * @pipeline: A #CoglPipeline
  * @snippet: The #CoglSnippet to add to the vertex processing hook
  *
@@ -972,6 +971,6 @@ void
 cogl_pipeline_add_snippet (CoglPipeline *pipeline,
                            CoglSnippet *snippet);
 
-G_END_DECLS
+COGL_END_DECLS
 
 #endif /* __COGL_PIPELINE_STATE_H__ */

@@ -8,13 +8,7 @@
 #define STAGE_WIDTH   800
 #define STAGE_HEIGHT  600
 
-int
-test_fbo_main (int argc, char *argv[]);
-
-const char *
-test_fbo_describe (void);
-
-static ClutterActor *
+ClutterActor *
 make_source (void)
 {
   ClutterActor *source, *actor;

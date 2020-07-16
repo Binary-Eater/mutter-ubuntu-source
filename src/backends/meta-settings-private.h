@@ -26,13 +26,14 @@
 
 #include "meta/meta-settings.h"
 #include "meta/types.h"
-#include "core/util-private.h"
 
 typedef enum _MetaExperimentalFeature
 {
   META_EXPERIMENTAL_FEATURE_NONE = 0,
   META_EXPERIMENTAL_FEATURE_SCALE_MONITOR_FRAMEBUFFER = (1 << 0),
-  META_EXPERIMENTAL_FEATURE_KMS_MODIFIERS  = (1 << 1),
+  META_EXPERIMENTAL_FEATURE_SCREEN_CAST = (1 << 1),
+  META_EXPERIMENTAL_FEATURE_REMOTE_DESKTOP  = (1 << 2),
+  META_EXPERIMENTAL_FEATURE_KMS_MODIFIERS = (1 << 3),
 } MetaExperimentalFeature;
 
 #define META_TYPE_SETTINGS (meta_settings_get_type ())
@@ -48,16 +49,13 @@ void meta_settings_update_ui_scaling_factor (MetaSettings *settings);
 gboolean meta_settings_get_global_scaling_factor (MetaSettings *settings,
                                                   int          *scaing_factor);
 
-META_EXPORT_TEST
 gboolean meta_settings_is_experimental_feature_enabled (MetaSettings           *settings,
                                                         MetaExperimentalFeature feature);
 
 MetaExperimentalFeature meta_settings_get_experimental_features (MetaSettings *settings);
 
-META_EXPORT_TEST
 void meta_settings_override_experimental_features (MetaSettings *settings);
 
-META_EXPORT_TEST
 void meta_settings_enable_experimental_feature (MetaSettings           *settings,
                                                 MetaExperimentalFeature feature);
 

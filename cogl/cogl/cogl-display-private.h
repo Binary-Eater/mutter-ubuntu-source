@@ -40,7 +40,7 @@ struct _CoglDisplay
 {
   CoglObject _parent;
 
-  gboolean setup;
+  CoglBool setup;
   CoglRenderer *renderer;
   CoglOnscreenTemplate *onscreen_template;
 

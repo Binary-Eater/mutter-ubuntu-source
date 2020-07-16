@@ -32,10 +32,10 @@
 #define __COGL_WINSYS_EGL_PRIVATE_H
 
 #include "cogl-defines.h"
+#include "cogl-winsys-private.h"
 #include "cogl-context.h"
 #include "cogl-context-private.h"
 #include "cogl-framebuffer-private.h"
-#include "winsys/cogl-winsys-private.h"
 
 /* XXX: depending on what version of Mesa you have then
  * eglQueryWaylandBuffer may take a wl_buffer or wl_resource argument
@@ -60,26 +60,26 @@ struct wl_resource;
 
 typedef struct _CoglWinsysEGLVtable
 {
-  gboolean
+  CoglBool
   (* display_setup) (CoglDisplay *display,
                      CoglError **error);
   void
   (* display_destroy) (CoglDisplay *display);
 
-  gboolean
+  CoglBool
   (* context_created) (CoglDisplay *display,
                        CoglError **error);
 
   void
   (* cleanup_context) (CoglDisplay *display);
 
-  gboolean
+  CoglBool
   (* context_init) (CoglContext *context, CoglError **error);
 
   void
   (* context_deinit) (CoglContext *context);
 
-  gboolean
+  CoglBool
   (* onscreen_init) (CoglOnscreen *onscreen,
                      EGLConfig config,
                      CoglError **error);
@@ -90,7 +90,7 @@ typedef struct _CoglWinsysEGLVtable
   (* add_config_attributes) (CoglDisplay *display,
                              CoglFramebufferConfig *config,
                              EGLint *attributes);
-  gboolean
+  CoglBool
   (* choose_config) (CoglDisplay *display,
                      EGLint *attributes,
                      EGLConfig *out_config,
@@ -132,7 +132,7 @@ typedef struct _CoglRendererEGL
 
 #define COGL_WINSYS_FEATURE_END()
 
-#include "winsys/cogl-winsys-egl-feature-functions.h"
+#include "cogl-winsys-egl-feature-functions.h"
 
 #undef COGL_WINSYS_FEATURE_BEGIN
 #undef COGL_WINSYS_FEATURE_FUNCTION
@@ -146,7 +146,7 @@ typedef struct _CoglDisplayEGL
   EGLSurface egl_surface;
 
   EGLConfig egl_config;
-  gboolean found_egl_config;
+  CoglBool found_egl_config;
 
   EGLSurface current_read_surface;
   EGLSurface current_draw_surface;
@@ -166,7 +166,7 @@ typedef struct _CoglOnscreenEGL
 {
   EGLSurface egl_surface;
 
-  gboolean pending_resize_notify;
+  CoglBool pending_resize_notify;
 
   /* Platform specific data */
   void *platform;
@@ -197,14 +197,14 @@ _cogl_egl_destroy_image (CoglContext *ctx,
 #endif
 
 #ifdef EGL_WL_bind_wayland_display
-gboolean
+CoglBool
 _cogl_egl_query_wayland_buffer (CoglContext *ctx,
                                 struct wl_resource *buffer,
                                 int attribute,
                                 int *value);
 #endif
 
-gboolean
+CoglBool
 _cogl_winsys_egl_renderer_connect_common (CoglRenderer *renderer,
                                           CoglError **error);
 

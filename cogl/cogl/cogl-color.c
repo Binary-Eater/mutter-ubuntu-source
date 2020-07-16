@@ -28,7 +28,9 @@
  *
  */
 
+#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
+#endif
 
 #include <string.h>
 
@@ -300,7 +302,7 @@ cogl_color_unpremultiply (CoglColor *color)
     }
 }
 
-gboolean
+CoglBool
 cogl_color_equal (const void *v1, const void *v2)
 {
   const uint32_t *c1 = v1, *c2 = v2;

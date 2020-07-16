@@ -29,7 +29,9 @@
  *   Robert Bragg <robert@linux.intel.com>
  */
 
+#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
+#endif
 
 #include <glib.h>
 #include <string.h>
@@ -38,17 +40,17 @@
 #include "cogl-types.h"
 #include "cogl-private.h"
 #include "cogl-context-private.h"
+#include "cogl-winsys-private.h"
+#include "cogl-winsys-stub-private.h"
 #include "cogl-framebuffer-private.h"
 #include "cogl-onscreen-private.h"
 #ifdef COGL_HAS_XLIB_SUPPORT
 #include "cogl-clutter-xlib.h"
 #include "cogl-xlib-renderer.h"
 #endif
-#include "winsys/cogl-winsys-private.h"
-#include "winsys/cogl-winsys-stub-private.h"
-#include "deprecated/cogl-clutter.h"
+#include "cogl-clutter.h"
 
-gboolean
+CoglBool
 cogl_clutter_check_extension (const char *name, const char *ext)
 {
   char *end;
@@ -73,7 +75,7 @@ cogl_clutter_check_extension (const char *name, const char *ext)
   return FALSE;
 }
 
-gboolean
+CoglBool
 cogl_clutter_winsys_has_feature (CoglWinsysFeature feature)
 {
   return _cogl_winsys_has_feature (feature);

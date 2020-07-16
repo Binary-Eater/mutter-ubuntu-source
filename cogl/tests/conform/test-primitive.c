@@ -2,7 +2,6 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "test-declarations.h"
 #include "test-utils.h"
 
 typedef struct _TestState
@@ -206,7 +205,7 @@ test_paint (TestState *state)
   cogl_object_unref (pipeline);
 }
 
-static gboolean
+static CoglBool
 get_attributes_cb (CoglPrimitive *prim,
                    CoglAttribute *attrib,
                    void *user_data)

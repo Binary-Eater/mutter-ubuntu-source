@@ -22,14 +22,11 @@
 
 /* Author: Soren Sandmann <sandmann@redhat.com> */
 
-#include "config.h"
-
+#include "edid.h"
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
 #include <glib.h>
-
-#include "backends/edid.h"
 
 static int
 get_bit (int in, int bit)

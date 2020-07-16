@@ -26,9 +26,12 @@
 
 #define _POSIX_C_SOURCE 200112L /* for fdopen() */
 
-#include "config.h"
+#include <config.h>
+#include <meta/common.h>
+#include "util-private.h"
+#include <meta/main.h>
 
-#include "core/util-private.h"
+#include <clutter/clutter.h> /* For clutter_threads_add_repaint_func() */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -37,10 +40,6 @@
 #include <string.h>
 #include <X11/Xlib.h>   /* must explicitly be included for Solaris; #326746 */
 #include <X11/Xutil.h>  /* Just for the definition of the various gravities */
-
-#include "clutter/clutter.h"
-#include "meta/common.h"
-#include "meta/main.h"
 
 #ifdef WITH_VERBOSE_MODE
 static void
@@ -992,7 +991,6 @@ meta_get_locale_direction (void)
       return META_LOCALE_DIRECTION_RTL;
     default:
       g_assert_not_reached ();
-      return 0;
     }
 }
 

@@ -4,7 +4,6 @@
 
 #include <string.h>
 
-#include "test-declarations.h"
 #include "test-utils.h"
 
 #define QUAD_WIDTH 20
@@ -28,20 +27,20 @@ typedef struct
 {
   uint32_t               color;
   float                 depth;
-  gboolean              test_enable;
+  CoglBool              test_enable;
   CoglDepthTestFunction test_function;
-  gboolean              write_enable;
-  gboolean              fb_write_enable;
+  CoglBool              write_enable;
+  CoglBool              fb_write_enable;
   float                 range_near;
   float                 range_far;
 } TestDepthState;
 
-static gboolean
+static CoglBool
 draw_rectangle (TestState *state,
                 int x,
                 int y,
                 TestDepthState *rect_state,
-                gboolean legacy_mode)
+                CoglBool legacy_mode)
 {
   uint8_t Cr = MASK_RED (rect_state->color);
   uint8_t Cg = MASK_GREEN (rect_state->color);
@@ -107,10 +106,10 @@ test_depth (TestState *state,
             TestDepthState *rect0_state,
             TestDepthState *rect1_state,
             TestDepthState *rect2_state,
-            gboolean legacy_mode,
+            CoglBool legacy_mode,
             uint32_t expected_result)
 {
-  gboolean missing_feature = FALSE;
+  CoglBool missing_feature = FALSE;
 
   if (rect0_state)
     missing_feature |= !draw_rectangle (state, x, y, rect0_state, legacy_mode);

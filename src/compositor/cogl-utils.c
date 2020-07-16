@@ -19,10 +19,8 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "config.h"
-
-#include "clutter/clutter.h"
-#include "compositor/cogl-utils.h"
+#include <clutter/clutter.h>
+#include "cogl-utils.h"
 
 /* Based on gnome-shell/src/st/st-private.c:_st_create_texture_material.c */
 

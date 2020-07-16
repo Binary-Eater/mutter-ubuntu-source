@@ -20,18 +20,20 @@
 #ifndef META_WAYLAND_PRIVATE_H
 #define META_WAYLAND_PRIVATE_H
 
-#include <glib.h>
 #include <wayland-server.h>
+#include <clutter/clutter.h>
 
-#include "clutter/clutter.h"
-#include "core/window-private.h"
-#include "meta/meta-cursor-tracker.h"
-#include "wayland/meta-wayland-pointer-gestures.h"
-#include "wayland/meta-wayland-seat.h"
-#include "wayland/meta-wayland-surface.h"
-#include "wayland/meta-wayland-tablet-manager.h"
-#include "wayland/meta-wayland-versions.h"
-#include "wayland/meta-wayland.h"
+#include <glib.h>
+
+#include "window-private.h"
+#include <meta/meta-cursor-tracker.h>
+
+#include "meta-wayland.h"
+#include "meta-wayland-versions.h"
+#include "meta-wayland-surface.h"
+#include "meta-wayland-seat.h"
+#include "meta-wayland-pointer-gestures.h"
+#include "meta-wayland-tablet-manager.h"
 
 typedef struct _MetaXWaylandSelection MetaXWaylandSelection;
 
@@ -61,10 +63,8 @@ typedef struct
 
 struct _MetaWaylandCompositor
 {
-  GObject parent;
-
   struct wl_display *wayland_display;
-  char *display_name;
+  const char *display_name;
   GHashTable *outputs;
   struct wl_list frame_callbacks;
 
@@ -72,12 +72,6 @@ struct _MetaWaylandCompositor
 
   MetaWaylandSeat *seat;
   MetaWaylandTabletManager *tablet_manager;
-
-  GHashTable *scheduled_surface_associations;
 };
-
-#define META_TYPE_WAYLAND_COMPOSITOR (meta_wayland_compositor_get_type ())
-G_DECLARE_FINAL_TYPE (MetaWaylandCompositor, meta_wayland_compositor,
-                      META, WAYLAND_COMPOSITOR, GObject)
 
 #endif /* META_WAYLAND_PRIVATE_H */

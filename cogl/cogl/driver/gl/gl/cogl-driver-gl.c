@@ -28,23 +28,25 @@
  *
  */
 
+#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
+#endif
 
 #include <string.h>
 
 #include "cogl-private.h"
 #include "cogl-context-private.h"
+#include "cogl-util-gl-private.h"
 #include "cogl-feature-private.h"
 #include "cogl-renderer-private.h"
 #include "cogl-error-private.h"
-#include "driver/gl/cogl-util-gl-private.h"
-#include "driver/gl/cogl-framebuffer-gl-private.h"
-#include "driver/gl/cogl-texture-2d-gl-private.h"
-#include "driver/gl/cogl-attribute-gl-private.h"
-#include "driver/gl/cogl-clip-stack-gl-private.h"
-#include "driver/gl/cogl-buffer-gl-private.h"
+#include "cogl-framebuffer-gl-private.h"
+#include "cogl-texture-2d-gl-private.h"
+#include "cogl-attribute-gl-private.h"
+#include "cogl-clip-stack-gl-private.h"
+#include "cogl-buffer-gl-private.h"
 
-static gboolean
+static CoglBool
 _cogl_driver_pixel_format_from_gl_internal (CoglContext *context,
                                             GLenum gl_int_format,
                                             CoglPixelFormat *out_format)
@@ -94,11 +96,12 @@ _cogl_driver_pixel_format_from_gl_internal (CoglContext *context,
 }
 
 static CoglPixelFormat
-_cogl_driver_pixel_format_to_gl (CoglContext     *context,
-                                 CoglPixelFormat  format,
-                                 GLenum          *out_glintformat,
-                                 GLenum          *out_glformat,
-                                 GLenum          *out_gltype)
+_cogl_driver_pixel_format_to_gl_with_target (CoglContext *context,
+                                             CoglPixelFormat format,
+                                             CoglPixelFormat target_format,
+                                             GLenum *out_glintformat,
+                                             GLenum *out_glformat,
+                                             GLenum *out_gltype)
 {
   CoglPixelFormat required_format;
   GLenum glintformat = 0;
@@ -172,7 +175,16 @@ _cogl_driver_pixel_format_to_gl (CoglContext     *context,
     case COGL_PIXEL_FORMAT_BGRA_8888:
     case COGL_PIXEL_FORMAT_BGRA_8888_PRE:
       glintformat = GL_RGBA;
-      glformat = GL_BGRA;
+      /* If the driver has texture_swizzle, pretend internal
+       * and buffer format are the same here, the pixels
+       * will be flipped through this extension.
+       */
+      if (target_format == format &&
+          _cogl_has_private_feature
+          (context, COGL_PRIVATE_FEATURE_TEXTURE_SWIZZLE))
+        glformat = GL_RGBA;
+      else
+        glformat = GL_BGRA;
       gltype = GL_UNSIGNED_BYTE;
       break;
 
@@ -287,7 +299,21 @@ _cogl_driver_pixel_format_to_gl (CoglContext     *context,
   return required_format;
 }
 
-static gboolean
+static CoglPixelFormat
+_cogl_driver_pixel_format_to_gl (CoglContext *context,
+                                 CoglPixelFormat  format,
+                                 GLenum *out_glintformat,
+                                 GLenum *out_glformat,
+                                 GLenum *out_gltype)
+{
+  return _cogl_driver_pixel_format_to_gl_with_target (context,
+                                                      format, format,
+                                                      out_glintformat,
+                                                      out_glformat,
+                                                      out_gltype);
+}
+
+static CoglBool
 _cogl_get_gl_version (CoglContext *ctx,
                       int *major_out,
                       int *minor_out)
@@ -301,7 +327,7 @@ _cogl_get_gl_version (CoglContext *ctx,
   return _cogl_gl_util_parse_gl_version (version_string, major_out, minor_out);
 }
 
-static gboolean
+static CoglBool
 check_gl_version (CoglContext *ctx,
                   char **gl_extensions,
                   CoglError **error)
@@ -348,7 +374,7 @@ check_gl_version (CoglContext *ctx,
   return TRUE;
 }
 
-static gboolean
+static CoglBool
 _cogl_driver_update_features (CoglContext *ctx,
                               CoglError **error)
 {
@@ -491,6 +517,12 @@ _cogl_driver_update_features (CoglContext *ctx,
       _cogl_check_extension ("GL_EXT_blend_color", gl_extensions))
     COGL_FLAGS_SET (private_features,
                     COGL_PRIVATE_FEATURE_BLEND_CONSTANT, TRUE);
+
+  if (ctx->glGenPrograms)
+    {
+      flags |= COGL_FEATURE_SHADERS_ARBFP;
+      COGL_FLAGS_SET (ctx->features, COGL_FEATURE_ID_ARBFP, TRUE);
+    }
 
   if (ctx->glCreateProgram)
     {
@@ -661,6 +693,7 @@ _cogl_driver_gl =
   {
     _cogl_driver_pixel_format_from_gl_internal,
     _cogl_driver_pixel_format_to_gl,
+    _cogl_driver_pixel_format_to_gl_with_target,
     _cogl_driver_update_features,
     _cogl_offscreen_gl_allocate,
     _cogl_offscreen_gl_free,
@@ -680,7 +713,6 @@ _cogl_driver_gl =
     _cogl_texture_2d_gl_get_gl_handle,
     _cogl_texture_2d_gl_generate_mipmap,
     _cogl_texture_2d_gl_copy_from_bitmap,
-    _cogl_texture_2d_gl_is_get_data_supported,
     _cogl_texture_2d_gl_get_data,
     _cogl_gl_flush_attributes_state,
     _cogl_clip_stack_gl_flush,

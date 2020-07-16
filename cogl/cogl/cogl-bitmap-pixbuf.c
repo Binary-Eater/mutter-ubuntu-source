@@ -28,7 +28,9 @@
  *
  */
 
+#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
+#endif
 
 #include "cogl-util.h"
 #include "cogl-bitmap-private.h"
@@ -40,7 +42,7 @@
 
 #include <gdk-pixbuf/gdk-pixbuf.h>
 
-gboolean
+CoglBool
 _cogl_bitmap_get_size_from_file (const char *filename,
                                  int        *width,
                                  int        *height)
@@ -60,7 +62,7 @@ _cogl_bitmap_from_file (CoglContext *ctx,
 {
   static CoglUserDataKey pixbuf_key;
   GdkPixbuf *pixbuf;
-  gboolean has_alpha;
+  CoglBool has_alpha;
   GdkColorspace color_space;
   CoglPixelFormat pixel_format;
   int width;

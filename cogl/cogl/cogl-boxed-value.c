@@ -28,15 +28,17 @@
  *
  */
 
+#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
+#endif
 
 #include <string.h>
 
 #include "cogl-boxed-value.h"
 #include "cogl-context-private.h"
-#include "driver/gl/cogl-util-gl-private.h"
+#include "cogl-util-gl-private.h"
 
-gboolean
+CoglBool
 _cogl_boxed_value_equal (const CoglBoxedValue *bva,
                          const CoglBoxedValue *bvb)
 {
@@ -134,7 +136,7 @@ _cogl_boxed_value_set_x (CoglBoxedValue *bv,
                          CoglBoxedType type,
                          size_t value_size,
                          const void *value,
-                         gboolean transpose)
+                         CoglBool transpose)
 {
   if (count == 1)
     {
@@ -229,7 +231,7 @@ void
 _cogl_boxed_value_set_matrix (CoglBoxedValue *bv,
                               int dimensions,
                               int count,
-                              gboolean transpose,
+                              CoglBool transpose,
                               const float *value)
 {
   _cogl_boxed_value_set_x (bv,

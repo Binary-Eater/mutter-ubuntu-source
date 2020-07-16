@@ -35,7 +35,7 @@
 
 #include "cogl-types.h"
 
-G_BEGIN_DECLS
+COGL_BEGIN_DECLS
 
 /**
  * SECTION:cogl-error
@@ -147,7 +147,7 @@ cogl_error_copy (CoglError *error);
  * Return value: whether the @error corresponds to the given @domain
  *               and @code.
  */
-gboolean
+CoglBool
 cogl_error_matches (CoglError *error,
                     uint32_t domain,
                     int code);
@@ -164,6 +164,6 @@ cogl_error_matches (CoglError *error,
  */
 #define COGL_GLIB_ERROR(COGL_ERROR) ((CoglError *)COGL_ERROR)
 
-G_END_DECLS
+COGL_END_DECLS
 
 #endif /* __COGL_ERROR_H__ */

@@ -34,7 +34,9 @@
  *
  */
 
+#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
+#endif
 
 /* This is needed to get the Pango headers to export stuff needed to
    subclass */
@@ -153,7 +155,7 @@ cogl_pango_font_map_clear_glyph_cache (CoglPangoFontMap *fm)
 
 void
 cogl_pango_font_map_set_use_mipmapping (CoglPangoFontMap *fm,
-                                        gboolean          value)
+                                        CoglBool          value)
 {
   PangoRenderer *renderer = _cogl_pango_font_map_get_renderer (fm);
 
@@ -161,7 +163,7 @@ cogl_pango_font_map_set_use_mipmapping (CoglPangoFontMap *fm,
                                            value);
 }
 
-gboolean
+CoglBool
 cogl_pango_font_map_get_use_mipmapping (CoglPangoFontMap *fm)
 {
   PangoRenderer *renderer = _cogl_pango_font_map_get_renderer (fm);

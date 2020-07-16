@@ -42,7 +42,7 @@
 
 #include <glib-object.h>
 
-G_BEGIN_DECLS
+COGL_BEGIN_DECLS
 
 /**
  * SECTION:cogl-display
@@ -186,7 +186,7 @@ cogl_display_set_onscreen_template (CoglDisplay *display,
  * Since: 1.10
  * Stability: unstable
  */
-gboolean
+CoglBool
 cogl_display_setup (CoglDisplay *display,
                     CoglError **error);
 
@@ -201,10 +201,10 @@ cogl_display_setup (CoglDisplay *display,
  * Since: 1.10
  * Stability: unstable
  */
-gboolean
+CoglBool
 cogl_is_display (void *object);
 
-G_END_DECLS
+COGL_END_DECLS
 
 #endif /* __COGL_DISPLAY_H__ */
 

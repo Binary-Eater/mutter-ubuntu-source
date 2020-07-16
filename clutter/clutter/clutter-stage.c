@@ -36,13 +36,15 @@
  * using clutter_actor_destroy(), which will take care of destroying all the
  * actors contained inside them.
  *
- * #ClutterStage is a proxy actor, wrapping the backend-specific implementation
- * (a #StageWindow) of the windowing system. It is possible to subclass
- * #ClutterStage, as long as every overridden virtual function chains up to the
- * parent class corresponding function.
+ * #ClutterStage is a proxy actor, wrapping the backend-specific
+ * implementation of the windowing system. It is possible to subclass
+ * #ClutterStage, as long as every overridden virtual function chains up to
+ * the parent class corresponding function.
  */
 
+#ifdef HAVE_CONFIG_H
 #include "clutter-build-config.h"
+#endif
 
 #include <math.h>
 #include <cairo.h>
@@ -72,6 +74,7 @@
 #include "clutter-private.h"
 #include "clutter-stage-manager-private.h"
 #include "clutter-stage-private.h"
+#include "clutter-version.h" 	/* For flavour */
 #include "clutter-private.h"
 
 #include "cogl/cogl.h"
@@ -87,8 +90,7 @@
  *
  * A series of hints that enable or disable behaviours on the stage
  */
-typedef enum /*< prefix=CLUTTER_STAGE >*/
-{
+typedef enum { /*< prefix=CLUTTER_STAGE >*/
   CLUTTER_STAGE_HINT_NONE = 0,
 
   CLUTTER_STAGE_NO_CLEAR_ON_PAINT = 1 << 0
@@ -147,8 +149,6 @@ struct _ClutterStagePrivate
   gpointer paint_data;
   GDestroyNotify paint_notify;
 
-  int update_freeze_count;
-
   guint relayout_pending       : 1;
   guint redraw_pending         : 1;
   guint is_fullscreen          : 1;
@@ -202,12 +202,6 @@ static const ClutterColor default_stage_color = { 255, 255, 255, 255 };
 
 static void clutter_stage_maybe_finish_queue_redraws (ClutterStage *stage);
 static void free_queue_redraw_entry (ClutterStageQueueRedrawEntry *entry);
-static void capture_view_into (ClutterStage          *stage,
-                               gboolean               paint,
-                               ClutterStageView      *view,
-                               cairo_rectangle_int_t *rect,
-                               uint8_t               *data,
-                               int                    stride);
 
 static void clutter_container_iface_init (ClutterContainerIface *iface);
 
@@ -1281,44 +1275,45 @@ clutter_stage_real_queue_relayout (ClutterActor *self)
   parent_class->queue_relayout (self);
 }
 
-static gboolean
-clutter_stage_real_queue_redraw (ClutterActor       *actor,
-                                 ClutterActor       *leaf,
-                                 ClutterPaintVolume *redraw_clip)
+static void
+clutter_stage_real_queue_redraw (ClutterActor *actor,
+                                 ClutterActor *leaf)
 {
   ClutterStage *stage = CLUTTER_STAGE (actor);
   ClutterStageWindow *stage_window;
+  ClutterPaintVolume *redraw_clip;
   ClutterActorBox bounding_box;
   ClutterActorBox intersection_box;
   cairo_rectangle_int_t geom, stage_clip;
 
   if (CLUTTER_ACTOR_IN_DESTRUCTION (actor))
-    return TRUE;
+    return;
 
   /* If the backend can't do anything with redraw clips (e.g. it already knows
    * it needs to redraw everything anyway) then don't spend time transforming
    * any clip volume into stage coordinates... */
   stage_window = _clutter_stage_get_window (stage);
   if (stage_window == NULL)
-    return TRUE;
+    return;
 
   if (_clutter_stage_window_ignoring_redraw_clips (stage_window))
     {
       _clutter_stage_window_add_redraw_clip (stage_window, NULL);
-      return FALSE;
+      return;
     }
 
   /* Convert the clip volume into stage coordinates and then into an
    * axis aligned stage coordinates bounding box...
    */
+  redraw_clip = _clutter_actor_get_queue_redraw_clip (leaf);
   if (redraw_clip == NULL)
     {
       _clutter_stage_window_add_redraw_clip (stage_window, NULL);
-      return FALSE;
+      return;
     }
 
   if (redraw_clip->is_empty)
-    return TRUE;
+    return;
 
   _clutter_paint_volume_get_stage_paint_box (redraw_clip,
                                              stage,
@@ -1334,7 +1329,7 @@ clutter_stage_real_queue_redraw (ClutterActor       *actor,
   /* There is no need to track degenerate/empty redraw clips */
   if (intersection_box.x2 <= intersection_box.x1 ||
       intersection_box.y2 <= intersection_box.y1)
-    return TRUE;
+    return;
 
   /* when converting to integer coordinates make sure we round the edges of the
    * clip rectangle outwards... */
@@ -1344,7 +1339,6 @@ clutter_stage_real_queue_redraw (ClutterActor       *actor,
   stage_clip.height = intersection_box.y2 - stage_clip.y;
 
   _clutter_stage_window_add_redraw_clip (stage_window, &stage_clip);
-  return FALSE;
 }
 
 gboolean
@@ -1398,12 +1392,11 @@ clutter_stage_get_redraw_clip_bounds (ClutterStage          *stage,
 }
 
 static void
-read_pixels_to_file (CoglFramebuffer *fb,
-                     char            *filename_stem,
-                     int              x,
-                     int              y,
-                     int              width,
-                     int              height)
+read_pixels_to_file (char *filename_stem,
+                     int   x,
+                     int   y,
+                     int   width,
+                     int   height)
 {
   guint8 *data;
   cairo_surface_t *surface;
@@ -1413,10 +1406,10 @@ read_pixels_to_file (CoglFramebuffer *fb,
                                     read_count);
 
   data = g_malloc (4 * width * height);
-  cogl_framebuffer_read_pixels (fb,
-                                x, y, width, height,
-                                CLUTTER_CAIRO_FORMAT_ARGB32,
-                                data);
+  cogl_read_pixels (x, y, width, height,
+                    COGL_READ_PIXELS_COLOR_BUFFER,
+                    CLUTTER_CAIRO_FORMAT_ARGB32,
+                    data);
 
   surface = cairo_image_surface_create_for_data (data, CAIRO_FORMAT_RGB24,
                                                  width, height,
@@ -1481,8 +1474,8 @@ _clutter_stage_do_pick_on_view (ClutterStage     *stage,
   if (G_LIKELY (!(clutter_pick_debug_flags & CLUTTER_DEBUG_DUMP_PICK_BUFFERS)))
     {
       CLUTTER_NOTE (PICK, "Pushing pick scissor clip x: %d, y: %d, 1x1",
-                    (int) (dirty_x * fb_scale),
-                    (int) (dirty_y * fb_scale));
+                    (int) dirty_x * fb_scale,
+                    (int) dirty_y * fb_scale);
       cogl_framebuffer_push_scissor_clip (fb, dirty_x * fb_scale, dirty_y * fb_scale, 1, 1);
     }
 
@@ -1502,13 +1495,13 @@ _clutter_stage_do_pick_on_view (ClutterStage     *stage,
   read_x = dirty_x * fb_scale;
   read_y = dirty_y * fb_scale;
 
-  CLUTTER_NOTE (PICK, "Performing pick at %i,%i on view %dx%d+%d+%d s: %f",
+  CLUTTER_NOTE (PICK, "Performing pick at %i,%i on view %dx%d+%d+%d s: %d",
                 x, y,
                 view_layout.width, view_layout.height,
                 view_layout.x, view_layout.y, fb_scale);
 
   cogl_color_init_from_4ub (&stage_pick_id, 255, 255, 255, 255);
-  cogl_framebuffer_clear (fb, COGL_BUFFER_BIT_COLOR | COGL_BUFFER_BIT_DEPTH, &stage_pick_id);
+  cogl_clear (&stage_pick_id, COGL_BUFFER_BIT_COLOR | COGL_BUFFER_BIT_DEPTH);
 
   /* Disable dithering (if any) when doing the painting in pick mode */
   dither_enabled_save = cogl_framebuffer_get_dither_enabled (fb);
@@ -1518,8 +1511,7 @@ _clutter_stage_do_pick_on_view (ClutterStage     *stage,
    * are drawn offscreen (as we never swap buffers)
   */
   context->pick_mode = mode;
-
-  clutter_stage_do_paint_view (stage, view, NULL);
+  _clutter_stage_paint_view (stage, view, NULL);
   context->pick_mode = CLUTTER_PICK_NONE;
 
   /* Read the color of the screen co-ords pixel. RGBA_8888_PRE is used
@@ -1541,7 +1533,7 @@ _clutter_stage_do_pick_on_view (ClutterStage     *stage,
                          _clutter_actor_get_debug_name (actor),
                          view_layout.x);
 
-      read_pixels_to_file (fb, file_name, 0, 0, fb_width, fb_height);
+      read_pixels_to_file (file_name, 0, 0, fb_width, fb_height);
 
       g_free (file_name);
     }
@@ -2256,8 +2248,6 @@ clutter_stage_class_init (ClutterStageClass *klass)
    * @stage: the stage that received the event
    * @frame_event: a #CoglFrameEvent
    * @frame_info: a #ClutterFrameInfo
-   *
-   * Signals that the #ClutterStage was presented on the screen to the user.
    */
   stage_signals[PRESENTED] =
     g_signal_new (I_("presented"),
@@ -2749,7 +2739,7 @@ clutter_stage_set_fullscreen (ClutterStage *stage,
   if (priv->is_fullscreen != fullscreen)
     {
       ClutterStageWindow *impl = CLUTTER_STAGE_WINDOW (priv->impl);
-      ClutterStageWindowInterface *iface;
+      ClutterStageWindowIface *iface;
 
       iface = CLUTTER_STAGE_WINDOW_GET_IFACE (impl);
 
@@ -2814,7 +2804,7 @@ clutter_stage_set_user_resizable (ClutterStage *stage,
       && priv->is_user_resizable != resizable)
     {
       ClutterStageWindow *impl = CLUTTER_STAGE_WINDOW (priv->impl);
-      ClutterStageWindowInterface *iface;
+      ClutterStageWindowIface *iface;
 
       iface = CLUTTER_STAGE_WINDOW_GET_IFACE (impl);
       if (iface->set_user_resizable)
@@ -2863,7 +2853,7 @@ clutter_stage_show_cursor (ClutterStage *stage)
   if (!priv->is_cursor_visible)
     {
       ClutterStageWindow *impl = CLUTTER_STAGE_WINDOW (priv->impl);
-      ClutterStageWindowInterface *iface;
+      ClutterStageWindowIface *iface;
 
       iface = CLUTTER_STAGE_WINDOW_GET_IFACE (impl);
       if (iface->set_cursor_visible)
@@ -2896,7 +2886,7 @@ clutter_stage_hide_cursor (ClutterStage *stage)
   if (priv->is_cursor_visible)
     {
       ClutterStageWindow *impl = CLUTTER_STAGE_WINDOW (priv->impl);
-      ClutterStageWindowInterface *iface;
+      ClutterStageWindowIface *iface;
 
       iface = CLUTTER_STAGE_WINDOW_GET_IFACE (impl);
       if (iface->set_cursor_visible)
@@ -2944,9 +2934,6 @@ clutter_stage_read_pixels (ClutterStage *stage,
   cairo_region_t *clip;
   cairo_rectangle_int_t clip_rect;
   CoglFramebuffer *framebuffer;
-  float view_scale;
-  float pixel_width;
-  float pixel_height;
   uint8_t *pixels;
 
   g_return_val_if_fail (CLUTTER_IS_STAGE (stage), NULL);
@@ -2989,15 +2976,10 @@ clutter_stage_read_pixels (ClutterStage *stage,
   cogl_push_framebuffer (framebuffer);
   clutter_stage_do_paint_view (stage, view, &clip_rect);
 
-  view_scale = clutter_stage_view_get_scale (view);
-  pixel_width = roundf (clip_rect.width * view_scale);
-  pixel_height = roundf (clip_rect.height * view_scale);
-
-  pixels = g_malloc0 (pixel_width * pixel_height * 4);
+  pixels = g_malloc0 (clip_rect.width * clip_rect.height * 4);
   cogl_framebuffer_read_pixels (framebuffer,
-                                clip_rect.x * view_scale,
-                                clip_rect.y * view_scale,
-                                pixel_width, pixel_height,
+                                clip_rect.x, clip_rect.y,
+                                clip_rect.width, clip_rect.height,
                                 COGL_PIXEL_FORMAT_RGBA_8888,
                                 pixels);
 
@@ -3645,10 +3627,6 @@ _clutter_stage_maybe_setup_viewport (ClutterStage     *stage,
       float fb_scale;
       float viewport_offset_x;
       float viewport_offset_y;
-      float viewport_x;
-      float viewport_y;
-      float viewport_width;
-      float viewport_height;
       float z_2d;
 
       CLUTTER_NOTE (PAINT,
@@ -3661,13 +3639,11 @@ _clutter_stage_maybe_setup_viewport (ClutterStage     *stage,
 
       viewport_offset_x = view_layout.x * fb_scale;
       viewport_offset_y = view_layout.y * fb_scale;
-      viewport_x = roundf (priv->viewport[0] * fb_scale - viewport_offset_x);
-      viewport_y = roundf (priv->viewport[1] * fb_scale - viewport_offset_y);
-      viewport_width = roundf (priv->viewport[2] * fb_scale);
-      viewport_height = roundf (priv->viewport[3] * fb_scale);
       cogl_framebuffer_set_viewport (fb,
-                                     viewport_x, viewport_y,
-                                     viewport_width, viewport_height);
+                                     priv->viewport[0] * fb_scale - viewport_offset_x,
+                                     priv->viewport[1] * fb_scale - viewport_offset_y,
+                                     priv->viewport[2] * fb_scale,
+                                     priv->viewport[3] * fb_scale);
 
       perspective = priv->perspective;
 
@@ -3744,17 +3720,6 @@ clutter_stage_ensure_redraw (ClutterStage *stage)
 
   master_clock = _clutter_master_clock_get_default ();
   _clutter_master_clock_start_running (master_clock);
-}
-
-/**
- * clutter_stage_is_redraw_queued: (skip)
- */
-gboolean
-clutter_stage_is_redraw_queued (ClutterStage *stage)
-{
-  ClutterStagePrivate *priv = stage->priv;
-
-  return priv->redraw_pending;
 }
 
 /**
@@ -4017,12 +3982,6 @@ clutter_stage_get_minimum_size (ClutterStage *stage,
     *height_p = (guint) height;
 }
 
-/**
- * _clutter_stage_schedule_update:
- * @window: a #ClutterStage actor
- *
- * Schedules a redraw of the #ClutterStage at the next optimal timestamp.
- */
 void
 _clutter_stage_schedule_update (ClutterStage *stage)
 {
@@ -4039,18 +3998,7 @@ _clutter_stage_schedule_update (ClutterStage *stage)
                                                 stage->priv->sync_delay);
 }
 
-/**
- * _clutter_stage_get_update_time:
- * @stage: a #ClutterStage actor
- *
- * Returns the earliest time in which the stage is ready to update. The update
- * time is set when _clutter_stage_schedule_update() is called. This can then
- * be used by e.g. the #ClutterMasterClock to know when the stage needs to be
- * redrawn.
- *
- * Returns: -1 if no redraw is needed; 0 if the backend doesn't know, or the
- * timestamp (in microseconds) otherwise.
- */
+/* Returns the earliest time the stage is ready to update */
 gint64
 _clutter_stage_get_update_time (ClutterStage *stage)
 {
@@ -4066,13 +4014,6 @@ _clutter_stage_get_update_time (ClutterStage *stage)
   return _clutter_stage_window_get_update_time (stage_window);
 }
 
-/**
- * _clutter_stage_clear_update_time:
- * @stage: a #ClutterStage actor
- *
- * Resets the update time. Call this after a redraw, so that the update time
- * can again be updated.
- */
 void
 _clutter_stage_clear_update_time (ClutterStage *stage)
 {
@@ -4198,10 +4139,10 @@ _clutter_stage_get_clip (ClutterStage *stage)
  * didn't explicitly do so.
  */
 ClutterStageQueueRedrawEntry *
-_clutter_stage_queue_actor_redraw (ClutterStage                 *stage,
+_clutter_stage_queue_actor_redraw (ClutterStage *stage,
                                    ClutterStageQueueRedrawEntry *entry,
-                                   ClutterActor                 *actor,
-                                   const ClutterPaintVolume     *clip)
+                                   ClutterActor *actor,
+                                   ClutterPaintVolume *clip)
 {
   ClutterStagePrivate *priv = stage->priv;
 
@@ -4771,33 +4712,62 @@ static void
 capture_view (ClutterStage          *stage,
               gboolean               paint,
               ClutterStageView      *view,
+              cairo_rectangle_int_t *rect,
               ClutterCapture        *capture)
 {
+  CoglFramebuffer *framebuffer;
+  ClutterBackend *backend;
+  CoglContext *context;
   cairo_surface_t *image;
   uint8_t *data;
   int stride;
-  cairo_rectangle_int_t *rect;
+  CoglBitmap *bitmap;
+  cairo_rectangle_int_t view_layout;
   float view_scale;
-  float texture_width;
-  float texture_height;
 
-  rect = &capture->rect;
+  framebuffer = clutter_stage_view_get_framebuffer (view);
+
+  if (paint)
+    {
+      cogl_push_framebuffer (framebuffer);
+      _clutter_stage_maybe_setup_viewport (stage, view);
+      clutter_stage_do_paint_view (stage, view, rect);
+    }
 
   view_scale = clutter_stage_view_get_scale (view);
-  texture_width = roundf (rect->width * view_scale);
-  texture_height = roundf (rect->height * view_scale);
   image = cairo_image_surface_create (CAIRO_FORMAT_ARGB32,
-                                      texture_width, texture_height);
+                                      rect->width * view_scale,
+                                      rect->height * view_scale);
   cairo_surface_set_device_scale (image, view_scale, view_scale);
-
 
   data = cairo_image_surface_get_data (image);
   stride = cairo_image_surface_get_stride (image);
 
-  capture_view_into (stage, paint, view, rect, data, stride);
+  backend = clutter_get_default_backend ();
+  context = clutter_backend_get_cogl_context (backend);
+  bitmap = cogl_bitmap_new_for_data (context,
+                                     rect->width * view_scale,
+                                     rect->height * view_scale,
+                                     CLUTTER_CAIRO_FORMAT_ARGB32,
+                                     stride,
+                                     data);
+
+  clutter_stage_view_get_layout (view, &view_layout);
+
+  cogl_framebuffer_read_pixels_into_bitmap (framebuffer,
+                                            (rect->x - view_layout.x) * view_scale,
+                                            (rect->y - view_layout.y) * view_scale,
+                                            COGL_READ_PIXELS_COLOR_BUFFER,
+                                            bitmap);
+
+  if (paint)
+    cogl_pop_framebuffer ();
+
+  capture->rect = *rect;
   capture->image = image;
 
   cairo_surface_mark_dirty (capture->image);
+  cogl_object_unref (bitmap);
 }
 
 gboolean
@@ -4813,90 +4783,33 @@ clutter_stage_capture (ClutterStage          *stage,
   ClutterCapture *captures;
   int n_captures;
 
-  g_return_val_if_fail (CLUTTER_IS_STAGE (stage), FALSE);
-
   captures = g_new0 (ClutterCapture, g_list_length (views));
   n_captures = 0;
 
   for (l = views; l; l = l->next)
     {
       ClutterStageView *view = l->data;
-      ClutterCapture *capture;
       cairo_rectangle_int_t view_layout;
       cairo_region_t *region;
+      cairo_rectangle_int_t view_capture_rect;
 
       clutter_stage_view_get_layout (view, &view_layout);
       region = cairo_region_create_rectangle (&view_layout);
       cairo_region_intersect_rectangle (region, rect);
-
-      capture = &captures[n_captures];
-      cairo_region_get_extents (region, &capture->rect);
+      cairo_region_get_extents (region, &view_capture_rect);
       cairo_region_destroy (region);
 
-      if (capture->rect.width == 0 || capture->rect.height == 0)
+      if (view_capture_rect.width == 0 || view_capture_rect.height == 0)
         continue;
 
-      capture_view (stage, paint, view, capture);
+      capture_view (stage, paint, view, &view_capture_rect,
+                    &captures[n_captures]);
 
       n_captures++;
     }
 
-  if (n_captures == 0)
-    g_clear_pointer (&captures, g_free);
-
   *out_captures = captures;
   *out_n_captures = n_captures;
-
-  return n_captures > 0;
-}
-
-gboolean
-clutter_stage_get_capture_final_size (ClutterStage          *stage,
-                                      cairo_rectangle_int_t *rect,
-                                      int                   *out_width,
-                                      int                   *out_height,
-                                      float                 *out_scale)
-{
-  float max_scale;
-
-  g_return_val_if_fail (CLUTTER_IS_STAGE (stage), FALSE);
-
-  if (rect)
-    {
-      ClutterRect capture_rect;
-
-      _clutter_util_rect_from_rectangle (rect, &capture_rect);
-      if (!_clutter_stage_get_max_view_scale_factor_for_rect (stage,
-                                                              &capture_rect,
-                                                              &max_scale))
-        return FALSE;
-
-      if (out_width)
-        *out_width = (gint) roundf (rect->width * max_scale);
-
-      if (out_height)
-        *out_height = (gint) roundf (rect->height * max_scale);
-    }
-  else
-    {
-      ClutterActorBox alloc;
-      float stage_width, stage_height;
-
-      clutter_actor_get_allocation_box (CLUTTER_ACTOR (stage), &alloc);
-      clutter_actor_box_get_size (&alloc, &stage_width, &stage_height);
-      if (!_clutter_actor_get_real_resource_scale (CLUTTER_ACTOR (stage),
-                                                   &max_scale))
-        return FALSE;
-
-      if (out_width)
-        *out_width = (gint) roundf (stage_width * max_scale);
-
-      if (out_height)
-        *out_height = (gint) roundf (stage_height * max_scale);
-    }
-
-  if (out_scale)
-    *out_scale = max_scale;
 
   return TRUE;
 }
@@ -4914,11 +4827,6 @@ capture_view_into (ClutterStage          *stage,
   CoglContext *context;
   CoglBitmap *bitmap;
   cairo_rectangle_int_t view_layout;
-  float view_scale;
-  float texture_width;
-  float texture_height;
-
-  g_return_if_fail (CLUTTER_IS_STAGE (stage));
 
   framebuffer = clutter_stage_view_get_framebuffer (view);
 
@@ -4929,14 +4837,10 @@ capture_view_into (ClutterStage          *stage,
       clutter_stage_do_paint_view (stage, view, rect);
     }
 
-  view_scale = clutter_stage_view_get_scale (view);
-  texture_width = roundf (rect->width * view_scale);
-  texture_height = roundf (rect->height * view_scale);
-
   backend = clutter_get_default_backend ();
   context = clutter_backend_get_cogl_context (backend);
   bitmap = cogl_bitmap_new_for_data (context,
-                                     texture_width, texture_height,
+                                     rect->width, rect->height,
                                      CLUTTER_CAIRO_FORMAT_ARGB32,
                                      stride,
                                      data);
@@ -4944,8 +4848,8 @@ capture_view_into (ClutterStage          *stage,
   clutter_stage_view_get_layout (view, &view_layout);
 
   cogl_framebuffer_read_pixels_into_bitmap (framebuffer,
-                                            roundf ((rect->x - view_layout.x) * view_scale),
-                                            roundf ((rect->y - view_layout.y) * view_scale),
+                                            rect->x - view_layout.x,
+                                            rect->y - view_layout.y,
                                             COGL_READ_PIXELS_COLOR_BUFFER,
                                             bitmap);
 
@@ -4998,102 +4902,4 @@ clutter_stage_capture_into (ClutterStage          *stage,
 
   view = get_view_at_rect (stage, rect);
   capture_view_into (stage, paint, view, rect, data, rect->width * bpp);
-}
-
-/**
- * clutter_stage_freeze_updates:
- *
- * Freezing updates makes Clutter stop processing events,
- * redrawing, and advancing timelines, by pausing the master clock. This is
- * necessary when implementing a display server, to ensure that Clutter doesn't
- * keep trying to page flip when DRM master has been dropped, e.g. when VT
- * switched away.
- *
- * The master clock starts out running, so if you are VT switched away on
- * startup, you need to call this immediately.
- *
- * To thaw updates, use clutter_stage_thaw_updates().
- */
-void
-clutter_stage_freeze_updates (ClutterStage *stage)
-{
-  ClutterStagePrivate *priv = stage->priv;
-
-  priv->update_freeze_count++;
-  if (priv->update_freeze_count == 1)
-    {
-      ClutterMasterClock *master_clock;
-
-      master_clock = _clutter_master_clock_get_default ();
-      _clutter_master_clock_set_paused (master_clock, TRUE);
-    }
-}
-
-/**
- * clutter_stage_thaw_updates:
- *
- * Resumes a master clock that has previously been frozen with
- * clutter_stage_freeze_updates(), and start pumping the master clock
- * again at the next iteration. Note that if you're switching back to your
- * own VT, you should probably also queue a stage redraw with
- * clutter_stage_ensure_redraw().
- */
-void
-clutter_stage_thaw_updates (ClutterStage *stage)
-{
-  ClutterStagePrivate *priv = stage->priv;
-
-  g_assert (priv->update_freeze_count > 0);
-
-  priv->update_freeze_count--;
-  if (priv->update_freeze_count == 0)
-    {
-      ClutterMasterClock *master_clock;
-
-      master_clock = _clutter_master_clock_get_default ();
-      _clutter_master_clock_set_paused (master_clock, FALSE);
-    }
-}
-
-GList *
-_clutter_stage_peek_stage_views (ClutterStage *stage)
-{
-  ClutterStagePrivate *priv = stage->priv;
-
-  return _clutter_stage_window_get_views (priv->impl);
-}
-
-void
-clutter_stage_update_resource_scales (ClutterStage *stage)
-{
-  _clutter_actor_queue_update_resource_scale_recursive (CLUTTER_ACTOR (stage));
-}
-
-gboolean
-_clutter_stage_get_max_view_scale_factor_for_rect (ClutterStage *stage,
-                                                   ClutterRect  *rect,
-                                                   float        *view_scale)
-{
-  ClutterStagePrivate *priv = stage->priv;
-  float scale = 0.0f;
-  GList *l;
-
-  for (l = _clutter_stage_window_get_views (priv->impl); l; l = l->next)
-    {
-      ClutterStageView *view = l->data;
-      cairo_rectangle_int_t view_layout;
-      ClutterRect view_rect;
-
-      clutter_stage_view_get_layout (view, &view_layout);
-      _clutter_util_rect_from_rectangle (&view_layout, &view_rect);
-
-      if (clutter_rect_intersection (&view_rect, rect, NULL))
-        scale = MAX (clutter_stage_view_get_scale (view), scale);
-    }
-
-  if (scale == 0.0)
-    return FALSE;
-
-  *view_scale = scale;
-  return TRUE;
 }

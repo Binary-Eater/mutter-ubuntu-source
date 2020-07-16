@@ -22,15 +22,14 @@
 #ifndef META_INPUT_SETTINGS_PRIVATE_H
 #define META_INPUT_SETTINGS_PRIVATE_H
 
-#include <gsettings-desktop-schemas/gdesktop-enums.h>
+#include "display-private.h"
+#include "meta-monitor-manager-private.h"
+
+#include <clutter/clutter.h>
 
 #ifdef HAVE_LIBWACOM
 #include <libwacom/libwacom.h>
 #endif
-
-#include "backends/meta-backend-types.h"
-#include "clutter/clutter.h"
-#include "meta/display.h"
 
 #define META_TYPE_INPUT_SETTINGS (meta_input_settings_get_type ())
 G_DECLARE_DERIVABLE_TYPE (MetaInputSettings, meta_input_settings,
@@ -116,8 +115,6 @@ struct _MetaInputSettingsClass
                                   GDesktopStylusButtonAction  tertiary);
   gboolean (* has_two_finger_scroll) (MetaInputSettings  *settings,
                                       ClutterInputDevice *device);
-  gboolean (* is_trackball_device) (MetaInputSettings  *settings,
-                                    ClutterInputDevice *device);
 };
 
 GSettings *           meta_input_settings_get_tablet_settings (MetaInputSettings  *settings,
@@ -143,5 +140,7 @@ gchar *                    meta_input_settings_get_pad_action_label      (MetaIn
 WacomDevice * meta_input_settings_get_tablet_wacom_device (MetaInputSettings *settings,
                                                            ClutterInputDevice *device);
 #endif
+
+gboolean meta_input_device_is_trackball (ClutterInputDevice *device);
 
 #endif /* META_INPUT_SETTINGS_PRIVATE_H */

@@ -32,20 +32,22 @@
  *  Robert Bragg   <robert@linux.intel.com>
  */
 
+#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
+#endif
 
 #include <string.h>
 
 #include "cogl-private.h"
+#include "cogl-util-gl-private.h"
+#include "cogl-pipeline-opengl-private.h"
 #include "cogl-error-private.h"
 #include "cogl-context-private.h"
 #include "cogl-attribute.h"
 #include "cogl-attribute-private.h"
-#include "driver/gl/cogl-attribute-gl-private.h"
-#include "driver/gl/cogl-buffer-gl-private.h"
-#include "driver/gl/cogl-pipeline-opengl-private.h"
-#include "driver/gl/cogl-pipeline-progend-glsl-private.h"
-#include "driver/gl/cogl-util-gl-private.h"
+#include "cogl-attribute-gl-private.h"
+#include "cogl-pipeline-progend-glsl-private.h"
+#include "cogl-buffer-gl-private.h"
 
 typedef struct _ForeachChangedBitState
 {
@@ -54,7 +56,7 @@ typedef struct _ForeachChangedBitState
   CoglPipeline *pipeline;
 } ForeachChangedBitState;
 
-static gboolean
+static CoglBool
 toggle_builtin_attribute_enabled_cb (int bit_num, void *user_data)
 {
   ForeachChangedBitState *state = user_data;
@@ -64,9 +66,9 @@ toggle_builtin_attribute_enabled_cb (int bit_num, void *user_data)
                             (context, COGL_PRIVATE_FEATURE_GL_FIXED),
                             FALSE);
 
-#ifdef HAVE_COGL_GL
+#if defined (HAVE_COGL_GL) || defined (HAVE_COGL_GLES)
   {
-    gboolean enabled = _cogl_bitmask_get (state->new_bits, bit_num);
+    CoglBool enabled = _cogl_bitmask_get (state->new_bits, bit_num);
     GLenum cap;
 
     switch (bit_num)
@@ -93,7 +95,7 @@ toggle_builtin_attribute_enabled_cb (int bit_num, void *user_data)
   return TRUE;
 }
 
-static gboolean
+static CoglBool
 toggle_texcood_attribute_enabled_cb (int bit_num, void *user_data)
 {
   ForeachChangedBitState *state = user_data;
@@ -103,9 +105,9 @@ toggle_texcood_attribute_enabled_cb (int bit_num, void *user_data)
                             (context, COGL_PRIVATE_FEATURE_GL_FIXED),
                             FALSE);
 
-#ifdef HAVE_COGL_GL
+#if defined (HAVE_COGL_GL) || defined (HAVE_COGL_GLES)
   {
-    gboolean enabled = _cogl_bitmask_get (state->new_bits, bit_num);
+    CoglBool enabled = _cogl_bitmask_get (state->new_bits, bit_num);
 
     GE( context, glClientActiveTexture (GL_TEXTURE0 + bit_num) );
 
@@ -119,11 +121,11 @@ toggle_texcood_attribute_enabled_cb (int bit_num, void *user_data)
   return TRUE;
 }
 
-static gboolean
+static CoglBool
 toggle_custom_attribute_enabled_cb (int bit_num, void *user_data)
 {
   ForeachChangedBitState *state = user_data;
-  gboolean enabled = _cogl_bitmask_get (state->new_bits, bit_num);
+  CoglBool enabled = _cogl_bitmask_get (state->new_bits, bit_num);
   CoglContext *context = state->context;
 
   if (enabled)
@@ -401,8 +403,8 @@ _cogl_gl_flush_attributes_state (CoglFramebuffer *framebuffer,
 {
   CoglContext *ctx = framebuffer->context;
   int i;
-  gboolean with_color_attrib = FALSE;
-  gboolean unknown_color_alpha = FALSE;
+  CoglBool with_color_attrib = FALSE;
+  CoglBool unknown_color_alpha = FALSE;
   CoglPipeline *copy = NULL;
 
   /* Iterate the attributes to see if we have a color attribute which

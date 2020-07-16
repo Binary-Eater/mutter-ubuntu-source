@@ -26,7 +26,9 @@
  * SOFTWARE.
  */
 
+#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
+#endif
 
 #include <glib.h>
 #include <string.h>
@@ -47,7 +49,7 @@ typedef struct _CoglPangoDisplayListRectangle CoglPangoDisplayListRectangle;
 
 struct _CoglPangoDisplayList
 {
-  gboolean                color_override;
+  CoglBool                color_override;
   CoglColor               color;
   GSList                 *nodes;
   GSList                 *last_node;
@@ -65,7 +67,7 @@ struct _CoglPangoDisplayListNode
 {
   CoglPangoDisplayListNodeType type;
 
-  gboolean color_override;
+  CoglBool color_override;
   CoglColor color;
 
   CoglPipeline *pipeline;
@@ -273,7 +275,7 @@ emit_vertex_buffer_geometry (CoglFramebuffer *fb,
       CoglAttributeBuffer *buffer;
       CoglVertexP2T2 *verts, *v;
       int n_verts;
-      gboolean allocated = FALSE;
+      CoglBool allocated = FALSE;
       CoglAttribute *attributes[2];
       CoglPrimitive *prim;
       int i;

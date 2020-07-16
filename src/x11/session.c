@@ -21,17 +21,15 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "config.h"
+#include <config.h>
 
-#include "x11/session.h"
-
-#include <sys/wait.h>
-#include <time.h>
+#include "util-private.h"
+#include <meta/main.h>
+#include "session.h"
 #include <X11/Xatom.h>
 
-#include "core/util-private.h"
-#include "meta/main.h"
-#include "x11/meta-x11-display-private.h"
+#include <time.h>
+#include <sys/wait.h>
 
 #ifndef HAVE_SM
 void
@@ -54,22 +52,21 @@ meta_window_release_saved_state (const MetaWindowSessionInfo *info)
 }
 #else /* HAVE_SM */
 
-#include <errno.h>
-#include <fcntl.h>
-#include <glib.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <unistd.h>
 #include <X11/ICE/ICElib.h>
 #include <X11/SM/SMlib.h>
-
-#include "core/display-private.h"
-#include "meta/main.h"
-#include "meta/util.h"
-#include "meta/workspace.h"
+#include <unistd.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <glib.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <meta/main.h>
+#include <meta/util.h>
+#include "display-private.h"
+#include <meta/workspace.h>
 
 static void ice_io_error_handler (IceConn connection);
 
@@ -1822,7 +1819,7 @@ warn_about_lame_clients_and_finish_interact (gboolean shutdown)
                            "and will have to be restarted manually next time "
                            "you log in."),
                          "240",
-                         meta_get_display()->x11_display->screen_name,
+                         meta_get_display()->screen->screen_name,
                          NULL, NULL, NULL,
                          None,
                          columns,

@@ -49,7 +49,7 @@ typedef struct _CoglPrimitive CoglPrimitive;
 
 #include <glib-object.h>
 
-G_BEGIN_DECLS
+COGL_BEGIN_DECLS
 
 /**
  * SECTION:cogl-primitive
@@ -874,7 +874,7 @@ cogl_primitive_copy (CoglPrimitive *primitive);
  * Since: 1.6
  * Stability: Unstable
  */
-gboolean
+CoglBool
 cogl_is_primitive (void *object);
 
 /**
@@ -892,7 +892,7 @@ cogl_is_primitive (void *object);
  * Since: 1.10
  * Stability: Unstable
  */
-typedef gboolean (* CoglPrimitiveAttributeCallback) (CoglPrimitive *primitive,
+typedef CoglBool (* CoglPrimitiveAttributeCallback) (CoglPrimitive *primitive,
                                                      CoglAttribute *attribute,
                                                      void *user_data);
 
@@ -938,7 +938,7 @@ cogl_primitive_draw (CoglPrimitive *primitive,
                      CoglPipeline *pipeline);
 
 
-G_END_DECLS
+COGL_END_DECLS
 
 #endif /* __COGL_PRIMITIVE_H__ */
 

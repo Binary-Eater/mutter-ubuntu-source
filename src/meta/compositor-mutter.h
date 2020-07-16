@@ -23,51 +23,30 @@
 #ifndef MUTTER_H_
 #define MUTTER_H_
 
+#include <clutter/clutter.h>
 #include <X11/Xlib.h>
 #include <X11/extensions/Xfixes.h>
 
-#include "clutter/clutter.h"
-#include "meta/compositor.h"
-#include "meta/meta-window-actor.h"
-#include "meta/types.h"
+#include <meta/types.h>
+#include <meta/compositor.h>
+#include <meta/meta-window-actor.h>
 
 /* Public compositor API */
-META_EXPORT
-ClutterActor *meta_get_stage_for_display            (MetaDisplay *display);
+ClutterActor *meta_get_stage_for_screen         (MetaScreen *screen);
+Window        meta_get_overlay_window           (MetaScreen *screen);
+GList        *meta_get_window_actors            (MetaScreen *screen);
+ClutterActor *meta_get_window_group_for_screen  (MetaScreen *screen);
+ClutterActor *meta_get_top_window_group_for_screen (MetaScreen *screen);
+ClutterActor *meta_get_feedback_group_for_screen (MetaScreen *screen);
 
-META_EXPORT
-Window        meta_get_overlay_window               (MetaDisplay *display);
+void        meta_disable_unredirect_for_screen  (MetaScreen *screen);
+void        meta_enable_unredirect_for_screen   (MetaScreen *screen);
 
-META_EXPORT
-GList        *meta_get_window_actors                (MetaDisplay *display);
-
-META_EXPORT
-ClutterActor *meta_get_window_group_for_display     (MetaDisplay *display);
-
-META_EXPORT
-ClutterActor *meta_get_top_window_group_for_display (MetaDisplay *display);
-
-META_EXPORT
-ClutterActor *meta_get_feedback_group_for_display   (MetaDisplay *display);
-
-META_EXPORT
-void meta_disable_unredirect_for_display (MetaDisplay *display);
-
-META_EXPORT
-void meta_enable_unredirect_for_display  (MetaDisplay *display);
-
-META_EXPORT
-void meta_set_stage_input_region   (MetaDisplay  *display,
-                                    XserverRegion region);
-
-META_EXPORT
-void meta_empty_stage_input_region (MetaDisplay  *display);
-
-META_EXPORT
-void meta_focus_stage_window       (MetaDisplay  *display,
-                                    guint32       timestamp);
-
-META_EXPORT
-gboolean meta_stage_is_focused     (MetaDisplay  *display);
+void meta_set_stage_input_region     (MetaScreen    *screen,
+                                      XserverRegion  region);
+void meta_empty_stage_input_region   (MetaScreen    *screen);
+void meta_focus_stage_window         (MetaScreen    *screen,
+                                      guint32        timestamp);
+gboolean meta_stage_is_focused       (MetaScreen    *screen);
 
 #endif

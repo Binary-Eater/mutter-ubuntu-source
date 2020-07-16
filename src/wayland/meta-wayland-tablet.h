@@ -26,8 +26,8 @@
 
 #include <glib.h>
 
-#include "backends/meta-cursor-renderer.h"
-#include "wayland/meta-wayland-types.h"
+#include "meta-wayland-types.h"
+#include "meta-cursor-renderer.h"
 
 struct _MetaWaylandTablet
 {

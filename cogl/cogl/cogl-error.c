@@ -29,7 +29,9 @@
  *   Robert Bragg <robert@linux.intel.com>
  */
 
+#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
+#endif
 
 #include "cogl-types.h"
 #include "cogl-util.h"
@@ -49,7 +51,7 @@ cogl_error_copy (CoglError *error)
   return (CoglError *)g_error_copy ((GError *)error);
 }
 
-gboolean
+CoglBool
 cogl_error_matches (CoglError *error,
                     uint32_t domain,
                     int code)

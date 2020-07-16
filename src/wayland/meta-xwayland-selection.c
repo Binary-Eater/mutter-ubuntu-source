@@ -34,12 +34,11 @@
 #include <X11/Xatom.h>
 #include <X11/extensions/Xfixes.h>
 
-#include "meta/meta-x11-errors.h"
-#include "wayland/meta-wayland-data-device.h"
-#include "wayland/meta-xwayland-private.h"
-#include "wayland/meta-xwayland-selection-private.h"
-#include "wayland/meta-xwayland.h"
-#include "x11/meta-x11-display-private.h"
+#include <meta/errors.h>
+#include "meta-xwayland.h"
+#include "meta-xwayland-private.h"
+#include "meta-xwayland-selection-private.h"
+#include "meta-wayland-data-device.h"
 
 #define INCR_CHUNK_SIZE (128 * 1024)
 #define XDND_VERSION 5
@@ -98,8 +97,7 @@ struct _MetaXWaylandSelection {
   MetaDndBridge dnd;
 };
 
-enum
-{
+enum {
   ATOM_DND_SELECTION,
   ATOM_DND_AWARE,
   ATOM_DND_STATUS,
@@ -468,7 +466,7 @@ x11_selection_data_send_finished (MetaSelectionBridge *selection,
                          gdk_x11_get_xatom_by_name ("DELETE"),
                          gdk_x11_get_xatom_by_name ("_META_SELECTION"),
                          selection->window,
-                         META_CURRENT_TIME);
+                         CurrentTime);
     }
 
   xdnd_send_finished (selection->x11_selection->selection_data,
@@ -486,7 +484,7 @@ x11_selection_data_finish (MetaSelectionBridge *selection,
     x11_selection_data_send_finished (selection, success);
 
   g_clear_pointer (&selection->x11_selection,
-                   x11_selection_data_free);
+                   (GDestroyNotify) x11_selection_data_free);
 }
 
 static void
@@ -564,7 +562,7 @@ wayland_selection_data_new (XSelectionRequestEvent *request_event,
                             MetaWaylandCompositor  *compositor)
 {
   MetaDisplay *display = meta_get_display ();
-  MetaX11Display *x11_display = display->x11_display;
+  MetaScreen *screen = display->screen;
   MetaWaylandDataDevice *data_device;
   MetaWaylandDataSource *wayland_source;
   MetaSelectionBridge *selection;
@@ -611,11 +609,11 @@ wayland_selection_data_new (XSelectionRequestEvent *request_event,
   data->cancellable = g_cancellable_new ();
   data->stream = g_unix_input_stream_new (p[0], TRUE);
 
-  data->window = meta_x11_display_lookup_x_window (x11_display,
-                                                   data->request_event.requestor);
+  data->window = meta_display_lookup_x_window (meta_get_display (),
+                                               data->request_event.requestor);
 
   /* Do *not* change the event mask on the root window, bugger! */
-  if (!data->window && data->request_event.requestor != x11_display->xroot)
+  if (!data->window && data->request_event.requestor != screen->xroot)
     {
       /* Not a managed window, set the PropertyChangeMask
        * for INCR deletion notifications.
@@ -650,15 +648,15 @@ static void
 wayland_selection_data_free (WaylandSelectionData *data)
 {
   MetaDisplay *display = meta_get_display ();
-  MetaX11Display *x11_display = display->x11_display;
+  MetaScreen *screen = display->screen;
 
   /* Do *not* change the event mask on the root window, bugger! */
-  if (!data->window && data->request_event.requestor != x11_display->xroot)
+  if (!data->window && data->request_event.requestor != screen->xroot)
     {
-      meta_x11_error_trap_push (x11_display);
+      meta_error_trap_push (display);
       XSelectInput (GDK_DISPLAY_XDISPLAY (gdk_display_get_default ()),
                     data->request_event.requestor, NoEventMask);
-      meta_x11_error_trap_pop (x11_display);
+      meta_error_trap_pop (display);
     }
 
   g_cancellable_cancel (data->cancellable);
@@ -708,7 +706,7 @@ wayland_data_read_cb (GObject      *object,
         {
           reply_selection_request (&data->request_event, FALSE);
           g_clear_pointer (&selection->wayland_selection,
-                           wayland_selection_data_free);
+                           (GDestroyNotify) wayland_selection_data_free);
         }
 
       return;
@@ -754,7 +752,7 @@ wayland_data_read_cb (GObject      *object,
         }
 
       g_clear_pointer (&selection->wayland_selection,
-                       wayland_selection_data_free);
+                       (GDestroyNotify) wayland_selection_data_free);
     }
 }
 
@@ -869,7 +867,7 @@ meta_x11_source_cancel (MetaWaylandDataSource *source)
 
   x11_selection_data_send_finished (selection, FALSE);
   g_clear_pointer (&selection->x11_selection,
-                   x11_selection_data_free);
+                   (GDestroyNotify) x11_selection_data_free);
 }
 
 static void
@@ -1157,7 +1155,7 @@ meta_xwayland_selection_handle_selection_notify (MetaWaylandCompositor *composit
   if (event->property == None)
     {
       g_clear_pointer (&selection->x11_selection,
-                       x11_selection_data_free);
+                       (GDestroyNotify) x11_selection_data_free);
       return FALSE;
     }
 
@@ -1295,7 +1293,7 @@ meta_xwayland_selection_handle_selection_request (MetaWaylandCompositor *composi
     return FALSE;
 
   g_clear_pointer (&selection->wayland_selection,
-                   wayland_selection_data_free);
+                   (GDestroyNotify) wayland_selection_data_free);
 
   if (event->target == gdk_x11_get_xatom_by_name ("TARGETS"))
     {
@@ -1345,7 +1343,7 @@ pick_drop_surface (MetaWaylandCompositor *compositor,
   ClutterPoint pos;
 
   clutter_event_get_coords (event, &pos.x, &pos.y);
-  focus_window = meta_stack_get_default_focus_window_at_point (display->stack,
+  focus_window = meta_stack_get_default_focus_window_at_point (display->screen->stack,
                                                                NULL, NULL,
                                                                pos.x, pos.y);
   return focus_window ? focus_window->surface : NULL;
@@ -1610,14 +1608,14 @@ meta_xwayland_selection_handle_xfixes_selection_notify (MetaWaylandCompositor *c
             }
 
           g_clear_pointer (&selection->x11_selection,
-                           x11_selection_data_free);
+                           (GDestroyNotify) x11_selection_data_free);
 
           XConvertSelection (xdisplay,
                              event->selection,
                              gdk_x11_get_xatom_by_name ("TARGETS"),
                              gdk_x11_get_xatom_by_name ("_META_SELECTION"),
                              selection->window,
-                             META_CURRENT_TIME);
+                             CurrentTime);
           XFlush (xdisplay);
         }
     }
@@ -1632,7 +1630,7 @@ meta_xwayland_selection_handle_xfixes_selection_notify (MetaWaylandCompositor *c
       if (event->owner != None && event->owner != selection->window &&
           focus && meta_xwayland_is_xwayland_surface (focus))
         {
-          selection->client_message_timestamp = META_CURRENT_TIME;
+          selection->client_message_timestamp = CurrentTime;
           selection->source = meta_wayland_data_source_xwayland_new (selection);
           meta_wayland_data_device_set_dnd_source (&compositor->seat->data_device,
                                                    selection->source);
@@ -1674,9 +1672,9 @@ meta_xwayland_selection_handle_event (XEvent *xevent)
       return meta_xwayland_selection_handle_client_message (compositor, xevent);
     default:
       {
-        MetaX11Display *x11_display = meta_get_display ()->x11_display;
+        MetaDisplay *display = meta_get_display ();
 
-        if (xevent->type - x11_display->xfixes_event_base == XFixesSelectionNotify)
+        if (xevent->type - display->xfixes_event_base == XFixesSelectionNotify)
           return meta_xwayland_selection_handle_xfixes_selection_notify (compositor, xevent);
 
         return FALSE;
@@ -1703,7 +1701,7 @@ meta_selection_bridge_ownership_notify (struct wl_listener *listener,
       XSetSelectionOwner (xdisplay,
                           selection->selection_atom,
                           selection->window,
-                          META_CURRENT_TIME);
+                          CurrentTime);
     }
 }
 
@@ -1749,9 +1747,9 @@ shutdown_selection_bridge (MetaSelectionBridge *selection)
   XDestroyWindow (GDK_DISPLAY_XDISPLAY (gdk_display_get_default ()),
                   selection->window);
   g_clear_pointer (&selection->wayland_selection,
-                   wayland_selection_data_free);
+                   (GDestroyNotify) wayland_selection_data_free);
   g_clear_pointer (&selection->x11_selection,
-                   x11_selection_data_free);
+                   (GDestroyNotify) x11_selection_data_free);
 }
 
 void

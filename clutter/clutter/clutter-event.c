@@ -23,7 +23,9 @@
  *
  */
 
+#ifdef HAVE_CONFIG_H
 #include "clutter-build-config.h"
+#endif
 
 #include "clutter-backend-private.h"
 #include "clutter-debug.h"
@@ -1093,7 +1095,7 @@ clutter_event_set_device (ClutterEvent       *event,
     {
       ClutterEventPrivate *real_event = (ClutterEventPrivate *) event;
 
-      g_set_object (&real_event->device, device);
+      real_event->device = device;
     }
 
   switch (event->type)
@@ -1362,8 +1364,8 @@ clutter_event_copy (const ClutterEvent *event)
     {
       ClutterEventPrivate *real_event = (ClutterEventPrivate *) event;
 
-      g_set_object (&new_real_event->device, real_event->device);
-      g_set_object (&new_real_event->source_device, real_event->source_device);
+      new_real_event->device = real_event->device;
+      new_real_event->source_device = real_event->source_device;
       new_real_event->delta_x = real_event->delta_x;
       new_real_event->delta_y = real_event->delta_y;
       new_real_event->is_pointer_emulated = real_event->is_pointer_emulated;
@@ -1432,14 +1434,6 @@ clutter_event_free (ClutterEvent *event)
   if (G_LIKELY (event != NULL))
     {
       _clutter_backend_free_event_data (clutter_get_default_backend (), event);
-
-      if (is_event_allocated (event))
-        {
-          ClutterEventPrivate *real_event = (ClutterEventPrivate *) event;
-
-          g_clear_object (&real_event->device);
-          g_clear_object (&real_event->source_device);
-        }
 
       switch (event->type)
         {
@@ -1695,7 +1689,7 @@ clutter_event_set_source_device (ClutterEvent       *event,
     return;
 
   real_event = (ClutterEventPrivate *) event;
-  g_set_object (&real_event->source_device, device);
+  real_event->source_device = device;
 }
 
 /**

@@ -29,7 +29,9 @@
  *   Robert Bragg <robert@linux.intel.com>
  */
 
+#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
+#endif
 
 #include "cogl-object.h"
 
@@ -61,7 +63,7 @@ cogl_swap_chain_new (void)
 
 void
 cogl_swap_chain_set_has_alpha (CoglSwapChain *swap_chain,
-                               gboolean has_alpha)
+                               CoglBool has_alpha)
 {
   swap_chain->has_alpha = has_alpha;
 }

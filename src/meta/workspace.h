@@ -23,6 +23,7 @@
 
 #include <meta/types.h>
 #include <meta/boxes.h>
+#include <meta/screen.h>
 
 #define META_TYPE_WORKSPACE            (meta_workspace_get_type ())
 #define META_WORKSPACE(obj)            (G_TYPE_CHECK_INSTANCE_CAST ((obj), META_TYPE_WORKSPACE, MetaWorkspace))
@@ -33,40 +34,24 @@
 
 typedef struct _MetaWorkspaceClass   MetaWorkspaceClass;
 
-META_EXPORT
 GType meta_workspace_get_type (void);
 
-META_EXPORT
 int  meta_workspace_index (MetaWorkspace *workspace);
-
-META_EXPORT
-MetaDisplay *meta_workspace_get_display (MetaWorkspace *workspace);
-
-META_EXPORT
+MetaScreen *meta_workspace_get_screen (MetaWorkspace *workspace);
 GList* meta_workspace_list_windows (MetaWorkspace *workspace);
-
-META_EXPORT
 void meta_workspace_get_work_area_for_monitor (MetaWorkspace *workspace,
                                                int            which_monitor,
                                                MetaRectangle *area);
-
-META_EXPORT
 void meta_workspace_get_work_area_all_monitors (MetaWorkspace *workspace,
                                                 MetaRectangle *area);
-
-META_EXPORT
 void meta_workspace_activate (MetaWorkspace *workspace, guint32 timestamp);
-
-META_EXPORT
 void meta_workspace_activate_with_focus (MetaWorkspace *workspace,
                                          MetaWindow    *focus_this,
                                          guint32        timestamp);
 
-META_EXPORT
 void meta_workspace_set_builtin_struts (MetaWorkspace *workspace,
                                         GSList        *struts);
 
-META_EXPORT
 MetaWorkspace* meta_workspace_get_neighbor (MetaWorkspace      *workspace,
                                             MetaMotionDirection direction);
 

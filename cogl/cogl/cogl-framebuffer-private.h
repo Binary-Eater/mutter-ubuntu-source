@@ -34,7 +34,7 @@
 #include "cogl-object-private.h"
 #include "cogl-matrix-stack-private.h"
 #include "cogl-journal-private.h"
-#include "winsys/cogl-winsys-private.h"
+#include "cogl-winsys-private.h"
 #include "cogl-attribute-private.h"
 #include "cogl-offscreen.h"
 #include "cogl-gl-header.h"
@@ -57,10 +57,11 @@ typedef enum _CoglFramebufferType {
 typedef struct
 {
   CoglSwapChain *swap_chain;
-  gboolean need_stencil;
+  CoglBool need_stencil;
   int samples_per_pixel;
-  gboolean depth_texture_enabled;
-  gboolean stereo_enabled;
+  CoglBool swap_throttled;
+  CoglBool depth_texture_enabled;
+  CoglBool stereo_enabled;
 } CoglFramebufferConfig;
 
 /* Flags to pass to _cogl_offscreen_new_with_texture_full */
@@ -140,7 +141,7 @@ struct _CoglFramebuffer
   /* Format of the pixels in the framebuffer (including the expected
      premult state) */
   CoglPixelFormat     internal_format;
-  gboolean            allocated;
+  CoglBool            allocated;
 
   CoglMatrixStack    *modelview_stack;
   CoglMatrixStack    *projection_stack;
@@ -153,8 +154,8 @@ struct _CoglFramebuffer
 
   CoglClipStack      *clip_stack;
 
-  gboolean            dither_enabled;
-  gboolean            depth_writing_enabled;
+  CoglBool            dither_enabled;
+  CoglBool            depth_writing_enabled;
   CoglColorMask       color_mask;
   CoglStereoMode      stereo_mode;
 
@@ -181,26 +182,20 @@ struct _CoglFramebuffer
   int                 clear_clip_y0;
   int                 clear_clip_x1;
   int                 clear_clip_y1;
-  gboolean            clear_clip_dirty;
+  CoglBool            clear_clip_dirty;
 
   /* Whether something has been drawn to the buffer since the last
    * swap buffers or swap region. */
-  gboolean            mid_scene;
+  CoglBool            mid_scene;
 
   /* driver specific */
-  gboolean            dirty_bitmasks;
+  CoglBool            dirty_bitmasks;
   CoglFramebufferBits bits;
 
   int                 samples_per_pixel;
-
-  /* Whether the depth buffer was enabled for this framebuffer,
-   * usually means it needs to be cleared before being reused next.
-   */
-  gboolean            depth_buffer_clear_needed;
 };
 
-typedef enum
-{
+typedef enum {
   COGL_OFFSCREEN_ALLOCATE_FLAG_DEPTH_STENCIL    = 1L<<0,
   COGL_OFFSCREEN_ALLOCATE_FLAG_DEPTH            = 1L<<1,
   COGL_OFFSCREEN_ALLOCATE_FLAG_STENCIL          = 1L<<2
@@ -494,7 +489,7 @@ _cogl_framebuffer_get_projection_entry (CoglFramebuffer *framebuffer)
   return projection_stack->last_entry;
 }
 
-gboolean
+CoglBool
 _cogl_framebuffer_read_pixels_into_bitmap (CoglFramebuffer *framebuffer,
                                            int x,
                                            int y,

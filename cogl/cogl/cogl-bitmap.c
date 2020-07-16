@@ -28,7 +28,9 @@
  *
  */
 
+#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
+#endif
 
 #include "cogl-util.h"
 #include "cogl-debug.h"
@@ -37,9 +39,9 @@
 #include "cogl-buffer-private.h"
 #include "cogl-pixel-buffer.h"
 #include "cogl-context-private.h"
+#include "cogl-buffer-gl-private.h"
 #include "cogl-error-private.h"
 #include "cogl-gtype-private.h"
-#include "driver/gl/cogl-buffer-gl-private.h"
 
 #include <string.h>
 
@@ -63,7 +65,7 @@ _cogl_bitmap_free (CoglBitmap *bmp)
   g_slice_free (CoglBitmap, bmp);
 }
 
-gboolean
+CoglBool
 _cogl_bitmap_convert_premult_status (CoglBitmap *bmp,
                                      CoglPixelFormat dst_format,
                                      CoglError **error)
@@ -115,7 +117,7 @@ _cogl_bitmap_copy (CoglBitmap *src_bmp,
   return dst_bmp;
 }
 
-gboolean
+CoglBool
 _cogl_bitmap_copy_subregion (CoglBitmap *src,
 			     CoglBitmap *dst,
 			     int src_x,
@@ -130,7 +132,7 @@ _cogl_bitmap_copy_subregion (CoglBitmap *src,
   uint8_t *dstdata;
   int bpp;
   int line;
-  gboolean succeeded = FALSE;
+  CoglBool succeeded = FALSE;
 
   /* Intended only for fast copies when format is equal! */
   _COGL_RETURN_VAL_IF_FAIL ((src->format & ~COGL_PREMULT_BIT) ==
@@ -165,7 +167,7 @@ _cogl_bitmap_copy_subregion (CoglBitmap *src,
   return succeeded;
 }
 
-gboolean
+CoglBool
 cogl_bitmap_get_size_from_file (const char *filename,
                                 int        *width,
                                 int        *height)

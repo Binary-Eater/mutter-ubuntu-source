@@ -39,7 +39,9 @@
  * 3D Maths Primer for Graphics and Game Development ISBN-10: 1556229119
  */
 
+#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
+#endif
 
 #include <cogl-util.h>
 #include <cogl-quaternion.h>
@@ -324,7 +326,7 @@ cogl_quaternion_init_from_matrix (CoglQuaternion *quaternion,
     }
 }
 
-gboolean
+CoglBool
 cogl_quaternion_equal (const void *v1, const void *v2)
 {
   const CoglQuaternion *a = v1;

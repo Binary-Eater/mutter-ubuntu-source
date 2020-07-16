@@ -35,7 +35,7 @@
 #include "backends/x11/nested/meta-renderer-x11-nested.h"
 #include "clutter/clutter-mutter.h"
 
-static ClutterStageWindowInterface *clutter_stage_window_parent_iface = NULL;
+static ClutterStageWindowIface *clutter_stage_window_parent_iface = NULL;
 
 struct _MetaStageX11Nested
 {
@@ -45,7 +45,7 @@ struct _MetaStageX11Nested
 };
 
 static void
-clutter_stage_window_iface_init (ClutterStageWindowInterface *iface);
+clutter_stage_window_iface_init (ClutterStageWindowIface *iface);
 
 G_DEFINE_TYPE_WITH_CODE (MetaStageX11Nested, meta_stage_x11_nested,
                          CLUTTER_TYPE_STAGE_X11,
@@ -122,7 +122,6 @@ draw_crtc (MetaMonitor         *monitor,
   CoglMatrix transform;
   float texture_width, texture_height;
   float sample_x, sample_y, sample_width, sample_height;
-  float scale;
   int viewport_x, viewport_y;
   int viewport_width, viewport_height;
   float s_1, t_1, s_2, t_2;
@@ -199,11 +198,6 @@ draw_crtc (MetaMonitor         *monitor,
       viewport_width = monitor_crtc_mode->crtc_mode->width;
       viewport_height = monitor_crtc_mode->crtc_mode->height;
     }
-
-  scale = clutter_stage_view_get_scale (data->view);
-  viewport_width = roundf (viewport_width / scale);
-  viewport_height = roundf (viewport_height / scale);
-
   cogl_framebuffer_set_viewport (onscreen,
                                  viewport_x, viewport_y,
                                  viewport_width, viewport_height);
@@ -350,7 +344,7 @@ meta_stage_x11_nested_class_init (MetaStageX11NestedClass *klass)
 }
 
 static void
-clutter_stage_window_iface_init (ClutterStageWindowInterface *iface)
+clutter_stage_window_iface_init (ClutterStageWindowIface *iface)
 {
   clutter_stage_window_parent_iface = g_type_interface_peek_parent (iface);
 

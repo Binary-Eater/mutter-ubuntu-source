@@ -69,7 +69,9 @@
  *   the inverse of the identity matrix)
  */
 
+#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
+#endif
 
 #include <cogl-util.h>
 #include <cogl-debug.h>
@@ -442,7 +444,7 @@ cogl_debug_matrix_print (const CoglMatrix *matrix)
  * with partial pivoting followed by back/substitution with the loops manually
  * unrolled.
  */
-static gboolean
+static CoglBool
 invert_matrix_general (CoglMatrix *matrix)
 {
   const float *m = (float *)matrix;
@@ -581,7 +583,7 @@ invert_matrix_general (CoglMatrix *matrix)
  * element. Finally deals with the translation part by transforming the
  * original translation vector using by the calculated submatrix inverse.
  */
-static gboolean
+static CoglBool
 invert_matrix_3d_general (CoglMatrix *matrix)
 {
   const float *in = (float *)matrix;
@@ -663,7 +665,7 @@ invert_matrix_3d_general (CoglMatrix *matrix)
  * the inverse matrix analyzing and inverting each of the scaling, rotation and
  * translation parts.
  */
-static gboolean
+static CoglBool
 invert_matrix_3d (CoglMatrix *matrix)
 {
   const float *in = (float *)matrix;
@@ -748,7 +750,7 @@ invert_matrix_3d (CoglMatrix *matrix)
  *
  * Simply copies identity into CoglMatrix::inv.
  */
-static gboolean
+static CoglBool
 invert_matrix_identity (CoglMatrix *matrix)
 {
   memcpy (matrix->inv, identity, 16 * sizeof (float));
@@ -765,7 +767,7 @@ invert_matrix_identity (CoglMatrix *matrix)
  *
  * Calculates the
  */
-static gboolean
+static CoglBool
 invert_matrix_3d_no_rotation (CoglMatrix *matrix)
 {
   const float *in = (float *)matrix;
@@ -800,7 +802,7 @@ invert_matrix_3d_no_rotation (CoglMatrix *matrix)
  * Calculates the inverse matrix by applying the inverse scaling and
  * translation to the identity matrix.
  */
-static gboolean
+static CoglBool
 invert_matrix_2d_no_rotation (CoglMatrix *matrix)
 {
   const float *in = (float *)matrix;
@@ -824,7 +826,7 @@ invert_matrix_2d_no_rotation (CoglMatrix *matrix)
 
 #if 0
 /* broken */
-static gboolean
+static CoglBool
 invert_matrix_perspective (CoglMatrix *matrix)
 {
   const float *in = matrix;
@@ -854,7 +856,7 @@ invert_matrix_perspective (CoglMatrix *matrix)
 /*
  * Matrix inversion function pointer type.
  */
-typedef gboolean (*inv_mat_func)(CoglMatrix *matrix);
+typedef CoglBool (*inv_mat_func)(CoglMatrix *matrix);
 
 /*
  * Table of the matrix inversion functions according to the matrix type.
@@ -1112,7 +1114,7 @@ _cogl_matrix_update_type_and_flags (CoglMatrix *matrix)
  * given matrix type.  In case of failure, updates the MAT_FLAG_SINGULAR flag,
  * and copies the identity matrix into CoglMatrix::inv.
  */
-static gboolean
+static CoglBool
 _cogl_matrix_update_inverse (CoglMatrix *matrix)
 {
   if (matrix->flags & MAT_DIRTY_FLAGS ||
@@ -1137,7 +1139,7 @@ _cogl_matrix_update_inverse (CoglMatrix *matrix)
     return TRUE;
 }
 
-gboolean
+CoglBool
 cogl_matrix_get_inverse (const CoglMatrix *matrix, CoglMatrix *inverse)
 {
   if (_cogl_matrix_update_inverse ((CoglMatrix *)matrix))
@@ -1169,7 +1171,7 @@ _cogl_matrix_rotate (CoglMatrix *matrix,
 {
   float xx, yy, zz, xy, yz, zx, xs, ys, zs, one_c, s, c;
   float m[16];
-  gboolean optimized;
+  CoglBool optimized;
 
   s = sinf (angle * DEG2RAD);
   c = cosf (angle * DEG2RAD);
@@ -1667,7 +1669,7 @@ cogl_matrix_init_translation (CoglMatrix *matrix,
 /*
  * Test if the given matrix preserves vector lengths.
  */
-static gboolean
+static CoglBool
 _cogl_matrix_is_length_preserving (const CoglMatrix *m)
 {
   return TEST_MAT_FLAGS (m, MAT_FLAGS_LENGTH_PRESERVING);
@@ -1677,7 +1679,7 @@ _cogl_matrix_is_length_preserving (const CoglMatrix *m)
  * Test if the given matrix does any rotation.
  * (or perhaps if the upper-left 3x3 is non-identity)
  */
-static gboolean
+static CoglBool
 _cogl_matrix_has_rotation (const CoglMatrix *matrix)
 {
   if (matrix->flags & (MAT_FLAG_GENERAL |
@@ -1689,13 +1691,13 @@ _cogl_matrix_has_rotation (const CoglMatrix *matrix)
     return FALSE;
 }
 
-static gboolean
+static CoglBool
 _cogl_matrix_is_general_scale (const CoglMatrix *matrix)
 {
   return (matrix->flags & MAT_FLAG_GENERAL_SCALE) ? TRUE : FALSE;
 }
 
-static gboolean
+static CoglBool
 _cogl_matrix_is_dirty (const CoglMatrix *matrix)
 {
   return (matrix->flags & MAT_DIRTY_ALL) ? TRUE : FALSE;
@@ -1936,7 +1938,7 @@ cogl_matrix_view_2d_in_perspective (CoglMatrix *matrix,
                                   height_2d);
 }
 
-gboolean
+CoglBool
 cogl_matrix_equal (const void *v1, const void *v2)
 {
   const CoglMatrix *a = v1;
@@ -2215,7 +2217,7 @@ cogl_matrix_project_points (const CoglMatrix *matrix,
     }
 }
 
-gboolean
+CoglBool
 cogl_matrix_is_identity (const CoglMatrix *matrix)
 {
   if (!(matrix->flags & MAT_DIRTY_TYPE) &&

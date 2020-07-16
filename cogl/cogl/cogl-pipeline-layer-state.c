@@ -31,7 +31,9 @@
  *   Robert Bragg <robert@linux.intel.com>
  */
 
+#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
+#endif
 
 #include "cogl-context-private.h"
 #include "cogl-pipeline-private.h"
@@ -735,10 +737,10 @@ _cogl_pipeline_layer_get_wrap_modes (CoglPipelineLayer *layer,
   *wrap_mode_p = authority->sampler_cache_entry->wrap_mode_p;
 }
 
-gboolean
+CoglBool
 cogl_pipeline_set_layer_point_sprite_coords_enabled (CoglPipeline *pipeline,
                                                      int layer_index,
-                                                     gboolean enable,
+                                                     CoglBool enable,
                                                      CoglError **error)
 {
   CoglPipelineLayerState       change =
@@ -765,7 +767,7 @@ cogl_pipeline_set_layer_point_sprite_coords_enabled (CoglPipeline *pipeline,
         }
       else
         {
-          static gboolean warning_seen = FALSE;
+          static CoglBool warning_seen = FALSE;
           if (!warning_seen)
             g_warning ("Point sprite texture coordinates are enabled "
                        "for a layer but the GL driver does not support it.");
@@ -834,7 +836,7 @@ cogl_pipeline_set_layer_point_sprite_coords_enabled (CoglPipeline *pipeline,
   return TRUE;
 }
 
-gboolean
+CoglBool
 cogl_pipeline_get_layer_point_sprite_coords_enabled (CoglPipeline *pipeline,
                                                      int layer_index)
 {
@@ -950,7 +952,7 @@ cogl_pipeline_add_layer_snippet (CoglPipeline *pipeline,
                                                snippet);
 }
 
-gboolean
+CoglBool
 _cogl_pipeline_layer_texture_type_equal (CoglPipelineLayer *authority0,
                                          CoglPipelineLayer *authority1,
                                          CoglPipelineEvalFlags flags)
@@ -958,7 +960,7 @@ _cogl_pipeline_layer_texture_type_equal (CoglPipelineLayer *authority0,
   return authority0->texture_type == authority1->texture_type;
 }
 
-gboolean
+CoglBool
 _cogl_pipeline_layer_texture_data_equal (CoglPipelineLayer *authority0,
                                          CoglPipelineLayer *authority1,
                                          CoglPipelineEvalFlags flags)
@@ -984,7 +986,7 @@ _cogl_pipeline_layer_texture_data_equal (CoglPipelineLayer *authority0,
     }
 }
 
-gboolean
+CoglBool
 _cogl_pipeline_layer_combine_state_equal (CoglPipelineLayer *authority0,
                                           CoglPipelineLayer *authority1)
 {
@@ -1026,7 +1028,7 @@ _cogl_pipeline_layer_combine_state_equal (CoglPipelineLayer *authority0,
   return TRUE;
 }
 
-gboolean
+CoglBool
 _cogl_pipeline_layer_combine_constant_equal (CoglPipelineLayer *authority0,
                                              CoglPipelineLayer *authority1)
 {
@@ -1035,7 +1037,7 @@ _cogl_pipeline_layer_combine_constant_equal (CoglPipelineLayer *authority0,
                  sizeof (float) * 4) == 0 ? TRUE : FALSE;
 }
 
-gboolean
+CoglBool
 _cogl_pipeline_layer_sampler_equal (CoglPipelineLayer *authority0,
                                     CoglPipelineLayer *authority1)
 {
@@ -1046,7 +1048,7 @@ _cogl_pipeline_layer_sampler_equal (CoglPipelineLayer *authority0,
           authority1->sampler_cache_entry->sampler_object);
 }
 
-gboolean
+CoglBool
 _cogl_pipeline_layer_user_matrix_equal (CoglPipelineLayer *authority0,
                                         CoglPipelineLayer *authority1)
 {
@@ -1059,7 +1061,7 @@ _cogl_pipeline_layer_user_matrix_equal (CoglPipelineLayer *authority0,
   return TRUE;
 }
 
-gboolean
+CoglBool
 _cogl_pipeline_layer_point_sprite_coords_equal (CoglPipelineLayer *authority0,
                                                 CoglPipelineLayer *authority1)
 {
@@ -1069,7 +1071,7 @@ _cogl_pipeline_layer_point_sprite_coords_equal (CoglPipelineLayer *authority0,
   return big_state0->point_sprite_coords == big_state1->point_sprite_coords;
 }
 
-gboolean
+CoglBool
 _cogl_pipeline_layer_vertex_snippets_equal (CoglPipelineLayer *authority0,
                                             CoglPipelineLayer *authority1)
 {
@@ -1079,7 +1081,7 @@ _cogl_pipeline_layer_vertex_snippets_equal (CoglPipelineLayer *authority0,
                                             vertex_snippets);
 }
 
-gboolean
+CoglBool
 _cogl_pipeline_layer_fragment_snippets_equal (CoglPipelineLayer *authority0,
                                               CoglPipelineLayer *authority1)
 {
@@ -1171,7 +1173,7 @@ setup_texture_combine_state (CoglBlendStringStatement *statement,
     }
 }
 
-gboolean
+CoglBool
 cogl_pipeline_set_layer_combine (CoglPipeline *pipeline,
 				 int layer_index,
 				 const char *combine_description,
@@ -1481,7 +1483,7 @@ _cogl_pipeline_layer_get_texture (CoglPipelineLayer *layer)
   return _cogl_pipeline_layer_get_texture_real (layer);
 }
 
-gboolean
+CoglBool
 _cogl_pipeline_layer_has_user_matrix (CoglPipeline *pipeline,
                                       int layer_index)
 {
@@ -1728,7 +1730,7 @@ _cogl_pipeline_layer_hash_combine_constant_state (CoglPipelineLayer *authority,
                                                   CoglPipelineHashState *state)
 {
   CoglPipelineLayerBigState *b = authority->big_state;
-  gboolean need_hash = FALSE;
+  CoglBool need_hash = FALSE;
   int n_args;
   int i;
 

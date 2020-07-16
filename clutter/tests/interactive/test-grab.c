@@ -1,12 +1,6 @@
 #include <gmodule.h>
 #include <clutter/clutter.h>
 
-int
-test_grab_main (int argc, char *argv[]);
-
-const char *
-test_grab_describe (void);
-
 static void
 stage_state_cb (ClutterStage    *stage,
 		gpointer         data)
@@ -69,44 +63,7 @@ debug_event_cb (ClutterActor *actor,
     case CLUTTER_DELETE:
       printf("[%s] DELETE", source);
       break;
-    case CLUTTER_TOUCH_BEGIN:
-      g_print ("[%s] TOUCH BEGIN", source);
-      break;
-    case CLUTTER_TOUCH_UPDATE:
-      g_print ("[%s] TOUCH UPDATE", source);
-      break;
-    case CLUTTER_TOUCH_END:
-      g_print ("[%s] TOUCH END", source);
-      break;
-    case CLUTTER_TOUCH_CANCEL:
-      g_print ("[%s] TOUCH CANCEL", source);
-      break;
-    case CLUTTER_TOUCHPAD_PINCH:
-      g_print ("[%s] TOUCHPAD PINCH", source);
-      break;
-    case CLUTTER_TOUCHPAD_SWIPE:
-      g_print ("[%s] TOUCHPAD SWIPE", source);
-      break;
-    case CLUTTER_PROXIMITY_IN:
-      g_print ("[%s] PROXIMITY IN", source);
-      break;
-    case CLUTTER_PROXIMITY_OUT:
-      g_print ("[%s] PROXIMITY OUT", source);
-      break;
-    case CLUTTER_PAD_BUTTON_PRESS:
-      g_print ("[%s] PAD BUTTON PRESS", source);
-      break;
-    case CLUTTER_PAD_BUTTON_RELEASE:
-      g_print ("[%s] PAD BUTTON RELEASE", source);
-      break;
-    case CLUTTER_PAD_STRIP:
-      g_print ("[%s] PAD STRIP", source);
-      break;
-    case CLUTTER_PAD_RING:
-      g_print ("[%s] PAD RING", source);
-      break;
     case CLUTTER_NOTHING:
-    default:
       return FALSE;
     }
 
@@ -217,22 +174,22 @@ test_grab_main (int argc, char *argv[])
   clutter_stage_set_title (CLUTTER_STAGE (stage), "Grabs");
   g_signal_connect (stage, "destroy", G_CALLBACK (clutter_main_quit), NULL);
   g_signal_connect (stage, "event",
-                    G_CALLBACK (debug_event_cb), (char *) "stage");
+                    G_CALLBACK (debug_event_cb), "stage");
   g_signal_connect (stage, "fullscreen", 
-		    G_CALLBACK (stage_state_cb), (char *) "fullscreen");
+		    G_CALLBACK (stage_state_cb), "fullscreen");
   g_signal_connect (stage, "unfullscreen", 
-		    G_CALLBACK (stage_state_cb), (char *) "unfullscreen");
+		    G_CALLBACK (stage_state_cb), "unfullscreen");
   g_signal_connect (stage, "activate", 
-		    G_CALLBACK (stage_state_cb), (char *) "activate");
+		    G_CALLBACK (stage_state_cb), "activate");
   g_signal_connect (stage, "deactivate", 
-		    G_CALLBACK (stage_state_cb), (char *) "deactivate");
+		    G_CALLBACK (stage_state_cb), "deactivate");
 
   actor = clutter_rectangle_new_with_color (&rcol);
   clutter_actor_set_size (actor, 100, 100);
   clutter_actor_set_position (actor, 100, 100);
   clutter_actor_set_reactive (actor, TRUE);
   clutter_container_add (CLUTTER_CONTAINER (stage), actor, NULL);
-  g_signal_connect (actor, "event", G_CALLBACK (debug_event_cb), (char *) "red box");
+  g_signal_connect (actor, "event", G_CALLBACK (debug_event_cb), "red box");
   g_signal_connect (actor, "button-press-event",
                     G_CALLBACK (grab_pointer_cb), NULL);
   g_signal_connect (actor, "button-release-event",
@@ -243,7 +200,7 @@ test_grab_main (int argc, char *argv[])
   clutter_actor_set_position (actor, 100, 300);
   clutter_actor_set_reactive (actor, TRUE);
   clutter_container_add (CLUTTER_CONTAINER (stage), actor, NULL);
-  g_signal_connect (actor, "event", G_CALLBACK (debug_event_cb), (char *) "yellow box");
+  g_signal_connect (actor, "event", G_CALLBACK (debug_event_cb), "yellow box");
   g_signal_connect (actor, "button-press-event",
                     G_CALLBACK (toggle_grab_pointer_cb), NULL);
 
@@ -253,7 +210,7 @@ test_grab_main (int argc, char *argv[])
   clutter_actor_set_reactive (actor, TRUE);
   clutter_container_add (CLUTTER_CONTAINER (stage), actor, NULL);
   g_signal_connect (actor, "event",
-                    G_CALLBACK (debug_event_cb), (char *) "blue box");
+                    G_CALLBACK (debug_event_cb), "blue box");
   g_signal_connect (actor, "button-press-event",
                     G_CALLBACK (grab_pointer_cb), NULL);
   g_signal_connect (actor, "button-release-event",
@@ -265,7 +222,7 @@ test_grab_main (int argc, char *argv[])
   clutter_actor_set_reactive (actor, TRUE);
   clutter_container_add (CLUTTER_CONTAINER (stage), actor, NULL);
   g_signal_connect (actor, "event",
-                    G_CALLBACK (debug_event_cb), (char *) "green box");
+                    G_CALLBACK (debug_event_cb), "green box");
   g_signal_connect (actor, "button-press-event",
                     G_CALLBACK (green_press_cb), NULL);
 
@@ -276,7 +233,7 @@ test_grab_main (int argc, char *argv[])
   clutter_actor_set_reactive (actor, TRUE);
   clutter_container_add (CLUTTER_CONTAINER (stage), actor, NULL);
   g_signal_connect (actor, "event",
-                    G_CALLBACK (debug_event_cb), (char *) "cyan box");
+                    G_CALLBACK (debug_event_cb), "cyan box");
   g_signal_connect (actor, "button-press-event",
                     G_CALLBACK (cyan_press_cb), NULL);
 

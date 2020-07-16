@@ -24,7 +24,6 @@
 
 #include <clutter/clutter-backend.h>
 #include <clutter/clutter-device-manager.h>
-#include <clutter/clutter-keymap.h>
 #include <clutter/clutter-stage-window.h>
 
 #include "clutter-event-translator.h"
@@ -61,8 +60,6 @@ struct _ClutterBackend
   GList *event_translators;
 
   ClutterInputMethod *input_method;
-
-  ClutterKeymap *keymap;
 };
 
 struct _ClutterBackendClass
@@ -107,8 +104,6 @@ struct _ClutterBackendClass
 
   void                  (* bell_notify)          (ClutterBackend   *backend);
 
-  ClutterKeymap *       (* get_keymap)           (ClutterBackend   *backend);
-
   /* signals */
   void (* resolution_changed) (ClutterBackend *backend);
   void (* font_changed)       (ClutterBackend *backend);
@@ -140,7 +135,7 @@ gboolean                _clutter_backend_translate_event                (Clutter
                                                                          gpointer                native,
                                                                          ClutterEvent           *event);
 
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_MUTTER
 void                    _clutter_backend_add_event_translator           (ClutterBackend         *backend,
                                                                          ClutterEventTranslator *translator);
 
@@ -155,10 +150,12 @@ gint32                  _clutter_backend_get_units_serial               (Clutter
 
 PangoDirection          _clutter_backend_get_keymap_direction           (ClutterBackend         *backend);
 
-CLUTTER_EXPORT
+CLUTTER_AVAILABLE_IN_MUTTER
 void                    _clutter_backend_reset_cogl_framebuffer         (ClutterBackend         *backend);
 
 void                    clutter_set_allowed_drivers                     (const char             *drivers);
+
+void                    clutter_try_set_windowing_backend               (const char             *drivers);
 
 G_END_DECLS
 

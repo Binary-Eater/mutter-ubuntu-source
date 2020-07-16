@@ -47,7 +47,7 @@ typedef struct _CoglIndices CoglIndices;
 
 #include <glib-object.h>
 
-G_BEGIN_DECLS
+COGL_BEGIN_DECLS
 
 /**
  * SECTION:cogl-indices
@@ -152,10 +152,10 @@ cogl_get_rectangle_indices (CoglContext *context, int n_rectangles);
  * Since: 1.10
  * Stability: unstable
  */
-gboolean
+CoglBool
 cogl_is_indices (void *object);
 
-G_END_DECLS
+COGL_END_DECLS
 
 #endif /* __COGL_INDICES_H__ */
 

@@ -57,7 +57,7 @@ typedef struct _CoglTexture CoglTexture;
 
 #include <glib-object.h>
 
-G_BEGIN_DECLS
+COGL_BEGIN_DECLS
 
 /**
  * SECTION:cogl-texture
@@ -99,8 +99,7 @@ GType cogl_texture_get_gtype (void);
  * Since: 1.8
  * Stability: Unstable
  */
-typedef enum
-{
+typedef enum {
   COGL_TEXTURE_ERROR_SIZE,
   COGL_TEXTURE_ERROR_FORMAT,
   COGL_TEXTURE_ERROR_BAD_PARAMETER,
@@ -119,8 +118,7 @@ typedef enum
  * Stability: unstable
  * Since: 1.10
  */
-typedef enum
-{
+typedef enum {
   COGL_TEXTURE_TYPE_2D,
   COGL_TEXTURE_TYPE_3D,
   COGL_TEXTURE_TYPE_RECTANGLE
@@ -137,7 +135,7 @@ uint32_t cogl_texture_error_quark (void);
  * Return value: %TRUE if the @object references a texture, and
  *   %FALSE otherwise
  */
-gboolean
+CoglBool
 cogl_is_texture (void *object);
 
 /**
@@ -243,7 +241,7 @@ cogl_texture_get_components (CoglTexture *texture);
  */
 void
 cogl_texture_set_premultiplied (CoglTexture *texture,
-                                gboolean premultiplied);
+                                CoglBool premultiplied);
 
 /**
  * cogl_texture_get_premultiplied:
@@ -260,7 +258,7 @@ cogl_texture_set_premultiplied (CoglTexture *texture,
  *               value or %FALSE if not.
  * Since: 1.18
  */
-gboolean
+CoglBool
 cogl_texture_get_premultiplied (CoglTexture *texture);
 
 /**
@@ -307,7 +305,7 @@ cogl_texture_get_max_waste (CoglTexture *texture);
  * Return value: %TRUE if the texture is sliced, %FALSE if the texture
  *   is stored as a single GPU texture
  */
-gboolean
+CoglBool
 cogl_texture_is_sliced (CoglTexture *texture);
 
 /**
@@ -326,7 +324,7 @@ cogl_texture_is_sliced (CoglTexture *texture);
  * Return value: %TRUE if the handle was successfully retrieved, %FALSE
  *   if the handle was invalid
  */
-gboolean
+CoglBool
 cogl_texture_get_gl_texture (CoglTexture *texture,
                              unsigned int *out_gl_handle,
                              unsigned int *out_gl_target);
@@ -382,7 +380,7 @@ cogl_texture_get_data (CoglTexture *texture,
  * Return value: %TRUE if the subregion upload was successful, and
  *   %FALSE otherwise
  */
-gboolean
+CoglBool
 cogl_texture_set_region (CoglTexture *texture,
                          int src_x,
                          int src_y,
@@ -448,7 +446,7 @@ cogl_texture_set_region (CoglTexture *texture,
  * Return value: %TRUE if the data upload was successful, and
  *               %FALSE otherwise
  */
-gboolean
+CoglBool
 cogl_texture_set_data (CoglTexture *texture,
                        CoglPixelFormat format,
                        int rowstride,
@@ -481,7 +479,7 @@ cogl_texture_set_data (CoglTexture *texture,
  * Since: 1.8
  * Stability: unstable
  */
-gboolean
+CoglBool
 cogl_texture_set_region_from_bitmap (CoglTexture *texture,
                                      int src_x,
                                      int src_y,
@@ -509,16 +507,10 @@ cogl_texture_set_region_from_bitmap (CoglTexture *texture,
  *               otherwise %FALSE and @error will be updated if it
  *               wasn't %NULL.
  */
-gboolean
+CoglBool
 cogl_texture_allocate (CoglTexture *texture,
                        CoglError **error);
 
-/**
- * cogl_texture_is_get_data_supported: (skip)
- */
-gboolean
-cogl_texture_is_get_data_supported (CoglTexture *texture);
-
-G_END_DECLS
+COGL_END_DECLS
 
 #endif /* __COGL_TEXTURE_H__ */

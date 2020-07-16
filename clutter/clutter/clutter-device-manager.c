@@ -36,7 +36,9 @@
  * #ClutterDeviceManager is available since Clutter 1.2
  */
 
+#ifdef HAVE_CONFIG_H
 #include "clutter-build-config.h"
+#endif
 
 #include "clutter-backend-private.h"
 #include "clutter-debug.h"
@@ -550,7 +552,13 @@ static gboolean
 are_kbd_a11y_settings_equal (ClutterKbdA11ySettings *a,
                              ClutterKbdA11ySettings *b)
 {
-  return (memcmp (a, b, sizeof (ClutterKbdA11ySettings)) == 0);
+  return (a->controls == b->controls &&
+          a->slowkeys_delay == b->slowkeys_delay &&
+          a->debounce_delay == b->debounce_delay &&
+          a->timeout_delay == b->timeout_delay &&
+          a->mousekeys_init_delay == b->mousekeys_init_delay &&
+          a->mousekeys_max_speed == b->mousekeys_max_speed &&
+          a->mousekeys_accel_time == b->mousekeys_accel_time);
 }
 
 void

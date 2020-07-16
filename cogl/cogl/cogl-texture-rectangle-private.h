@@ -54,7 +54,7 @@ struct _CoglTextureRectangle
   GLenum gl_legacy_texobj_mag_filter;
   GLint gl_legacy_texobj_wrap_mode_s;
   GLint gl_legacy_texobj_wrap_mode_t;
-  gboolean is_foreign;
+  CoglBool is_foreign;
 };
 
 CoglTextureRectangle *

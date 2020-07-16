@@ -24,14 +24,13 @@
  * @short_description: Actor for painting user interaction feedback
  */
 
-#include "config.h"
+#include <config.h>
 
-#include "compositor/compositor-private.h"
-#include "compositor/meta-feedback-actor-private.h"
-#include "core/display-private.h"
+#include "display-private.h"
+#include "compositor-private.h"
+#include "meta-feedback-actor-private.h"
 
-enum
-{
+enum {
   PROP_ANCHOR_X = 1,
   PROP_ANCHOR_Y
 };

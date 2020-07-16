@@ -1,17 +1,18 @@
 /* -*- mode: C; c-file-style: "gnu"; indent-tabs-mode: nil; -*- */
 
-#include "config.h"
+#include <config.h>
 
-#include <gdk/gdk.h>
+#define _ISOC99_SOURCE /* for roundf */
 #include <math.h>
 
-#include "compositor/clutter-utils.h"
-#include "compositor/compositor-private.h"
-#include "compositor/meta-cullable.h"
-#include "compositor/meta-window-actor-private.h"
-#include "compositor/meta-window-group-private.h"
-#include "core/display-private.h"
-#include "core/window-private.h"
+#include <gdk/gdk.h> /* for gdk_rectangle_intersect() */
+
+#include "clutter-utils.h"
+#include "compositor-private.h"
+#include "meta-window-actor-private.h"
+#include "meta-window-group-private.h"
+#include "window-private.h"
+#include "meta-cullable.h"
 
 struct _MetaWindowGroupClass
 {
@@ -22,7 +23,7 @@ struct _MetaWindowGroup
 {
   ClutterActor parent;
 
-  MetaDisplay *display;
+  MetaScreen *screen;
 };
 
 static void cullable_iface_init (MetaCullableInterface *iface);
@@ -63,7 +64,7 @@ meta_window_group_paint (ClutterActor *actor)
   MetaWindowGroup *window_group = META_WINDOW_GROUP (actor);
   ClutterActor *stage = clutter_actor_get_stage (actor);
 
-  meta_display_get_size (window_group->display, &screen_width, &screen_height);
+  meta_screen_get_size (window_group->screen, &screen_width, &screen_height);
 
   /* Normally we expect an actor to be drawn at it's position on the screen.
    * However, if we're inside the paint of a ClutterClone, that won't be the
@@ -80,11 +81,7 @@ meta_window_group_paint (ClutterActor *actor)
    */
   if (clutter_actor_is_in_clone_paint (actor))
     {
-      CoglFramebuffer *fb;
-
-      fb = cogl_get_draw_framebuffer ();
-      if (!meta_actor_painting_untransformed (fb,
-                                              screen_width,
+      if (!meta_actor_painting_untransformed (screen_width,
                                               screen_height,
                                               &paint_x_origin,
                                               &paint_y_origin) ||
@@ -202,13 +199,13 @@ meta_window_group_init (MetaWindowGroup *window_group)
 }
 
 ClutterActor *
-meta_window_group_new (MetaDisplay *display)
+meta_window_group_new (MetaScreen *screen)
 {
   MetaWindowGroup *window_group;
 
   window_group = g_object_new (META_TYPE_WINDOW_GROUP, NULL);
 
-  window_group->display = display;
+  window_group->screen = screen;
 
   return CLUTTER_ACTOR (window_group);
 }

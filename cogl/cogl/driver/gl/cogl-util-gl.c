@@ -30,12 +30,14 @@
  *  Robert Bragg   <robert@linux.intel.com>
  */
 
+#ifdef HAVE_CONFIG_H
 #include "cogl-config.h"
+#endif
 
 #include "cogl-types.h"
 #include "cogl-context-private.h"
 #include "cogl-error-private.h"
-#include "driver/gl/cogl-util-gl-private.h"
+#include "cogl-util-gl-private.h"
 
 #ifdef COGL_GL_DEBUG
 /* GL error to string conversion */
@@ -95,11 +97,11 @@ _cogl_gl_util_clear_gl_errors (CoglContext *ctx)
     ;
 }
 
-gboolean
+CoglBool
 _cogl_gl_util_catch_out_of_memory (CoglContext *ctx, CoglError **error)
 {
   GLenum gl_error;
-  gboolean out_of_memory = FALSE;
+  CoglBool out_of_memory = FALSE;
 
   while ((gl_error = ctx->glGetError ()) != GL_NO_ERROR && gl_error != GL_CONTEXT_LOST)
     {
@@ -170,7 +172,7 @@ _cogl_gl_util_get_texture_target_string (CoglTextureType texture_type,
     *swizzle_out = tex_coord_swizzle;
 }
 
-gboolean
+CoglBool
 _cogl_gl_util_parse_gl_version (const char *version_string,
                                 int *major_out,
                                 int *minor_out)

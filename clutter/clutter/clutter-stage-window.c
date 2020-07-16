@@ -1,4 +1,6 @@
+#ifdef HAVE_CONFIG_H
 #include "clutter-build-config.h"
+#endif
 
 #include <glib-object.h>
 
@@ -6,13 +8,9 @@
 #include "clutter-stage-window.h"
 #include "clutter-private.h"
 
-/**
- * SECTION:clutter-stage-window
- * @short_description: Handles the implementation for ClutterStage
- *
- * #ClutterStageWindow is an interface that provides the implementation for the
- * #ClutterStage actor, abstracting away the specifics of the windowing system.
- */
+#define clutter_stage_window_get_type   _clutter_stage_window_get_type
+
+typedef ClutterStageWindowIface ClutterStageWindowInterface;
 
 G_DEFINE_INTERFACE (ClutterStageWindow, clutter_stage_window, G_TYPE_OBJECT);
 
@@ -40,12 +38,6 @@ clutter_stage_window_default_init (ClutterStageWindowInterface *iface)
   g_object_interface_install_property (iface, pspec);
 }
 
-/**
- * _clutter_stage_window_get_wrapper:
- * @window: a #ClutterStageWindow object
- *
- * Returns the pointer to the #ClutterStage it's part of.
- */
 ClutterActor *
 _clutter_stage_window_get_wrapper (ClutterStageWindow *window)
 {
@@ -56,7 +48,7 @@ void
 _clutter_stage_window_set_title (ClutterStageWindow *window,
                                  const gchar        *title)
 {
-  ClutterStageWindowInterface *iface = CLUTTER_STAGE_WINDOW_GET_IFACE (window);
+  ClutterStageWindowIface *iface = CLUTTER_STAGE_WINDOW_GET_IFACE (window);
 
   if (iface->set_title)
     iface->set_title (window, title);
@@ -66,7 +58,7 @@ void
 _clutter_stage_window_set_fullscreen (ClutterStageWindow *window,
                                       gboolean            is_fullscreen)
 {
-  ClutterStageWindowInterface *iface = CLUTTER_STAGE_WINDOW_GET_IFACE (window);
+  ClutterStageWindowIface *iface = CLUTTER_STAGE_WINDOW_GET_IFACE (window);
 
   if (iface->set_fullscreen)
     iface->set_fullscreen (window, is_fullscreen);
@@ -76,7 +68,7 @@ void
 _clutter_stage_window_set_cursor_visible (ClutterStageWindow *window,
                                           gboolean            is_visible)
 {
-  ClutterStageWindowInterface *iface = CLUTTER_STAGE_WINDOW_GET_IFACE (window);
+  ClutterStageWindowIface *iface = CLUTTER_STAGE_WINDOW_GET_IFACE (window);
 
   if (iface->set_cursor_visible)
     iface->set_cursor_visible (window, is_visible);
@@ -134,7 +126,7 @@ void
 _clutter_stage_window_schedule_update  (ClutterStageWindow *window,
                                         int                 sync_delay)
 {
-  ClutterStageWindowInterface *iface;
+  ClutterStageWindowIface *iface;
 
   g_return_if_fail (CLUTTER_IS_STAGE_WINDOW (window));
 
@@ -148,18 +140,10 @@ _clutter_stage_window_schedule_update  (ClutterStageWindow *window,
   iface->schedule_update (window, sync_delay);
 }
 
-/**
- * _clutter_stage_window_get_update_time:
- * @window: a #ClutterStageWindow object
- *
- * See _clutter_stage_get_update_time() for more info.
- *
- * Returns: The timestamp of the update time
- */
 gint64
 _clutter_stage_window_get_update_time (ClutterStageWindow *window)
 {
-  ClutterStageWindowInterface *iface;
+  ClutterStageWindowIface *iface;
 
   g_return_val_if_fail (CLUTTER_IS_STAGE_WINDOW (window), 0);
 
@@ -173,16 +157,10 @@ _clutter_stage_window_get_update_time (ClutterStageWindow *window)
   return iface->get_update_time (window);
 }
 
-/**
- * _clutter_stage_window_clear_update_time:
- * @window: a #ClutterStageWindow object
- *
- * Clears the update time. See _clutter_stage_clear_update_time() for more info.
- */
 void
 _clutter_stage_window_clear_update_time (ClutterStageWindow *window)
 {
-  ClutterStageWindowInterface *iface;
+  ClutterStageWindowIface *iface;
 
   g_return_if_fail (CLUTTER_IS_STAGE_WINDOW (window));
 
@@ -200,7 +178,7 @@ void
 _clutter_stage_window_add_redraw_clip (ClutterStageWindow    *window,
                                        cairo_rectangle_int_t *stage_clip)
 {
-  ClutterStageWindowInterface *iface;
+  ClutterStageWindowIface *iface;
 
   g_return_if_fail (CLUTTER_IS_STAGE_WINDOW (window));
 
@@ -220,7 +198,7 @@ _clutter_stage_window_add_redraw_clip (ClutterStageWindow    *window,
 gboolean
 _clutter_stage_window_has_redraw_clips (ClutterStageWindow *window)
 {
-  ClutterStageWindowInterface *iface;
+  ClutterStageWindowIface *iface;
 
   g_return_val_if_fail (CLUTTER_IS_STAGE_WINDOW (window), FALSE);
 
@@ -242,7 +220,7 @@ _clutter_stage_window_has_redraw_clips (ClutterStageWindow *window)
 gboolean
 _clutter_stage_window_ignoring_redraw_clips (ClutterStageWindow *window)
 {
-  ClutterStageWindowInterface *iface;
+  ClutterStageWindowIface *iface;
 
   g_return_val_if_fail (CLUTTER_IS_STAGE_WINDOW (window), FALSE);
 
@@ -257,7 +235,7 @@ gboolean
 _clutter_stage_window_get_redraw_clip_bounds (ClutterStageWindow    *window,
                                               cairo_rectangle_int_t *stage_clip)
 {
-  ClutterStageWindowInterface *iface;
+  ClutterStageWindowIface *iface;
 
   g_return_val_if_fail (CLUTTER_IS_STAGE_WINDOW (window), FALSE);
 
@@ -272,7 +250,7 @@ void
 _clutter_stage_window_set_accept_focus (ClutterStageWindow *window,
                                         gboolean            accept_focus)
 {
-  ClutterStageWindowInterface *iface;
+  ClutterStageWindowIface *iface;
 
   g_return_if_fail (CLUTTER_IS_STAGE_WINDOW (window));
 
@@ -284,7 +262,7 @@ _clutter_stage_window_set_accept_focus (ClutterStageWindow *window,
 void
 _clutter_stage_window_redraw (ClutterStageWindow *window)
 {
-  ClutterStageWindowInterface *iface;
+  ClutterStageWindowIface *iface;
 
   g_return_if_fail (CLUTTER_IS_STAGE_WINDOW (window));
 
@@ -299,7 +277,7 @@ _clutter_stage_window_get_dirty_pixel (ClutterStageWindow *window,
                                        ClutterStageView   *view,
                                        int *x, int *y)
 {
-  ClutterStageWindowInterface *iface;
+  ClutterStageWindowIface *iface;
 
   *x = 0;
   *y = 0;
@@ -314,7 +292,7 @@ _clutter_stage_window_get_dirty_pixel (ClutterStageWindow *window,
 gboolean
 _clutter_stage_window_can_clip_redraws (ClutterStageWindow *window)
 {
-  ClutterStageWindowInterface *iface;
+  ClutterStageWindowIface *iface;
 
   g_return_val_if_fail (CLUTTER_IS_STAGE_WINDOW (window), FALSE);
 
@@ -328,7 +306,7 @@ _clutter_stage_window_can_clip_redraws (ClutterStageWindow *window)
 GList *
 _clutter_stage_window_get_views (ClutterStageWindow *window)
 {
-  ClutterStageWindowInterface *iface = CLUTTER_STAGE_WINDOW_GET_IFACE (window);
+  ClutterStageWindowIface *iface = CLUTTER_STAGE_WINDOW_GET_IFACE (window);
 
   return iface->get_views (window);
 }
@@ -336,7 +314,7 @@ _clutter_stage_window_get_views (ClutterStageWindow *window)
 void
 _clutter_stage_window_finish_frame (ClutterStageWindow *window)
 {
-  ClutterStageWindowInterface *iface = CLUTTER_STAGE_WINDOW_GET_IFACE (window);
+  ClutterStageWindowIface *iface = CLUTTER_STAGE_WINDOW_GET_IFACE (window);
 
   if (iface->finish_frame)
     iface->finish_frame (window);
@@ -345,7 +323,7 @@ _clutter_stage_window_finish_frame (ClutterStageWindow *window)
 int64_t
 _clutter_stage_window_get_frame_counter (ClutterStageWindow *window)
 {
-  ClutterStageWindowInterface *iface = CLUTTER_STAGE_WINDOW_GET_IFACE (window);
+  ClutterStageWindowIface *iface = CLUTTER_STAGE_WINDOW_GET_IFACE (window);
 
   if (iface->get_frame_counter)
     return iface->get_frame_counter (window);

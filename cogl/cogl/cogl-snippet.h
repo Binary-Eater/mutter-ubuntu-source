@@ -38,7 +38,7 @@
 #ifndef __COGL_SNIPPET_H__
 #define __COGL_SNIPPET_H__
 
-G_BEGIN_DECLS
+COGL_BEGIN_DECLS
 
 /**
  * SECTION:cogl-snippet
@@ -655,8 +655,7 @@ GType cogl_snippet_get_gtype (void);
  * Since: 1.10
  * Stability: Unstable
  */
-typedef enum
-{
+typedef enum {
   /* Per pipeline vertex hooks */
   COGL_SNIPPET_HOOK_VERTEX = 0,
   COGL_SNIPPET_HOOK_VERTEX_TRANSFORM,
@@ -720,7 +719,7 @@ cogl_snippet_get_hook (CoglSnippet *snippet);
  * Since: 1.10
  * Stability: Unstable
  */
-gboolean
+CoglBool
 cogl_is_snippet (void *object);
 
 /**
@@ -860,6 +859,6 @@ cogl_snippet_set_post (CoglSnippet *snippet,
 const char *
 cogl_snippet_get_post (CoglSnippet *snippet);
 
-G_END_DECLS
+COGL_END_DECLS
 
 #endif /* __COGL_SNIPPET_H__ */

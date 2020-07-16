@@ -137,7 +137,7 @@ typedef struct _CoglMatrixEntrySave
   CoglMatrixEntry _parent_data;
 
   CoglMatrix *cache;
-  gboolean cache_valid;
+  CoglBool cache_valid;
 
 } CoglMatrixEntrySave;
 
@@ -166,15 +166,14 @@ struct _CoglMatrixStack
 typedef struct _CoglMatrixEntryCache
 {
   CoglMatrixEntry *entry;
-  gboolean flushed_identity;
-  gboolean flipped;
+  CoglBool flushed_identity;
+  CoglBool flipped;
 } CoglMatrixEntryCache;
 
 void
 _cogl_matrix_entry_identity_init (CoglMatrixEntry *entry);
 
-typedef enum
-{
+typedef enum {
   COGL_MATRIX_MODELVIEW,
   COGL_MATRIX_PROJECTION,
   COGL_MATRIX_TEXTURE
@@ -185,15 +184,15 @@ _cogl_matrix_entry_flush_to_gl_builtins (CoglContext *ctx,
                                          CoglMatrixEntry *entry,
                                          CoglMatrixMode mode,
                                          CoglFramebuffer *framebuffer,
-                                         gboolean disable_flip);
+                                         CoglBool disable_flip);
 
 void
 _cogl_matrix_entry_cache_init (CoglMatrixEntryCache *cache);
 
-gboolean
+CoglBool
 _cogl_matrix_entry_cache_maybe_update (CoglMatrixEntryCache *cache,
                                        CoglMatrixEntry *entry,
-                                       gboolean flip);
+                                       CoglBool flip);
 
 void
 _cogl_matrix_entry_cache_destroy (CoglMatrixEntryCache *cache);

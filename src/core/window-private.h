@@ -32,32 +32,32 @@
 #ifndef META_WINDOW_PRIVATE_H
 #define META_WINDOW_PRIVATE_H
 
+#include <config.h>
+#include <meta/compositor.h>
+#include <meta/window.h>
+#include <meta/meta-close-dialog.h>
+#include "screen-private.h"
+#include <meta/util.h>
+#include "stack.h"
 #include <X11/Xutil.h>
 #include <cairo.h>
 #include <gdk-pixbuf/gdk-pixbuf.h>
+#include <clutter/clutter.h>
 
-#include "backends/meta-logical-monitor.h"
-#include "clutter/clutter.h"
-#include "core/stack.h"
-#include "meta/compositor.h"
-#include "meta/meta-close-dialog.h"
-#include "meta/util.h"
-#include "meta/window.h"
-#include "wayland/meta-wayland-types.h"
 #include "x11/group-private.h"
+
+#include "wayland/meta-wayland-types.h"
 
 typedef struct _MetaWindowQueue MetaWindowQueue;
 
-typedef enum
-{
+typedef enum {
   META_CLIENT_TYPE_UNKNOWN = 0,
   META_CLIENT_TYPE_APPLICATION = 1,
   META_CLIENT_TYPE_PAGER = 2,
   META_CLIENT_TYPE_MAX_RECOGNIZED = 2
 } MetaClientType;
 
-typedef enum
-{
+typedef enum {
   META_QUEUE_CALC_SHOWING = 1 << 0,
   META_QUEUE_MOVE_RESIZE  = 1 << 1,
   META_QUEUE_UPDATE_ICON  = 1 << 2,
@@ -65,8 +65,7 @@ typedef enum
 
 #define NUMBER_OF_QUEUES 3
 
-typedef enum
-{
+typedef enum {
   _NET_WM_BYPASS_COMPOSITOR_HINT_AUTO = 0,
   _NET_WM_BYPASS_COMPOSITOR_HINT_ON = 1,
   _NET_WM_BYPASS_COMPOSITOR_HINT_OFF = 2,
@@ -142,12 +141,6 @@ typedef struct _MetaPlacementRule
   int height;
 } MetaPlacementRule;
 
-typedef enum _MetaPlacementState
-{
-  META_PLACEMENT_STATE_UNCONSTRAINED,
-  META_PLACEMENT_STATE_CONSTRAINED,
-} MetaPlacementState;
-
 typedef enum
 {
   META_EDGE_CONSTRAINT_NONE    = 0,
@@ -160,7 +153,7 @@ struct _MetaWindow
   GObject parent_instance;
 
   MetaDisplay *display;
-  uint64_t id;
+  MetaScreen *screen;
   guint64 stamp;
   MetaLogicalMonitor *monitor;
   MetaWorkspace *workspace;
@@ -199,6 +192,7 @@ struct _MetaWindow
   char *gtk_app_menu_object_path;
   char *gtk_menubar_object_path;
 
+  int hide_titlebar_when_maximized;
   int net_wm_pid;
 
   Window xtransient_for;
@@ -225,23 +219,21 @@ struct _MetaWindow
   guint minimize_after_placement : 1;
 
   /* The current tile mode */
-  MetaTileMode tile_mode;
-
+  guint tile_mode : 2;
   /* The last "full" maximized/unmaximized state. We need to keep track of
    * that to toggle between normal/tiled or maximized/tiled states. */
   guint saved_maximize : 1;
   int tile_monitor_number;
 
-  struct {
-    MetaEdgeConstraint top;
-    MetaEdgeConstraint right;
-    MetaEdgeConstraint bottom;
-    MetaEdgeConstraint left;
-  } edge_constraints;
+  /* 0 - top
+   * 1 - right
+   * 2 - bottom
+   * 3 - left */
+  MetaEdgeConstraint edge_constraints[4];
 
   double tile_hfraction;
 
-  uint64_t preferred_output_winsys_id;
+  int preferred_output_winsys_id;
 
   /* Whether we're shaded */
   guint shaded : 1;
@@ -335,6 +327,10 @@ struct _MetaWindow
   /* whether net_wm_icon_geometry has been set */
   guint icon_geometry_set : 1;
 
+  /* These are the flags from WM_PROTOCOLS */
+  guint take_focus : 1;
+  guint delete_window : 1;
+  guint can_ping : 1;
   /* Globally active / No input */
   guint input : 1;
 
@@ -530,11 +526,6 @@ struct _MetaWindow
   guint bypass_compositor;
 
   MetaPlacementRule *placement_rule;
-  MetaPlacementState placement_state;
-  int constrained_placement_rule_offset_x;
-  int constrained_placement_rule_offset_y;
-
-  guint unmanage_idle_id;
 };
 
 struct _MetaWindowClass
@@ -577,10 +568,7 @@ struct _MetaWindowClass
                                    ClutterInputDevice *source);
   gboolean (*shortcuts_inhibited) (MetaWindow         *window,
                                    ClutterInputDevice *source);
-  gboolean (*is_focusable)        (MetaWindow *window);
   gboolean (*is_stackable)        (MetaWindow *window);
-  gboolean (*can_ping)            (MetaWindow *window);
-  gboolean (*are_updates_frozen)  (MetaWindow *window);
 };
 
 /* These differ from window->has_foo_func in that they consider
@@ -609,6 +597,7 @@ struct _MetaWindowClass
 #define META_WINDOW_ALLOWS_VERTICAL_RESIZE(w)   (META_WINDOW_ALLOWS_RESIZE_EXCEPT_HINTS (w) && (w)->size_hints.min_height < (w)->size_hints.max_height)
 
 MetaWindow * _meta_window_shared_new       (MetaDisplay         *display,
+                                            MetaScreen          *screen,
                                             MetaWindowClientType client_type,
                                             MetaWaylandSurface  *surface,
                                             Window               xwindow,
@@ -618,7 +607,6 @@ MetaWindow * _meta_window_shared_new       (MetaDisplay         *display,
 
 void        meta_window_unmanage           (MetaWindow  *window,
                                             guint32      timestamp);
-void        meta_window_unmanage_on_idle   (MetaWindow *window);
 void        meta_window_queue              (MetaWindow  *window,
                                             guint queuebits);
 void        meta_window_tile               (MetaWindow        *window,
@@ -674,10 +662,6 @@ void        meta_window_update_unfocused_button_grabs (MetaWindow *window);
 void     meta_window_set_focused_internal (MetaWindow *window,
                                            gboolean    focused);
 
-gboolean meta_window_is_focusable (MetaWindow *window);
-
-gboolean meta_window_can_ping (MetaWindow *window);
-
 void     meta_window_current_workspace_changed (MetaWindow *window);
 
 void meta_window_show_menu (MetaWindow         *window,
@@ -710,11 +694,11 @@ gboolean meta_window_same_application (MetaWindow *window,
 #define META_WINDOW_IN_NORMAL_TAB_CHAIN_TYPE(w) \
   ((w)->type != META_WINDOW_DOCK && (w)->type != META_WINDOW_DESKTOP)
 #define META_WINDOW_IN_NORMAL_TAB_CHAIN(w) \
-  (meta_window_is_focusable (w) && META_WINDOW_IN_NORMAL_TAB_CHAIN_TYPE (w) && (!(w)->skip_taskbar))
+  (((w)->input || (w)->take_focus ) && META_WINDOW_IN_NORMAL_TAB_CHAIN_TYPE (w) && (!(w)->skip_taskbar))
 #define META_WINDOW_IN_DOCK_TAB_CHAIN(w) \
-  (meta_window_is_focusable (w) && (! META_WINDOW_IN_NORMAL_TAB_CHAIN_TYPE (w) || (w)->skip_taskbar))
+  (((w)->input || (w)->take_focus) && (! META_WINDOW_IN_NORMAL_TAB_CHAIN_TYPE (w) || (w)->skip_taskbar))
 #define META_WINDOW_IN_GROUP_TAB_CHAIN(w, g) \
-  (meta_window_is_focusable (w) && (!g || meta_window_get_group(w)==g))
+  (((w)->input || (w)->take_focus) && (!g || meta_window_get_group(w)==g))
 
 void meta_window_free_delete_dialog (MetaWindow *window);
 

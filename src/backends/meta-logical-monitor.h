@@ -27,7 +27,6 @@
 #include "backends/meta-monitor.h"
 #include "backends/meta-monitor-config-manager.h"
 #include "backends/meta-monitor-manager-private.h"
-#include "core/util-private.h"
 #include "meta/boxes.h"
 
 #define META_MAX_OUTPUTS_PER_MONITOR 4
@@ -52,7 +51,7 @@ struct _MetaLogicalMonitor
      (it's an attempt to keep windows on the same monitor, and preferably on
      the primary one).
   */
-  uint64_t winsys_id;
+  glong winsys_id;
 
   GList *monitors;
 };
@@ -79,7 +78,6 @@ MetaLogicalMonitor * meta_logical_monitor_new_derived (MetaMonitorManager *monit
 void meta_logical_monitor_add_monitor (MetaLogicalMonitor *logical_monitor,
                                        MetaMonitor        *monitor);
 
-META_EXPORT_TEST
 gboolean meta_logical_monitor_is_primary (MetaLogicalMonitor *logical_monitor);
 
 void meta_logical_monitor_make_primary (MetaLogicalMonitor *logical_monitor);
@@ -90,12 +88,11 @@ MetaMonitorTransform meta_logical_monitor_get_transform (MetaLogicalMonitor *log
 
 MetaRectangle meta_logical_monitor_get_layout (MetaLogicalMonitor *logical_monitor);
 
-META_EXPORT_TEST
 GList * meta_logical_monitor_get_monitors (MetaLogicalMonitor *logical_monitor);
 
-gboolean meta_logical_monitor_has_neighbor (MetaLogicalMonitor   *logical_monitor,
-                                            MetaLogicalMonitor   *neighbor,
-                                            MetaDisplayDirection  neighbor_dir);
+gboolean meta_logical_monitor_has_neighbor (MetaLogicalMonitor  *logical_monitor,
+                                            MetaLogicalMonitor  *neighbor,
+                                            MetaScreenDirection  neighbor_dir);
 
 void meta_logical_monitor_foreach_crtc (MetaLogicalMonitor        *logical_monitor,
                                         MetaLogicalMonitorCrtcFunc func,

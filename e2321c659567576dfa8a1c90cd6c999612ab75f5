@@ -1,0 +1,9 @@
+  * Merge with debian. Remaining changes:
+    + debian/control:
+      - Update VCS flags to point to launchpad
+      - Update maintainer to ubuntu
+    + debian/gbp.conf: update branch to point to ubuntu/master
+    + debian/patches/x11-Add-support-for-fractional-scaling-using-Randr.patch:
+      - X11: Add support for fractional scaling using Randr
+  * d/p/core-Split-x11-display-initialization-in-2-signals.patch: Cherry-pick.
+    Fixes starting up of gsd-xsettings on Wayland. (LP: #1843107)

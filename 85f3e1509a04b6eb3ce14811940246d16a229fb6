@@ -1,0 +1,2 @@
+  * debian/patches/git-dont-leave-focus-on-unmanage.patch: git patch
+    to fix meta_window_unmanage crash (LP: #1279919) 

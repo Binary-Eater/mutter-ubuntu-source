@@ -1,0 +1,2 @@
+  * debian/patches/git-fix-crash-on-hotplug-*.patch:
+    - Backport crasher fix from upstream git (LP: #1319897, BGO#725637)

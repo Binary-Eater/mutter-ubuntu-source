@@ -1,0 +1,10 @@
+  * New upstream release
+  * Merge with debian experimental (LP: #742458), remaining changes:
+    + debian/patches/03_link_gles2.patch: Link to clutter-glx-1.0
+      explicitily at the end of link flags, to bring in libGLESv2 on armel.
+  * debian/control.in:
+    + rename gir package to gir1.2-mutter-3.0
+  * debian/libmutter0.symbols:
+    + updated
+  * debian/patches:
+    + fix 03_link_gles2.patch 

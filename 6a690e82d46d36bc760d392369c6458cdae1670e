@@ -1,0 +1,6 @@
+  * Team upload
+  * New upstream git snapshot (really fixes LP: #1714330, we hope)
+  * debian/watch: Scan for all versions, not just the stable-branch
+  * debian/control.in: Add versioned Breaks for gnome-control-center,
+    and bump Suggests to match, to account for functionality that moved
+    between packages (Closes: #874514)

@@ -1,0 +1,3 @@
+  * debian/control: Add Vcs-* headers, imported into bzr now.
+  * Add debian/patches/80_no_session_delay.patch: Start mutter together with
+    all other components, to avoid a bottleneck.

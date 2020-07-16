@@ -1,0 +1,8 @@
+  * Sync with Debian.
+  * New upstream release.
+  * Make tests fatal except on s390x
+  * Add skip-failing-tests-325.patch:
+    - Skip one more test that started failing with 3.25
+  * Add git_fix-wayland-color-inversion.patch:
+    - Cherry-pick patch to fix wrong colors in clutter apps on Wayland
+      (LP: #1712986)

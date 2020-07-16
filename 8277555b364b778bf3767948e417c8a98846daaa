@@ -1,0 +1,4 @@
+  * New upstream release.
+  * Drop all patches which are now applied upstream.
+  * Convert to multiarch.
+  * Convert from cdbs to dh.

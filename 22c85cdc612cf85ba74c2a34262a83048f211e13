@@ -1,0 +1,2 @@
+  * Add Replaces for previous libmutter sonames, so that the library
+    upgrades properly.

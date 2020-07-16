@@ -1,0 +1,3 @@
+  * New upstream release.
+  * debian/control.in:
+    + Bump clutter requirement.

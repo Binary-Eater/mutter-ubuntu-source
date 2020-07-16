@@ -1,0 +1,9 @@
+  * Merge with debian. Remaining changes:
+    + debian/control:
+      - Update VCS flags to point to launchpad
+    + debian/gbp.conf: update branch to point to ubuntu/master
+    + debian/patches/x11-Add-support-for-fractional-scaling-using-Randr.patch:
+      - X11: Add support for fractional scaling using Randr
+  * d/p/EGL-Include-EGL-eglmesaext.h.patch: Cherry pick from master. This
+    fixes the generated EGL includes for the move of exlext.h from mesa to
+    libglvnd, which has just happened in Debian.

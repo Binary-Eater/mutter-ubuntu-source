@@ -243,8 +243,7 @@ meta_gpu_xrandr_read_current (MetaGpu  *gpu,
 
       crtc = meta_create_xrandr_crtc (gpu_xrandr,
                                       xrandr_crtc, crtc_id, resources,
-                                      transform_attributes);
-      crtc->scale *= dpi_scale;
+                                      transform_attributes, dpi_scale);
       XFree (transform_attributes);
       XRRFreeCrtcInfo (xrandr_crtc);
 
@@ -252,6 +251,24 @@ meta_gpu_xrandr_read_current (MetaGpu  *gpu,
     }
 
   meta_gpu_take_crtcs (gpu, crtcs);
+
+  if (has_transform && dpi_scale == 1 &&
+      meta_monitor_manager_get_default_layout_mode (monitor_manager) ==
+        META_LOGICAL_MONITOR_LAYOUT_MODE_GLOBAL_UI_LOGICAL)
+    {
+      dpi_scale =
+        ceilf (meta_monitor_manager_get_maximum_crtc_scale (monitor_manager));
+
+      if (dpi_scale > 1)
+        {
+          for (l = crtcs; l; l = l->next)
+            {
+              MetaCrtc *crtc = l->data;
+
+              crtc->scale *= dpi_scale;
+            }
+        }
+    }
 
   primary_output = XRRGetOutputPrimary (xdisplay,
                                         DefaultRootWindow (xdisplay));

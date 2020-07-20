@@ -345,13 +345,18 @@ derive_scale_from_crtc (MetaMonitorManager *manager,
                         MetaMonitor        *monitor,
                         float              *scale)
 {
+  MetaMonitorManagerCapability capabilities;
   MetaMonitorMode *monitor_mode;
   float threshold;
   MetaOutput *output;
   MetaCrtc *crtc;
 
-  if (!(meta_monitor_manager_get_capabilities (manager) &
-        META_MONITOR_MANAGER_CAPABILITY_NATIVE_OUTPUT_SCALING))
+  capabilities = meta_monitor_manager_get_capabilities (manager);
+
+  if (!(capabilities & META_MONITOR_MANAGER_CAPABILITY_NATIVE_OUTPUT_SCALING))
+    return FALSE;
+
+  if (!(capabilities & META_MONITOR_MANAGER_CAPABILITY_LAYOUT_MODE))
     return FALSE;
 
   output = meta_monitor_get_main_output (monitor);
@@ -425,7 +430,7 @@ meta_monitor_manager_rebuild_logical_monitors_derived (MetaMonitorManager *manag
           float scale;
 
           if (use_global_scale)
-            scale = global_scale;
+            scale = roundf (global_scale);
           else
             {
               if (!derive_scale_from_crtc (manager, monitor, &scale))
@@ -681,6 +686,8 @@ meta_monitor_manager_ensure_configured (MetaMonitorManager *manager)
   MetaMonitorsConfigMethod method;
   MetaMonitorsConfigMethod fallback_method =
     META_MONITORS_CONFIG_METHOD_TEMPORARY;
+  MetaLogicalMonitorLayoutMode layout_mode =
+    meta_monitor_manager_get_default_layout_mode (manager);
 
   use_stored_config = should_use_stored_config (manager);
   if (use_stored_config)
@@ -690,7 +697,18 @@ meta_monitor_manager_ensure_configured (MetaMonitorManager *manager)
 
   if (use_stored_config)
     {
+      g_autoptr(MetaMonitorsConfig) new_config = NULL;
+
       config = meta_monitor_config_manager_get_stored (manager->config_manager);
+      if (config && config->layout_mode != layout_mode)
+        {
+          new_config =
+            meta_monitor_config_manager_create_for_layout (manager->config_manager,
+                                                           config,
+                                                           layout_mode);
+          config = new_config;
+        }
+
       if (config)
         {
           if (!meta_monitor_manager_apply_monitors_config (manager,
@@ -734,6 +752,16 @@ meta_monitor_manager_ensure_configured (MetaMonitorManager *manager)
   if (config)
     {
       config = g_object_ref (config);
+
+      if (config && config->layout_mode != layout_mode)
+        {
+          MetaMonitorsConfig *new_config =
+            meta_monitor_config_manager_create_for_layout (manager->config_manager,
+                                                           config,
+                                                           layout_mode);
+          g_object_unref (config);
+          config = new_config;
+        }
 
       if (meta_monitor_manager_is_config_complete (manager, config))
         {
@@ -854,6 +882,66 @@ orientation_changed (MetaOrientationManager *orientation_manager,
   g_object_unref (config);
 }
 
+static gboolean
+apply_x11_fractional_scaling_config (MetaMonitorManager *manager)
+{
+  g_autoptr(GError) error = NULL;
+  g_autoptr(MetaMonitorsConfig) config = NULL;
+  MetaMonitorsConfig *applied_config;
+  MetaLogicalMonitorLayoutMode layout_mode =
+    meta_monitor_manager_get_default_layout_mode (manager);
+
+  if (!META_IS_MONITOR_MANAGER_XRANDR (manager))
+    return TRUE;
+
+  applied_config =
+    meta_monitor_config_manager_get_current (manager->config_manager);
+  config =
+    meta_monitor_config_manager_create_for_layout (manager->config_manager,
+                                                   applied_config,
+                                                   layout_mode);
+  if (!config)
+    return FALSE;
+
+  if (meta_monitor_manager_apply_monitors_config (manager,
+                                                  config,
+                                                  META_MONITORS_CONFIG_METHOD_PERSISTENT,
+                                                  &error))
+    {
+      if (config != applied_config && manager->persistent_timeout_id)
+        {
+          if (G_UNLIKELY (applied_config !=
+                          meta_monitor_config_manager_get_previous (manager->config_manager)))
+            {
+              g_warning ("The removed configuration doesn't match the "
+                         "previously applied one, reverting may not work");
+            }
+          else
+            {
+              g_autoptr(MetaMonitorsConfig) previous_config = NULL;
+
+              /* The previous config we applied was just a temporary one that
+               * GNOME control center passed us while toggling the fractional
+               * scaling. So, in such case, once the configuration with the
+               * correct layout has been applied, we need to ignore the
+               * temporary one. */
+              previous_config =
+                meta_monitor_config_manager_pop_previous (manager->config_manager);
+
+              g_assert_true (applied_config == previous_config);
+            }
+        }
+    }
+  else
+    {
+      g_warning ("Impossible to apply the layout config %s\n",
+                 error->message);
+      return FALSE;
+    }
+
+  return TRUE;
+}
+
 static void
 experimental_features_changed (MetaSettings           *settings,
                                MetaExperimentalFeature old_experimental_features,
@@ -880,9 +968,14 @@ experimental_features_changed (MetaSettings           *settings,
       settings,
       META_EXPERIMENTAL_FEATURE_X11_RANDR_FRACTIONAL_SCALING);
 
-  if (is_stage_views_scaled != was_stage_views_scaled ||
-      x11_scaling != was_x11_scaling)
+  if (is_stage_views_scaled != was_stage_views_scaled)
     should_reconfigure = TRUE;
+
+  if (was_x11_scaling != x11_scaling)
+    {
+      if (!apply_x11_fractional_scaling_config (manager))
+        should_reconfigure = TRUE;
+    }
 
   if (should_reconfigure)
     meta_monitor_manager_on_hotplug (manager);
@@ -1342,6 +1435,33 @@ meta_monitor_manager_handle_get_resources (MetaDBusDisplayConfig *skeleton,
 }
 
 static void
+restore_previous_experimental_config (MetaMonitorManager *manager,
+                                      MetaMonitorsConfig *previous_config)
+{
+  MetaBackend *backend = manager->backend;
+  MetaSettings *settings = meta_backend_get_settings (backend);
+  gboolean was_fractional;
+
+  if (!META_IS_MONITOR_MANAGER_XRANDR (manager))
+    return;
+
+  was_fractional =
+    previous_config->layout_mode != META_LOGICAL_MONITOR_LAYOUT_MODE_PHYSICAL;
+
+  if (meta_settings_is_experimental_feature_enabled (settings,
+        META_EXPERIMENTAL_FEATURE_X11_RANDR_FRACTIONAL_SCALING) == was_fractional)
+    return;
+
+  g_signal_handler_block (settings,
+                          manager->experimental_features_changed_handler_id);
+
+  meta_settings_enable_x11_fractional_scaling (settings, was_fractional);
+
+  g_signal_handler_unblock (settings,
+                            manager->experimental_features_changed_handler_id);
+}
+
+static void
 restore_previous_config (MetaMonitorManager *manager)
 {
   MetaMonitorsConfig *previous_config;
@@ -1353,6 +1473,8 @@ restore_previous_config (MetaMonitorManager *manager)
   if (previous_config)
     {
       MetaMonitorsConfigMethod method;
+
+      restore_previous_experimental_config (manager, previous_config);
 
       method = META_MONITORS_CONFIG_METHOD_TEMPORARY;
       if (meta_monitor_manager_apply_monitors_config (manager,
@@ -1654,7 +1776,8 @@ meta_monitor_manager_handle_get_current_state (MetaDBusDisplayConfig *skeleton,
                              g_variant_new_boolean (TRUE));
     }
   else if (META_IS_MONITOR_MANAGER_XRANDR (manager) &&
-           capabilities & META_MONITOR_MANAGER_CAPABILITY_NATIVE_OUTPUT_SCALING)
+           (capabilities & META_MONITOR_MANAGER_CAPABILITY_NATIVE_OUTPUT_SCALING) &&
+           (capabilities & META_MONITOR_MANAGER_CAPABILITY_LAYOUT_MODE))
     {
       g_variant_builder_add (&properties_builder, "{sv}",
                              "x11-fractional-scaling",

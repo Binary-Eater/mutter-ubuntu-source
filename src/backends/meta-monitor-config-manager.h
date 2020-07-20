@@ -110,6 +110,10 @@ MetaMonitorsConfig * meta_monitor_config_manager_create_for_orientation (MetaMon
 META_EXPORT_TEST
 MetaMonitorsConfig * meta_monitor_config_manager_create_for_rotate_monitor (MetaMonitorConfigManager *config_manager);
 
+MetaMonitorsConfig * meta_monitor_config_manager_create_for_layout (MetaMonitorConfigManager     *config_manager,
+                                                                    MetaMonitorsConfig           *config,
+                                                                    MetaLogicalMonitorLayoutMode  layout_mode);
+
 META_EXPORT_TEST
 MetaMonitorsConfig * meta_monitor_config_manager_create_for_switch_config (MetaMonitorConfigManager    *config_manager,
                                                                            MetaMonitorSwitchConfigType  config_type);

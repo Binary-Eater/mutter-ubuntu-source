@@ -83,19 +83,25 @@ calculate_ui_scaling_factor (MetaSettings *settings)
     meta_backend_get_monitor_manager (settings->backend);
 
   if (!meta_is_wayland_compositor () &&
-      (settings->experimental_features &
-       META_EXPERIMENTAL_FEATURE_X11_RANDR_FRACTIONAL_SCALING))
+      monitor_manager &&
+      (meta_monitor_manager_get_capabilities (monitor_manager) &
+       META_MONITOR_MANAGER_CAPABILITY_LAYOUT_MODE))
     {
-      float scale = 1;
+      MetaLogicalMonitorLayoutMode layout_mode =
+        meta_monitor_manager_get_default_layout_mode (monitor_manager);
 
-      if (monitor_manager &&
-          settings->x11_scale_mode == META_X11_SCALE_MODE_UI_DOWN)
-        scale =
-          ceilf (meta_monitor_manager_get_maximum_crtc_scale (monitor_manager));
-
-      return scale;
+      if (layout_mode == META_LOGICAL_MONITOR_LAYOUT_MODE_GLOBAL_UI_LOGICAL)
+        {
+          return
+              ceilf (meta_monitor_manager_get_maximum_crtc_scale (monitor_manager));
+        }
+      else if (layout_mode == META_LOGICAL_MONITOR_LAYOUT_MODE_LOGICAL)
+        {
+          return 1.0f;
+        }
     }
-  else if (monitor_manager)
+
+  if (monitor_manager)
     {
       MetaLogicalMonitor *primary_logical_monitor;
 
@@ -255,6 +261,76 @@ meta_settings_override_experimental_features (MetaSettings *settings)
   settings->experimental_features_overridden = TRUE;
 }
 
+static gboolean
+update_x11_scale_mode (MetaSettings *settings)
+{
+  MetaX11ScaleMode scale_mode;
+
+  if (!(settings->experimental_features &
+        META_EXPERIMENTAL_FEATURE_X11_RANDR_FRACTIONAL_SCALING))
+    {
+      scale_mode = META_X11_SCALE_MODE_NONE;
+    }
+  else
+    {
+      scale_mode =
+        g_settings_get_enum (settings->x11_settings, "fractional-scale-mode");
+    }
+
+  if (settings->x11_scale_mode != scale_mode)
+    {
+      settings->x11_scale_mode = scale_mode;
+      return TRUE;
+    }
+
+  return FALSE;
+}
+
+void meta_settings_enable_x11_fractional_scaling (MetaSettings *settings,
+                                                  gboolean      enable)
+{
+  g_auto(GStrv) existing_features = NULL;
+  gboolean have_fractional_scaling = FALSE;
+  g_autoptr(GVariantBuilder) builder = NULL;
+  MetaExperimentalFeature old_experimental_features;
+
+  if (enable == meta_settings_is_experimental_feature_enabled (settings,
+        META_EXPERIMENTAL_FEATURE_X11_RANDR_FRACTIONAL_SCALING))
+    return;
+
+  /* Change the internal value now, as we don't want to wait for gsettings */
+  old_experimental_features = settings->experimental_features;
+  settings->experimental_features |=
+    META_EXPERIMENTAL_FEATURE_X11_RANDR_FRACTIONAL_SCALING;
+
+  update_x11_scale_mode (settings);
+
+  g_signal_emit (settings, signals[EXPERIMENTAL_FEATURES_CHANGED], 0,
+                   (unsigned int) old_experimental_features);
+
+  /* Add or remove the fractional scaling feature from mutter */
+  existing_features = g_settings_get_strv (settings->mutter_settings,
+                                           "experimental-features");
+  builder = g_variant_builder_new (G_VARIANT_TYPE ("as"));
+  for (int i = 0; existing_features[i] != NULL; i++)
+    {
+      if (g_strcmp0 (existing_features[i], "x11-randr-fractional-scaling") == 0)
+        {
+          if (enable)
+            have_fractional_scaling = TRUE;
+          else
+            continue;
+        }
+
+      g_variant_builder_add (builder, "s", existing_features[i]);
+    }
+  if (enable && !have_fractional_scaling)
+    g_variant_builder_add (builder, "s", "x11-randr-fractional-scaling");
+
+  g_settings_set_value (settings->mutter_settings, "experimental-features",
+                        g_variant_builder_end (builder));
+}
+
 void
 meta_settings_enable_experimental_feature (MetaSettings           *settings,
                                            MetaExperimentalFeature feature)
@@ -262,6 +338,9 @@ meta_settings_enable_experimental_feature (MetaSettings           *settings,
   g_assert (settings->experimental_features_overridden);
 
   settings->experimental_features |= feature;
+
+  if (update_x11_scale_mode (settings))
+    g_signal_emit (settings, signals[X11_SCALE_MODE_CHANGED], 0, NULL);
 }
 
 static gboolean
@@ -307,6 +386,7 @@ experimental_features_handler (GVariant *features_variant,
   if (features != settings->experimental_features)
     {
       settings->experimental_features = features;
+      update_x11_scale_mode (settings);
       *result = GINT_TO_POINTER (TRUE);
     }
   else
@@ -429,21 +509,14 @@ wayland_settings_changed (GSettings    *wayland_settings,
 }
 
 static void
-update_x11_scale_mode (MetaSettings *settings)
-{
-  settings->x11_scale_mode =
-    g_settings_get_enum (settings->x11_settings, "fractional-scale-mode");
-}
-
-static void
 x11_settings_changed (GSettings    *wayland_settings,
                       gchar        *key,
                       MetaSettings *settings)
 {
   if (g_str_equal (key, "fractional-scale-mode"))
     {
-      update_x11_scale_mode (settings);
-      g_signal_emit (settings, signals[X11_SCALE_MODE_CHANGED], 0, NULL);
+      if (update_x11_scale_mode (settings))
+        g_signal_emit (settings, signals[X11_SCALE_MODE_CHANGED], 0, NULL);
     }
 }
 
@@ -526,7 +599,6 @@ meta_settings_init (MetaSettings *settings)
   update_experimental_features (settings);
   update_xwayland_grab_access_rules (settings);
   update_xwayland_allow_grabs (settings);
-  update_x11_scale_mode (settings);
 }
 
 static void

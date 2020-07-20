@@ -143,7 +143,7 @@ meta_crtc_xrandr_set_scale (MetaCrtc         *crtc,
   xdisplay = meta_monitor_manager_xrandr_get_xdisplay (monitor_manager_xrandr);
   xcb_conn = XGetXCBConnection (xdisplay);
 
-  if (scale != 1.0f)
+  if (fabsf (scale - 1.0f) > 0.001)
     {
       scale_filter = FilterGood;
       transformation.matrix11 = DOUBLE_TO_FIXED (1.0 / scale);
@@ -311,7 +311,8 @@ meta_create_xrandr_crtc (MetaGpuXrandr              *gpu_xrandr,
                          XRRCrtcInfo                *xrandr_crtc,
                          RRCrtc                      crtc_id,
                          XRRScreenResources         *resources,
-                         XRRCrtcTransformAttributes *transform_attributes)
+                         XRRCrtcTransformAttributes *transform_attributes,
+                         float                       scale_multiplier)
 {
   MetaGpu *gpu = META_GPU (gpu_xrandr);
   MetaBackend *backend = meta_gpu_get_backend (gpu);
@@ -362,6 +363,9 @@ meta_create_xrandr_crtc (MetaGpuXrandr              *gpu_xrandr,
   crtc->all_transforms =
     meta_monitor_transform_from_xrandr_all (xrandr_crtc->rotations);
   crtc->scale = meta_monitor_scale_from_transformation (transform_attributes);
+
+  if (scale_multiplier > 0.0f)
+    crtc->scale *= scale_multiplier;
 
   modes = meta_gpu_get_modes (crtc->gpu);
   for (i = 0; i < (unsigned int) resources->nmode; i++)

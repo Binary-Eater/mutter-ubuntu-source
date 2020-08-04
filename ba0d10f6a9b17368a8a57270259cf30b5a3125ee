@@ -1,0 +1,1 @@
+  * xrandr-scaling: Never try to set invalid screen sizes (LP: #1889090)

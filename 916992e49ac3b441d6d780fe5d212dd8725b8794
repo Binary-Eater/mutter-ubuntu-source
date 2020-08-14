@@ -1,0 +1,8 @@
+  * Team upload
+  * New upstream release
+    - Screencast fixes and improvements
+    - Fix glitches when subsurfaces extend outside the toplevel
+    - Improve background display in overview workspace switcher
+    - Fix wine copy & paste
+    - Plug memory leaks
+  * Drop patches that were applied upstream

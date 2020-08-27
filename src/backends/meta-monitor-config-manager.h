@@ -87,8 +87,8 @@ MetaMonitorConfigStore * meta_monitor_config_manager_get_store (MetaMonitorConfi
 META_EXPORT_TEST
 gboolean meta_monitor_config_manager_assign (MetaMonitorManager *manager,
                                              MetaMonitorsConfig *config,
-                                             GPtrArray         **crtc_infos,
-                                             GPtrArray         **output_infos,
+                                             GPtrArray         **crtc_assignments,
+                                             GPtrArray         **output_assignments,
                                              GError            **error);
 
 META_EXPORT_TEST
@@ -109,6 +109,10 @@ MetaMonitorsConfig * meta_monitor_config_manager_create_for_orientation (MetaMon
 
 META_EXPORT_TEST
 MetaMonitorsConfig * meta_monitor_config_manager_create_for_rotate_monitor (MetaMonitorConfigManager *config_manager);
+
+MetaMonitorsConfig * meta_monitor_config_manager_create_for_layout (MetaMonitorConfigManager     *config_manager,
+                                                                    MetaMonitorsConfig           *config,
+                                                                    MetaLogicalMonitorLayoutMode  layout_mode);
 
 META_EXPORT_TEST
 MetaMonitorsConfig * meta_monitor_config_manager_create_for_switch_config (MetaMonitorConfigManager    *config_manager,
@@ -191,6 +195,7 @@ META_EXPORT_TEST
 gboolean meta_verify_logical_monitor_config (MetaLogicalMonitorConfig    *logical_monitor_config,
                                              MetaLogicalMonitorLayoutMode layout_mode,
                                              MetaMonitorManager          *monitor_manager,
+                                             float                        max_scale,
                                              GError                     **error);
 
 META_EXPORT_TEST

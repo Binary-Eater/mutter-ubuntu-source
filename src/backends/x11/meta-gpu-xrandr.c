@@ -23,6 +23,7 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "backends/meta-crtc.h"
 #include "config.h"
 
 #include "backends/x11/meta-gpu-xrandr.h"
@@ -44,6 +45,8 @@ struct _MetaGpuXrandr
 
   XRRScreenResources *resources;
 
+  int min_screen_width;
+  int min_screen_height;
   int max_screen_width;
   int max_screen_height;
 };
@@ -54,6 +57,15 @@ XRRScreenResources *
 meta_gpu_xrandr_get_resources (MetaGpuXrandr *gpu_xrandr)
 {
   return gpu_xrandr->resources;
+}
+
+void
+meta_gpu_xrandr_get_min_screen_size (MetaGpuXrandr *gpu_xrandr,
+                                     int           *min_width,
+                                     int           *min_height)
+{
+  *min_width = gpu_xrandr->min_screen_width;
+  *min_height = gpu_xrandr->min_screen_height;
 }
 
 void
@@ -69,9 +81,12 @@ static int
 compare_outputs (const void *one,
                  const void *two)
 {
-  const MetaOutput *o_one = one, *o_two = two;
+  MetaOutput *o_one = (MetaOutput *) one;
+  MetaOutput *o_two = (MetaOutput *) two;
+  const MetaOutputInfo *output_info_one = meta_output_get_info (o_one);
+  const MetaOutputInfo *output_info_two = meta_output_get_info (o_two);
 
-  return strcmp (o_one->name, o_two->name);
+  return strcmp (output_info_one->name, output_info_two->name);
 }
 
 static char *
@@ -81,6 +96,59 @@ get_xmode_name (XRRModeInfo *xmode)
   int height = xmode->height;
 
   return g_strdup_printf ("%dx%d", width, height);
+}
+
+static int
+get_current_dpi_scale (MetaMonitorManagerXrandr *manager_xrandr,
+                       MetaGpuXrandr            *gpu_xrandr)
+{
+  Atom actual;
+  int result, format;
+  unsigned long n, left;
+  g_autofree unsigned char *data = NULL;
+  g_auto(GStrv) resources = NULL;
+  Display *dpy;
+  int i;
+
+  if (gpu_xrandr->resources->timestamp ==
+      meta_monitor_manager_xrandr_get_config_timestamp (manager_xrandr))
+    {
+      MetaMonitorManager *monitor_manager = META_MONITOR_MANAGER (manager_xrandr);
+      MetaBackend *backend = meta_monitor_manager_get_backend (monitor_manager);
+      MetaSettings *settings = meta_backend_get_settings (backend);
+
+      return meta_settings_get_ui_scaling_factor (settings);
+    }
+
+  dpy = meta_monitor_manager_xrandr_get_xdisplay (manager_xrandr);
+  result = XGetWindowProperty (dpy, DefaultRootWindow (dpy),
+                               XA_RESOURCE_MANAGER, 0L, 65536, False,
+                               XA_STRING, &actual, &format,
+                               &n, &left, &data);
+
+  if (result != Success || !data || actual != XA_STRING)
+    return 1;
+
+  resources = g_strsplit ((char *) data, "\n", -1);
+
+  for (i = 0; resources && resources[i]; ++i)
+    {
+      if (g_str_has_prefix (resources[i], "Xft.dpi:"))
+        {
+          g_auto(GStrv) res = g_strsplit (resources[i], "\t", 2);
+
+          if (res && res[0] && res[1])
+            {
+              guint64 dpi;
+              dpi = g_ascii_strtoull (res[1], NULL, 10);
+
+              if (dpi > 0 && dpi < 96 * 10)
+                return MAX (1, roundf ((float) dpi / 96.0f));
+            }
+        }
+    }
+
+  return 1;
 }
 
 static gboolean
@@ -99,19 +167,20 @@ meta_gpu_xrandr_read_current (MetaGpu  *gpu,
   RROutput primary_output;
   unsigned int i, j;
   GList *l;
-  int min_width, min_height;
   Screen *screen;
   GList *outputs = NULL;
   GList *modes = NULL;
   GList *crtcs = NULL;
+  gboolean has_transform;
+  int dpi_scale = 1;
 
   if (gpu_xrandr->resources)
     XRRFreeScreenResources (gpu_xrandr->resources);
   gpu_xrandr->resources = NULL;
 
   XRRGetScreenSizeRange (xdisplay, DefaultRootWindow (xdisplay),
-                         &min_width,
-                         &min_height,
+                         &gpu_xrandr->min_screen_width,
+                         &gpu_xrandr->min_screen_height,
                          &gpu_xrandr->max_screen_width,
                          &gpu_xrandr->max_screen_height);
 
@@ -138,36 +207,79 @@ meta_gpu_xrandr_read_current (MetaGpu  *gpu,
   for (i = 0; i < (unsigned)resources->nmode; i++)
     {
       XRRModeInfo *xmode = &resources->modes[i];
+      g_autofree char *crtc_mode_name = NULL;
       MetaCrtcMode *mode;
+      g_autoptr (MetaCrtcModeInfo) crtc_mode_info = NULL;
 
-      mode = g_object_new (META_TYPE_CRTC_MODE, NULL);
+      crtc_mode_info = meta_crtc_mode_info_new ();
+      crtc_mode_info->width = xmode->width;
+      crtc_mode_info->height = xmode->height;
+      crtc_mode_info->refresh_rate = (xmode->dotClock /
+                                      ((float)xmode->hTotal * xmode->vTotal));
+      crtc_mode_info->flags = xmode->modeFlags;
 
-      mode->mode_id = xmode->id;
-      mode->width = xmode->width;
-      mode->height = xmode->height;
-      mode->refresh_rate = (xmode->dotClock /
-                            ((float)xmode->hTotal * xmode->vTotal));
-      mode->flags = xmode->modeFlags;
-      mode->name = get_xmode_name (xmode);
-
+      crtc_mode_name = get_xmode_name (xmode);
+      mode = g_object_new (META_TYPE_CRTC_MODE,
+                           "id", (uint64_t) xmode->id,
+                           "name", crtc_mode_name,
+                           "info", crtc_mode_info,
+                           NULL);
       modes = g_list_append (modes, mode);
     }
   meta_gpu_take_modes (gpu, modes);
 
+  has_transform = !!(meta_monitor_manager_get_capabilities (monitor_manager) &
+                     META_MONITOR_MANAGER_CAPABILITY_NATIVE_OUTPUT_SCALING);
+
+  if (has_transform &&
+      meta_monitor_manager_get_default_layout_mode (monitor_manager) ==
+      META_LOGICAL_MONITOR_LAYOUT_MODE_GLOBAL_UI_LOGICAL)
+    dpi_scale = get_current_dpi_scale (monitor_manager_xrandr, gpu_xrandr);
+
   for (i = 0; i < (unsigned)resources->ncrtc; i++)
     {
       XRRCrtcInfo *xrandr_crtc;
+      XRRCrtcTransformAttributes *transform_attributes;
       RRCrtc crtc_id;
-      MetaCrtc *crtc;
+      MetaCrtcXrandr *crtc_xrandr;
 
       crtc_id = resources->crtcs[i];
       xrandr_crtc = XRRGetCrtcInfo (xdisplay,
                                     resources, crtc_id);
-      crtc = meta_create_xrandr_crtc (gpu_xrandr,
-                                      xrandr_crtc, crtc_id, resources);
+
+      if (!has_transform ||
+          !XRRGetCrtcTransform (xdisplay, crtc_id, &transform_attributes))
+        transform_attributes = NULL;
+
+      crtc_xrandr = meta_crtc_xrandr_new (gpu_xrandr,
+                                          xrandr_crtc, crtc_id, resources,
+                                          transform_attributes, dpi_scale);
+      XFree (transform_attributes);
       XRRFreeCrtcInfo (xrandr_crtc);
 
-      crtcs = g_list_append (crtcs, crtc);
+      crtcs = g_list_append (crtcs, crtc_xrandr);
+    }
+
+  if (has_transform && dpi_scale == 1 &&
+      meta_monitor_manager_get_default_layout_mode (monitor_manager) ==
+        META_LOGICAL_MONITOR_LAYOUT_MODE_GLOBAL_UI_LOGICAL)
+    {
+      dpi_scale =
+        ceilf (meta_monitor_manager_get_maximum_crtc_scale (monitor_manager));
+
+      if (dpi_scale > 1)
+        {
+          for (l = crtcs; l; l = l->next)
+            {
+              MetaCrtc *crtc = l->data;
+              const MetaCrtcConfig *crtc_config = meta_crtc_get_config (crtc);
+
+              if (!crtc_config)
+                continue;
+
+              meta_crtc_set_config_scale (crtc, crtc_config->scale * dpi_scale);
+            }
+        }
     }
 
   meta_gpu_take_crtcs (gpu, crtcs);
@@ -188,14 +300,14 @@ meta_gpu_xrandr_read_current (MetaGpu  *gpu,
 
       if (xrandr_output->connection != RR_Disconnected)
         {
-          MetaOutput *output;
+          MetaOutputXrandr *output_xrandr;
 
-          output = meta_create_xrandr_output (gpu_xrandr,
-                                              xrandr_output,
-                                              output_id,
-                                              primary_output);
-          if (output)
-            outputs = g_list_prepend (outputs, output);
+          output_xrandr = meta_output_xrandr_new (gpu_xrandr,
+                                                  xrandr_output,
+                                                  output_id,
+                                                  primary_output);
+          if (output_xrandr)
+            outputs = g_list_prepend (outputs, output_xrandr);
         }
 
       XRRFreeOutputInfo (xrandr_output);
@@ -210,19 +322,20 @@ meta_gpu_xrandr_read_current (MetaGpu  *gpu,
   for (l = outputs; l; l = l->next)
     {
       MetaOutput *output = l->data;
+      const MetaOutputInfo *output_info = meta_output_get_info (output);
       GList *k;
 
-      for (j = 0; j < output->n_possible_clones; j++)
+      for (j = 0; j < output_info->n_possible_clones; j++)
         {
-          RROutput clone = GPOINTER_TO_INT (output->possible_clones[j]);
+          RROutput clone = GPOINTER_TO_INT (output_info->possible_clones[j]);
 
           for (k = outputs; k; k = k->next)
             {
               MetaOutput *possible_clone = k->data;
 
-              if (clone == (XID) possible_clone->winsys_id)
+              if (clone == (XID) meta_output_get_id (possible_clone))
                 {
-                  output->possible_clones[j] = possible_clone;
+                  output_info->possible_clones[j] = possible_clone;
                   break;
                 }
             }

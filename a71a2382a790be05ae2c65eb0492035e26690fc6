@@ -1,0 +1,3 @@
+  * Team upload
+  * d/p/input-mapper-Don-t-match-touchscreens-to-the-absence-of-a.patch:
+    Add patch to work around a crash with gnome-remote-desktop

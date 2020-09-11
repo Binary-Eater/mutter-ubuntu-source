@@ -1,0 +1,6 @@
+  * Team upload
+  * New upstream release
+  * Update symbols file
+  * d/control.in, d/rules: Enable Pipewire on Debian (but not Ubuntu).
+    Now that we have Pipewire 0.3, we can enable screencasting and remote
+    desktop support again.

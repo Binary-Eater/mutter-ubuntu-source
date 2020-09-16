@@ -1,0 +1,6 @@
+  * New upstream release:
+    - screencast: Only use DMA buffers for i915
+    - Fixed crashes
+  * debian/patches: Refresh
+  * d/p/input-mapper-Don-t-match-touchscreens-to-the-absence-of-a.patch:
+    - Dropped, applied upstream

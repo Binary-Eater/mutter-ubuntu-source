@@ -1,3 +1,10 @@
+mutter (3.28.4+git20200505-0ubuntu18.04.2) bionic; urgency=medium
+
+  * debian/patches: Cherry-pick patch to make mutter compile with newer mesa
+    (LP: #1896825)
+
+ -- Marco Trevisan (Treviño) <marco@ubuntu.com>  Wed, 23 Sep 2020 21:29:30 +0200
+
 mutter (3.28.4+git20200505-0ubuntu18.04.1) bionic; urgency=medium
 
   * New upstream git snapsnot

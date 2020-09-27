@@ -1,0 +1,6 @@
+  * Team upload
+  * Release to unstable (starts transition: #969321)
+  * d/rules: Ignore test failures in flaky tests on all architectures.
+    Upstream presumably marked them as flaky for a reason, and they do
+    fail on amd64 when under load.
+  * Revert "debian/watch: Watch unstable versions"

@@ -1,0 +1,2 @@
+  * debian/patches: Cherry-pick patch to make mutter compile with newer mesa
+    (LP: #1896825)

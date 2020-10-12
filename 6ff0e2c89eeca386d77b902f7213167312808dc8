@@ -1,0 +1,6 @@
+  * Merge with debian, including new upstream version, remaining changes:
+    - debian/gbp.conf: update upstream branch to point to ubuntu/master
+    - debian/patches/x11-Add-support-for-fractional-scaling-using-Randr.patch:
+      + X11: Add support for fractional scaling using Randr
+  * d/p/clutter-backend-x11-Don-t-set-the-font-dpi-computed-on-X1.patch:
+    - Dropped, applied upstream

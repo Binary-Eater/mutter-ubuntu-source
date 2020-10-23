@@ -9,3 +9,4 @@ window-Don-t-override-tile-monitor.patch
 window-Do-not-go-past-size-hints-on-resize.patch
 window-props-Check-for-actual-size-hints-changes.patch
 constraints-Use-orig-rectangle-for-interactive-resize.patch
+x11-Add-support-for-fractional-scaling-using-Randr.patch

@@ -1,0 +1,4 @@
+  * debian/patches: Wayland start Xwayland on public X11 sockets as well
+    (LP: #1897224)
+  * debian/patches: Don't override window tile monitor (LP: #1900009)
+  * debian/patches: Fix resizing issues (LP: #1878293)

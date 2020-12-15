@@ -1,0 +1,5 @@
+  * Merge with debian, containing new upstream release (LP: #1908158):
+    - Apply input device settings on hotplug / reconnect and resume
+      (LP: #1899206)
+  * d/p/x11-Add-support-for-fractional-scaling-using-Randr.patch:
+    - Refreshed as per upstream changes

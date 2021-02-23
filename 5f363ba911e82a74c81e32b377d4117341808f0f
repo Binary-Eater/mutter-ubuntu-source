@@ -1,0 +1,5 @@
+  * Team upload
+  * d/patches: Update to commit 3.38.3-20-g2818cfda8 from gnome-3-38 branch
+    - Wayland geometry scale fixes
+    - Fix a crash that can occur on resume from suspend
+    - Fix drag-and-drop from X11 source to Wayland destination

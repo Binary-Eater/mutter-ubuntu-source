@@ -97,6 +97,15 @@ typedef struct _PickClipRecord
   graphene_point_t vertex[4];
 } PickClipRecord;
 
+typedef struct _PointerDeviceEntry
+{
+  ClutterStage *stage;
+  ClutterInputDevice *device;
+  ClutterEventSequence *sequence;
+  graphene_point_t coords;
+  ClutterActor *current_actor;
+} PointerDeviceEntry;
+
 struct _ClutterStagePrivate
 {
   /* the stage implementation */
@@ -135,12 +144,13 @@ struct _ClutterStagePrivate
   gulong redraw_count;
 #endif /* CLUTTER_ENABLE_DEBUG */
 
-  ClutterStageState current_state;
-
   int update_freeze_count;
 
   gboolean needs_update_devices;
   gboolean pending_finish_queue_redraws;
+
+  GHashTable *pointer_devices;
+  GHashTable *touch_sequences;
 
   guint redraw_pending         : 1;
   guint throttle_motion_events : 1;
@@ -182,6 +192,7 @@ static guint stage_signals[LAST_SIGNAL] = { 0, };
 static const ClutterColor default_stage_color = { 255, 255, 255, 255 };
 
 static void free_queue_redraw_entry (ClutterStageQueueRedrawEntry *entry);
+static void free_pointer_device_entry (PointerDeviceEntry *entry);
 static void capture_view_into (ClutterStage          *stage,
                                gboolean               paint,
                                ClutterStageView      *view,
@@ -1013,7 +1024,6 @@ _clutter_stage_queue_event (ClutterStage *stage,
 {
   ClutterStagePrivate *priv;
   gboolean first_event;
-  ClutterInputDevice *device;
 
   g_return_if_fail (CLUTTER_IS_STAGE (stage));
 
@@ -1023,25 +1033,6 @@ _clutter_stage_queue_event (ClutterStage *stage,
 
   if (copy_event)
     event = clutter_event_copy (event);
-
-  /* if needed, update the state of the input device of the event.
-   * we do it here to avoid calling the same code from every backend
-   * event processing function
-   */
-  device = clutter_event_get_device (event);
-  if (device != NULL &&
-      event->type != CLUTTER_PROXIMITY_IN &&
-      event->type != CLUTTER_PROXIMITY_OUT)
-    {
-      ClutterEventSequence *sequence = clutter_event_get_event_sequence (event);
-      guint32 event_time = clutter_event_get_time (event);
-      gfloat event_x, event_y;
-
-      clutter_event_get_coords (event, &event_x, &event_y);
-
-      _clutter_input_device_set_coords (device, sequence, event_x, event_y, stage);
-      _clutter_input_device_set_time (device, event_time);
-    }
 
   if (first_event)
     {
@@ -1072,6 +1063,32 @@ _clutter_stage_has_queued_events (ClutterStage *stage)
   priv = stage->priv;
 
   return priv->event_queue->length > 0;
+}
+
+static void
+clutter_stage_compress_motion (ClutterStage       *stage,
+                               ClutterEvent       *event,
+                               const ClutterEvent *to_discard)
+{
+  double dx, dy;
+  double dx_unaccel, dy_unaccel;
+  double dst_dx = 0.0, dst_dy = 0.0;
+  double dst_dx_unaccel = 0.0, dst_dy_unaccel = 0.0;
+
+  if (!clutter_event_get_relative_motion (to_discard,
+                                          &dx, &dy,
+                                          &dx_unaccel, &dy_unaccel))
+    return;
+
+  clutter_event_get_relative_motion (event,
+                                     &dst_dx, &dst_dy,
+                                     &dst_dx_unaccel, &dst_dy_unaccel);
+
+  event->motion.flags |= CLUTTER_EVENT_FLAG_RELATIVE_MOTION;
+  event->motion.dx = dx + dst_dx;
+  event->motion.dy = dy + dst_dy;
+  event->motion.dx_unaccel = dx_unaccel + dst_dx_unaccel;
+  event->motion.dy_unaccel = dy_unaccel + dst_dy_unaccel;
 }
 
 void
@@ -1141,11 +1158,7 @@ _clutter_stage_process_queued_events (ClutterStage *stage)
                             (int) event->motion.y);
 
               if (next_event->type == CLUTTER_MOTION)
-                {
-                  ClutterSeat *seat = clutter_input_device_get_seat (device);
-
-                  clutter_seat_compress_motion (seat, next_event, event);
-                }
+                clutter_stage_compress_motion (stage, next_event, event);
 
               goto next_event;
             }
@@ -1294,7 +1307,8 @@ clutter_stage_find_updated_devices (ClutterStage *stage)
         case CLUTTER_PEN_DEVICE:
         case CLUTTER_ERASER_DEVICE:
         case CLUTTER_CURSOR_DEVICE:
-          if (!clutter_input_device_get_coords (dev, NULL, &point))
+          if (!clutter_seat_query_state (seat, dev, NULL,
+                                         &point, NULL))
             continue;
 
           view = clutter_stage_get_view_at (stage, point.x, point.y);
@@ -1356,6 +1370,7 @@ void
 clutter_stage_update_devices (ClutterStage *stage,
                               GSList       *devices)
 {
+  ClutterStagePrivate *priv = stage->priv;
   GSList *l;
 
   COGL_TRACE_BEGIN (ClutterStageUpdateDevices, "UpdateDevices");
@@ -1363,7 +1378,23 @@ clutter_stage_update_devices (ClutterStage *stage,
   for (l = devices; l; l = l->next)
     {
       ClutterInputDevice *device = l->data;
-      clutter_input_device_update (device, NULL, TRUE);
+      PointerDeviceEntry *entry = NULL;
+      ClutterActor *new_actor;
+
+      entry = g_hash_table_lookup (priv->pointer_devices, device);
+      g_assert (entry != NULL);
+
+      new_actor = _clutter_stage_do_pick (stage,
+                                          entry->coords.x,
+                                          entry->coords.y,
+                                          CLUTTER_PICK_REACTIVE);
+
+      clutter_stage_update_device (stage,
+                                   device, NULL,
+                                   entry->coords,
+                                   CLUTTER_CURRENT_TIME,
+                                   new_actor,
+                                   TRUE);
     }
 }
 
@@ -1719,6 +1750,9 @@ clutter_stage_finalize (GObject *object)
   g_queue_foreach (priv->event_queue, (GFunc) clutter_event_free, NULL);
   g_queue_free (priv->event_queue);
 
+  g_hash_table_destroy (priv->pointer_devices);
+  g_hash_table_destroy (priv->touch_sequences);
+
   g_free (priv->title);
 
   g_array_free (priv->paint_volume_stack, TRUE);
@@ -2021,6 +2055,13 @@ clutter_stage_init (ClutterStage *self)
   priv->min_size_changed = FALSE;
   priv->sync_delay = -1;
   priv->motion_events_enabled = TRUE;
+
+  priv->pointer_devices =
+    g_hash_table_new_full (NULL, NULL,
+                           NULL, (GDestroyNotify) free_pointer_device_entry);
+  priv->touch_sequences =
+    g_hash_table_new_full (NULL, NULL,
+                           NULL, (GDestroyNotify) free_pointer_device_entry);
 
   clutter_actor_set_background_color (CLUTTER_ACTOR (self),
                                       &default_stage_color);
@@ -2393,45 +2434,6 @@ clutter_stage_get_actor_at_pos (ClutterStage    *stage,
   g_return_val_if_fail (CLUTTER_IS_STAGE (stage), NULL);
 
   return _clutter_stage_do_pick (stage, x, y, pick_mode);
-}
-
-/**
- * clutter_stage_event:
- * @stage: a #ClutterStage
- * @event: a #ClutterEvent
- *
- * This function is used to emit an event on the main stage.
- *
- * You should rarely need to use this function, except for
- * synthetised events.
- *
- * Return value: the return value from the signal emission
- *
- * Since: 0.4
- */
-gboolean
-clutter_stage_event (ClutterStage *stage,
-                     ClutterEvent *event)
-{
-  g_return_val_if_fail (CLUTTER_IS_STAGE (stage), FALSE);
-  g_return_val_if_fail (event != NULL, FALSE);
-
-  if (event->type != CLUTTER_STAGE_STATE)
-    return FALSE;
-
-  /* emit raw event */
-  if (clutter_actor_event (CLUTTER_ACTOR (stage), event, FALSE))
-    return TRUE;
-
-  if (event->stage_state.changed_mask & CLUTTER_STAGE_STATE_ACTIVATED)
-    {
-      if (event->stage_state.new_state & CLUTTER_STAGE_STATE_ACTIVATED)
-	g_signal_emit (stage, stage_signals[ACTIVATE], 0);
-      else
-	g_signal_emit (stage, stage_signals[DEACTIVATE], 0);
-    }
-
-  return TRUE;
 }
 
 /**
@@ -3423,77 +3425,6 @@ _clutter_stage_remove_touch_drag_actor (ClutterStage         *stage,
                        NULL);
 }
 
-/*< private >
- * _clutter_stage_get_state:
- * @stage: a #ClutterStage
- *
- * Retrieves the current #ClutterStageState flags associated to the @stage.
- *
- * Return value: a bitwise OR of #ClutterStageState flags
- */
-ClutterStageState
-_clutter_stage_get_state (ClutterStage *stage)
-{
-  return stage->priv->current_state;
-}
-
-/*< private >
- * _clutter_stage_is_activated:
- * @stage: a #ClutterStage
- *
- * Checks whether the @stage state includes %CLUTTER_STAGE_STATE_ACTIVATED.
- *
- * Return value: %TRUE if the @stage is active
- */
-gboolean
-_clutter_stage_is_activated (ClutterStage *stage)
-{
-  return (stage->priv->current_state & CLUTTER_STAGE_STATE_ACTIVATED) != 0;
-}
-
-/*< private >
- * _clutter_stage_update_state:
- * @stage: a #ClutterStage
- * @unset_flags: flags to unset
- * @set_flags: flags to set
- *
- * Updates the state of @stage, by unsetting the @unset_flags and setting
- * the @set_flags.
- *
- * If the stage state has been changed, this function will queue a
- * #ClutterEvent of type %CLUTTER_STAGE_STATE.
- *
- * Return value: %TRUE if the state was updated, and %FALSE otherwise
- */
-gboolean
-_clutter_stage_update_state (ClutterStage      *stage,
-                             ClutterStageState  unset_flags,
-                             ClutterStageState  set_flags)
-{
-  ClutterStageState new_state;
-  ClutterEvent *event;
-
-  new_state = stage->priv->current_state;
-  new_state |= set_flags;
-  new_state &= ~unset_flags;
-
-  if (new_state == stage->priv->current_state)
-    return FALSE;
-
-  event = clutter_event_new (CLUTTER_STAGE_STATE);
-  clutter_event_set_stage (event, stage);
-
-  event->stage_state.new_state = new_state;
-  event->stage_state.changed_mask = new_state ^ stage->priv->current_state;
-
-  stage->priv->current_state = new_state;
-
-  clutter_stage_event (stage, event);
-  clutter_event_free (event);
-
-  return TRUE;
-}
-
 /**
  * clutter_stage_set_sync_delay:
  * @stage: a #ClutterStage
@@ -3841,4 +3772,200 @@ clutter_stage_set_actor_needs_immediate_relayout (ClutterStage *stage)
   ClutterStagePrivate *priv = stage->priv;
 
   priv->actor_needs_immediate_relayout = TRUE;
+}
+
+static void
+on_device_actor_reactive_changed (ClutterActor       *actor,
+                                  GParamSpec         *pspec,
+                                  PointerDeviceEntry *entry)
+{
+  ClutterStage *self = entry->stage;
+  ClutterActor *new_device_actor;
+
+  g_assert (!clutter_actor_get_reactive (actor));
+
+  new_device_actor =
+    _clutter_stage_do_pick (self,
+                            entry->coords.x,
+                            entry->coords.y,
+                            CLUTTER_PICK_REACTIVE);
+
+  clutter_stage_update_device (self,
+                               entry->device, entry->sequence,
+                               entry->coords,
+                               CLUTTER_CURRENT_TIME,
+                               new_device_actor,
+                               TRUE);
+}
+
+static void
+on_device_actor_destroyed (ClutterActor       *actor,
+                           PointerDeviceEntry *entry)
+{
+  /* Simply unset the current_actor pointer here, there's no need to
+   * unset has_pointer or to disconnect any signals because the actor
+   * is gone anyway.
+   * Also, as soon as the next repaint happens, a repick should be triggered
+   * and the PointerDeviceEntry will get updated again, so no need to
+   * trigger a repick here.
+   */
+  entry->current_actor = NULL;
+}
+
+static void
+free_pointer_device_entry (PointerDeviceEntry *entry)
+{
+  if (entry->current_actor)
+    {
+      ClutterActor *actor = entry->current_actor;
+
+      g_signal_handlers_disconnect_by_func (actor,
+                                            G_CALLBACK (on_device_actor_reactive_changed),
+                                            entry);
+      g_signal_handlers_disconnect_by_func (actor,
+                                            G_CALLBACK (on_device_actor_destroyed),
+                                            entry);
+
+      _clutter_actor_set_has_pointer (actor, FALSE);
+   }
+
+  g_free (entry);
+}
+
+void
+clutter_stage_update_device_entry (ClutterStage         *self,
+                                   ClutterInputDevice   *device,
+                                   ClutterEventSequence *sequence,
+                                   graphene_point_t      coords,
+                                   ClutterActor         *actor)
+{
+  ClutterStagePrivate *priv = self->priv;
+  PointerDeviceEntry *entry = NULL;
+
+  g_assert (device != NULL);
+
+  if (sequence != NULL)
+    entry = g_hash_table_lookup (priv->touch_sequences, sequence);
+  else
+    entry = g_hash_table_lookup (priv->pointer_devices, device);
+
+  if (!entry)
+    {
+      entry = g_new0 (PointerDeviceEntry, 1);
+
+      if (sequence != NULL)
+        g_hash_table_insert (priv->touch_sequences, sequence, entry);
+      else
+        g_hash_table_insert (priv->pointer_devices, device, entry);
+
+      entry->stage = self;
+      entry->device = device;
+      entry->sequence = sequence;
+    }
+
+  entry->coords = coords;
+
+  if (entry->current_actor != actor)
+    {
+      if (entry->current_actor)
+        {
+          ClutterActor *old_actor = entry->current_actor;
+
+          g_signal_handlers_disconnect_by_func (old_actor,
+                                                G_CALLBACK (on_device_actor_reactive_changed),
+                                                entry);
+          g_signal_handlers_disconnect_by_func (old_actor,
+                                                G_CALLBACK (on_device_actor_destroyed),
+                                                entry);
+
+          _clutter_actor_set_has_pointer (old_actor, FALSE);
+        }
+
+      entry->current_actor = actor;
+
+      if (actor)
+        {
+          g_signal_connect (actor, "notify::reactive",
+                            G_CALLBACK (on_device_actor_reactive_changed), entry);
+          g_signal_connect (actor, "destroy",
+                            G_CALLBACK (on_device_actor_destroyed), entry);
+
+          _clutter_actor_set_has_pointer (actor, TRUE);
+        }
+    }
+}
+
+void
+clutter_stage_remove_device_entry (ClutterStage         *self,
+                                   ClutterInputDevice   *device,
+                                   ClutterEventSequence *sequence)
+{
+  ClutterStagePrivate *priv = self->priv;
+  gboolean removed;
+
+  g_assert (device != NULL);
+
+  if (sequence != NULL)
+    removed = g_hash_table_remove (priv->touch_sequences, sequence);
+  else
+    removed = g_hash_table_remove (priv->pointer_devices, device);
+
+  g_assert (removed);
+}
+
+/**
+ * clutter_stage_get_device_actor:
+ * @stage: a #ClutterStage
+ * @device: a #ClutterInputDevice
+ * @sequence: (allow-none): an optional #ClutterEventSequence
+ *
+ * Retrieves the #ClutterActor underneath the pointer or touch point
+ * of @device and @sequence.
+ *
+ * Return value: (transfer none): a pointer to the #ClutterActor or %NULL
+ */
+ClutterActor *
+clutter_stage_get_device_actor (ClutterStage         *stage,
+                                ClutterInputDevice   *device,
+                                ClutterEventSequence *sequence)
+{
+  ClutterStagePrivate *priv = stage->priv;
+  PointerDeviceEntry *entry = NULL;
+
+  g_return_val_if_fail (CLUTTER_IS_STAGE (stage), NULL);
+  g_return_val_if_fail (device != NULL, NULL);
+
+  if (sequence != NULL)
+    entry = g_hash_table_lookup (priv->touch_sequences, sequence);
+  else
+    entry = g_hash_table_lookup (priv->pointer_devices, device);
+
+  if (entry)
+    return entry->current_actor;
+
+  return NULL;
+}
+
+/**
+ * clutter_stage_get_device_coords: (skip):
+ */
+void
+clutter_stage_get_device_coords (ClutterStage         *stage,
+                                 ClutterInputDevice   *device,
+                                 ClutterEventSequence *sequence,
+                                 graphene_point_t     *coords)
+{
+  ClutterStagePrivate *priv = stage->priv;
+  PointerDeviceEntry *entry = NULL;
+
+  g_return_if_fail (CLUTTER_IS_STAGE (stage));
+  g_return_if_fail (device != NULL);
+
+  if (sequence != NULL)
+    entry = g_hash_table_lookup (priv->touch_sequences, sequence);
+  else
+    entry = g_hash_table_lookup (priv->pointer_devices, device);
+
+  if (entry && coords)
+    *coords = entry->coords;
 }

@@ -46,7 +46,7 @@ struct _MetaScreenCastMonitorStreamSrc
 
   GList *watches;
 
-  gulong cursor_moved_handler_id;
+  gulong position_invalidated_handler_id;
   gulong cursor_changed_handler_id;
 };
 
@@ -189,9 +189,11 @@ is_cursor_in_stream (MetaScreenCastMonitorStreamSrc *monitor_src)
     }
   else
     {
+      MetaCursorTracker *cursor_tracker =
+        meta_backend_get_cursor_tracker (backend);
       graphene_point_t cursor_position;
 
-      cursor_position = meta_cursor_renderer_get_position (cursor_renderer);
+      meta_cursor_tracker_get_pointer (cursor_tracker, &cursor_position, NULL);
       return graphene_rect_contains_point (&logical_monitor_rect,
                                            &cursor_position);
     }
@@ -236,10 +238,8 @@ sync_cursor_state (MetaScreenCastMonitorStreamSrc *monitor_src)
 }
 
 static void
-cursor_moved (MetaCursorTracker              *cursor_tracker,
-              float                           x,
-              float                           y,
-              MetaScreenCastMonitorStreamSrc *monitor_src)
+pointer_position_invalidated (MetaCursorTracker              *cursor_tracker,
+                              MetaScreenCastMonitorStreamSrc *monitor_src)
 {
   sync_cursor_state (monitor_src);
 }
@@ -252,30 +252,17 @@ cursor_changed (MetaCursorTracker              *cursor_tracker,
   sync_cursor_state (monitor_src);
 }
 
-static MetaCursorRenderer *
-get_cursor_renderer (MetaScreenCastMonitorStreamSrc *monitor_src)
-{
-  MetaScreenCastStreamSrc *src = META_SCREEN_CAST_STREAM_SRC (monitor_src);
-  MetaScreenCastStream *stream = meta_screen_cast_stream_src_get_stream (src);
-  MetaScreenCastSession *session = meta_screen_cast_stream_get_session (stream);
-  MetaScreenCast *screen_cast =
-    meta_screen_cast_session_get_screen_cast (session);
-  MetaBackend *backend = meta_screen_cast_get_backend (screen_cast);
-
-  return meta_backend_get_cursor_renderer (backend);
-}
-
 static void
 inhibit_hw_cursor (MetaScreenCastMonitorStreamSrc *monitor_src)
 {
-  MetaCursorRenderer *cursor_renderer;
   MetaHwCursorInhibitor *inhibitor;
+  MetaBackend *backend;
 
   g_return_if_fail (!monitor_src->hw_cursor_inhibited);
 
-  cursor_renderer = get_cursor_renderer (monitor_src);
+  backend = get_backend (monitor_src);
   inhibitor = META_HW_CURSOR_INHIBITOR (monitor_src);
-  meta_cursor_renderer_add_hw_cursor_inhibitor (cursor_renderer, inhibitor);
+  meta_backend_add_hw_cursor_inhibitor (backend, inhibitor);
 
   monitor_src->hw_cursor_inhibited = TRUE;
 }
@@ -283,14 +270,14 @@ inhibit_hw_cursor (MetaScreenCastMonitorStreamSrc *monitor_src)
 static void
 uninhibit_hw_cursor (MetaScreenCastMonitorStreamSrc *monitor_src)
 {
-  MetaCursorRenderer *cursor_renderer;
   MetaHwCursorInhibitor *inhibitor;
+  MetaBackend *backend;
 
   g_return_if_fail (monitor_src->hw_cursor_inhibited);
 
-  cursor_renderer = get_cursor_renderer (monitor_src);
+  backend = get_backend (monitor_src);
   inhibitor = META_HW_CURSOR_INHIBITOR (monitor_src);
-  meta_cursor_renderer_remove_hw_cursor_inhibitor (cursor_renderer, inhibitor);
+  meta_backend_remove_hw_cursor_inhibitor (backend, inhibitor);
 
   monitor_src->hw_cursor_inhibited = FALSE;
 }
@@ -393,9 +380,9 @@ meta_screen_cast_monitor_stream_src_enable (MetaScreenCastStreamSrc *src)
   switch (meta_screen_cast_stream_get_cursor_mode (stream))
     {
     case META_SCREEN_CAST_CURSOR_MODE_METADATA:
-      monitor_src->cursor_moved_handler_id =
-        g_signal_connect_after (cursor_tracker, "cursor-moved",
-                                G_CALLBACK (cursor_moved),
+      monitor_src->position_invalidated_handler_id =
+        g_signal_connect_after (cursor_tracker, "position-invalidated",
+                                G_CALLBACK (pointer_position_invalidated),
                                 monitor_src);
       monitor_src->cursor_changed_handler_id =
         g_signal_connect_after (cursor_tracker, "cursor-changed",
@@ -445,7 +432,7 @@ meta_screen_cast_monitor_stream_src_disable (MetaScreenCastStreamSrc *src)
   if (monitor_src->hw_cursor_inhibited)
     uninhibit_hw_cursor (monitor_src);
 
-  g_clear_signal_handler (&monitor_src->cursor_moved_handler_id,
+  g_clear_signal_handler (&monitor_src->position_invalidated_handler_id,
                           cursor_tracker);
   g_clear_signal_handler (&monitor_src->cursor_changed_handler_id,
                           cursor_tracker);
@@ -704,7 +691,7 @@ meta_screen_cast_monitor_stream_src_set_cursor_metadata (MetaScreenCastStreamSrc
   else
     view_scale = 1.0;
 
-  cursor_position = meta_cursor_renderer_get_position (cursor_renderer);
+  meta_cursor_tracker_get_pointer (cursor_tracker, &cursor_position, NULL);
   cursor_position.x -= logical_monitor_rect.origin.x;
   cursor_position.y -= logical_monitor_rect.origin.y;
   cursor_position.x *= view_scale;
@@ -746,8 +733,7 @@ meta_screen_cast_monitor_stream_src_set_cursor_metadata (MetaScreenCastStreamSrc
 }
 
 static gboolean
-meta_screen_cast_monitor_stream_src_is_cursor_sprite_inhibited (MetaHwCursorInhibitor *inhibitor,
-                                                                MetaCursorSprite      *cursor_sprite)
+meta_screen_cast_monitor_stream_src_is_cursor_inhibited (MetaHwCursorInhibitor *inhibitor)
 {
   MetaScreenCastMonitorStreamSrc *monitor_src =
     META_SCREEN_CAST_MONITOR_STREAM_SRC (inhibitor);
@@ -758,8 +744,8 @@ meta_screen_cast_monitor_stream_src_is_cursor_sprite_inhibited (MetaHwCursorInhi
 static void
 hw_cursor_inhibitor_iface_init (MetaHwCursorInhibitorInterface *iface)
 {
-  iface->is_cursor_sprite_inhibited =
-    meta_screen_cast_monitor_stream_src_is_cursor_sprite_inhibited;
+  iface->is_cursor_inhibited =
+    meta_screen_cast_monitor_stream_src_is_cursor_inhibited;
 }
 
 MetaScreenCastMonitorStreamSrc *

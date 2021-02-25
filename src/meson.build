@@ -233,6 +233,8 @@ mutter_sources = [
   'backends/meta-settings-private.h',
   'backends/meta-stage.c',
   'backends/meta-stage-private.h',
+  'backends/meta-viewport-info.c',
+  'backends/meta-viewport-info.h',
   'backends/x11/cm/meta-backend-x11-cm.c',
   'backends/x11/cm/meta-backend-x11-cm.h',
   'backends/x11/cm/meta-cursor-sprite-xfixes.c',
@@ -374,6 +376,7 @@ mutter_sources = [
   'core/meta-inhibit-shortcuts-dialog-default.c',
   'core/meta-inhibit-shortcuts-dialog-default-private.h',
   'core/meta-launch-context.c',
+  'core/meta-pad-action-mapper.c',
   'core/meta-selection.c',
   'core/meta-selection-source.c',
   'core/meta-selection-source-memory.c',
@@ -649,8 +652,6 @@ if have_native_backend
     'backends/native/meta-drm-buffer-import.h',
     'backends/native/meta-drm-buffer.c',
     'backends/native/meta-drm-buffer.h',
-    'backends/native/meta-event-native.c',
-    'backends/native/meta-event-native.h',
     'backends/native/meta-gpu-kms.c',
     'backends/native/meta-gpu-kms.h',
     'backends/native/meta-input-device-native.c',
@@ -697,9 +698,13 @@ if have_native_backend
     'backends/native/meta-kms-utils.h',
     'backends/native/meta-kms.c',
     'backends/native/meta-kms.h',
+    'backends/native/meta-pointer-constraint-native.c',
+    'backends/native/meta-pointer-constraint-native.h',
     'backends/native/meta-renderer-native-gles3.c',
     'backends/native/meta-renderer-native-gles3.h',
     'backends/native/meta-renderer-native.h',
+    'backends/native/meta-seat-impl.c',
+    'backends/native/meta-seat-impl.h',
     'backends/native/meta-seat-native.c',
     'backends/native/meta-seat-native.h',
     'backends/native/meta-stage-native.c',
@@ -750,14 +755,6 @@ dbus_idle_monitor_built_sources = gnome.gdbus_codegen('meta-dbus-idle-monitor',
     object_manager: true,
   )
 mutter_built_sources += dbus_idle_monitor_built_sources
-
-mutter_marshal = gnome.genmarshal('meta-marshal',
-    sources: ['meta-marshal.list'],
-    prefix: 'meta_marshal',
-    internal: true,
-    valist_marshallers: true,
-  )
-mutter_built_sources += mutter_marshal
 
 if have_profiler
   mutter_sources += [

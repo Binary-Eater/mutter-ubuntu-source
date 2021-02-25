@@ -39,8 +39,8 @@
 #include "backends/native/meta-backend-native.h"
 #include "backends/native/meta-clutter-backend-native.h"
 #include "backends/native/meta-cursor-renderer-native.h"
+#include "backends/native/meta-input-thread.h"
 #include "backends/native/meta-renderer-native.h"
-#include "backends/native/meta-seat-native.h"
 #include "clutter/clutter.h"
 
 #include "meta-dbus-login1.h"
@@ -51,7 +51,9 @@ struct _MetaLauncher
   Login1Seat *seat_proxy;
   char *seat_id;
 
-  GHashTable *sysfs_fds;
+  struct {
+    GHashTable *sysfs_fds;
+  } impl;
   gboolean session_active;
 };
 
@@ -383,10 +385,10 @@ out:
 }
 
 static int
-on_evdev_device_open (const char  *path,
-                      int          flags,
-                      gpointer     user_data,
-                      GError     **error)
+on_evdev_device_open_in_input_impl (const char  *path,
+                                    int          flags,
+                                    gpointer     user_data,
+                                    GError     **error)
 {
   MetaLauncher *self = user_data;
 
@@ -410,7 +412,7 @@ on_evdev_device_open (const char  *path,
           return -1;
         }
 
-      g_hash_table_add (self->sysfs_fds, GINT_TO_POINTER (fd));
+      g_hash_table_add (self->impl.sysfs_fds, GINT_TO_POINTER (fd));
       return fd;
     }
 
@@ -418,15 +420,15 @@ on_evdev_device_open (const char  *path,
 }
 
 static void
-on_evdev_device_close (int      fd,
-                       gpointer user_data)
+on_evdev_device_close_in_input_impl (int      fd,
+                                     gpointer user_data)
 {
   MetaLauncher *self = user_data;
 
-  if (g_hash_table_lookup (self->sysfs_fds, GINT_TO_POINTER (fd)))
+  if (g_hash_table_lookup (self->impl.sysfs_fds, GINT_TO_POINTER (fd)))
     {
       /* /sys/ paths just need close() here */
-      g_hash_table_remove (self->sysfs_fds, GINT_TO_POINTER (fd));
+      g_hash_table_remove (self->impl.sysfs_fds, GINT_TO_POINTER (fd));
       close (fd);
       return;
     }
@@ -523,14 +525,14 @@ meta_launcher_new (GError **error)
   self->session_proxy = g_object_ref (session_proxy);
   self->seat_proxy = g_object_ref (seat_proxy);
   self->seat_id = g_steal_pointer (&seat_id);
-  self->sysfs_fds = g_hash_table_new (NULL, NULL);
+  self->impl.sysfs_fds = g_hash_table_new (NULL, NULL);
   self->session_active = TRUE;
 
   meta_clutter_backend_native_set_seat_id (self->seat_id);
 
-  meta_seat_native_set_device_callbacks (on_evdev_device_open,
-                                         on_evdev_device_close,
-                                         self);
+  meta_seat_impl_set_device_callbacks (on_evdev_device_open_in_input_impl,
+                                       on_evdev_device_close_in_input_impl,
+                                       self);
 
   g_signal_connect (self->session_proxy, "notify::active", G_CALLBACK (on_active_changed), self);
 
@@ -545,10 +547,11 @@ meta_launcher_new (GError **error)
 void
 meta_launcher_free (MetaLauncher *self)
 {
+  meta_seat_impl_set_device_callbacks (NULL, NULL, NULL);
   g_free (self->seat_id);
   g_object_unref (self->seat_proxy);
   g_object_unref (self->session_proxy);
-  g_hash_table_destroy (self->sysfs_fds);
+  g_hash_table_destroy (self->impl.sysfs_fds);
   g_slice_free (MetaLauncher, self);
 }
 

@@ -50,6 +50,7 @@
 #include "backends/x11/meta-seat-x11.h"
 #include "backends/x11/meta-stage-x11.h"
 #include "backends/x11/meta-renderer-x11.h"
+#include "backends/x11/meta-xkb-a11y-x11.h"
 #include "clutter/clutter.h"
 #include "clutter/x11/clutter-x11.h"
 #include "compositor/compositor-private.h"
@@ -80,6 +81,8 @@ struct _MetaBackendX11Private
 
   uint8_t xkb_event_base;
   uint8_t xkb_error_base;
+
+  gulong keymap_state_changed_id;
 
   struct xkb_keymap *keymap;
   xkb_layout_index_t keymap_layout_group;
@@ -520,6 +523,17 @@ on_monitors_changed (MetaMonitorManager *manager,
 }
 
 static void
+on_kbd_a11y_changed (MetaInputSettings   *input_settings,
+                     MetaKbdA11ySettings *a11y_settings,
+                     MetaBackend         *backend)
+{
+  ClutterBackend *clutter_backend = meta_backend_get_clutter_backend (backend);
+  ClutterSeat *seat = clutter_backend_get_default_seat (clutter_backend);
+
+  meta_seat_x11_apply_kbd_a11y_settings (seat, a11y_settings);
+}
+
+static void
 meta_backend_x11_post_init (MetaBackend *backend)
 {
   MetaBackendX11 *x11 = META_BACKEND_X11 (backend);
@@ -527,6 +541,7 @@ meta_backend_x11_post_init (MetaBackend *backend)
   MetaMonitorManager *monitor_manager;
   ClutterBackend *clutter_backend;
   ClutterSeat *seat;
+  MetaInputSettings *input_settings;
   int major, minor;
   gboolean has_xi = FALSE;
 
@@ -584,6 +599,23 @@ meta_backend_x11_post_init (MetaBackend *backend)
   seat = clutter_backend_get_default_seat (clutter_backend);
   meta_seat_x11_notify_devices (META_SEAT_X11 (seat),
                                 CLUTTER_STAGE (meta_backend_get_stage (backend)));
+
+  input_settings = meta_backend_get_input_settings (backend);
+
+  if (input_settings)
+    {
+      g_signal_connect_object (meta_backend_get_input_settings (backend),
+                               "kbd-a11y-changed",
+                               G_CALLBACK (on_kbd_a11y_changed), backend, 0);
+
+      if (meta_input_settings_maybe_restore_numlock_state (input_settings))
+        {
+          unsigned int num_mask;
+
+          num_mask = XkbKeysymToModifiers (priv->xdisplay, XK_Num_Lock);
+          XkbLockModifiers (priv->xdisplay, XkbUseCoreKbd, num_mask, num_mask);
+        }
+    }
 }
 
 static ClutterBackend *
@@ -659,7 +691,7 @@ meta_backend_x11_finish_touch_sequence (MetaBackend          *backend,
 
   XIAllowTouchEvents (priv->xdisplay,
                       META_VIRTUAL_CORE_POINTER_ID,
-                      meta_x11_event_sequence_get_touch_detail (sequence),
+                      clutter_event_sequence_get_slot (sequence),
                       DefaultRootWindow (priv->xdisplay), event_mode);
 
   if (state == META_SEQUENCE_REJECTED)
@@ -684,7 +716,7 @@ meta_backend_x11_get_current_logical_monitor (MetaBackend *backend)
   MetaBackendX11 *x11 = META_BACKEND_X11 (backend);
   MetaBackendX11Private *priv = meta_backend_x11_get_instance_private (x11);
   MetaCursorTracker *cursor_tracker;
-  int x, y;
+  graphene_point_t point;
   MetaMonitorManager *monitor_manager;
   MetaLogicalMonitor *logical_monitor;
 
@@ -692,10 +724,11 @@ meta_backend_x11_get_current_logical_monitor (MetaBackend *backend)
     return priv->cached_current_logical_monitor;
 
   cursor_tracker = meta_backend_get_cursor_tracker (backend);
-  meta_cursor_tracker_get_pointer (cursor_tracker, &x, &y, NULL);
+  meta_cursor_tracker_get_pointer (cursor_tracker, &point, NULL);
   monitor_manager = meta_backend_get_monitor_manager (backend);
   logical_monitor =
-    meta_monitor_manager_get_logical_monitor_at (monitor_manager, x, y);
+    meta_monitor_manager_get_logical_monitor_at (monitor_manager,
+                                                 point.x, point.y);
 
   if (!logical_monitor && monitor_manager->logical_monitors)
     logical_monitor = monitor_manager->logical_monitors->data;
@@ -733,19 +766,6 @@ meta_backend_x11_get_keymap_layout_group (MetaBackend *backend)
   MetaBackendX11Private *priv = meta_backend_x11_get_instance_private (x11);
 
   return priv->keymap_layout_group;
-}
-
-static void
-meta_backend_x11_set_numlock (MetaBackend *backend,
-                              gboolean     numlock_state)
-{
-  MetaBackendX11 *x11 = META_BACKEND_X11 (backend);
-  MetaBackendX11Private *priv = meta_backend_x11_get_instance_private (x11);
-  unsigned int num_mask;
-
-  num_mask = XkbKeysymToModifiers (priv->xdisplay, XK_Num_Lock);
-  XkbLockModifiers (priv->xdisplay, XkbUseCoreKbd, num_mask,
-                    numlock_state ? num_mask : 0);
 }
 
 void
@@ -830,8 +850,20 @@ initable_iface_init (GInitableIface *initable_iface)
 static void
 meta_backend_x11_finalize (GObject *object)
 {
+  MetaBackend *backend = META_BACKEND (object);
   MetaBackendX11 *x11 = META_BACKEND_X11 (object);
   MetaBackendX11Private *priv = meta_backend_x11_get_instance_private (x11);
+
+  if (priv->keymap_state_changed_id)
+    {
+      ClutterBackend *clutter_backend = meta_backend_get_clutter_backend (backend);
+      ClutterSeat *seat = clutter_backend_get_default_seat (clutter_backend);
+      ClutterKeymap *keymap;
+
+      seat = clutter_backend_get_default_seat (clutter_backend);
+      keymap = clutter_seat_get_keymap (seat);
+      g_clear_signal_handler (&priv->keymap_state_changed_id, keymap);
+    }
 
   if (priv->user_active_alarm != None)
     {
@@ -857,7 +889,6 @@ meta_backend_x11_class_init (MetaBackendX11Class *klass)
   backend_class->get_current_logical_monitor = meta_backend_x11_get_current_logical_monitor;
   backend_class->get_keymap = meta_backend_x11_get_keymap;
   backend_class->get_keymap_layout_group = meta_backend_x11_get_keymap_layout_group;
-  backend_class->set_numlock = meta_backend_x11_set_numlock;
 }
 
 static void

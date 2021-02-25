@@ -610,7 +610,8 @@ meta_wayland_data_device_start_drag (MetaWaylandDataDevice                 *data
 
   drag_grab->need_initial_focus = TRUE;
 
-  modifiers = clutter_input_device_get_modifier_state (seat->pointer->device);
+  clutter_seat_query_state (clutter_input_device_get_seat (seat->pointer->device),
+                            seat->pointer->device, NULL, NULL, &modifiers);
   drag_grab->buttons = modifiers &
     (CLUTTER_BUTTON1_MASK | CLUTTER_BUTTON2_MASK | CLUTTER_BUTTON3_MASK |
      CLUTTER_BUTTON4_MASK | CLUTTER_BUTTON5_MASK);
@@ -639,7 +640,8 @@ meta_wayland_data_device_start_drag (MetaWaylandDataDevice                 *data
                                       0, 0);
       clutter_actor_add_child (drag_grab->feedback_actor, drag_surface_actor);
 
-      clutter_input_device_get_coords (seat->pointer->device, NULL, &pos);
+      clutter_seat_query_state (clutter_input_device_get_seat (seat->pointer->device),
+                                seat->pointer->device, NULL, &pos, NULL);
       meta_feedback_actor_set_position (META_FEEDBACK_ACTOR (drag_grab->feedback_actor),
                                         pos.x, pos.y);
     }

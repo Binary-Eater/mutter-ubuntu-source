@@ -227,6 +227,7 @@ enum
   UNMANAGED,
   SIZE_CHANGED,
   POSITION_CHANGED,
+  MONITOR_CHANGED,
   SHOWN,
 
   LAST_SIGNAL
@@ -683,6 +684,21 @@ meta_window_class_init (MetaWindowClass *klass)
                   NULL, NULL, NULL,
                   G_TYPE_NONE, 0);
 
+    /**
+   * MetaWindow::monitor-changed:
+   * @window: a #MetaWindow
+   * @old_monitor: the old monitor index or -1 if not known
+   *
+   * This is emitted when the window has changed monitor
+   */
+  window_signals[MONITOR_CHANGED] =
+    g_signal_new ("monitor-changed",
+                  G_TYPE_FROM_CLASS (object_class),
+                  G_SIGNAL_RUN_LAST,
+                  0,
+                  NULL, NULL, NULL,
+                  G_TYPE_NONE, 1, G_TYPE_INT);
+
   /**
    * MetaWindow::shown:
    * @window: a #MetaWindow
@@ -935,6 +951,9 @@ meta_window_main_monitor_changed (MetaWindow               *window,
                                   const MetaLogicalMonitor *old)
 {
   META_WINDOW_GET_CLASS (window)->main_monitor_changed (window, old);
+
+  g_signal_emit (window, window_signals[MONITOR_CHANGED], 0,
+                 old ? old->number : -1);
 
   if (old)
     g_signal_emit_by_name (window->display, "window-left-monitor",
@@ -8148,11 +8167,13 @@ window_has_pointer_wayland (MetaWindow *window)
 {
   ClutterSeat *seat;
   ClutterInputDevice *dev;
+  ClutterStage *stage;
   ClutterActor *pointer_actor, *window_actor;
 
   seat = clutter_backend_get_default_seat (clutter_get_default_backend ());
   dev = clutter_seat_get_pointer (seat);
-  pointer_actor = clutter_input_device_get_actor (dev, NULL);
+  stage = CLUTTER_STAGE (meta_backend_get_stage (meta_get_backend ()));
+  pointer_actor = clutter_stage_get_device_actor (stage, dev, NULL);
   window_actor = CLUTTER_ACTOR (meta_window_get_compositor_private (window));
 
   return pointer_actor && clutter_actor_contains (window_actor, pointer_actor);
@@ -8198,19 +8219,19 @@ window_focus_on_pointer_rest_callback (gpointer data)
   MetaDisplay *display = window->display;
   MetaBackend *backend = meta_get_backend ();
   MetaCursorTracker *cursor_tracker = meta_backend_get_cursor_tracker (backend);
-  int root_x, root_y;
+  graphene_point_t point;
   guint32 timestamp;
 
   if (meta_prefs_get_focus_mode () == G_DESKTOP_FOCUS_MODE_CLICK)
     goto out;
 
-  meta_cursor_tracker_get_pointer (cursor_tracker, &root_x, &root_y, NULL);
+  meta_cursor_tracker_get_pointer (cursor_tracker, &point, NULL);
 
-  if (root_x != focus_data->pointer_x ||
-      root_y != focus_data->pointer_y)
+  if ((int) point.x != focus_data->pointer_x ||
+      (int) point.y != focus_data->pointer_y)
     {
-      focus_data->pointer_x = root_x;
-      focus_data->pointer_y = root_y;
+      focus_data->pointer_x = point.x;
+      focus_data->pointer_y = point.y;
       return G_SOURCE_CONTINUE;
     }
 
@@ -8587,6 +8608,12 @@ gboolean
 meta_window_is_stackable (MetaWindow *window)
 {
   return META_WINDOW_GET_CLASS (window)->is_stackable (window);
+}
+
+gboolean
+meta_window_is_focus_async (MetaWindow *window)
+{
+  return META_WINDOW_GET_CLASS (window)->is_focus_async (window);
 }
 
 MetaStackLayer

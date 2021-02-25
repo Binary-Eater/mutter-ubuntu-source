@@ -34,6 +34,7 @@
 #include "backends/meta-backend-types.h"
 #include "backends/meta-cursor-renderer.h"
 #include "backends/meta-egl.h"
+#include "backends/meta-input-mapper-private.h"
 #include "backends/meta-input-settings-private.h"
 #include "backends/meta-monitor-manager-private.h"
 #include "backends/meta-orientation-manager.h"
@@ -63,11 +64,12 @@ struct _MetaBackendClass
 
   MetaMonitorManager * (* create_monitor_manager) (MetaBackend *backend,
                                                    GError     **error);
-  MetaCursorRenderer * (* create_cursor_renderer) (MetaBackend *backend);
+  MetaCursorRenderer * (* get_cursor_renderer) (MetaBackend        *backend,
+                                                ClutterInputDevice *device);
   MetaCursorTracker * (* create_cursor_tracker) (MetaBackend *backend);
   MetaRenderer * (* create_renderer) (MetaBackend *backend,
                                       GError     **error);
-  MetaInputSettings * (* create_input_settings) (MetaBackend *backend);
+  MetaInputSettings * (* get_input_settings) (MetaBackend *backend);
 
   gboolean (* grab_device) (MetaBackend *backend,
                             int          device_id,
@@ -98,9 +100,8 @@ struct _MetaBackendClass
   void (* update_screen_size) (MetaBackend *backend, int width, int height);
   void (* select_stage_events) (MetaBackend *backend);
 
-  void (* set_numlock) (MetaBackend *backend,
-                        gboolean     numlock_state);
-
+  void (* set_pointer_constraint) (MetaBackend           *backend,
+                                   MetaPointerConstraint *constraint);
 };
 
 void meta_init_backend (GType backend_gtype);
@@ -125,6 +126,8 @@ META_EXPORT_TEST
 MetaMonitorManager * meta_backend_get_monitor_manager (MetaBackend *backend);
 MetaOrientationManager * meta_backend_get_orientation_manager (MetaBackend *backend);
 MetaCursorTracker * meta_backend_get_cursor_tracker (MetaBackend *backend);
+MetaCursorRenderer * meta_backend_get_cursor_renderer_for_device (MetaBackend        *backend,
+                                                                  ClutterInputDevice *device);
 MetaCursorRenderer * meta_backend_get_cursor_renderer (MetaBackend *backend);
 META_EXPORT_TEST
 MetaRenderer * meta_backend_get_renderer (MetaBackend *backend);
@@ -169,6 +172,7 @@ gboolean meta_is_stage_views_enabled (void);
 
 gboolean meta_is_stage_views_scaled (void);
 
+MetaInputMapper *meta_backend_get_input_mapper (MetaBackend *backend);
 MetaInputSettings *meta_backend_get_input_settings (MetaBackend *backend);
 
 void meta_backend_notify_keymap_changed (MetaBackend *backend);
@@ -188,5 +192,13 @@ GList * meta_backend_get_gpus (MetaBackend *backend);
 #ifdef HAVE_LIBWACOM
 WacomDeviceDatabase * meta_backend_get_wacom_database (MetaBackend *backend);
 #endif
+
+void meta_backend_add_hw_cursor_inhibitor (MetaBackend           *backend,
+                                           MetaHwCursorInhibitor *inhibitor);
+
+void meta_backend_remove_hw_cursor_inhibitor (MetaBackend           *backend,
+                                              MetaHwCursorInhibitor *inhibitor);
+
+gboolean meta_backend_is_hw_cursors_inhibited (MetaBackend *backend);
 
 #endif /* META_BACKEND_PRIVATE_H */

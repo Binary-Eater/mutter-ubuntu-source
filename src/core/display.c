@@ -45,8 +45,7 @@
 #include "backends/meta-cursor-tracker-private.h"
 #include "backends/meta-idle-monitor-dbus.h"
 #include "backends/meta-input-device-private.h"
-#include "backends/meta-input-settings-private.h"
-#include "backends/meta-logical-monitor.h"
+#include "backends/meta-input-mapper-private.h"
 #include "backends/meta-stage-private.h"
 #include "backends/x11/meta-backend-x11.h"
 #include "backends/x11/meta-event-x11.h"
@@ -855,6 +854,8 @@ meta_display_open (void)
   g_signal_connect (monitor_manager, "monitors-changed-internal",
                     G_CALLBACK (on_monitors_changed_internal), display);
 
+  display->pad_action_mapper = meta_pad_action_mapper_new (monitor_manager);
+
   settings = meta_backend_get_settings (backend);
   g_signal_connect (settings, "ui-scaling-factor-changed",
                     G_CALLBACK (on_ui_scaling_factor_changed), display);
@@ -1120,6 +1121,7 @@ meta_display_close (MetaDisplay *display,
 
   meta_clipboard_manager_shutdown (display);
   g_clear_object (&display->selection);
+  g_clear_object (&display->pad_action_mapper);
 
   g_object_unref (display);
   the_display = NULL;
@@ -1364,6 +1366,8 @@ meta_display_sync_wayland_input_focus (MetaDisplay *display)
   MetaWaylandCompositor *compositor = meta_wayland_compositor_get_default ();
   MetaWindow *focus_window = NULL;
   MetaBackend *backend = meta_get_backend ();
+  ClutterBackend *clutter_backend = meta_backend_get_clutter_backend (backend);
+  ClutterSeat *seat = clutter_backend_get_default_seat (clutter_backend);
   MetaStage *stage = META_STAGE (meta_backend_get_stage (backend));
   gboolean is_no_focus_xwindow = FALSE;
 
@@ -1383,7 +1387,8 @@ meta_display_sync_wayland_input_focus (MetaDisplay *display)
   meta_stage_set_active (stage, focus_window == NULL);
   meta_wayland_compositor_set_input_focus (compositor, focus_window);
 
-  meta_wayland_seat_repick (compositor->seat);
+  clutter_stage_repick_device (CLUTTER_STAGE (stage),
+                               clutter_seat_get_pointer (seat));
 #endif
 }
 
@@ -1629,43 +1634,9 @@ meta_cursor_for_grab_op (MetaGrabOp op)
   return META_CURSOR_DEFAULT;
 }
 
-static float
-find_highest_logical_monitor_scale (MetaBackend      *backend,
-                                    MetaCursorSprite *cursor_sprite)
-{
-  MetaMonitorManager *monitor_manager =
-    meta_backend_get_monitor_manager (backend);
-  MetaCursorRenderer *cursor_renderer =
-    meta_backend_get_cursor_renderer (backend);
-  graphene_rect_t cursor_rect;
-  GList *logical_monitors;
-  GList *l;
-  float highest_scale = 0.0;
-
-  cursor_rect = meta_cursor_renderer_calculate_rect (cursor_renderer,
-                                                     cursor_sprite);
-
-  logical_monitors =
-    meta_monitor_manager_get_logical_monitors (monitor_manager);
-  for (l = logical_monitors; l; l = l->next)
-    {
-      MetaLogicalMonitor *logical_monitor = l->data;
-      graphene_rect_t logical_monitor_rect =
-        meta_rectangle_to_graphene_rect (&logical_monitor->rect);
-
-      if (!graphene_rect_intersection (&cursor_rect,
-                                       &logical_monitor_rect,
-                                       NULL))
-        continue;
-
-      highest_scale = MAX (highest_scale, logical_monitor->scale);
-    }
-
-  return highest_scale;
-}
-
 static void
 root_cursor_prepare_at (MetaCursorSpriteXcursor *sprite_xcursor,
+                        float                    best_scale,
                         int                      x,
                         int                      y,
                         MetaDisplay             *display)
@@ -1675,14 +1646,11 @@ root_cursor_prepare_at (MetaCursorSpriteXcursor *sprite_xcursor,
 
   if (meta_is_stage_views_scaled ())
     {
-      float scale;
-
-      scale = find_highest_logical_monitor_scale (backend, cursor_sprite);
-      if (scale != 0.0)
+      if (best_scale != 0.0f)
         {
           float ceiled_scale;
 
-          ceiled_scale = ceilf (scale);
+          ceiled_scale = ceilf (best_scale);
           meta_cursor_sprite_xcursor_set_theme_scale (sprite_xcursor,
                                                       (int) ceiled_scale);
           meta_cursor_sprite_set_texture_scale (cursor_sprite,
@@ -2944,7 +2912,7 @@ meta_display_request_pad_osd (MetaDisplay        *display,
                               gboolean            edition_mode)
 {
   MetaBackend *backend = meta_get_backend ();
-  MetaInputSettings *input_settings;
+  MetaInputMapper *input_mapper;
   const gchar *layout_path = NULL;
   ClutterActor *osd;
   MetaLogicalMonitor *logical_monitor;
@@ -2960,13 +2928,13 @@ meta_display_request_pad_osd (MetaDisplay        *display,
   if (display->current_pad_osd)
     return;
 
-  input_settings = meta_backend_get_input_settings (meta_get_backend ());
+  input_mapper = meta_backend_get_input_mapper (meta_get_backend ());
 
-  if (input_settings)
+  if (input_mapper)
     {
-      settings = meta_input_settings_get_tablet_settings (input_settings, pad);
+      settings = meta_input_mapper_get_tablet_settings (input_mapper, pad);
       logical_monitor =
-        meta_input_settings_get_tablet_logical_monitor (input_settings, pad);
+        meta_input_mapper_get_device_logical_monitor (input_mapper, pad);
 #ifdef HAVE_LIBWACOM
       wacom_device = meta_input_device_get_wacom_device (META_INPUT_DEVICE (pad));
       layout_path = libwacom_get_layout_filename (wacom_device);
@@ -2989,8 +2957,6 @@ meta_display_request_pad_osd (MetaDisplay        *display,
       g_object_add_weak_pointer (G_OBJECT (display->current_pad_osd),
                                  (gpointer *) &display->current_pad_osd);
     }
-
-  g_object_unref (settings);
 }
 
 gchar *
@@ -2999,12 +2965,12 @@ meta_display_get_pad_action_label (MetaDisplay        *display,
                                    MetaPadActionType   action_type,
                                    guint               action_number)
 {
-  MetaInputSettings *settings;
   gchar *label;
 
   /* First, lookup the action, as imposed by settings */
-  settings = meta_backend_get_input_settings (meta_get_backend ());
-  label = meta_input_settings_get_pad_action_label (settings, pad, action_type, action_number);
+  label = meta_pad_action_mapper_get_action_label (display->pad_action_mapper,
+                                                   pad, action_type,
+                                                   action_number);
   if (label)
     return label;
 
@@ -3050,15 +3016,15 @@ static gint
 lookup_tablet_monitor (MetaDisplay        *display,
                        ClutterInputDevice *device)
 {
-  MetaInputSettings *input_settings;
+  MetaInputMapper *input_mapper;
   MetaLogicalMonitor *monitor;
   gint monitor_idx = -1;
 
-  input_settings = meta_backend_get_input_settings (meta_get_backend ());
-  if (!input_settings)
+  input_mapper = meta_backend_get_input_mapper (meta_get_backend ());
+  if (!input_mapper)
     return -1;
 
-  monitor = meta_input_settings_get_tablet_logical_monitor (input_settings, device);
+  monitor = meta_input_mapper_get_device_logical_monitor (input_mapper, device);
 
   if (monitor)
     {
@@ -3743,18 +3709,18 @@ meta_display_get_pointer_window (MetaDisplay *display,
   MetaBackend *backend = meta_get_backend ();
   MetaCursorTracker *cursor_tracker = meta_backend_get_cursor_tracker (backend);
   MetaWindow *window;
-  int x, y;
+  graphene_point_t point;
 
   if (not_this_one)
     meta_topic (META_DEBUG_FOCUS,
                 "Focusing mouse window excluding %s\n", not_this_one->desc);
 
-  meta_cursor_tracker_get_pointer (cursor_tracker, &x, &y, NULL);
+  meta_cursor_tracker_get_pointer (cursor_tracker, &point, NULL);
 
   window = meta_stack_get_default_focus_window_at_point (display->stack,
                                                          workspace_manager->active_workspace,
                                                          not_this_one,
-                                                         x, y);
+                                                         point.x, point.y);
 
   return window;
 }

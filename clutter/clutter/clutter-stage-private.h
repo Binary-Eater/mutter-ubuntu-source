@@ -122,15 +122,6 @@ ClutterActor *  _clutter_stage_get_touch_drag_actor    (ClutterStage         *st
 void            _clutter_stage_remove_touch_drag_actor (ClutterStage         *stage,
                                                         ClutterEventSequence *sequence);
 
-CLUTTER_EXPORT
-ClutterStageState       _clutter_stage_get_state        (ClutterStage      *stage);
-CLUTTER_EXPORT
-gboolean                _clutter_stage_is_activated     (ClutterStage      *stage);
-CLUTTER_EXPORT
-gboolean                _clutter_stage_update_state     (ClutterStage      *stage,
-                                                         ClutterStageState  unset_state,
-                                                         ClutterStageState  set_state);
-
 void                    _clutter_stage_set_scale_factor (ClutterStage      *stage,
                                                          int                factor);
 
@@ -148,6 +139,16 @@ GList * clutter_stage_get_views_for_rect (ClutterStage          *stage,
                                           const graphene_rect_t *rect);
 
 void clutter_stage_set_actor_needs_immediate_relayout (ClutterStage *stage);
+
+void clutter_stage_update_device_entry (ClutterStage         *self,
+                                        ClutterInputDevice   *device,
+                                        ClutterEventSequence *sequence,
+                                        graphene_point_t      coords,
+                                        ClutterActor         *actor);
+
+void clutter_stage_remove_device_entry (ClutterStage         *self,
+                                        ClutterInputDevice   *device,
+                                        ClutterEventSequence *sequence);
 
 G_END_DECLS
 

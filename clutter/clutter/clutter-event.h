@@ -112,7 +112,6 @@ typedef struct _ClutterButtonEvent      ClutterButtonEvent;
 typedef struct _ClutterKeyEvent         ClutterKeyEvent;
 typedef struct _ClutterMotionEvent      ClutterMotionEvent;
 typedef struct _ClutterScrollEvent      ClutterScrollEvent;
-typedef struct _ClutterStageStateEvent  ClutterStageStateEvent;
 typedef struct _ClutterCrossingEvent    ClutterCrossingEvent;
 typedef struct _ClutterTouchEvent       ClutterTouchEvent;
 typedef struct _ClutterTouchpadPinchEvent ClutterTouchpadPinchEvent;
@@ -174,6 +173,7 @@ struct _ClutterKeyEvent
   guint keyval;
   guint16 hardware_keycode;
   gunichar unicode_value;
+  uint32_t evdev_code;
   ClutterInputDevice *device;
 };
 
@@ -217,6 +217,7 @@ struct _ClutterButtonEvent
   guint click_count;
   gdouble *axes; /* Future use */
   ClutterInputDevice *device;
+  uint32_t evdev_code;
 };
 
 /**
@@ -306,6 +307,12 @@ struct _ClutterMotionEvent
   ClutterModifierType modifier_state;
   gdouble *axes; /* Future use */
   ClutterInputDevice *device;
+
+  int64_t time_us;
+  double dx;
+  double dy;
+  double dx_unaccel;
+  double dy_unaccel;
 };
 
 /**
@@ -345,32 +352,6 @@ struct _ClutterScrollEvent
   ClutterInputDevice *device;
   ClutterScrollSource scroll_source;
   ClutterScrollFinishFlags finish_flags;
-};
-
-/**
- * ClutterStageStateEvent:
- * @type: event type
- * @time: event time
- * @flags: event flags
- * @stage: event source stage
- * @source: event source actor (unused)
- * @changed_mask: bitwise OR of the changed flags
- * @new_state: bitwise OR of the current state flags
- *
- * Event signalling a change in the #ClutterStage state.
- *
- * Since: 0.2
- */
-struct _ClutterStageStateEvent
-{
-  ClutterEventType type;
-  guint32 time;
-  ClutterEventFlags flags;
-  ClutterStage *stage;
-  ClutterActor *source; /* XXX: should probably be the stage itself */
-
-  ClutterStageState changed_mask;
-  ClutterStageState new_state;
 };
 
 /**
@@ -587,7 +568,6 @@ union _ClutterEvent
   ClutterKeyEvent key;
   ClutterMotionEvent motion;
   ClutterScrollEvent scroll;
-  ClutterStageStateEvent stage_state;
   ClutterCrossingEvent crossing;
   ClutterTouchEvent touch;
   ClutterTouchpadPinchEvent touchpad_pinch;
@@ -628,8 +608,6 @@ CLUTTER_EXPORT
 gboolean                clutter_events_pending                  (void);
 CLUTTER_EXPORT
 ClutterEvent *          clutter_event_get                       (void);
-CLUTTER_EXPORT
-ClutterEvent *          clutter_event_peek                      (void);
 CLUTTER_EXPORT
 void                    clutter_event_put                       (const ClutterEvent     *event);
 
@@ -700,8 +678,6 @@ void                    clutter_event_set_stage                 (ClutterEvent   
                                                                  ClutterStage           *stage);
 CLUTTER_EXPORT
 ClutterStage *          clutter_event_get_stage                 (const ClutterEvent     *event);
-CLUTTER_EXPORT
-gint                    clutter_event_get_device_id             (const ClutterEvent     *event);
 CLUTTER_EXPORT
 ClutterInputDeviceType  clutter_event_get_device_type           (const ClutterEvent     *event);
 CLUTTER_EXPORT
@@ -815,6 +791,20 @@ gboolean                 clutter_event_get_pad_event_details         (const Clut
                                                                       guint                  *number,
                                                                       guint                  *mode,
                                                                       gdouble                *value);
+CLUTTER_EXPORT
+uint32_t                 clutter_event_get_event_code                (const ClutterEvent     *event);
+
+CLUTTER_EXPORT
+int32_t                  clutter_event_sequence_get_slot (const ClutterEventSequence *sequence);
+
+CLUTTER_EXPORT
+int64_t                  clutter_event_get_time_us (const ClutterEvent *event);
+CLUTTER_EXPORT
+gboolean                 clutter_event_get_relative_motion (const ClutterEvent *event,
+                                                            double             *dx,
+                                                            double             *dy,
+                                                            double             *dx_unaccel,
+                                                            double             *dy_unaccel);
 
 
 G_END_DECLS

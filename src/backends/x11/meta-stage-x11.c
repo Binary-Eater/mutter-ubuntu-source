@@ -26,6 +26,7 @@
 #include <unistd.h>
 #endif
 
+#include "backends/meta-stage-private.h"
 #include "backends/x11/cm/meta-backend-x11-cm.h"
 #include "backends/x11/cm/meta-renderer-x11-cm.h"
 #include "backends/x11/meta-backend-x11.h"
@@ -692,21 +693,11 @@ meta_stage_x11_translate_event (MetaStageX11 *stage_x11,
       break;
 
     case FocusIn:
-      if (!_clutter_stage_is_activated (stage_cogl->wrapper))
-        {
-          _clutter_stage_update_state (stage_cogl->wrapper,
-                                       0,
-                                       CLUTTER_STAGE_STATE_ACTIVATED);
-        }
+      meta_stage_set_active ((MetaStage *) stage_cogl->wrapper, TRUE);
       break;
 
     case FocusOut:
-      if (_clutter_stage_is_activated (stage_cogl->wrapper))
-        {
-          _clutter_stage_update_state (stage_cogl->wrapper,
-                                       CLUTTER_STAGE_STATE_ACTIVATED,
-                                       0);
-        }
+      meta_stage_set_active ((MetaStage *) stage_cogl->wrapper, FALSE);
       break;
 
     case Expose:
@@ -734,9 +725,10 @@ meta_stage_x11_translate_event (MetaStageX11 *stage_x11,
       g_debug ("Destroy notification received for stage, win:0x%x",
                (unsigned int) xevent->xany.window);
 
-      event->any.type = CLUTTER_DESTROY_NOTIFY;
-      event->any.stage = stage;
-      res = TRUE;
+      g_return_val_if_fail (META_IS_STAGE_X11_NESTED (stage_x11),
+                            FALSE);
+      meta_quit (META_EXIT_SUCCESS);
+      res = FALSE;
       break;
 
     case ClientMessage:

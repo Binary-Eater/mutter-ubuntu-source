@@ -81,6 +81,7 @@ update_cursor_sprite_texture (MetaWaylandCursorSurface *cursor_surface)
 
 static void
 cursor_sprite_prepare_at (MetaCursorSprite         *cursor_sprite,
+                          float                     best_scale,
                           int                       x,
                           int                       y,
                           MetaWaylandCursorSurface *cursor_surface)
@@ -186,6 +187,7 @@ meta_wayland_cursor_surface_is_on_logical_monitor (MetaWaylandSurfaceRole *role,
     META_WAYLAND_CURSOR_SURFACE (surface->role);
   MetaWaylandCursorSurfacePrivate *priv =
     meta_wayland_cursor_surface_get_instance_private (cursor_surface);
+  ClutterInputDevice *device;
   graphene_point_t point;
   graphene_rect_t logical_monitor_rect;
 
@@ -195,7 +197,9 @@ meta_wayland_cursor_surface_is_on_logical_monitor (MetaWaylandSurfaceRole *role,
   logical_monitor_rect =
     meta_rectangle_to_graphene_rect (&logical_monitor->rect);
 
-  point = meta_cursor_renderer_get_position (priv->cursor_renderer);
+  device = meta_cursor_renderer_get_input_device (priv->cursor_renderer);
+  clutter_seat_query_state (clutter_input_device_get_seat (device),
+                            device, NULL, &point, NULL);
 
   return graphene_rect_contains_point (&logical_monitor_rect, &point);
 }

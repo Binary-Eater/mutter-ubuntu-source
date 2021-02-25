@@ -111,7 +111,7 @@ clutter_backend_finalize (GObject *gobject)
   g_source_destroy (backend->cogl_source);
 
   g_free (backend->font_name);
-  clutter_backend_set_font_options (backend, NULL);
+  g_clear_pointer (&backend->font_options, cairo_font_options_destroy);
   g_clear_object (&backend->input_method);
 
   G_OBJECT_CLASS (clutter_backend_parent_class)->finalize (gobject);
@@ -676,31 +676,6 @@ _clutter_backend_get_units_per_em (ClutterBackend       *backend,
     backend->units_per_em = get_units_per_em (backend, NULL);
 
   return backend->units_per_em;
-}
-
-void
-_clutter_backend_copy_event_data (ClutterBackend     *backend,
-                                  const ClutterEvent *src,
-                                  ClutterEvent       *dest)
-{
-  ClutterSeatClass *seat_class;
-  ClutterSeat *seat;
-
-  seat = clutter_backend_get_default_seat (backend);
-  seat_class = CLUTTER_SEAT_GET_CLASS (seat);
-  seat_class->copy_event_data (seat, src, dest);
-}
-
-void
-_clutter_backend_free_event_data (ClutterBackend *backend,
-                                  ClutterEvent   *event)
-{
-  ClutterSeatClass *seat_class;
-  ClutterSeat *seat;
-
-  seat = clutter_backend_get_default_seat (backend);
-  seat_class = CLUTTER_SEAT_GET_CLASS (seat);
-  seat_class->free_event_data (seat, event);
 }
 
 /**

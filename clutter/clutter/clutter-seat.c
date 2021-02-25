@@ -27,6 +27,7 @@
 #include "clutter-input-device-tool.h"
 #include "clutter-input-pointer-a11y-private.h"
 #include "clutter-marshal.h"
+#include "clutter-mutter.h"
 #include "clutter-private.h"
 #include "clutter-seat.h"
 #include "clutter-virtual-input-device.h"
@@ -35,7 +36,6 @@ enum
 {
   DEVICE_ADDED,
   DEVICE_REMOVED,
-  TOOL_CHANGED,
   KBD_A11Y_MASK_CHANGED,
   KBD_A11Y_FLAGS_CHANGED,
   PTR_A11Y_DWELL_CLICK_TYPE_CHANGED,
@@ -64,9 +64,6 @@ struct _ClutterSeatPrivate
   ClutterBackend *backend;
 
   unsigned int inhibit_unfocus_count;
-
-  /* Keyboard a11y */
-  ClutterKbdA11ySettings kbd_a11y_settings;
 
   /* Pointer a11y */
   ClutterPointerA11ySettings pointer_a11y_settings;
@@ -151,18 +148,6 @@ clutter_seat_class_init (ClutterSeatClass *klass)
                   0, NULL, NULL, NULL,
                   G_TYPE_NONE, 1,
                   CLUTTER_TYPE_INPUT_DEVICE);
-  signals[TOOL_CHANGED] =
-    g_signal_new (I_("tool-changed"),
-                  G_TYPE_FROM_CLASS (klass),
-                  G_SIGNAL_RUN_LAST,
-                  0, NULL, NULL,
-                  _clutter_marshal_VOID__OBJECT_OBJECT,
-                  G_TYPE_NONE, 2,
-                  CLUTTER_TYPE_INPUT_DEVICE,
-                  CLUTTER_TYPE_INPUT_DEVICE_TOOL);
-  g_signal_set_va_marshaller (signals[TOOL_CHANGED],
-                              G_TYPE_FROM_CLASS (object_class),
-                              _clutter_marshal_VOID__OBJECT_OBJECTv);
 
   /**
    * ClutterSeat::kbd-a11y-mods-state-changed:
@@ -404,43 +389,6 @@ clutter_seat_get_keymap (ClutterSeat *seat)
   return CLUTTER_SEAT_GET_CLASS (seat)->get_keymap (seat);
 }
 
-static gboolean
-are_kbd_a11y_settings_equal (ClutterKbdA11ySettings *a,
-                             ClutterKbdA11ySettings *b)
-{
-  return (memcmp (a, b, sizeof (ClutterKbdA11ySettings)) == 0);
-}
-
-void
-clutter_seat_set_kbd_a11y_settings (ClutterSeat            *seat,
-                                    ClutterKbdA11ySettings *settings)
-{
-  ClutterSeatClass *seat_class;
-  ClutterSeatPrivate *priv = clutter_seat_get_instance_private (seat);
-
-  g_return_if_fail (CLUTTER_IS_SEAT (seat));
-
-  if (are_kbd_a11y_settings_equal (&priv->kbd_a11y_settings, settings))
-    return;
-
-  priv->kbd_a11y_settings = *settings;
-
-  seat_class = CLUTTER_SEAT_GET_CLASS (seat);
-  if (seat_class->apply_kbd_a11y_settings)
-    seat_class->apply_kbd_a11y_settings (seat, settings);
-}
-
-void
-clutter_seat_get_kbd_a11y_settings (ClutterSeat            *seat,
-                                    ClutterKbdA11ySettings *settings)
-{
-  ClutterSeatPrivate *priv = clutter_seat_get_instance_private (seat);
-
-  g_return_if_fail (CLUTTER_IS_SEAT (seat));
-
-  *settings = priv->kbd_a11y_settings;
-}
-
 void
 clutter_seat_ensure_a11y_state (ClutterSeat *seat)
 {
@@ -659,24 +607,9 @@ clutter_seat_get_supported_virtual_device_types (ClutterSeat *seat)
   return seat_class->get_supported_virtual_device_types (seat);
 }
 
-void
-clutter_seat_compress_motion (ClutterSeat        *seat,
-                              ClutterEvent       *event,
-                              const ClutterEvent *to_discard)
-{
-  ClutterSeatClass *seat_class;
-
-  g_return_if_fail (CLUTTER_IS_SEAT (seat));
-
-  seat_class = CLUTTER_SEAT_GET_CLASS (seat);
-
-  if (seat_class->compress_motion)
-    seat_class->compress_motion (seat, event, to_discard);
-}
-
 gboolean
-clutter_seat_handle_device_event (ClutterSeat  *seat,
-                                  ClutterEvent *event)
+clutter_seat_handle_event_post (ClutterSeat        *seat,
+                                const ClutterEvent *event)
 {
   ClutterSeatClass *seat_class;
   ClutterInputDevice *device;
@@ -684,16 +617,10 @@ clutter_seat_handle_device_event (ClutterSeat  *seat,
   g_return_val_if_fail (CLUTTER_IS_SEAT (seat), FALSE);
   g_return_val_if_fail (event, FALSE);
 
-  g_assert (event->type == CLUTTER_DEVICE_ADDED ||
-            event->type == CLUTTER_DEVICE_REMOVED);
-
   seat_class = CLUTTER_SEAT_GET_CLASS (seat);
 
-  if (seat_class->handle_device_event)
-    {
-      if (!seat_class->handle_device_event (seat, event))
-        return FALSE;
-    }
+  if (seat_class->handle_event_post)
+    seat_class->handle_event_post (seat, event);
 
   device = clutter_event_get_source_device (event);
   g_assert_true (CLUTTER_IS_INPUT_DEVICE (device));
@@ -748,4 +675,21 @@ clutter_seat_get_touch_mode (ClutterSeat *seat)
   g_object_get (G_OBJECT (seat), "touch-mode", &touch_mode, NULL);
 
   return touch_mode;
+}
+
+gboolean
+clutter_seat_query_state (ClutterSeat          *seat,
+                          ClutterInputDevice   *device,
+                          ClutterEventSequence *sequence,
+                          graphene_point_t     *coords,
+                          ClutterModifierType  *modifiers)
+{
+  g_return_val_if_fail (CLUTTER_IS_SEAT (seat), FALSE);
+  g_return_val_if_fail (CLUTTER_IS_INPUT_DEVICE (device), FALSE);
+
+  return CLUTTER_SEAT_GET_CLASS (seat)->query_state (seat,
+                                                     device,
+                                                     sequence,
+                                                     coords,
+                                                     modifiers);
 }

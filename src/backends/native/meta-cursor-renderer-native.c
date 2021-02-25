@@ -872,6 +872,10 @@ should_have_hw_cursor (MetaCursorRenderer *renderer,
                        MetaCursorSprite   *cursor_sprite,
                        GList              *gpus)
 {
+  MetaCursorRendererNative *cursor_renderer_native =
+    META_CURSOR_RENDERER_NATIVE (renderer);
+  MetaCursorRendererNativePrivate *priv =
+    meta_cursor_renderer_native_get_instance_private (cursor_renderer_native);
   CoglTexture *texture;
   MetaMonitorTransform transform;
   float scale;
@@ -880,8 +884,7 @@ should_have_hw_cursor (MetaCursorRenderer *renderer,
   if (!cursor_sprite)
     return FALSE;
 
-  if (meta_cursor_renderer_is_hw_cursors_inhibited (renderer,
-                                                    cursor_sprite))
+  if (meta_backend_is_hw_cursors_inhibited (priv->backend))
     return FALSE;
 
   for (l = gpus; l; l = l->next)
@@ -1724,7 +1727,8 @@ init_hw_cursor_support (MetaCursorRendererNative *cursor_renderer_native)
 }
 
 MetaCursorRendererNative *
-meta_cursor_renderer_native_new (MetaBackend *backend)
+meta_cursor_renderer_native_new (MetaBackend        *backend,
+                                 ClutterInputDevice *device)
 {
   MetaMonitorManager *monitor_manager =
     meta_backend_get_monitor_manager (backend);
@@ -1733,6 +1737,7 @@ meta_cursor_renderer_native_new (MetaBackend *backend)
 
   cursor_renderer_native = g_object_new (META_TYPE_CURSOR_RENDERER_NATIVE,
                                          "backend", backend,
+                                         "device", device,
                                          NULL);
   priv =
     meta_cursor_renderer_native_get_instance_private (cursor_renderer_native);

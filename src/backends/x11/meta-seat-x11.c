@@ -1878,7 +1878,6 @@ meta_seat_x11_translate_event (MetaSeatX11  *seat,
 
         /* Set the stage for core events coming out of nowhere (see bug #684509) */
         if (clutter_input_device_get_device_mode (device) == CLUTTER_INPUT_MODE_LOGICAL &&
-            clutter_input_device_get_pointer_stage (device) == NULL &&
             stage != NULL)
           _clutter_input_device_set_stage (device, stage);
 
@@ -2075,7 +2074,6 @@ meta_seat_x11_translate_event (MetaSeatX11  *seat,
 
         /* Set the stage for core events coming out of nowhere (see bug #684509) */
         if (clutter_input_device_get_device_mode (device) == CLUTTER_INPUT_MODE_LOGICAL &&
-            clutter_input_device_get_pointer_stage (device) == NULL &&
             stage != NULL)
           _clutter_input_device_set_stage (device, stage);
 
@@ -2154,8 +2152,7 @@ meta_seat_x11_translate_event (MetaSeatX11  *seat,
         XIDeviceEvent *xev = (XIDeviceEvent *) xi_event;
         device = g_hash_table_lookup (seat->devices_by_id,
                                       GINT_TO_POINTER (xev->deviceid));
-        if (!_clutter_input_device_get_stage (device))
-          _clutter_input_device_set_stage (device, stage);
+        _clutter_input_device_set_stage (device, stage);
       }
       /* Fall through */
     case XI_TouchEnd:
@@ -2285,14 +2282,6 @@ meta_seat_x11_translate_event (MetaSeatX11  *seat,
           }
         else
           {
-            if (device->stage == NULL)
-              {
-                g_debug ("Discarding Leave for ButtonRelease "
-                         "event off-stage");
-                retval = FALSE;
-                break;
-              }
-
             event->crossing.type = event->type = CLUTTER_LEAVE;
 
             event->crossing.stage = stage;

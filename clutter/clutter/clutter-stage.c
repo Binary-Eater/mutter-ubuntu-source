@@ -3779,6 +3779,23 @@ on_device_actor_reactive_changed (ClutterActor       *actor,
                                   GParamSpec         *pspec,
                                   PointerDeviceEntry *entry)
 {
+  ClutterStage *self = entry->stage;
+  ClutterActor *new_device_actor;
+
+  g_assert (!clutter_actor_get_reactive (actor));
+
+  new_device_actor =
+    _clutter_stage_do_pick (self,
+                            entry->coords.x,
+                            entry->coords.y,
+                            CLUTTER_PICK_REACTIVE);
+
+  clutter_stage_update_device (self,
+                               entry->device, entry->sequence,
+                               entry->coords,
+                               CLUTTER_CURRENT_TIME,
+                               new_device_actor,
+                               TRUE);
 }
 
 static void

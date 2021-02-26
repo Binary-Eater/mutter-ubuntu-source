@@ -1,0 +1,3 @@
+  * debian/patches: Backport wayland input thread support (LP: #1690719)
+  * debian/libmutter-7-0.symbols: Sync as per private symbols changes
+  * debian/control: Set breaks on previous gnome-shell versions

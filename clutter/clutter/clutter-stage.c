@@ -191,12 +191,8 @@ static guint stage_signals[LAST_SIGNAL] = { 0, };
 
 static const ClutterColor default_stage_color = { 255, 255, 255, 255 };
 
-<<<<<<< HEAD
 static void free_queue_redraw_entry (ClutterStageQueueRedrawEntry *entry);
-=======
-static void free_queue_redraw_entry (QueueRedrawEntry *entry);
 static void free_pointer_device_entry (PointerDeviceEntry *entry);
->>>>>>> clutter/stage: Add infrastructure to track devices and their actors
 static void capture_view_into (ClutterStage          *stage,
                                gboolean               paint,
                                ClutterStageView      *view,
@@ -3783,23 +3779,6 @@ on_device_actor_reactive_changed (ClutterActor       *actor,
                                   GParamSpec         *pspec,
                                   PointerDeviceEntry *entry)
 {
-  ClutterStage *self = entry->stage;
-  ClutterActor *new_device_actor;
-
-  g_assert (!clutter_actor_get_reactive (actor));
-
-  new_device_actor =
-    _clutter_stage_do_pick (self,
-                            entry->coords.x,
-                            entry->coords.y,
-                            CLUTTER_PICK_REACTIVE);
-
-  clutter_stage_update_device (self,
-                               entry->device, entry->sequence,
-                               entry->coords,
-                               CLUTTER_CURRENT_TIME,
-                               new_device_actor,
-                               TRUE);
 }
 
 static void

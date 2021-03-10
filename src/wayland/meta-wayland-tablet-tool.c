@@ -710,15 +710,10 @@ broadcast_axis (MetaWaylandTabletTool *tool,
                 ClutterInputAxis       axis)
 {
   struct wl_resource *resource;
-  ClutterInputDevice *source;
   uint32_t value;
-  gdouble val;
+  double val;
 
-  source = clutter_event_get_source_device (event);
-
-  if (!clutter_input_device_get_axis_value (source, event->motion.axes, axis, &val))
-    return;
-
+  val = event->motion.axes[axis];
   value = val * TABLET_AXIS_MAX;
 
   wl_resource_for_each (resource, &tool->focus_resource_list)
@@ -745,16 +740,10 @@ broadcast_tilt (MetaWaylandTabletTool *tool,
                 const ClutterEvent    *event)
 {
   struct wl_resource *resource;
-  ClutterInputDevice *source;
   gdouble xtilt, ytilt;
 
-  source = clutter_event_get_source_device (event);
-
-  if (!clutter_input_device_get_axis_value (source, event->motion.axes,
-                                            CLUTTER_INPUT_AXIS_XTILT, &xtilt) ||
-      !clutter_input_device_get_axis_value (source, event->motion.axes,
-                                            CLUTTER_INPUT_AXIS_YTILT, &ytilt))
-    return;
+  xtilt = event->motion.axes[CLUTTER_INPUT_AXIS_FLAG_XTILT];
+  ytilt = event->motion.axes[CLUTTER_INPUT_AXIS_FLAG_YTILT];
 
   wl_resource_for_each (resource, &tool->focus_resource_list)
     {
@@ -769,15 +758,9 @@ broadcast_rotation (MetaWaylandTabletTool *tool,
                     const ClutterEvent    *event)
 {
   struct wl_resource *resource;
-  ClutterInputDevice *source;
   gdouble rotation;
 
-  source = clutter_event_get_source_device (event);
-
-  if (!clutter_input_device_get_axis_value (source, event->motion.axes,
-                                            CLUTTER_INPUT_AXIS_ROTATION,
-                                            &rotation))
-    return;
+  rotation = event->motion.axes[CLUTTER_INPUT_AXIS_FLAG_ROTATION];
 
   wl_resource_for_each (resource, &tool->focus_resource_list)
     {
@@ -791,16 +774,10 @@ broadcast_wheel (MetaWaylandTabletTool *tool,
                  const ClutterEvent    *event)
 {
   struct wl_resource *resource;
-  ClutterInputDevice *source;
   gdouble angle;
   gint32 clicks = 0;
 
-  source = clutter_event_get_source_device (event);
-
-  if (!clutter_input_device_get_axis_value (source, event->motion.axes,
-                                            CLUTTER_INPUT_AXIS_WHEEL,
-                                            &angle))
-    return;
+  angle = event->motion.axes[CLUTTER_INPUT_AXIS_FLAG_WHEEL];
 
   /* FIXME: Perform proper angle-to-clicks accumulation elsewhere */
   if (angle > 0.01)

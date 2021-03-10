@@ -1857,7 +1857,6 @@ _clutter_process_event_details (ClutterActor        *stage,
       case CLUTTER_TOUCHPAD_PINCH:
       case CLUTTER_TOUCHPAD_SWIPE:
         {
-          ClutterActor *actor;
           gfloat x, y;
 
           clutter_event_get_coords (event, &x, &y);
@@ -1901,22 +1900,17 @@ _clutter_process_event_details (ClutterActor        *stage,
                   break;
                 }
 
-              actor = update_device_for_event (CLUTTER_STAGE (stage), event, TRUE);
-              if (actor == NULL)
-                break;
+              event->any.source =
+                update_device_for_event (CLUTTER_STAGE (stage), event, TRUE);
 
-              event->any.source = actor;
-            }
-          else
-            {
-              /* use the source already set in the synthetic event */
-              actor = event->any.source;
+              if (event->any.source == NULL)
+                break;
             }
 
           CLUTTER_NOTE (EVENT,
                         "Reactive event received at %.2f, %.2f - actor: %p",
                         x, y,
-                        actor);
+                        event->any.source);
 
           /* button presses and releases need a click count */
           if (event->type == CLUTTER_BUTTON_PRESS ||
@@ -1970,7 +1964,6 @@ _clutter_process_event_details (ClutterActor        *stage,
       case CLUTTER_TOUCH_CANCEL:
       case CLUTTER_TOUCH_END:
         {
-          ClutterActor *actor;
           gfloat x, y;
 
           clutter_event_get_coords (event, &x, &y);
@@ -2002,22 +1995,17 @@ _clutter_process_event_details (ClutterActor        *stage,
                   break;
                 }
 
-              actor = update_device_for_event (CLUTTER_STAGE (stage), event, TRUE);
-              if (actor == NULL)
-                break;
+              event->any.source =
+                update_device_for_event (CLUTTER_STAGE (stage), event, TRUE);
 
-              event->any.source = actor;
-            }
-          else
-            {
-              /* use the source already set in the synthetic event */
-              actor = event->any.source;
+              if (event->any.source == NULL)
+                break;
             }
 
           CLUTTER_NOTE (EVENT,
                         "Reactive event received at %.2f, %.2f - actor: %p",
                         x, y,
-                        actor);
+                        event->any.source);
 
           emit_touch_event (event, device);
 

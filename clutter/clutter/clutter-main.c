@@ -2093,8 +2093,10 @@ _clutter_process_event (ClutterEvent *event)
 {
   ClutterMainContext *context;
   ClutterActor *stage;
+  ClutterSeat *seat;
 
   context = _clutter_context_get_default ();
+  seat = clutter_backend_get_default_seat (context->backend);
 
   stage = CLUTTER_ACTOR (event->any.stage);
   if (stage == NULL)
@@ -2110,6 +2112,7 @@ _clutter_process_event (ClutterEvent *event)
   context->current_event = g_slist_prepend (context->current_event, event);
 
   _clutter_process_event_details (stage, context, event);
+  clutter_seat_handle_event_post (seat, event);
 
   context->current_event = g_slist_delete_link (context->current_event, context->current_event);
 }

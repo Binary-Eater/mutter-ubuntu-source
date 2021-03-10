@@ -746,8 +746,7 @@ meta_screen_cast_monitor_stream_src_set_cursor_metadata (MetaScreenCastStreamSrc
 }
 
 static gboolean
-meta_screen_cast_monitor_stream_src_is_cursor_sprite_inhibited (MetaHwCursorInhibitor *inhibitor,
-                                                                MetaCursorSprite      *cursor_sprite)
+meta_screen_cast_monitor_stream_src_is_cursor_inhibited (MetaHwCursorInhibitor *inhibitor)
 {
   MetaScreenCastMonitorStreamSrc *monitor_src =
     META_SCREEN_CAST_MONITOR_STREAM_SRC (inhibitor);
@@ -758,8 +757,8 @@ meta_screen_cast_monitor_stream_src_is_cursor_sprite_inhibited (MetaHwCursorInhi
 static void
 hw_cursor_inhibitor_iface_init (MetaHwCursorInhibitorInterface *iface)
 {
-  iface->is_cursor_sprite_inhibited =
-    meta_screen_cast_monitor_stream_src_is_cursor_sprite_inhibited;
+  iface->is_cursor_inhibited =
+    meta_screen_cast_monitor_stream_src_is_cursor_inhibited;
 }
 
 MetaScreenCastMonitorStreamSrc *

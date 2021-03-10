@@ -61,7 +61,7 @@ meta_seat_native_handle_event_post (ClutterSeat        *seat,
 
   if (event_type == CLUTTER_PROXIMITY_IN)
     {
-      MetaCursorRendererNative *cursor_renderer_native;
+      MetaCursorRenderer *cursor_renderer;
 
       if (!seat_native->tablet_cursors)
         {
@@ -69,10 +69,9 @@ meta_seat_native_handle_event_post (ClutterSeat        *seat,
                                                                g_object_unref);
         }
 
-      cursor_renderer_native =
-        meta_cursor_renderer_native_new (meta_get_backend (), device);
+      cursor_renderer = meta_cursor_renderer_new (meta_get_backend (), device);
       g_hash_table_insert (seat_native->tablet_cursors,
-                           device, cursor_renderer_native);
+                           device, cursor_renderer);
       return TRUE;
     }
   else if (event_type == CLUTTER_PROXIMITY_OUT)
@@ -225,7 +224,7 @@ meta_seat_native_finalize (GObject *object)
     xkb_keymap_unref (seat->xkb_keymap);
   g_clear_object (&seat->core_pointer);
   g_clear_object (&seat->core_keyboard);
-  g_clear_object (&seat->impl);
+  g_clear_pointer (&seat->impl, meta_seat_impl_destroy);
 
   for (iter = seat->devices; iter; iter = g_list_next (iter))
     {

@@ -191,12 +191,16 @@ G_DEFINE_ABSTRACT_TYPE_WITH_CODE (MetaBackend, meta_backend, G_TYPE_OBJECT,
                                                          initable_iface_init));
 
 static void
-meta_backend_finalize (GObject *object)
+meta_backend_dispose (GObject *object)
 {
   MetaBackend *backend = META_BACKEND (object);
   MetaBackendPrivate *priv = meta_backend_get_instance_private (backend);
 
-  g_list_free_full (priv->gpus, g_object_unref);
+  if (priv->gpus)
+    {
+      g_list_free_full (priv->gpus, g_object_unref);
+      priv->gpus = NULL;
+    }
 
   g_clear_object (&priv->current_device);
   g_clear_object (&priv->monitor_manager);
@@ -213,9 +217,17 @@ meta_backend_finalize (GObject *object)
 #endif
 
   if (priv->sleep_signal_id)
-    g_dbus_connection_signal_unsubscribe (priv->system_bus, priv->sleep_signal_id);
+    {
+      g_dbus_connection_signal_unsubscribe (priv->system_bus, priv->sleep_signal_id);
+      priv->sleep_signal_id = 0;
+    }
+
   if (priv->upower_watch_id)
-    g_bus_unwatch_name (priv->upower_watch_id);
+    {
+      g_bus_unwatch_name (priv->upower_watch_id);
+      priv->upower_watch_id = 0;
+    }
+
   g_cancellable_cancel (priv->cancellable);
   g_clear_object (&priv->cancellable);
   g_clear_object (&priv->system_bus);
@@ -223,7 +235,7 @@ meta_backend_finalize (GObject *object)
 
   g_clear_handle_id (&priv->device_update_idle_id, g_source_remove);
 
-  g_hash_table_destroy (priv->device_monitors);
+  g_clear_pointer (&priv->device_monitors, g_hash_table_destroy);
 
   g_clear_object (&priv->settings);
 
@@ -233,7 +245,7 @@ meta_backend_finalize (GObject *object)
 
   g_clear_object (&priv->clutter_backend);
 
-  G_OBJECT_CLASS (meta_backend_parent_class)->finalize (object);
+  G_OBJECT_CLASS (meta_backend_parent_class)->dispose (object);
 }
 
 static void
@@ -398,13 +410,6 @@ meta_backend_monitor_device (MetaBackend        *backend,
 }
 
 static inline gboolean
-device_is_physical_touchscreen (ClutterInputDevice *device)
-{
-  return (clutter_input_device_get_device_mode (device) != CLUTTER_INPUT_MODE_LOGICAL &&
-          clutter_input_device_get_device_type (device) == CLUTTER_TOUCHSCREEN_DEVICE);
-}
-
-static inline gboolean
 check_has_pointing_device (ClutterSeat *seat)
 {
   GList *l, *devices;
@@ -467,10 +472,14 @@ on_device_added (ClutterSeat        *seat,
 
   create_device_monitor (backend, device);
 
-  if (device_is_physical_touchscreen (device))
-    meta_cursor_tracker_set_pointer_visible (priv->cursor_tracker, FALSE);
+  if (clutter_input_device_get_device_mode (device) ==
+      CLUTTER_INPUT_MODE_LOGICAL)
+    return;
 
   device_type = clutter_input_device_get_device_type (device);
+
+  if (device_type == CLUTTER_TOUCHSCREEN_DEVICE)
+    meta_cursor_tracker_set_pointer_visible (priv->cursor_tracker, FALSE);
 
   if (device_type == CLUTTER_TOUCHSCREEN_DEVICE ||
       device_type == CLUTTER_TABLET_DEVICE ||
@@ -490,6 +499,10 @@ on_device_removed (ClutterSeat        *seat,
   MetaBackendPrivate *priv = meta_backend_get_instance_private (backend);
 
   destroy_device_monitor (backend, device);
+
+  if (clutter_input_device_get_device_mode (device) ==
+      CLUTTER_INPUT_MODE_LOGICAL)
+    return;
 
   meta_input_mapper_remove_device (priv->input_mapper, device);
 
@@ -830,7 +843,7 @@ meta_backend_class_init (MetaBackendClass *klass)
   const gchar *mutter_stage_views;
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
-  object_class->finalize = meta_backend_finalize;
+  object_class->dispose = meta_backend_dispose;
   object_class->constructed = meta_backend_constructed;
 
   klass->post_init = meta_backend_real_post_init;
@@ -1002,17 +1015,12 @@ clutter_source_dispatch (GSource     *source,
                          gpointer     user_data)
 {
   MetaBackendSource *backend_source = (MetaBackendSource *) source;
-  MetaBackendPrivate *priv =
-    meta_backend_get_instance_private (backend_source->backend);
   ClutterEvent *event = clutter_event_get ();
-  ClutterSeat *seat;
 
   if (event)
     {
       event->any.stage =
         CLUTTER_STAGE (meta_backend_get_stage (backend_source->backend));
-      seat = clutter_backend_get_default_seat (priv->clutter_backend);
-      clutter_seat_handle_event_post (seat, event);
       clutter_do_event (event);
       clutter_event_free (event);
     }

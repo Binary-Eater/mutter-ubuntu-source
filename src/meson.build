@@ -283,6 +283,8 @@ mutter_sources = [
   'backends/x11/nested/meta-backend-x11-nested.h',
   'backends/x11/nested/meta-cursor-renderer-x11-nested.c',
   'backends/x11/nested/meta-cursor-renderer-x11-nested.h',
+  'backends/x11/nested/meta-input-settings-x11-nested.c',
+  'backends/x11/nested/meta-input-settings-x11-nested.h',
   'backends/x11/nested/meta-stage-x11-nested.c',
   'backends/x11/nested/meta-stage-x11-nested.h',
   'backends/x11/nested/meta-renderer-x11-nested.c',

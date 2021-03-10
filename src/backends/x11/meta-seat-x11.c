@@ -1325,7 +1325,7 @@ meta_seat_x11_notify_devices (MetaSeatX11  *seat_x11,
       event = clutter_event_new (CLUTTER_DEVICE_ADDED);
       clutter_event_set_device (event, device);
       clutter_event_set_stage (event, stage);
-      clutter_do_event (event);
+      _clutter_event_push (g_steal_pointer (&event), FALSE);
     }
 }
 
@@ -1492,7 +1492,7 @@ translate_state (XIButtonState   *button_state,
 
   if (button_state)
     {
-      for (i = 1; i < XIMaskLen (button_state->mask_len); i++)
+      for (i = 1; i < button_state->mask_len * 8; i++)
         {
           if (!XIMaskIsSet (button_state->mask, i))
             continue;
@@ -1521,7 +1521,7 @@ translate_state (XIButtonState   *button_state,
     }
 
   if (group_state)
-    state = XkbBuildCoreState (group_state->effective, state);
+    state |= XkbBuildCoreState (0, group_state->effective);
 
   return state;
 }
@@ -1537,7 +1537,7 @@ meta_seat_x11_query_state (ClutterSeat          *seat,
   MetaSeatX11 *seat_x11 = META_SEAT_X11 (seat);
   Window root_ret, child_ret;
   double root_x, root_y, win_x, win_y;
-  XIButtonState button_state;
+  XIButtonState button_state = { 0 };
   XIModifierState modifier_state;
   XIGroupState group_state;
 
@@ -1549,7 +1549,10 @@ meta_seat_x11_query_state (ClutterSeat          *seat,
                   &root_x, &root_y, &win_x, &win_y,
                   &button_state, &modifier_state, &group_state);
   if (clutter_x11_untrap_x_errors ())
-    return FALSE;
+    {
+      g_free (button_state.mask);
+      return FALSE;
+    }
 
   if (sequence)
     {
@@ -1557,7 +1560,10 @@ meta_seat_x11_query_state (ClutterSeat          *seat,
 
       touch_info = g_hash_table_lookup (seat_x11->touch_coords, sequence);
       if (!touch_info)
-        return FALSE;
+        {
+          g_free (button_state.mask);
+          return FALSE;
+        }
 
       if (coords)
         {
@@ -1577,6 +1583,7 @@ meta_seat_x11_query_state (ClutterSeat          *seat,
   if (modifiers)
     *modifiers = translate_state (&button_state, &modifier_state, &group_state);
 
+  g_free (button_state.mask);
   return TRUE;
 }
 

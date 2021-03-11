@@ -1,0 +1,4 @@
+  * Team upload
+  [ Marco Trevisan (Treviño) ]
+  * debian/patches: Include a missing commit from upstream gnome-3-38
+    branch to fix X11 UI stutters

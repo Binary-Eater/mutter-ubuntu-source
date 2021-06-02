@@ -273,7 +273,7 @@ get_base_pipeline (MetaShapedTexture *stex,
                    CoglContext       *ctx)
 {
   CoglPipeline *pipeline;
-  CoglMatrix matrix;
+  graphene_matrix_t matrix;
 
   if (stex->base_pipeline)
     return stex->base_pipeline;
@@ -288,20 +288,48 @@ get_base_pipeline (MetaShapedTexture *stex,
   cogl_pipeline_set_layer_wrap_mode_t (pipeline, 1,
                                        COGL_PIPELINE_WRAP_MODE_CLAMP_TO_EDGE);
 
-  cogl_matrix_init_identity (&matrix);
+  graphene_matrix_init_identity (&matrix);
 
-  if (!stex->is_y_inverted)
+  if (stex->has_viewport_src_rect)
     {
-      cogl_matrix_scale (&matrix, 1, -1, 1);
-      cogl_matrix_translate (&matrix, 0, -1, 0);
-      cogl_pipeline_set_layer_matrix (pipeline, 0, &matrix);
+      float scaled_tex_width = stex->tex_width / (float) stex->buffer_scale;
+      float scaled_tex_height = stex->tex_height / (float) stex->buffer_scale;
+      graphene_point3d_t p;
+
+      graphene_point3d_init (&p,
+                             stex->viewport_src_rect.origin.x /
+                             stex->viewport_src_rect.size.width,
+                             stex->viewport_src_rect.origin.y /
+                             stex->viewport_src_rect.size.height,
+                             0);
+      graphene_matrix_translate (&matrix, &p);
+
+      if (meta_monitor_transform_is_rotated (stex->transform))
+        {
+          graphene_matrix_scale (&matrix,
+                                 stex->viewport_src_rect.size.width /
+                                 scaled_tex_height,
+                                 stex->viewport_src_rect.size.height /
+                                 scaled_tex_width,
+                                 1);
+        }
+      else
+        {
+          graphene_matrix_scale (&matrix,
+                                 stex->viewport_src_rect.size.width /
+                                 scaled_tex_width,
+                                 stex->viewport_src_rect.size.height /
+                                 scaled_tex_height,
+                                 1);
+        }
     }
 
   if (stex->transform != META_MONITOR_TRANSFORM_NORMAL)
     {
       graphene_euler_t euler;
 
-      cogl_matrix_translate (&matrix, 0.5, 0.5, 0.0);
+      graphene_matrix_translate (&matrix,
+                                 &GRAPHENE_POINT3D_INIT (-0.5, -0.5, 0.0));
       switch (stex->transform)
         {
         case META_MONITOR_TRANSFORM_90:
@@ -335,40 +363,16 @@ get_base_pipeline (MetaShapedTexture *stex,
         case META_MONITOR_TRANSFORM_NORMAL:
           g_assert_not_reached ();
         }
-      cogl_matrix_rotate_euler (&matrix, &euler);
-      cogl_matrix_translate (&matrix, -0.5, -0.5, 0.0);
+      graphene_matrix_rotate_euler (&matrix, &euler);
+      graphene_matrix_translate (&matrix,
+                                 &GRAPHENE_POINT3D_INIT (0.5, 0.5, 0.0));
     }
 
-  if (stex->has_viewport_src_rect)
+  if (!stex->is_y_inverted)
     {
-      float scaled_tex_width = stex->tex_width / (float) stex->buffer_scale;
-      float scaled_tex_height = stex->tex_height / (float) stex->buffer_scale;
-
-      if (meta_monitor_transform_is_rotated (stex->transform))
-        {
-          cogl_matrix_scale (&matrix,
-                             stex->viewport_src_rect.size.width /
-                             scaled_tex_height,
-                             stex->viewport_src_rect.size.height /
-                             scaled_tex_width,
-                             1);
-        }
-      else
-        {
-          cogl_matrix_scale (&matrix,
-                             stex->viewport_src_rect.size.width /
-                             scaled_tex_width,
-                             stex->viewport_src_rect.size.height /
-                             scaled_tex_height,
-                             1);
-        }
-
-      cogl_matrix_translate (&matrix,
-                             stex->viewport_src_rect.origin.x /
-                             stex->viewport_src_rect.size.width,
-                             stex->viewport_src_rect.origin.y /
-                             stex->viewport_src_rect.size.height,
-                             0);
+      graphene_matrix_translate (&matrix, &GRAPHENE_POINT3D_INIT (0, -1, 0));
+      graphene_matrix_scale (&matrix, 1, -1, 1);
+      cogl_pipeline_set_layer_matrix (pipeline, 0, &matrix);
     }
 
   cogl_pipeline_set_layer_matrix (pipeline, 0, &matrix);
@@ -985,6 +989,8 @@ meta_shaped_texture_update_area (MetaShapedTexture     *stex,
                                  cairo_rectangle_int_t *clip)
 {
   MetaMonitorTransform inverted_transform;
+  int scaled_and_transformed_width;
+  int scaled_and_transformed_height;
 
   if (stex->texture == NULL)
     return FALSE;
@@ -998,15 +1004,24 @@ meta_shaped_texture_update_area (MetaShapedTexture     *stex,
 
   meta_rectangle_scale_double (clip,
                                1.0 / stex->buffer_scale,
-                               META_ROUNDING_STRATEGY_SHRINK,
+                               META_ROUNDING_STRATEGY_GROW,
                                clip);
 
+  if (meta_monitor_transform_is_rotated (stex->transform))
+    {
+      scaled_and_transformed_width = stex->tex_height / stex->buffer_scale;
+      scaled_and_transformed_height = stex->tex_width / stex->buffer_scale;
+    }
+  else
+    {
+      scaled_and_transformed_width = stex->tex_width / stex->buffer_scale;
+      scaled_and_transformed_height = stex->tex_height / stex->buffer_scale;
+    }
   inverted_transform = meta_monitor_transform_invert (stex->transform);
-  meta_shaped_texture_ensure_size_valid (stex);
   meta_rectangle_transform (clip,
                             inverted_transform,
-                            stex->dst_width,
-                            stex->dst_height,
+                            scaled_and_transformed_width,
+                            scaled_and_transformed_height,
                             clip);
 
   if (stex->has_viewport_src_rect || stex->has_viewport_dst_size)
@@ -1027,8 +1042,8 @@ meta_shaped_texture_update_area (MetaShapedTexture     *stex,
           viewport = (graphene_rect_t) {
             .origin.x = 0,
             .origin.y = 0,
-            .size.width = stex->tex_width / stex->buffer_scale,
-            .size.height = stex->tex_height / stex->buffer_scale,
+            .size.width = scaled_and_transformed_width,
+            .size.height = scaled_and_transformed_height,
           };
         }
 
@@ -1368,7 +1383,7 @@ get_image_via_offscreen (MetaShapedTexture     *stex,
   GError *error = NULL;
   CoglOffscreen *offscreen;
   CoglFramebuffer *fb;
-  CoglMatrix projection_matrix;
+  graphene_matrix_t projection_matrix;
   cairo_rectangle_int_t fallback_clip;
   ClutterColor clear_color;
   ClutterPaintContext *paint_context;
@@ -1402,18 +1417,18 @@ get_image_via_offscreen (MetaShapedTexture     *stex,
   if (!cogl_framebuffer_allocate (fb, &error))
     {
       g_error_free (error);
-      cogl_object_unref (fb);
+      g_object_unref (fb);
       return FALSE;
     }
 
   cogl_framebuffer_push_matrix (fb);
-  cogl_matrix_init_identity (&projection_matrix);
-  cogl_matrix_scale (&projection_matrix,
-                     1.0 / (image_width / 2.0),
-                     -1.0 / (image_height / 2.0), 0);
-  cogl_matrix_translate (&projection_matrix,
-                         -(image_width / 2.0),
-                         -(image_height / 2.0), 0);
+  graphene_matrix_init_translate (&projection_matrix,
+                                  &GRAPHENE_POINT3D_INIT (-(image_width / 2.0),
+                                                          -(image_height / 2.0),
+                                                          0));
+  graphene_matrix_scale (&projection_matrix,
+                         1.0 / (image_width / 2.0),
+                         -1.0 / (image_height / 2.0), 0);
 
   cogl_framebuffer_set_projection_matrix (fb, &projection_matrix);
 
@@ -1445,7 +1460,7 @@ get_image_via_offscreen (MetaShapedTexture     *stex,
                                 clip->width, clip->height,
                                 CLUTTER_CAIRO_FORMAT_ARGB32,
                                 cairo_image_surface_get_data (surface));
-  cogl_object_unref (fb);
+  g_object_unref (fb);
 
   cairo_surface_mark_dirty (surface);
 

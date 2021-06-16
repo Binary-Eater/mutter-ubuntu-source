@@ -1,0 +1,14 @@
+  * New upstream release
+  * debian/patches: Refresh
+  * New upstream release:
+    - Fix mouse position in remote desktop with fractional scaling
+    - Fix fd leak
+    - Disable KMS modifiers on radeon driver
+    - Fix adding virtual monitor to physical session
+    - Unbreak press-drag-release to pop up and select right click menus
+    - Fix VKMS detection
+  * debian/patches: Refresh, dropping applied upstream
+  * d/p: Mark view-verification tests as incomplete in big-endian archs.
+    Saved pixmaps are invalid in big-endian architectures, so let's disable
+    the tests for now, checking only the basic metadata but not comparing
+    the contents.

@@ -1,0 +1,19 @@
+  [ Marco Trevisan ]
+  * d/gbp.conf, d/control.in: Update VCS details for debian/unstable branch
+  [ Simon McVittie ]
+  * New upstream release
+    - xwayland: Check permissions on /tmp/.X11-unix
+    - Ensure valid window texture size after viewport changes
+    - kms: Improve handling of common video modes that might exceed the
+      possible bandwidth
+    - Fix damage propagation for rotated transforms with viewport
+    - Improve Wayland subsurface reordering
+  * Update GLib build-dependency (no practical effect, the new dependency
+    is already in bullseye)
+  [ Laurent Bigonville ]
+  * Fixes for non-Linux ports:
+    - Build-depend on libegl1-mesa-dev on all architectures (not just Linux).
+      It is required for EGL support.
+    - Only build-depend on udev on Linux architectures
+    - Only depend on libwayland on Linux architectures
+    - Drop unnecessary -dev dependency on libudev-dev

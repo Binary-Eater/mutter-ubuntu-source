@@ -1,0 +1,4 @@
+  * Team upload
+  * d/p/monitor-manager-Don-t-include-generated-code-in-header-fi.patch:
+    Add patch from upstream 40.1 to fix FTBFS seen on s390x.
+    Thanks to Adrian Bunk.

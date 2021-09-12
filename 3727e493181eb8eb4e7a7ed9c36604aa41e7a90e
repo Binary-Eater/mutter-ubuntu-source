@@ -1,0 +1,5 @@
+  * Team upload
+  [ Jeremy Bicha ]
+  * Build-Depend on libsysprof-capture-4-dev instead of sysprof
+  [ Simon McVittie ]
+  * Upload to unstable, part of transition #992870

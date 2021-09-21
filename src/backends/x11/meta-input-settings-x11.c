@@ -118,11 +118,11 @@ get_property (ClutterInputDevice *device,
 
   device_id = meta_input_device_x11_get_device_id (device);
 
-  clutter_x11_trap_x_errors ();
+  meta_clutter_x11_trap_x_errors ();
   rc = XIGetProperty (xdisplay, device_id, property_atom,
                       0, 10, False, type, &type_ret, &format_ret,
                       &nitems_ret, &bytes_after_ret, &data_ret);
-  clutter_x11_untrap_x_errors ();
+  meta_clutter_x11_untrap_x_errors ();
 
   if (rc == Success && type_ret == type && format_ret == format && nitems_ret >= nitems)
     {
@@ -175,6 +175,8 @@ meta_input_settings_x11_set_send_events (MetaInputSettings        *settings,
 
   available = get_property (device, "libinput Send Events Modes Available",
                             XA_INTEGER, 8, 2);
+  if (!available)
+    return;
 
   switch (mode)
     {
@@ -187,11 +189,6 @@ meta_input_settings_x11_set_send_events (MetaInputSettings        *settings,
     default:
       break;
     }
-
-  change_property (device, "Synaptics Off", XA_INTEGER, 8, &values, 1);
-
-  if (!available)
-    return;
 
   if ((values[0] && !available[0]) || (values[1] && !available[1]))
     g_warning ("Device '%s' does not support sendevents mode %d",
@@ -226,23 +223,11 @@ meta_input_settings_x11_set_speed (MetaInputSettings  *settings,
 {
   MetaBackend *backend = meta_get_backend ();
   Display *xdisplay = meta_backend_x11_get_xdisplay (META_BACKEND_X11 (backend));
-  gfloat *accel = get_property (device, "libinput Accel Speed",
-                                XInternAtom (xdisplay, "FLOAT", False), 32, 1);
+  gfloat value = speed;
 
-  if (accel)
-    {
-      *accel = speed; /* Sounds confused, but libinput is confused. */
-      change_property (device, "libinput Accel Speed",
-                       XInternAtom (xdisplay, "FLOAT", False), 32, accel, 1);
-      meta_XFree (accel);
-    }
-  else
-    {
-      gfloat scale = (speed <= -1.0) ? 1.0 : (speed + 1.0) * 12.5;
-
-      change_property (device, "Device Accel Velocity Scaling",
-                       XInternAtom (xdisplay, "FLOAT", False), 32, &scale, 1);
-    }
+  change_property (device, "libinput Accel Speed",
+                   XInternAtom (xdisplay, "FLOAT", False),
+                   32, &value, 1);
 }
 
 static void
@@ -280,9 +265,6 @@ meta_input_settings_x11_set_disable_while_typing (MetaInputSettings  *settings,
 
   change_property (device, "libinput Disable While Typing Enabled",
                    XA_INTEGER, 8, &value, 1);
-
-  change_property (device, "Synaptics Palm Detection",
-                   XA_INTEGER, 8, &value, 1);
 }
 
 static void
@@ -291,13 +273,9 @@ meta_input_settings_x11_set_tap_enabled (MetaInputSettings  *settings,
                                          gboolean            enabled)
 {
   guchar value = (enabled) ? 1 : 0;
-  gint32 tap_time = (enabled) ? 180 : 0;
 
   change_property (device, "libinput Tapping Enabled",
                    XA_INTEGER, 8, &value, 1);
-
-  change_property (device, "Synaptics Tap Time",
-                   XA_INTEGER, 32, &tap_time, 1);
 }
 
 static void
@@ -308,9 +286,6 @@ meta_input_settings_x11_set_tap_and_drag_enabled (MetaInputSettings  *settings,
   guchar value = (enabled) ? 1 : 0;
 
   change_property (device, "libinput Tapping Drag Enabled",
-                   XA_INTEGER, 8, &value, 1);
-
-  change_property (device, "Synaptics Gestures",
                    XA_INTEGER, 8, &value, 1);
 }
 
@@ -330,22 +305,10 @@ meta_input_settings_x11_set_invert_scroll (MetaInputSettings  *settings,
                                            ClutterInputDevice *device,
                                            gboolean            inverted)
 {
-  gint32 *scroll_dist = get_property (device, "Synaptics Scrolling Distance",
-                                      XA_INTEGER, 32, 2);
-  if (scroll_dist)
-    {
-      scroll_dist[0] = inverted ? -ABS (scroll_dist[0]) : ABS (scroll_dist[0]);
-      change_property (device, "Synaptics Scrolling Distance",
-                       XA_INTEGER, 32, scroll_dist, 2);
-      meta_XFree (scroll_dist);
-    }
-  else
-    {
-      guchar value = (inverted) ? 1 : 0;
+  guchar value = (inverted) ? 1 : 0;
 
-      change_property (device, "libinput Natural Scrolling Enabled",
-                       XA_INTEGER, 8, &value, 1);
-    }
+  change_property (device, "libinput Natural Scrolling Enabled",
+                   XA_INTEGER, 8, &value, 1);
 }
 
 static void
@@ -356,31 +319,6 @@ change_scroll_method (ClutterInputDevice           *device,
   guchar values[SCROLL_METHOD_NUM_FIELDS] = { 0 }; /* 2fg, edge, button. The last value is unused */
   guchar *current = NULL;
   guchar *available = NULL;
-
-  if (method == SCROLL_METHOD_FIELD_EDGE)
-    {
-      current = get_property (device, "Synaptics Edge Scrolling",
-                              XA_INTEGER, 8, 3);
-      if (current)
-        {
-          current[0] = current[1] = !!enabled;
-          change_property (device, "Synaptics Edge Scrolling",
-                           XA_INTEGER, 8, current, 3);
-          goto out;
-        }
-    }
-  else if (method == SCROLL_METHOD_FIELD_2FG)
-    {
-      current = get_property (device, "Synaptics Two-Finger Scrolling",
-                              XA_INTEGER, 8, 2);
-      if (current)
-        {
-          current[0] = current[1] = !!enabled;
-          change_property (device, "Synaptics Two-Finger Scrolling",
-                          XA_INTEGER, 8, current, 2);
-          goto out;
-        }
-    }
 
   available = get_property (device, "libinput Scroll Methods Available",
                             XA_INTEGER, 8, SCROLL_METHOD_NUM_FIELDS);
@@ -425,19 +363,10 @@ meta_input_settings_x11_has_two_finger_scroll (MetaInputSettings  *settings,
   guchar *available = NULL;
   gboolean has_two_finger = TRUE;
 
-  available = get_property (device, "Synaptics Two-Finger Scrolling",
-                            XA_INTEGER, 8, 2);
-  if (available)
-    {
-      has_two_finger = available[0] || available[1];
-    }
-  else
-    {
-      available = get_property (device, "libinput Scroll Methods Available",
-                                XA_INTEGER, 8, SCROLL_METHOD_NUM_FIELDS);
-      if (!available || !available[SCROLL_METHOD_FIELD_2FG])
-        has_two_finger = FALSE;
-    }
+  available = get_property (device, "libinput Scroll Methods Available",
+                            XA_INTEGER, 8, SCROLL_METHOD_NUM_FIELDS);
+  if (!available || !available[SCROLL_METHOD_FIELD_2FG])
+    has_two_finger = FALSE;
 
   meta_XFree (available);
   return has_two_finger;
@@ -459,58 +388,6 @@ meta_input_settings_x11_set_scroll_button (MetaInputSettings  *settings,
 }
 
 static void
-meta_input_settings_x11_set_click_method_synaptics (MetaInputSettings *settings,
-                                          ClutterInputDevice          *device,
-                                          GDesktopTouchpadClickMethod  mode)
-{
-  /* { RT corner, RB, LT, LB, 1 finger, 2 fingers, 3 fingers } */
-  guchar tap_action_default[7] = { 2, 3, 0, 0, 1, 3, 0 };
-  guchar tap_action_areas[7]   = { 2, 3, 0, 0, 1, 0, 0 };
-  guchar tap_action_fingers[7] = { 0, 0, 0, 0, 1, 3, 2 };
-  guchar tap_action_none[7]    = { 0, 0, 0, 0, 1, 0, 0 };
-  guchar *tap_action = tap_action_default;
-
-  /* TODO On startup save the default value of 'Synaptics Soft Button Areas',
-          but save it where? */
-  gint32 zero_button_areas[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-  gint32 *button_areas_known = NULL;
-
-  switch (mode)
-    {
-    case G_DESKTOP_TOUCHPAD_CLICK_METHOD_DEFAULT:
-      tap_action = tap_action_default;
-      /* Doing nothing right now will give the correct default, unless changed
-         during the session */
-      break;
-    case G_DESKTOP_TOUCHPAD_CLICK_METHOD_NONE:
-      tap_action = tap_action_none;
-      button_areas_known = zero_button_areas;
-      break;
-    case G_DESKTOP_TOUCHPAD_CLICK_METHOD_AREAS:
-      tap_action = tap_action_areas;
-      /* Doing nothing right now will give the correct default, unless changed
-         during the session */
-      break;
-    case G_DESKTOP_TOUCHPAD_CLICK_METHOD_FINGERS:
-      tap_action = tap_action_fingers;
-      button_areas_known = zero_button_areas;
-      break;
-    default:
-      g_assert_not_reached ();
-      return;
-    }
-
-  change_property (device, "Synaptics Tap Action",
-                   XA_INTEGER, 8, tap_action, 7);
-  change_property (device, "Synaptics Click Action",
-                   XA_INTEGER, 8, tap_action + 4, 3);
-
-  if (button_areas_known)
-    change_property (device, "Synaptics Soft Button Areas",
-                     XA_INTEGER, 32, button_areas_known, 8);
-}
-
-static void
 meta_input_settings_x11_set_click_method (MetaInputSettings           *settings,
                                           ClutterInputDevice          *device,
                                           GDesktopTouchpadClickMethod  mode)
@@ -521,11 +398,7 @@ meta_input_settings_x11_set_click_method (MetaInputSettings           *settings,
   available = get_property (device, "libinput Click Methods Available",
                             XA_INTEGER, 8, 2);
   if (!available)
-    {
-      meta_input_settings_x11_set_click_method_synaptics (settings, device,
-                                                          mode);
-      return;
-    }
+    return;
 
   switch (mode)
     {

@@ -1,0 +1,3 @@
+  * New upstream release:
+    - Fix monitor screencast scanouts
+    - Fix middle-click emulation support on X11

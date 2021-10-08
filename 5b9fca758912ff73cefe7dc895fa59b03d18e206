@@ -1,0 +1,5 @@
+  [ Daniel van Vugt ]
+  * d/p/clutter-frame-clock-Remember-the-refresh-interval.patch,
+  * d/p/clutter-frame-clock-Apply-error-diff-to-dispatch-times.patch:
+    - Fix rendering smoothness on the Nvidia proprietary driver
+      (cherry picked commits — LP: #1946204)

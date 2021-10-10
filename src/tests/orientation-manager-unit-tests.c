@@ -44,58 +44,111 @@ orientation_to_string (MetaOrientation orientation)
     }
 }
 
+typedef struct
+{
+  MetaOrientation expected;
+  MetaOrientation orientation;
+  gulong connection_id;
+  guint timeout_id;
+  guint times_signalled;
+} WaitForOrientation;
+
 static void
 on_orientation_changed (gpointer data,
                         MetaOrientationManager *orientation_manager)
 {
-  gboolean *changed = data;
-  MetaOrientation orientation;
+  WaitForOrientation *wfo = data;
 
-  orientation = meta_orientation_manager_get_orientation (orientation_manager);
+  wfo->orientation = meta_orientation_manager_get_orientation (orientation_manager);
+  wfo->times_signalled++;
+
   g_test_message ("wait_for_orientation_changes: Orientation changed to %d: %s",
-                  orientation, orientation_to_string (orientation));
-
-  *changed = TRUE;
+                  wfo->orientation, orientation_to_string (wfo->orientation));
 }
 
 static gboolean
 on_max_wait_timeout (gpointer data)
 {
-  guint *timeout_id = data;
+  WaitForOrientation *wfo = data;
 
-  g_test_message ("wait_for_orientation_changes: Timed out waiting for orientation change");
-  *timeout_id = 0;
-
+  wfo->timeout_id = 0;
   return G_SOURCE_REMOVE;
 }
 
+/*
+ * Assert that the orientation eventually changes to @orientation.
+ */
 void
-wait_for_orientation_changes (MetaOrientationManager *orientation_manager)
+wait_for_orientation (MetaOrientationManager *orientation_manager,
+                      MetaOrientation orientation,
+                      guint *times_signalled_out)
 {
-  gboolean changed = FALSE;
-  gulong connection_id;
-  guint timeout_id;
-  MetaOrientation orientation;
+  WaitForOrientation wfo = { orientation, META_ORIENTATION_UNDEFINED, 0, 0, 0 };
 
-  orientation = meta_orientation_manager_get_orientation (orientation_manager);
-  g_test_message ("%s: Waiting for orientation to change from %d: %s...",
-                  G_STRFUNC, orientation, orientation_to_string (orientation));
+  wfo.orientation = meta_orientation_manager_get_orientation (orientation_manager);
+  g_test_message ("%s: Waiting for orientation to change from %d: %s to %d: %s...",
+                  G_STRFUNC, wfo.orientation, orientation_to_string (wfo.orientation),
+                  orientation, orientation_to_string (orientation));
 
-  timeout_id = g_timeout_add (300, on_max_wait_timeout, &timeout_id);
-  connection_id = g_signal_connect_swapped (orientation_manager,
-                                            "orientation-changed",
-                                            G_CALLBACK (on_orientation_changed),
-                                            &changed);
+  wfo.timeout_id = g_timeout_add_seconds (10, on_max_wait_timeout, &wfo);
+  wfo.connection_id = g_signal_connect_swapped (orientation_manager,
+                                                 "orientation-changed",
+                                                 G_CALLBACK (on_orientation_changed),
+                                                 &wfo);
 
-  while (!changed && timeout_id)
+  while (wfo.orientation != orientation && wfo.timeout_id != 0)
     g_main_context_iteration (NULL, TRUE);
 
-  g_clear_handle_id (&timeout_id, g_source_remove);
-  g_signal_handler_disconnect (orientation_manager, connection_id);
+  if (wfo.orientation != orientation)
+    g_error ("Timed out waiting for orientation to change from %s to %s "
+             "(received %u orientation-changed signal(s) while waiting)",
+             orientation_to_string (wfo.orientation),
+             orientation_to_string (orientation),
+             wfo.times_signalled);
 
-  orientation = meta_orientation_manager_get_orientation (orientation_manager);
   g_test_message ("%s: Orientation is now %d: %s",
                   G_STRFUNC, orientation, orientation_to_string (orientation));
+
+  g_clear_handle_id (&wfo.timeout_id, g_source_remove);
+  g_signal_handler_disconnect (orientation_manager, wfo.connection_id);
+
+  if (times_signalled_out != NULL)
+    *times_signalled_out = wfo.times_signalled;
+}
+
+/*
+ * Wait for a possible orientation change, but don't assert that one occurs.
+ */
+void
+wait_for_possible_orientation_change (MetaOrientationManager *orientation_manager,
+                                      guint *times_signalled_out)
+{
+  WaitForOrientation wfo = { META_ORIENTATION_UNDEFINED, META_ORIENTATION_UNDEFINED, 0, 0, 0 };
+
+  wfo.orientation = meta_orientation_manager_get_orientation (orientation_manager);
+  g_test_message ("%s: Waiting for orientation to maybe change from %d: %s...",
+                  G_STRFUNC, wfo.orientation, orientation_to_string (wfo.orientation));
+
+  wfo.timeout_id = g_timeout_add (300, on_max_wait_timeout, &wfo);
+  wfo.connection_id = g_signal_connect_swapped (orientation_manager,
+                                                 "orientation-changed",
+                                                 G_CALLBACK (on_orientation_changed),
+                                                 &wfo);
+
+  while (wfo.times_signalled == 0 && wfo.timeout_id != 0)
+    g_main_context_iteration (NULL, TRUE);
+
+  if (wfo.timeout_id == 0)
+    g_test_message ("%s: Orientation didn't change", G_STRFUNC);
+  else
+    g_test_message ("%s: Orientation is now %d: %s",
+                    G_STRFUNC, wfo.orientation, orientation_to_string (wfo.orientation));
+
+  g_clear_handle_id (&wfo.timeout_id, g_source_remove);
+  g_signal_handler_disconnect (orientation_manager, wfo.connection_id);
+
+  if (times_signalled_out != NULL)
+    *times_signalled_out = wfo.times_signalled;
 }
 
 static void
@@ -126,25 +179,40 @@ meta_test_orientation_manager_no_device (void)
   g_object_unref (orientation_mock);
 }
 
+static gboolean
+on_wait_for_accel_timeout (gpointer data)
+{
+  guint *timeout_p = data;
+
+  *timeout_p = 0;
+  return G_SOURCE_REMOVE;
+}
+
 static void
 meta_test_orientation_manager_has_accelerometer (void)
 {
   g_autoptr (MetaOrientationManager) manager = NULL;
   g_autoptr (MetaSensorsProxyMock) orientation_mock = NULL;
+  guint timeout_id;
 
   manager = g_object_new (META_TYPE_ORIENTATION_MANAGER, NULL);
   orientation_mock = meta_sensors_proxy_mock_get ();
 
+  timeout_id = g_timeout_add_seconds (10, on_wait_for_accel_timeout, &timeout_id);
   meta_sensors_proxy_mock_set_property (orientation_mock,
                                         "HasAccelerometer",
                                         g_variant_new_boolean (TRUE));
-  wait_for_orientation_changes (manager);
+
+  while (!meta_orientation_manager_has_accelerometer (manager) &&
+         timeout_id != 0)
+    g_main_context_iteration (NULL, TRUE);
 
   g_debug ("Checking whether accelerometer is present");
   g_assert_true (meta_orientation_manager_has_accelerometer (manager));
   g_assert_cmpuint (meta_orientation_manager_get_orientation (manager),
                     ==,
                     META_ORIENTATION_UNDEFINED);
+  g_clear_handle_id (&timeout_id, g_source_remove);
 }
 
 static void
@@ -177,14 +245,13 @@ meta_test_orientation_manager_accelerometer_orientations (void)
 
   for (i = initial + 1; i != initial; i = (i + 1) % META_N_ORIENTATIONS)
     {
-      changed_called = FALSE;
-      meta_sensors_proxy_mock_set_orientation (orientation_mock, i);
-      wait_for_orientation_changes (manager);
+      guint times_signalled = 0;
 
+      changed_called = FALSE;
       g_debug ("Checking orientation %d", i);
-      g_assert_cmpuint (meta_orientation_manager_get_orientation (manager),
-                        ==,
-                        i);
+      meta_sensors_proxy_mock_set_orientation (orientation_mock, i);
+      wait_for_orientation (manager, i, &times_signalled);
+      g_assert_cmpuint (times_signalled, <=, 1);
 
       if (i != META_ORIENTATION_UNDEFINED)
         g_assert_true (changed_called);

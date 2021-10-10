@@ -1,0 +1,13 @@
+  * Team upload
+  * Build-depend on libgl-dev instead of transitional libgl1-mesa-dev
+  * (Build-)Depend on libgles-dev instead of transitional libgles2-mesa-dev
+  * d/rules: Don't let log from flaky tests overwrite log from main tests
+  * d/p/tests-dbus-runner-Make-sure-to-tear-down-even-on-test-fai.patch:
+    Add patch from upstream to stop failing tests causing a timeout.
+    Failing tests will generally still cause FTBFS, but failing immediately
+    is more buildd-friendly than timing out.
+  * d/p/tests-Don-t-use-TestEnvironment.patch,
+    d/p/tests-Don-t-continue-if-setup-commands-fail.patch:
+    Update patches for installed-tests to latest version submitted upstream
+  * d/p/tests-Add-additional-debug-for-Debian-995929.patch:
+    Add more debug logging to try to diagnose #995929

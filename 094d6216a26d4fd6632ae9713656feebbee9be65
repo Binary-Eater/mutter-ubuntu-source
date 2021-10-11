@@ -1,0 +1,6 @@
+  * Team upload
+  * d/control.in: libmutter-test-9 Depends on mutter.
+    It wants the libdefault.so plugin, which is in mutter.deb.
+  * Update Lintian overrides for RUNPATH
+  * d/patches: Another try at fixing #995929
+  * d/rules: Disable gvfs when running unit tests

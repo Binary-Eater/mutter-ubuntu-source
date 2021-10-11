@@ -90,6 +90,8 @@ wait_for_orientation (MetaOrientationManager *orientation_manager,
                   G_STRFUNC, wfo.orientation, orientation_to_string (wfo.orientation),
                   orientation, orientation_to_string (orientation));
 
+  /* This timeout can be relatively generous because we don't expect to
+   * reach it: if we do, that's a test failure. */
   wfo.timeout_id = g_timeout_add_seconds (10, on_max_wait_timeout, &wfo);
   wfo.connection_id = g_signal_connect_swapped (orientation_manager,
                                                  "orientation-changed",
@@ -129,6 +131,10 @@ wait_for_possible_orientation_change (MetaOrientationManager *orientation_manage
   g_test_message ("%s: Waiting for orientation to maybe change from %d: %s...",
                   G_STRFUNC, wfo.orientation, orientation_to_string (wfo.orientation));
 
+  /* This can't be as long as the timeout for wait_for_orientation(),
+   * because in the usual case we expect to reach this timeout: we're
+   * only waiting so that if the orientation (incorrectly?) changed here,
+   * we'd have a chance to detect that. */
   wfo.timeout_id = g_timeout_add (300, on_max_wait_timeout, &wfo);
   wfo.connection_id = g_signal_connect_swapped (orientation_manager,
                                                  "orientation-changed",

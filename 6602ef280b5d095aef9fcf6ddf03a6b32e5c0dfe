@@ -1,0 +1,6 @@
+  * Team upload
+  * Merge packaging from unstable
+    - No changes relative to 41.0-4, except for the changelog
+  * Close #995929 via changelog.
+    The patches in 41.0-4 seem to have been successful.
+  * Release to unstable (starts transition: #996607)

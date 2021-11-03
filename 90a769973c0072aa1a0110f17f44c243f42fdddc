@@ -1,0 +1,6 @@
+  [ Yuan-Chen Cheng ]
+  * d/p/mutter-wayland-seat-race-fix.patch:
+    - Fix Xwayland crash Xwayland crash in gdm as screen off and touchscreen
+      detach (cherry picked commits — LP: #1948894)
+  [ Marco Trevisan (Treviño) ]
+  * debian/patches: Refresh

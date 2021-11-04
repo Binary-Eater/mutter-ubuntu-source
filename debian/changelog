@@ -1,3 +1,16 @@
+mutter (3.38.4-1ubuntu2.21.04.01) hirsute; urgency=medium
+
+  [ Yuan-Chen Cheng ]
+  * d/p/mutter-wayland-seat-race-fix.patch:
+    - Fix Xwayland crash Xwayland crash in gdm as screen off and touchscreen
+      detach (cherry picked commits — LP: #1948894)
+    - backported one chunk of above patch.
+
+  [ Marco Trevisan (Treviño) ]
+  * debian: Update VCS references for hirsute branching
+
+ -- Marco Trevisan (Treviño) <marco@ubuntu.com>  Thu, 04 Nov 2021 16:15:12 +0100
+
 mutter (3.38.4-1ubuntu2) hirsute; urgency=medium
 
   [ Daniel van Vugt ]

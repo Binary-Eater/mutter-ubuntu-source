@@ -1,0 +1,7 @@
+  [ Yuan-Chen Cheng ]
+  * d/p/mutter-wayland-seat-race-fix.patch:
+    - Fix Xwayland crash Xwayland crash in gdm as screen off and touchscreen
+      detach (cherry picked commits — LP: #1948894)
+    - backported one chunk of above patch.
+  [ Marco Trevisan (Treviño) ]
+  * debian: Update VCS references for hirsute branching

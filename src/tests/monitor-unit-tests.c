@@ -3871,7 +3871,7 @@ meta_test_monitor_orientation_initial_rotated (void)
   g_autoptr (MetaSensorsProxyAutoResetMock) orientation_mock = NULL;
   g_autoptr (ClutterAutoRemoveInputDevice) touch_device = NULL;
   MetaOrientation orientation;
-  guint times_signalled = 0;
+  unsigned int times_signalled = 0;
 
   g_test_message ("%s", G_STRFUNC);
   orientation_mock = meta_sensors_proxy_mock_get ();
@@ -3978,7 +3978,7 @@ meta_test_monitor_orientation_initial_rotated_no_touch_mode (void)
     meta_backend_get_orientation_manager (backend);
   g_autoptr (MetaSensorsProxyAutoResetMock) orientation_mock = NULL;
   MetaOrientation orientation;
-  guint times_signalled = 0;
+  unsigned int times_signalled = 0;
 
   g_test_message ("%s", G_STRFUNC);
   orientation_mock = meta_sensors_proxy_mock_get ();
@@ -4087,7 +4087,7 @@ meta_test_monitor_orientation_initial_stored_rotated (void)
   g_autoptr (MetaSensorsProxyAutoResetMock) orientation_mock = NULL;
   g_autoptr (ClutterAutoRemoveInputDevice) touch_device = NULL;
   MetaOrientation orientation;
-  guint times_signalled = 0;
+  unsigned int times_signalled = 0;
 
   if (!meta_is_stage_views_enabled ())
     {
@@ -4242,7 +4242,7 @@ meta_test_monitor_orientation_initial_stored_rotated_no_touch (void)
     meta_backend_get_orientation_manager (backend);
   g_autoptr (MetaSensorsProxyAutoResetMock) orientation_mock = NULL;
   MetaOrientation orientation;
-  guint times_signalled = 0;
+  unsigned int times_signalled = 0;
 
   if (!meta_is_stage_views_enabled ())
     {
@@ -4373,7 +4373,7 @@ meta_test_monitor_orientation_changes (void)
   g_autoptr (MetaMonitorsConfig) initial_config = NULL;
   g_autoptr (MetaMonitorsConfig) previous_config = NULL;
   MetaOrientation i;
-  guint times_signalled = 0;
+  unsigned int times_signalled = 0;
 
   g_test_message ("%s", G_STRFUNC);
   orientation_mock = meta_sensors_proxy_mock_get ();
@@ -4598,7 +4598,7 @@ meta_test_monitor_orientation_changes_with_hotplugging (void)
   g_autoptr (ClutterAutoRemoveInputDevice) touch_device = NULL;
   g_autoptr (MetaSensorsProxyAutoResetMock) orientation_mock = NULL;
   MetaOrientation i;
-  guint times_signalled = 0;
+  unsigned int times_signalled = 0;
 
   g_test_message ("%s", G_STRFUNC);
   orientation_mock = meta_sensors_proxy_mock_get ();
@@ -8498,25 +8498,12 @@ meta_test_monitor_supported_fractional_scales (void)
 }
 
 static void
-on_orientation_changed (MetaOrientationManager *orientation_manager,
-                        gpointer unused)
-{
-  MetaOrientation orientation;
-
-  orientation = meta_orientation_manager_get_orientation (orientation_manager);
-  g_test_message ("%p: Orientation changed to %d: %s",
-                  orientation_manager, orientation, orientation_to_string (orientation));
-}
-
-static void
 test_case_setup (void       **fixture,
                  const void   *data)
 {
   MetaBackend *backend = meta_get_backend ();
   MetaMonitorManager *monitor_manager =
     meta_backend_get_monitor_manager (backend);
-  MetaOrientationManager *orientation_manager =
-    meta_backend_get_orientation_manager (backend);
   MetaMonitorManagerTest *monitor_manager_test =
     META_MONITOR_MANAGER_TEST (monitor_manager);
   MetaMonitorConfigManager *config_manager = monitor_manager->config_manager;
@@ -8525,19 +8512,6 @@ test_case_setup (void       **fixture,
                                                     TRUE);
   meta_monitor_config_manager_set_current (config_manager, NULL);
   meta_monitor_config_manager_clear_history (config_manager);
-
-  if (g_object_get_data (G_OBJECT (orientation_manager), "monitor-unit-tests-watching-orientation") != NULL)
-    {
-      g_test_message ("reusing existing orientation manager %p", orientation_manager);
-    }
-  else
-    {
-      g_signal_connect (orientation_manager, "orientation-changed",
-                        G_CALLBACK (on_orientation_changed), NULL);
-      g_object_set_data (G_OBJECT (orientation_manager),
-                         "monitor-unit-tests-watching-orientation",
-                         (void *) "yes");
-    }
 }
 
 static void

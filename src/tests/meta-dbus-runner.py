@@ -4,8 +4,6 @@ import dbus
 import sys
 import os
 import fcntl
-import importlib
-import importlib.util
 import subprocess
 from collections import OrderedDict
 from dbusmock import DBusTestCase

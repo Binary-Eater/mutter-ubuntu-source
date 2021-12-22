@@ -51,6 +51,7 @@ struct _MetaXdgActivationToken
   char *token;
   uint32_t serial;
   gulong sequence_complete_id;
+  gulong sequence_timeout_id;
   gboolean committed;
 };
 
@@ -102,8 +103,20 @@ sequence_complete_cb (MetaStartupSequence    *sequence,
   MetaWaylandActivation *activation = token->activation;
   MetaDisplay *display = meta_get_display ();
 
+  if (!g_hash_table_contains (activation->tokens, token->token))
+    return;
+
   meta_startup_notification_remove_sequence (display->startup_notification,
                                              sequence);
+  g_hash_table_remove (activation->tokens, token->token);
+}
+
+static void
+sequence_timeout_cb (MetaStartupSequence    *sequence,
+                     MetaXdgActivationToken *token)
+{
+  MetaWaylandActivation *activation = token->activation;
+
   g_hash_table_remove (activation->tokens, token->token);
 }
 
@@ -158,6 +171,11 @@ token_commit (struct wl_client   *client,
                       "complete",
                       G_CALLBACK (sequence_complete_cb),
                       token);
+  token->sequence_timeout_id =
+    g_signal_connect (token->sequence,
+                      "timeout",
+                      G_CALLBACK (sequence_timeout_cb),
+                      token);
 
   meta_startup_notification_add_sequence (display->startup_notification,
                                           token->sequence);
@@ -187,6 +205,8 @@ meta_xdg_activation_token_free (MetaXdgActivationToken *token)
   if (token->sequence)
     {
       g_clear_signal_handler (&token->sequence_complete_id,
+                              token->sequence);
+      g_clear_signal_handler (&token->sequence_timeout_id,
                               token->sequence);
       g_clear_object (&token->sequence);
     }
@@ -239,6 +259,30 @@ activation_get_activation_token (struct wl_client   *client,
                                                      id);
 }
 
+static gboolean
+token_can_activate (MetaXdgActivationToken *token)
+{
+  MetaWaylandSeat *seat;
+
+  if (!token->seat)
+    return FALSE;
+  if (!token->surface)
+    return FALSE;
+
+  seat = token->seat;
+
+  if (seat->keyboard &&
+      meta_wayland_keyboard_can_grab_surface (seat->keyboard,
+                                              token->surface,
+                                              token->serial))
+    return TRUE;
+
+  return meta_wayland_seat_get_grab_info (seat,
+                                          token->surface,
+                                          token->serial,
+                                          FALSE, NULL, NULL);
+}
+
 static void
 activation_activate (struct wl_client   *client,
                      struct wl_resource *resource,
@@ -258,10 +302,7 @@ activation_activate (struct wl_client   *client,
   if (!token)
     return;
 
-  if (meta_wayland_seat_get_grab_info (token->seat,
-                                       token->surface,
-                                       token->serial,
-                                       FALSE, NULL, NULL))
+  if (token_can_activate (token))
     {
       uint32_t timestamp;
       int32_t workspace_idx;

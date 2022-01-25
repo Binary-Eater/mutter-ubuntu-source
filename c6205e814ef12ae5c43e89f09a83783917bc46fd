@@ -1,0 +1,25 @@
+  * Merge with debian, includes these upstream changes:
+    - window: Don't change workspaces of unmanaged windows (LP: #1933996)
+    - backend: Reset idletime when unplugging the power cable (LP: #1945121)
+    - clutter/text: Invalidate actor paint volume when it has changed
+      (LP: #1882291)
+    - backends/native: Ensure pointer is onscreen in input thread (LP: #1933186)
+    - OSK Enter, space and backspace keys don't work when typing in Greek
+      (LP: #1820523)
+    - window: Don't change workspaces of unmanaged windows (LP: #1932328)
+  * Remainig changes with debian:
+    - debian/gbp.conf: update upstream branch to point to ubuntu/master
+    - debian/patches/x11-Add-support-for-fractional-scaling-using-Randr.patch:
+      + X11: Add support for fractional scaling using Randr
+  * New upstream release:
+    - Check keyboard serials for activation
+    - Fix mixed up refresh rates in multi-monitor setups (LP: #1788535)
+    - Allow disabling HW cursors
+    - Improve damage handling (LP: #1872870)
+    - Consider xrandr flags for advertised modes
+    - Ensure constraints after client resize
+    - window-group: Disable culling when rendinging clone to offscreen buffer
+    - Fix workspace switch animation in default plugin
+    - Fix unfullscreening of window that were mapped fullscreen
+    - Fix DMA-BUF screencasts with unredirected fullscreen windows
+    - Fix orientation changes on devices with 90°

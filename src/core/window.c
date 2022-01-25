@@ -231,6 +231,7 @@ enum
   UNMANAGED,
   SIZE_CHANGED,
   POSITION_CHANGED,
+  MONITOR_CHANGED,
   SHOWN,
 
   LAST_SIGNAL
@@ -694,6 +695,21 @@ meta_window_class_init (MetaWindowClass *klass)
                   NULL, NULL, NULL,
                   G_TYPE_NONE, 0);
 
+    /**
+   * MetaWindow::monitor-changed:
+   * @window: a #MetaWindow
+   * @old_monitor: the old monitor index or -1 if not known
+   *
+   * This is emitted when the window has changed monitor
+   */
+  window_signals[MONITOR_CHANGED] =
+    g_signal_new ("monitor-changed",
+                  G_TYPE_FROM_CLASS (object_class),
+                  G_SIGNAL_RUN_LAST,
+                  0,
+                  NULL, NULL, NULL,
+                  G_TYPE_NONE, 1, G_TYPE_INT);
+
   /**
    * MetaWindow::shown:
    * @window: a #MetaWindow
@@ -947,6 +963,9 @@ meta_window_main_monitor_changed (MetaWindow               *window,
 {
   META_WINDOW_GET_CLASS (window)->main_monitor_changed (window, old);
 
+  g_signal_emit (window, window_signals[MONITOR_CHANGED], 0,
+                 old ? old->number : -1);
+
   if (old)
     g_signal_emit_by_name (window->display, "window-left-monitor",
                            old->number, window);
@@ -1054,6 +1073,7 @@ _meta_window_shared_new (MetaDisplay         *display,
 
   /* And this is our unmaximized size */
   window->saved_rect = window->rect;
+  window->saved_rect_fullscreen = window->rect;
   window->unconstrained_rect = window->rect;
 
   window->depth = attrs->depth;

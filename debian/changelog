@@ -1,3 +1,9 @@
+mutter (41.3-1ubuntu2) jammy; urgency=medium
+
+  * Rebuild against against libwacom9.
+
+ -- Gianfranco Costamagna <locutusofborg@debian.org>  Sun, 06 Feb 2022 22:45:43 +0100
+
 mutter (41.3-1ubuntu1) jammy; urgency=medium
 
   * Merge with debian, includes these upstream changes:

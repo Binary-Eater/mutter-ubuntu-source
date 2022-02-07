@@ -1,0 +1,1 @@
+  * Revert catchsegv patch, now we have glibc-tools providing it

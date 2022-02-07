@@ -1,13 +1,32 @@
+mutter (41.3-2) unstable; urgency=medium
+
+  * Team upload
+
+  [ Simon McVittie ]
+  * Adjust previous changelog entry to mention Launchpad bug 1872870
+    against the correct bullet point
+  * d/control.in: Build-depend on sysprof as well as
+    libsysprof-capture-4-dev.
+    The D-Bus interfaces are currently in sysprof, although arguably they
+    should move to a -dev package.
+
+  [ Marco Trevisan (Treviño) ]
+  * debian/control: Depend on xvfb even on nocheck, as it's checked during
+    configuration
+
+ -- Simon McVittie <smcv@debian.org>  Mon, 07 Feb 2022 18:55:58 +0000
+
 mutter (41.3-1) unstable; urgency=medium
 
   * New upstream release:
     - Check keyboard serials for activation
     - Fix mixed up refresh rates in multi-monitor setups (LP: #1788535)
     - Allow disabling HW cursors
-    - Improve damage handling (LP: #1872870)
+    - Improve damage handling
     - Consider xrandr flags for advertised modes
     - Ensure constraints after client resize
-    - window-group: Disable culling when rendinging clone to offscreen buffer
+    - window-group: Disable culling when rendering clone to offscreen buffer
+      (LP: #1872870)
     - Fix workspace switch animation in default plugin
     - Fix unfullscreening of window that were mapped fullscreen
     - Fix DMA-BUF screencasts with unredirected fullscreen windows

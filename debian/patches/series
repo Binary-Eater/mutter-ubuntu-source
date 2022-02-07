@@ -8,4 +8,3 @@ Consistently-pass-timestamp-as-uint64-when-creating-MetaS.patch
 x11-Add-support-for-fractional-scaling-using-Randr.patch
 debian/tests-Tag-unstable-tests-as-flaky.patch
 debian/tests-Do-not-run-screencast-tests.patch
-no-catchsegv.patch

@@ -1,3 +1,9 @@
+mutter (41.3-1ubuntu5) jammy; urgency=medium
+
+  * Revert catchsegv patch, now we have glibc-tools providing it
+
+ -- Gianfranco Costamagna <locutusofborg@debian.org>  Mon, 07 Feb 2022 15:50:43 +0100
+
 mutter (41.3-1ubuntu4) jammy; urgency=medium
 
   * Drop catchsegv meson check. The binary has been removed from glibc

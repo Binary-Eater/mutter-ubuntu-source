@@ -1,0 +1,2 @@
+  * Drop catchsegv meson check. The binary has been removed from glibc
+  * Depend on sysprof, needed during build

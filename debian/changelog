@@ -1,3 +1,10 @@
+mutter (41.3-1ubuntu4) jammy; urgency=medium
+
+  * Drop catchsegv meson check. The binary has been removed from glibc
+  * Depend on sysprof, needed during build
+
+ -- Gianfranco Costamagna <locutusofborg@debian.org>  Mon, 07 Feb 2022 09:20:40 +0100
+
 mutter (41.3-1ubuntu2) jammy; urgency=medium
 
   * Rebuild against against libwacom9.

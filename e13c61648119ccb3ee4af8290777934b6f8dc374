@@ -1,0 +1,11 @@
+  * Team upload
+  [ Simon McVittie ]
+  * Adjust previous changelog entry to mention Launchpad bug 1872870
+    against the correct bullet point
+  * d/control.in: Build-depend on sysprof as well as
+    libsysprof-capture-4-dev.
+    The D-Bus interfaces are currently in sysprof, although arguably they
+    should move to a -dev package.
+  [ Marco Trevisan (Treviño) ]
+  * debian/control: Depend on xvfb even on nocheck, as it's checked during
+    configuration

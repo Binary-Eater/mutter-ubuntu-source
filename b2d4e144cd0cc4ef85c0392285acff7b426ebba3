@@ -1,0 +1,1 @@
+  * Build-Depend on xcvt instead of xserver-xorg-core (Closes: #1005299)

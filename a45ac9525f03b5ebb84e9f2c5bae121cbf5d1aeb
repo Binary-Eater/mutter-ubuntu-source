@@ -1,0 +1,5 @@
+  * Merge from Debian unstable. Remaining changes:
+    - debian/gbp.conf: update upstream branch to point to ubuntu/master
+    - debian/patches/x11-Add-support-for-fractional-scaling-using-Randr.patch:
+      + X11: Add support for fractional scaling using Randr
+    - Add glibc-tools, needed to fix build with newer glibc

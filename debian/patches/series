@@ -5,5 +5,6 @@ theme-load-icons-as-Gtk-does-with-fallback-and-RTL-suppor.patch
 meson-add-back-default_driver-option.patch
 tests-Mark-view-verification-tests-as-incomplete-in-big-e.patch
 Consistently-pass-timestamp-as-uint64-when-creating-MetaS.patch
+x11-Add-support-for-fractional-scaling-using-Randr.patch
 debian/tests-Tag-unstable-tests-as-flaky.patch
 debian/tests-Do-not-run-screencast-tests.patch

@@ -301,6 +301,19 @@ cogl_onscreen_bind (CoglOnscreen *onscreen)
 }
 
 void
+cogl_onscreen_queue_damage_region (CoglOnscreen *onscreen,
+                                   const int    *rectangles,
+                                   int           n_rectangles)
+{
+  CoglOnscreenClass *klass = COGL_ONSCREEN_GET_CLASS (onscreen);
+
+  if (!klass->queue_damage_region)
+    return;
+
+  klass->queue_damage_region (onscreen, rectangles, n_rectangles);
+}
+
+void
 cogl_onscreen_swap_buffers_with_damage (CoglOnscreen *onscreen,
                                         const int *rectangles,
                                         int n_rectangles,
@@ -495,6 +508,14 @@ cogl_onscreen_pop_head_frame_info (CoglOnscreen *onscreen)
   CoglOnscreenPrivate *priv = cogl_onscreen_get_instance_private (onscreen);
 
   return g_queue_pop_head (&priv->pending_frame_infos);
+}
+
+unsigned int
+cogl_onscreen_count_pending_frames (CoglOnscreen *onscreen)
+{
+  CoglOnscreenPrivate *priv = cogl_onscreen_get_instance_private (onscreen);
+
+  return g_queue_get_length (&priv->pending_frame_infos);
 }
 
 CoglFrameClosure *

@@ -42,6 +42,7 @@ enum
   FONT_DPI_CHANGED,
   X11_SCALE_MODE_CHANGED,
   EXPERIMENTAL_FEATURES_CHANGED,
+  PRIVACY_SCREEN_CHANGED,
 
   N_SIGNALS
 };
@@ -56,6 +57,7 @@ struct _MetaSettings
 
   GSettings *interface_settings;
   GSettings *mutter_settings;
+  GSettings *privacy_settings;
   GSettings *wayland_settings;
   GSettings *x11_settings;
 
@@ -63,6 +65,8 @@ struct _MetaSettings
   int global_scaling_factor;
 
   int font_dpi;
+
+  gboolean privacy_screen;
 
   MetaExperimentalFeature experimental_features;
   gboolean experimental_features_overridden;
@@ -250,6 +254,25 @@ interface_settings_changed (GSettings    *interface_settings,
     }
 }
 
+static void
+privacy_settings_changed (GSettings    *privacy_settings,
+                          const char   *key,
+                          MetaSettings *settings)
+{
+  if (g_str_equal (key, "privacy-screen"))
+    {
+      gboolean privacy_screen;
+
+      privacy_screen = g_settings_get_boolean (privacy_settings, key);
+
+      if (settings->privacy_screen != privacy_screen)
+        {
+          settings->privacy_screen = privacy_screen;
+          g_signal_emit (settings, signals[PRIVACY_SCREEN_CHANGED], 0);
+        }
+    }
+}
+
 gboolean
 meta_settings_is_experimental_feature_enabled (MetaSettings           *settings,
                                                MetaExperimentalFeature feature)
@@ -373,8 +396,6 @@ experimental_features_handler (GVariant *features_variant,
         feature = META_EXPERIMENTAL_FEATURE_KMS_MODIFIERS;
       else if (g_str_equal (feature_str, "rt-scheduler"))
         feature = META_EXPERIMENTAL_FEATURE_RT_SCHEDULER;
-      else if (g_str_equal (feature_str, "dma-buf-screen-sharing"))
-        feature = META_EXPERIMENTAL_FEATURE_DMA_BUF_SCREEN_SHARING;
       else if (g_str_equal (feature_str, "autoclose-xwayland"))
         feature = META_EXPERIMENTAL_FEATURE_AUTOCLOSE_XWAYLAND;
       else if (g_str_equal (feature_str, "x11-randr-fractional-scaling"))
@@ -506,6 +527,14 @@ update_xwayland_disable_extensions (MetaSettings *settings)
 }
 
 static void
+update_privacy_settings (MetaSettings *settings)
+{
+  privacy_settings_changed (settings->privacy_settings,
+                            "privacy-screen",
+                            settings);
+}
+
+static void
 wayland_settings_changed (GSettings    *wayland_settings,
                           gchar        *key,
                           MetaSettings *settings)
@@ -558,6 +587,24 @@ meta_settings_get_xwayland_disable_extensions (MetaSettings *settings)
   return (settings->xwayland_disable_extensions);
 }
 
+gboolean
+meta_settings_is_privacy_screen_enabled (MetaSettings *settings)
+{
+  return settings->privacy_screen;
+}
+
+void
+meta_settings_set_privacy_screen_enabled (MetaSettings *settings,
+                                          gboolean      enabled)
+{
+  if (settings->privacy_screen == enabled)
+    return;
+
+  settings->privacy_screen = enabled;
+  g_settings_set_boolean (settings->privacy_settings, "privacy-screen",
+                          enabled);
+}
+
 MetaX11ScaleMode
 meta_settings_get_x11_scale_mode (MetaSettings *settings)
 {
@@ -582,6 +629,7 @@ meta_settings_dispose (GObject *object)
 
   g_clear_object (&settings->mutter_settings);
   g_clear_object (&settings->interface_settings);
+  g_clear_object (&settings->privacy_settings);
   g_clear_object (&settings->wayland_settings);
   g_clear_object (&settings->x11_settings);
   g_clear_pointer (&settings->xwayland_grab_allow_list_patterns,
@@ -598,6 +646,10 @@ meta_settings_init (MetaSettings *settings)
   settings->interface_settings = g_settings_new ("org.gnome.desktop.interface");
   g_signal_connect (settings->interface_settings, "changed",
                     G_CALLBACK (interface_settings_changed),
+                    settings);
+  settings->privacy_settings = g_settings_new ("org.gnome.desktop.privacy");
+  g_signal_connect (settings->privacy_settings, "changed",
+                    G_CALLBACK (privacy_settings_changed),
                     settings);
   settings->mutter_settings = g_settings_new ("org.gnome.mutter");
   g_signal_connect (settings->mutter_settings, "changed",
@@ -623,6 +675,7 @@ meta_settings_init (MetaSettings *settings)
   update_xwayland_grab_access_rules (settings);
   update_xwayland_allow_grabs (settings);
   update_xwayland_disable_extensions (settings);
+  update_privacy_settings (settings);
 }
 
 static void
@@ -692,4 +745,12 @@ meta_settings_class_init (MetaSettingsClass *klass)
                   0,
                   NULL, NULL, NULL,
                   G_TYPE_NONE, 1, G_TYPE_UINT);
+
+  signals[PRIVACY_SCREEN_CHANGED] =
+    g_signal_new ("privacy-screen-changed",
+                  G_TYPE_FROM_CLASS (object_class),
+                  G_SIGNAL_RUN_LAST,
+                  0,
+                  NULL, NULL, NULL,
+                  G_TYPE_NONE, 0);
 }

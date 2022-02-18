@@ -35,6 +35,7 @@
 #include "backends/meta-viewport-info.h"
 #include "core/util-private.h"
 #include "meta/display.h"
+#include "meta/meta-enum-types.h"
 #include "meta/meta-monitor-manager.h"
 
 #define META_MONITOR_MANAGER_MIN_SCREEN_WIDTH 640
@@ -64,6 +65,14 @@ typedef enum _MetaLogicalMonitorLayoutMode
   META_LOGICAL_MONITOR_LAYOUT_MODE_PHYSICAL = 2,
   META_LOGICAL_MONITOR_LAYOUT_MODE_GLOBAL_UI_LOGICAL = 3
 } MetaLogicalMonitorLayoutMode;
+
+/* The source the privacy screen change has been triggered */
+typedef enum
+{
+  META_PRIVACY_SCREEN_CHANGE_STATE_NONE,
+  META_PRIVACY_SCREEN_CHANGE_STATE_PENDING_HOTKEY,
+  META_PRIVACY_SCREEN_CHANGE_STATE_PENDING_SETTING,
+} MetaPrivacyScreenChangeState;
 
 /*
  * MetaCrtcAssignment:
@@ -156,6 +165,8 @@ struct _MetaMonitorManager
   gulong experimental_features_changed_handler_id;
 
   MetaMonitorSwitchConfigType current_switch_config;
+
+  MetaPrivacyScreenChangeState privacy_screen_change_state;
 };
 
 /**
@@ -238,6 +249,9 @@ struct _MetaMonitorManagerClass
                            unsigned short     *red,
                            unsigned short     *green,
                            unsigned short     *blue);
+
+  gboolean (* set_privacy_screen_enabled) (MetaMonitorManager *manager,
+                                           gboolean            enabled);
 
   void (*update_screen_size_derived)  (MetaMonitorManager *,
                                        MetaMonitorsConfig *);
@@ -454,5 +468,7 @@ void meta_monitor_manager_post_init (MetaMonitorManager *manager);
 MetaViewportInfo * meta_monitor_manager_get_viewports (MetaMonitorManager *manager);
 
 GList * meta_monitor_manager_get_virtual_monitors (MetaMonitorManager *manager);
+
+void meta_monitor_manager_maybe_emit_privacy_screen_change (MetaMonitorManager *manager);
 
 #endif /* META_MONITOR_MANAGER_PRIVATE_H */

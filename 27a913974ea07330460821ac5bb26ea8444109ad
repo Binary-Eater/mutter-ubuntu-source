@@ -1,0 +1,6 @@
+  * Team upload
+  [ Marco Trevisan (Treviño) ]
+  * debian: Prepare for unstable branching
+  * debian/watch: Only monitor 41 releases
+  [ Simon McVittie ]
+  * New upstream release

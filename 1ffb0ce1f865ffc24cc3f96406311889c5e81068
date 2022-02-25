@@ -1,0 +1,4 @@
+  * Merge with debian after being accepted (no content change)
+  * xrandr-scaling: Do not change type of experimental settings schema.
+    There's no real benefit to do this change as it's only for power-users
+    and it will break updaters (and g-c-c integration).

@@ -1,0 +1,5 @@
+  * New upstream release
+  * debian/control.in: Add Breaks: gnome-shell (<< 42~rc)
+  * debian/control.in: Bump minimum meson, libwayland-dev & wayland-protocols
+  * debian/libmutter-10-0.symbols: Add new symbols
+  * Refresh patches

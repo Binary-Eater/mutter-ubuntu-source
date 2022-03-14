@@ -1,0 +1,1 @@
+  * debian/patches: Skip monitor-size tests that may fail on autopkgtest

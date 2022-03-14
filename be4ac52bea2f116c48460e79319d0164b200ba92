@@ -1,0 +1,4 @@
+  [ Jeremy Bicha ]
+  * New upstream release
+  [ Marco Trevisan (Treviño) ]
+  * debian/patches: Skip monitor-size tests that may fail on autopkgtest

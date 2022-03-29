@@ -1,0 +1,13 @@
+  [ Jeremy Bicha ]
+  * Merge from Debian unstable. Remaining changes:
+    - debian/patches/x11-Add-support-for-fractional-scaling-using-Randr.patch:
+      + X11: Add support for fractional scaling using Randr
+    - Add triple-buffering patch
+    - debian/libmutter-10-0.symbols: Add symbols for triple buffering patch
+  * Drop glibc-tools from Build-Depends: no longer used
+  * Update triple buffering patch
+  [ Marco Trevisan (Treviño) ]
+  * debian/patches: Refresh
+  * debian/patches: Cherry-pick upstream fixes targeting 42.1
+  * debian/patches: Ensure repick happens on actors visibility changed
+    (LP: #1964545)

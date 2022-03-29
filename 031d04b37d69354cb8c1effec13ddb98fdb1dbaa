@@ -1,0 +1,6 @@
+  [ Marco Trevisan (Treviño) ]
+  * debian/patches: Cherry-pick upstream fixes targeting 42.1
+  * debian/patches: Ensure repick happens on actors visibility changed
+    (LP: #1964545)
+  [ Jeremy Bicha ]
+  * Release to unstable

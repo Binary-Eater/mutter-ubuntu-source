@@ -303,6 +303,7 @@ init_caps (MetaKmsImplDevice *impl_device)
   uint64_t cursor_width, cursor_height;
   uint64_t prefer_shadow;
   uint64_t uses_monotonic_clock;
+  uint64_t addfb2_modifiers;
 
   fd = meta_device_file_get_fd (priv->device_file);
   if (drmGetCap (fd, DRM_CAP_CURSOR_WIDTH, &cursor_width) == 0 &&
@@ -324,6 +325,11 @@ init_caps (MetaKmsImplDevice *impl_device)
   if (drmGetCap (fd, DRM_CAP_TIMESTAMP_MONOTONIC, &uses_monotonic_clock) == 0)
     {
       priv->caps.uses_monotonic_clock = uses_monotonic_clock;
+    }
+
+  if (drmGetCap (fd, DRM_CAP_ADDFB2_MODIFIERS, &addfb2_modifiers) == 0)
+    {
+      priv->caps.addfb2_modifiers = (addfb2_modifiers != 0);
     }
 }
 
@@ -1022,7 +1028,11 @@ meta_kms_impl_device_init_mode_setting (MetaKmsImplDevice  *impl_device,
 void
 meta_kms_impl_device_prepare_shutdown (MetaKmsImplDevice *impl_device)
 {
+  MetaKmsImplDevicePrivate *priv =
+    meta_kms_impl_device_get_instance_private (impl_device);
   MetaKmsImplDeviceClass *klass = META_KMS_IMPL_DEVICE_GET_CLASS (impl_device);
+
+  g_list_foreach (priv->crtcs, (GFunc) meta_kms_crtc_release_buffers, NULL);
 
   if (klass->prepare_shutdown)
     klass->prepare_shutdown (impl_device);

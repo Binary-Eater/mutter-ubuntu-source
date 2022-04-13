@@ -478,7 +478,16 @@ static void
 x_io_error_exit (Display *display,
                  void    *data)
 {
-  g_warning ("Xwayland just died, attempting to recover");
+  MetaXWaylandManager *manager = data;
+  MetaX11DisplayPolicy x11_display_policy;
+
+  x11_display_policy =
+    meta_context_get_x11_display_policy (manager->compositor->context);
+
+  if (x11_display_policy == META_X11_DISPLAY_POLICY_MANDATORY)
+    g_warning ("X Wayland crashed (X IO error)");
+  else
+    meta_topic (META_DEBUG_WAYLAND, "Xwayland disappeared during a Xlib call");
 }
 
 static void
@@ -1033,6 +1042,7 @@ meta_xwayland_init (MetaXWaylandManager    *manager,
              manager->public_connection.name,
              manager->private_connection.name);
 
+  manager->compositor = compositor;
   manager->wayland_display = wl_display;
   policy = meta_context_get_x11_display_policy (context);
 
@@ -1067,9 +1077,6 @@ on_x11_display_closing (MetaDisplay         *display,
   g_signal_handlers_disconnect_by_func (meta_monitor_manager_get (),
                                         monitors_changed_cb,
                                         NULL);
-  g_signal_handlers_disconnect_by_func (display,
-                                        on_x11_display_closing,
-                                        manager);
 }
 
 static void
@@ -1268,4 +1275,20 @@ meta_xwayland_handle_xevent (XEvent *event)
     }
 
   return FALSE;
+}
+
+gboolean
+meta_xwayland_signal (MetaXWaylandManager  *manager,
+                      int                   signum,
+                      GError              **error)
+{
+  if (!manager->proc)
+    {
+      g_set_error (error, G_IO_ERROR, G_IO_ERROR_FAILED,
+                   "Can't send signal, Xwayland not running");
+      return FALSE;
+    }
+
+  g_subprocess_send_signal (manager->proc, signum);
+  return TRUE;
 }

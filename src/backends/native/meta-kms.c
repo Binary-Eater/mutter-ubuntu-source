@@ -292,8 +292,7 @@ meta_kms_find_compatible_update_for_crtc (MetaKms     *kms,
     {
       update = l->data;
       if (meta_kms_update_get_device (update) == device &&
-          (meta_kms_update_get_mode_sets (update) ||
-           meta_kms_update_get_connector_updates (update)))
+          meta_kms_update_get_mode_sets (update))
         goto found;
     }
 

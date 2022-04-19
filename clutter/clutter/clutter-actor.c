@@ -2653,9 +2653,10 @@ _clutter_actor_queue_redraw_on_clones (ClutterActor *self)
 }
 
 static void
-_clutter_actor_propagate_queue_redraw (ClutterActor *self,
-                                       ClutterActor *origin)
+_clutter_actor_propagate_queue_redraw (ClutterActor *self)
 {
+  ClutterActor *origin = self;
+
   while (self)
     {
       /* no point in queuing a redraw on a destroyed actor */
@@ -2664,13 +2665,12 @@ _clutter_actor_propagate_queue_redraw (ClutterActor *self,
 
       _clutter_actor_queue_redraw_on_clones (self);
 
+      self->priv->is_dirty = TRUE;
+
       /* If the queue redraw is coming from a child then the actor has
          become dirty and any queued effect is no longer valid */
       if (self != origin)
-        {
-          self->priv->is_dirty = TRUE;
-          self->priv->effect_to_redraw = NULL;
-        }
+        self->priv->effect_to_redraw = NULL;
 
       /* If the actor isn't visible, we still had to emit the signal
        * to allow for a ClutterClone, but the appearance of the parent
@@ -3847,8 +3847,10 @@ clutter_actor_paint (ClutterActor        *self,
   clutter_paint_node_paint (root_node, paint_context);
 
   /* If we make it here then the actor has run through a complete
-     paint run including all the effects so it's no longer dirty */
-  priv->is_dirty = FALSE;
+   * paint run including all the effects so it's no longer dirty,
+   * unless a new redraw was queued up.
+   */
+  priv->is_dirty = priv->propagated_one_redraw;
 }
 
 /**
@@ -8112,10 +8114,8 @@ _clutter_actor_queue_redraw_full (ClutterActor             *self,
       priv->effect_to_redraw = NULL;
     }
 
-  priv->is_dirty = TRUE;
-
   if (!priv->propagated_one_redraw)
-    _clutter_actor_propagate_queue_redraw (self, self);
+    _clutter_actor_propagate_queue_redraw (self);
 }
 
 /**

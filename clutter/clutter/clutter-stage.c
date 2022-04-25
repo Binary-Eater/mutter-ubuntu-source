@@ -3151,8 +3151,8 @@ clutter_stage_set_actor_needs_immediate_relayout (ClutterStage *stage)
 }
 
 void
-clutter_stage_pointer_actor_unreactive (ClutterStage *self,
-                                        ClutterActor *actor)
+clutter_stage_invalidate_focus (ClutterStage *self,
+                                ClutterActor *actor)
 {
   ClutterStagePrivate *priv = self->priv;
   GHashTableIter iter;

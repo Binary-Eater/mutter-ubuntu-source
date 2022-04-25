@@ -1264,6 +1264,10 @@ clutter_actor_set_mapped (ClutterActor *self,
   if (CLUTTER_ACTOR_IS_MAPPED (self) == mapped)
     return;
 
+  g_return_if_fail (!CLUTTER_ACTOR_IN_MAP_UNMAP (self));
+
+  CLUTTER_SET_PRIVATE_FLAGS (self, CLUTTER_IN_MAP_UNMAP);
+
   if (mapped)
     {
       CLUTTER_ACTOR_GET_CLASS (self)->map (self);
@@ -1274,6 +1278,8 @@ clutter_actor_set_mapped (ClutterActor *self,
       CLUTTER_ACTOR_GET_CLASS (self)->unmap (self);
       g_assert (!CLUTTER_ACTOR_IS_MAPPED (self));
     }
+
+  CLUTTER_UNSET_PRIVATE_FLAGS (self, CLUTTER_IN_MAP_UNMAP);
 }
 
 /* this function updates the mapped and realized states according to
@@ -1699,7 +1705,7 @@ clutter_actor_real_unmap (ClutterActor *self)
     {
       ClutterActor *stage = _clutter_actor_get_stage_internal (self);
 
-      clutter_stage_pointer_actor_unreactive (CLUTTER_STAGE (stage), self);
+      clutter_stage_invalidate_focus (CLUTTER_STAGE (stage), self);
     }
 
   /* relinquish keyboard focus if we were unmapped while owning it */
@@ -12461,7 +12467,7 @@ clutter_actor_set_reactive (ClutterActor *actor,
     {
       ClutterActor *stage = _clutter_actor_get_stage_internal (actor);
 
-      clutter_stage_pointer_actor_unreactive (CLUTTER_STAGE (stage), actor);
+      clutter_stage_invalidate_focus (CLUTTER_STAGE (stage), actor);
     }
 }
 

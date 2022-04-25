@@ -1,0 +1,7 @@
+  * Team upload
+  * d/patches: Update to upstream commit 42.0-74-g6c8e8fbba
+    - Bug fixes targeted for 42.1
+    - d/p/clutter-stage-Repick-when-pointer-actor-goes-unmapped.patch:
+      Replace with the version that was applied upstream
+    - d/p/core-Account-ClutterStage-grabs-on-Wayland-key-focus-sync.patch:
+      Mark as applied upstream

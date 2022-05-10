@@ -1,0 +1,8 @@
+  * New upstream release
+    (LP: #1972726, #1967274, #1965557, #1969574, #1948410, #1967219, #1971693)
+  * Drop patches applied in new release
+  * debian/libmutter-10-0.symbols: Add new symbol
+  * debian/libmutter-10-0.symbols: Drop a symbol that was only in experimental
+  * Add Breaks against old gtk3 & gtk4 versions.
+    See Ubuntu bug 1972721
+  * Release to unstable

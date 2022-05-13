@@ -130,9 +130,9 @@ meta_test_xwayland_restart_selection (void)
                         NULL);
   test_client_wait_check (test_client);
 
-  g_test_expect_message (G_LOG_DOMAIN, G_LOG_LEVEL_WARNING,
+  g_test_expect_message ("libmutter", G_LOG_LEVEL_WARNING,
                          "*Connection to xwayland lost*");
-  g_test_expect_message (G_LOG_DOMAIN, G_LOG_LEVEL_WARNING,
+  g_test_expect_message ("libmutter", G_LOG_LEVEL_WARNING,
                          "X Wayland crashed*; attempting to recover");
 
   if (!meta_xwayland_signal (xwayland_manager, SIGKILL, &error))

@@ -1705,7 +1705,7 @@ clutter_actor_real_unmap (ClutterActor *self)
     {
       ClutterActor *stage = _clutter_actor_get_stage_internal (self);
 
-      clutter_stage_pointer_actor_unreactive (CLUTTER_STAGE (stage), self);
+      clutter_stage_invalidate_focus (CLUTTER_STAGE (stage), self);
     }
 
   /* relinquish keyboard focus if we were unmapped while owning it */
@@ -12467,7 +12467,7 @@ clutter_actor_set_reactive (ClutterActor *actor,
     {
       ClutterActor *stage = _clutter_actor_get_stage_internal (actor);
 
-      clutter_stage_pointer_actor_unreactive (CLUTTER_STAGE (stage), actor);
+      clutter_stage_invalidate_focus (CLUTTER_STAGE (stage), actor);
     }
 }
 

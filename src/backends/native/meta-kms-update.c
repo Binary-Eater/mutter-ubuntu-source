@@ -240,7 +240,7 @@ meta_kms_update_assign_plane (MetaKmsUpdate          *update,
   update->plane_assignments = g_list_prepend (update->plane_assignments,
                                               plane_assignment);
 
-  g_hash_table_insert (update->crtcs, crtc, NULL);
+  g_hash_table_add (update->crtcs, crtc);
 
   return plane_assignment;
 }
@@ -267,7 +267,7 @@ meta_kms_update_unassign_plane (MetaKmsUpdate *update,
   update->plane_assignments = g_list_prepend (update->plane_assignments,
                                               plane_assignment);
 
-  g_hash_table_insert (update->crtcs, crtc, NULL);
+  g_hash_table_add (update->crtcs, crtc);
 
   return plane_assignment;
 }
@@ -292,7 +292,7 @@ meta_kms_update_mode_set (MetaKmsUpdate *update,
 
   update->mode_sets = g_list_prepend (update->mode_sets, mode_set);
 
-  g_hash_table_insert (update->crtcs, crtc, NULL);
+  g_hash_table_add (update->crtcs, crtc);
 }
 
 static MetaKmsConnectorUpdate *
@@ -317,10 +317,9 @@ ensure_connector_update (MetaKmsUpdate    *update,
 
   update->connector_updates = g_list_prepend (update->connector_updates,
                                               connector_update);
-
   device = meta_kms_connector_get_device (connector);
   state = meta_kms_connector_get_current_state (connector);
-  if (state && device && state->current_crtc_id)
+  if (device && state && state->current_crtc_id)
     {
       GList *l;
 
@@ -329,7 +328,10 @@ ensure_connector_update (MetaKmsUpdate    *update,
           MetaKmsCrtc *kms_crtc = l->data;
 
           if (meta_kms_crtc_get_id (kms_crtc) == state->current_crtc_id)
-            g_hash_table_insert (update->crtcs, kms_crtc, NULL);
+            {
+              g_hash_table_add (update->crtcs, kms_crtc);
+              break;
+            }
         }
     }
 
@@ -429,7 +431,7 @@ meta_kms_update_set_crtc_gamma (MetaKmsUpdate  *update,
 
   update->crtc_gammas = g_list_prepend (update->crtc_gammas, gamma);
 
-  g_hash_table_insert (update->crtcs, crtc, NULL);
+  g_hash_table_add (update->crtcs, crtc);
 }
 
 void
@@ -697,14 +699,14 @@ gboolean
 meta_kms_update_includes_crtc (MetaKmsUpdate *update,
                                MetaKmsCrtc   *crtc)
 {
-  return g_hash_table_lookup_extended (update->crtcs, crtc, NULL, NULL);
+  return g_hash_table_contains (update->crtcs, crtc);
 }
 
 void
 meta_kms_update_include_crtc (MetaKmsUpdate *update,
                               MetaKmsCrtc   *crtc)
 {
-  g_hash_table_insert (update->crtcs, crtc, NULL);
+  g_hash_table_add (update->crtcs, crtc);
 }
 
 MetaKmsCustomPageFlip *

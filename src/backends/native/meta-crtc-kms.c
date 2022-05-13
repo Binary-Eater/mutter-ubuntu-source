@@ -211,11 +211,14 @@ meta_crtc_kms_maybe_set_gamma (MetaCrtcKms   *crtc_kms,
   MetaMonitorManagerNative *monitor_manager_native =
     META_MONITOR_MANAGER_NATIVE (monitor_manager);
   MetaKms *kms = meta_kms_device_get_kms (kms_device);
-  MetaKmsCrtc *kms_crtc = meta_crtc_kms_get_kms_crtc (crtc_kms);
   MetaKmsUpdate *kms_update;
   MetaKmsCrtcGamma *gamma;
+  MetaKmsCrtc *kms_crtc = meta_crtc_kms_get_kms_crtc (crtc_kms);
 
   if (crtc_kms->is_gamma_valid)
+    return;
+
+  if (!meta_kms_crtc_has_gamma (kms_crtc))
     return;
 
   gamma = meta_monitor_manager_native_get_cached_crtc_gamma (monitor_manager_native,

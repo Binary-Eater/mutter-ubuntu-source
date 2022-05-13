@@ -744,7 +744,7 @@ copy_shared_framebuffer_primary_gpu (CoglOnscreen                        *onscre
 
   if (!secondary_gpu_state ||
       secondary_gpu_state->egl_surface == EGL_NO_SURFACE)
-    return FALSE;
+    return NULL;
 
   primary_gpu = meta_renderer_native_get_primary_gpu (renderer_native);
   primary_gpu_data =
@@ -2211,7 +2211,7 @@ init_secondary_gpu_state (MetaRendererNative  *renderer_native,
 
       g_warning ("Secondary GPU initialization failed (%s). "
                  "Falling back to GPU-less mode instead, so the "
-                 "the secondary monitor may be slow to update.",
+                 "secondary monitor may be slow to update.",
                  local_error->message);
 
       renderer_gpu_data->secondary.copy_mode =

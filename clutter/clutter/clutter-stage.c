@@ -162,6 +162,7 @@ enum
   DEACTIVATE,
   DELETE_EVENT,
   BEFORE_UPDATE,
+  PREPARE_FRAME,
   BEFORE_PAINT,
   AFTER_PAINT,
   AFTER_UPDATE,
@@ -463,6 +464,13 @@ clutter_stage_emit_before_update (ClutterStage     *stage,
                                   ClutterStageView *view)
 {
   g_signal_emit (stage, stage_signals[BEFORE_UPDATE], 0, view);
+}
+
+void
+clutter_stage_emit_prepare_frame (ClutterStage     *stage,
+                                  ClutterStageView *view)
+{
+  g_signal_emit (stage, stage_signals[PREPARE_FRAME], 0, view);
 }
 
 void
@@ -1402,6 +1410,22 @@ clutter_stage_class_init (ClutterStageClass *klass)
    */
   stage_signals[BEFORE_UPDATE] =
     g_signal_new (I_("before-update"),
+                  G_TYPE_FROM_CLASS (gobject_class),
+                  G_SIGNAL_RUN_LAST,
+                  0,
+                  NULL, NULL, NULL,
+                  G_TYPE_NONE, 1,
+                  CLUTTER_TYPE_STAGE_VIEW);
+  /**
+   * ClutterStage::prepare-frame:
+   * @stage: the stage that received the event
+   * @view: a #ClutterStageView
+   *
+   * The ::prepare-frame signal is emitted after the stage is updated,
+   * before the stage is painted, even if it will not be painted.
+   */
+  stage_signals[PREPARE_FRAME] =
+    g_signal_new (I_("prepare-frame"),
                   G_TYPE_FROM_CLASS (gobject_class),
                   G_SIGNAL_RUN_LAST,
                   0,
@@ -3151,8 +3175,8 @@ clutter_stage_set_actor_needs_immediate_relayout (ClutterStage *stage)
 }
 
 void
-clutter_stage_pointer_actor_unreactive (ClutterStage *self,
-                                        ClutterActor *actor)
+clutter_stage_invalidate_focus (ClutterStage *self,
+                                ClutterActor *actor)
 {
   ClutterStagePrivate *priv = self->priv;
   GHashTableIter iter;
@@ -3770,7 +3794,7 @@ G_DEFINE_BOXED_TYPE (ClutterGrab, clutter_grab,
  * Grabs input onto a certain actor. Events will be propagated as
  * usual inside its hierarchy.
  *
- * Returns: (transfer full): (nullable): an opaque #ClutterGrab handle, drop
+ * Returns: (transfer full): an opaque #ClutterGrab handle, drop
  *   with clutter_grab_dismiss()
  **/
 ClutterGrab *

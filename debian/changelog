@@ -1,3 +1,19 @@
+mutter (42.1-0ubuntu1) jammy; urgency=medium
+
+  [ Jeremy Bicha ]
+  * New upstream release
+    (LP: #1972726, #1948410, #1967219, #1971693)
+  * Refresh triple buffering patch with latest version
+  * Drop patches applied in new release
+  * debian/libmutter-10-0.symbols: Add new symbol
+  * Add Breaks against old gtk3 & gtk4 versions.
+    See Ubuntu bug 1972721
+
+  [ Marco Trevisan (Treviño) ]
+  * debian/patches: Adapt expected log messages to new domains
+
+ -- Jeremy Bicha <jbicha@ubuntu.com>  Fri, 13 May 2022 12:10:07 -0400
+
 mutter (42.0-3ubuntu2) jammy; urgency=medium
 
   * Revert "debian/patches: Fix privacy-screen and connectors updates with

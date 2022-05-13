@@ -3561,9 +3561,9 @@ meta_monitor_manager_rebuild (MetaMonitorManager *manager,
 
   meta_monitor_manager_update_logical_state (manager, config);
 
-  ensure_monitors_settings (manager);
-
   meta_monitor_manager_notify_monitors_changed (manager);
+
+  ensure_monitors_settings (manager);
 
   g_list_free_full (old_logical_monitors, g_object_unref);
 }
@@ -3839,6 +3839,8 @@ meta_monitor_manager_post_init (MetaMonitorManager *manager)
 {
   ClutterBackend *clutter_backend;
   ClutterSeat *seat;
+
+  ensure_monitors_settings (manager);
 
   clutter_backend = meta_backend_get_clutter_backend (manager->backend);
   seat = clutter_backend_get_default_seat (clutter_backend);

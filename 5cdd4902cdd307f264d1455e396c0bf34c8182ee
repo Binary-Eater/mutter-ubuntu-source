@@ -1,0 +1,10 @@
+  [ Jeremy Bicha ]
+  * New upstream release
+    (LP: #1972726, #1948410, #1967219, #1971693)
+  * Refresh triple buffering patch with latest version
+  * Drop patches applied in new release
+  * debian/libmutter-10-0.symbols: Add new symbol
+  * Add Breaks against old gtk3 & gtk4 versions.
+    See Ubuntu bug 1972721
+  [ Marco Trevisan (Treviño) ]
+  * debian/patches: Adapt expected log messages to new domains

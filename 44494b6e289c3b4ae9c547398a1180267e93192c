@@ -1,0 +1,2 @@
+  * New upstream release (LP: #1976381)
+    - Fix crash when restarting GNOME Shell on Xorg (LP: #1969893)

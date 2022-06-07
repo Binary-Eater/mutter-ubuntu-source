@@ -1269,21 +1269,25 @@ get_global_privacy_screen_state (MetaMonitorManager *manager)
   return global_state;
 }
 
-static void
-apply_privacy_screen_settings (MetaMonitorManager *manager)
+static gboolean
+privacy_screen_needs_update (MetaMonitorManager *manager)
 {
   MetaSettings *settings = meta_backend_get_settings (manager->backend);
   MetaPrivacyScreenState privacy_screen_state =
     get_global_privacy_screen_state (manager);
 
   if (privacy_screen_state == META_PRIVACY_SCREEN_UNAVAILABLE)
-    return;
+    return FALSE;
 
-  if (!!(privacy_screen_state & META_PRIVACY_SCREEN_ENABLED) ==
-      meta_settings_is_privacy_screen_enabled (settings))
-    return;
+  return (!!(privacy_screen_state & META_PRIVACY_SCREEN_ENABLED) !=
+      meta_settings_is_privacy_screen_enabled (settings));
+}
 
-  if (ensure_monitors_settings (manager))
+static void
+apply_privacy_screen_settings (MetaMonitorManager *manager)
+{
+  if (privacy_screen_needs_update (manager) &&
+      ensure_monitors_settings (manager))
     {
       manager->privacy_screen_change_state =
         META_PRIVACY_SCREEN_CHANGE_STATE_PENDING_SETTING;
@@ -1370,7 +1374,8 @@ meta_monitor_manager_setup (MetaMonitorManager *manager)
 
   meta_monitor_manager_ensure_initial_config (manager);
 
-  apply_privacy_screen_settings (manager);
+  if (privacy_screen_needs_update (manager))
+    manager->privacy_screen_change_state = META_PRIVACY_SCREEN_CHANGE_STATE_INIT;
 
   manager->in_init = FALSE;
 }
@@ -1696,7 +1701,8 @@ meta_monitor_manager_maybe_emit_privacy_screen_change (MetaMonitorManager *manag
 {
   MetaPrivacyScreenChangeState reason = manager->privacy_screen_change_state;
 
-  if (reason == META_PRIVACY_SCREEN_CHANGE_STATE_NONE)
+  if (reason == META_PRIVACY_SCREEN_CHANGE_STATE_NONE ||
+      reason == META_PRIVACY_SCREEN_CHANGE_STATE_INIT)
     return;
 
   if (reason == META_PRIVACY_SCREEN_CHANGE_STATE_PENDING_HOTKEY)
@@ -4179,7 +4185,14 @@ meta_monitor_manager_post_init (MetaMonitorManager *manager)
   ClutterBackend *clutter_backend;
   ClutterSeat *seat;
 
-  ensure_monitors_settings (manager);
+  if (manager->privacy_screen_change_state ==
+      META_PRIVACY_SCREEN_CHANGE_STATE_INIT)
+    {
+      manager->privacy_screen_change_state =
+        META_PRIVACY_SCREEN_CHANGE_STATE_NONE;
+    }
+
+  apply_privacy_screen_settings (manager);
 
   clutter_backend = meta_backend_get_clutter_backend (manager->backend);
   seat = clutter_backend_get_default_seat (clutter_backend);

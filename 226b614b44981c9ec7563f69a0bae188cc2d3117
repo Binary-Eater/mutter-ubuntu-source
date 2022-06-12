@@ -1,0 +1,3 @@
+  * New upstream release (LP: #1976381)
+     - Fix crash when restarting GNOME Shell on Xorg (LP: #1969893)
+  * Refresh patches. Drop privacy screen settings patch: applied in new release

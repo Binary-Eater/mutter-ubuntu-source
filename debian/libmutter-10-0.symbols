@@ -638,6 +638,7 @@ libmutter-10.so.0 libmutter-10-0 #MINVER#
  meta_verify_monitor_spec@Base 3.28.2
  meta_verify_monitors_config@Base 3.28.2
  meta_virtual_modifier_get_type@Base 3.28.2
+ meta_virtual_monitor_get_crtc_mode@Base 42.4
  meta_virtual_monitor_get_output@Base 40.0
  meta_virtual_monitor_info_free@Base 40.0
  meta_virtual_monitor_info_new@Base 40.0
@@ -652,7 +653,7 @@ libmutter-10.so.0 libmutter-10-0 #MINVER#
  (arch=linux-any)meta_wayland_client_spawn@Base 3.37.91
  (arch=linux-any)meta_wayland_client_spawnv@Base 3.37.91
  (arch=linux-any)meta_wayland_compositor_get_default@Base 3.28.2
- meta_wayland_compositor_get_xwayland_manager@Base 42.3
+ (arch=linux-any)meta_wayland_compositor_get_xwayland_manager@Base 42.0-3ubuntu1
  (arch=linux-any)meta_wayland_get_public_xwayland_display_name@Base 40.0
  (arch=linux-any)meta_wayland_get_wayland_display_name@Base 3.28.2
  (arch=linux-any)meta_wayland_override_display_name@Base 3.28.2
@@ -675,7 +676,6 @@ libmutter-10.so.0 libmutter-10-0 #MINVER#
  meta_window_allows_resize@Base 3.28.2
  meta_window_appears_focused@Base 3.28.2
  meta_window_begin_grab_op@Base 3.28.2
- meta_window_calculate_main_logical_monitor@Base 3.37.91
  meta_window_can_close@Base 3.28.2
  meta_window_can_maximize@Base 3.28.2
  meta_window_can_minimize@Base 3.28.2
@@ -687,6 +687,7 @@ libmutter-10.so.0 libmutter-10-0 #MINVER#
  meta_window_client_type_get_type@Base 3.28.2
  meta_window_compute_group@Base 3.28.2
  meta_window_delete@Base 3.28.2
+ meta_window_find_monitor_from_frame_rect@Base 42.4
  meta_window_find_root_ancestor@Base 3.28.2
  meta_window_focus@Base 3.28.2
  meta_window_foreach_ancestor@Base 3.28.2
@@ -832,7 +833,7 @@ libmutter-10.so.0 libmutter-10-0 #MINVER#
  meta_x11_error_trap_push@Base 3.29.4
  meta_x11_init_gdk_display@Base 3.29.4
  (arch=linux-any)meta_xwayland_override_display_number@Base 3.31.90
- meta_xwayland_signal@Base 42.3
+ (arch=linux-any)meta_xwayland_signal@Base 42.0-3ubuntu1
 libmutter-clutter-10.so.0 libmutter-10-0 #MINVER#
 * Build-Depends-Package: libmutter-10-dev
  _clutter_backend_translate_event@Base 3.33.92
@@ -1421,9 +1422,12 @@ libmutter-clutter-10.so.0 libmutter-10-0 #MINVER#
  clutter_frame_clock_schedule_update@Base 3.37.91
  clutter_frame_clock_schedule_update_now@Base 3.37.91
  clutter_frame_clock_uninhibit@Base 3.37.91
+ clutter_frame_get_hints@Base 42~beta-0ubuntu1
  clutter_frame_has_result@Base 40.0
+ clutter_frame_hint_get_type@Base 42~beta-0ubuntu1
  clutter_frame_info_flag_get_type@Base 40.0
  clutter_frame_result_get_type@Base 3.37.91
+ clutter_frame_set_hint@Base 42~beta-0ubuntu1
  clutter_frame_set_result@Base 40.0
  clutter_gesture_action_cancel@Base 3.29.4
  clutter_gesture_action_get_device@Base 3.29.4
@@ -2448,6 +2452,7 @@ libmutter-cogl-10.so.0 libmutter-10-0 #MINVER#
  cogl_onscreen_add_dirty_callback@Base 3.29.4
  cogl_onscreen_add_frame_callback@Base 3.29.4
  cogl_onscreen_add_frame_info@Base 40.0
+ cogl_onscreen_count_pending_frames@Base 42~beta-0ubuntu1
  cogl_onscreen_direct_scanout@Base 3.37.91
  cogl_onscreen_dirty_closure_get_gtype@Base 3.29.4
  cogl_onscreen_egl_get_egl_surface@Base 40.0

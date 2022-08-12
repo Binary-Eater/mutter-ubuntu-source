@@ -1,0 +1,3 @@
+  * New upstream release
+  * debian/patches: Refresh
+  * debian/libmutter-10-0.symbols: Sync with new and removed internal symbols

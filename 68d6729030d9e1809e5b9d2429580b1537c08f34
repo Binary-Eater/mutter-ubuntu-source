@@ -1,0 +1,6 @@
+  * New upstream release
+  * Rename packages for API bump (mutter-10 -> mutter-11)
+  * debian/libmutter-11-0.symbols: Update
+  * debian/control.in: Bump minimum libwayland and wayland-protocols
+  * Refresh patches
+  * Add temporary patch to skip broken build test

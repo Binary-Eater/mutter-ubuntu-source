@@ -1,0 +1,7 @@
+  * Add patches from Ubuntu:
+    - Support-Dynamic-triple-double-buffering.patch
+    - backends-native-kms-crtc-Don-t-compare-gamma-values-on-un.patch
+      + Avoid memory errors when comparing gamma values
+    - wayland-data-device-Allow-any-drag-timestamp....patch
+      + Allow any drag timestamp as drag start serial
+  * debian/libmutter-11-0.symbols: Add new symbols from triple buffering patch

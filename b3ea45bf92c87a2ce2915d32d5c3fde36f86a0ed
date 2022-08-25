@@ -1,0 +1,4 @@
+  [ Marco Trevisan (Treviño) ]
+  * debian/control: Remove <!nocheck> from xvfb-run
+  [ Jeremy Bicha ]
+  * debian/tests/libmutter-11-dev: fix a reference to mutter-10

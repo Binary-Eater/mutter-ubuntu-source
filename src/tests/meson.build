@@ -68,6 +68,7 @@ pkg.generate(libmutter_test,
   version: meson.project_version(),
   variables: [
     'apiversion=' + libmutter_api_version,
+    'tests_datadir=${prefix}/share/mutter-' + libmutter_api_version + '/tests',
   ],
   install_dir: pcdir,
 )
@@ -128,6 +129,7 @@ test_client = executable('mutter-test-client',
   ],
   install: have_installed_tests,
   install_dir: mutter_installed_tests_libexecdir,
+  install_rpath: pkglibdir,
 )
 
 test_runner = executable('mutter-test-runner',
@@ -142,15 +144,27 @@ test_runner = executable('mutter-test-runner',
   dependencies: libmutter_test_dep,
   install: have_installed_tests,
   install_dir: mutter_installed_tests_libexecdir,
+  install_rpath: pkglibdir,
 )
 
 meta_dbus_runner = find_program('meta-dbus-runner.py')
 
+tests_datadir = join_paths(pkgdatadir, 'tests')
+
+install_data('mutter_dbusrunner.py',
+  install_dir: tests_datadir,
+)
+install_subdir('dbusmock-templates',
+  install_dir: tests_datadir,
+)
+
 if have_installed_tests
-  install_data('meta-dbus-runner.py',
-    install_dir: mutter_installed_tests_libexecdir,
-  )
-  install_subdir('dbusmock-templates',
+  configure_file(
+    input: 'mutter-installed-dbus-session.py.in',
+    output: 'mutter-installed-dbus-session.py',
+    configuration: {'tests_datadir': tests_datadir},
+    install: true,
+    install_mode: 'rwxr-xr-x',
     install_dir: mutter_installed_tests_libexecdir,
   )
 endif
@@ -196,6 +210,11 @@ test_cases += [
     'sources': [ 'monitor-unit-tests.c', ],
   },
   {
+    'name': 'monitor-utils',
+    'suite': 'unit',
+    'sources': [ 'monitor-util-tests.c', ],
+  },
+  {
     'name': 'headless-start',
     'suite': 'backend',
     'sources': [ 'headless-start-test.c', ],
@@ -215,6 +234,11 @@ test_cases += [
     'name': 'edid',
     'suite': 'unit',
     'sources': [ 'edid-tests.c', ],
+  },
+  {
+    'name': 'color-management',
+    'suite': 'unit',
+    'sources': [ 'color-management-tests.c', ],
   },
 ]
 
@@ -236,6 +260,7 @@ if have_native_tests
     ],
     install: have_installed_tests,
     install_dir: mutter_installed_tests_libexecdir,
+    install_rpath: pkglibdir,
   )
 
   # Native backend tests
@@ -370,6 +395,7 @@ if have_native_tests
       dependencies: libmutter_test_dep,
       install: have_installed_tests,
       install_dir: mutter_installed_tests_libexecdir,
+      install_rpath: pkglibdir,
     )
 
     test(test_case['name'], test_executable,
@@ -410,6 +436,7 @@ stacking_tests = [
   'modals',
   'map-fixed-size',
   'client-resize-respect-constraints',
+  'map-on-hotplug',
 ]
 
 foreach stacking_test: stacking_tests
@@ -443,6 +470,7 @@ if have_kvm_tests or have_tty_tests
       dependencies: libmutter_test_dep,
       install: have_installed_tests,
       install_dir: mutter_installed_tests_libexecdir,
+      install_rpath: pkglibdir,
     )
 
     foreach variant: variants

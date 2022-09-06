@@ -1,0 +1,5 @@
+  * New upstream release
+  * Build-Depend on libcolord-dev & liblcms2-dev
+  * debian/*.symbols: Update
+  * Drop Consistently-pass-timestamp….patch: Applied in new release
+  * Refresh 2 patches

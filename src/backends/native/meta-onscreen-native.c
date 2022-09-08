@@ -443,6 +443,11 @@ meta_onscreen_native_flip_crtc (CoglOnscreen                *onscreen,
           meta_kms_plane_assignment_set_fb_damage (plane_assignment,
                                                    rectangles, n_rectangles);
         }
+
+      g_object_set_data_full (G_OBJECT (buffer),
+                              "gbm_surface owner",
+                              g_object_ref (onscreen),
+                              (GDestroyNotify) g_object_unref);
       break;
     case META_RENDERER_NATIVE_MODE_SURFACELESS:
       g_assert_not_reached ();
@@ -1105,12 +1110,6 @@ meta_onscreen_native_swap_buffers_with_damage (CoglOnscreen  *onscreen,
         }
 
       primary_gpu_fb = META_DRM_BUFFER (g_steal_pointer (&buffer_gbm));
-
-      g_object_set_data_full (G_OBJECT (primary_gpu_fb),
-                              "gbm_surface owner",
-                              g_object_ref (onscreen),
-                              (GDestroyNotify) g_object_unref);
-
       break;
     case META_RENDERER_NATIVE_MODE_SURFACELESS:
       g_assert_not_reached ();
@@ -1205,6 +1204,12 @@ try_post_latest_swap (CoglOnscreen *onscreen)
   g_autoptr (MetaKmsFeedback) kms_feedback = NULL;
   const GError *feedback_error;
   unsigned int frames_pending = cogl_onscreen_count_pending_frames (onscreen);
+
+  if (meta_kms_is_shutting_down (kms))
+    {
+      meta_onscreen_native_discard_pending_swaps (onscreen);
+      return;
+    }
 
   if (onscreen_native->swaps_pending == 0)
     return;

@@ -358,9 +358,6 @@ meta_kms_post_update_sync (MetaKms           *kms,
   GList *result_listeners;
   GList *l;
 
-  if (kms->shutting_down)
-    return NULL;
-
   COGL_TRACE_BEGIN_SCOPED (MetaKmsPostUpdateSync,
                            "KMS (post update)");
 
@@ -856,6 +853,12 @@ meta_kms_prepare_shutdown (MetaKms *kms)
 
   meta_kms_run_impl_task_sync (kms, prepare_shutdown_in_impl, NULL, NULL);
   flush_callbacks (kms);
+}
+
+gboolean
+meta_kms_is_shutting_down (MetaKms *kms)
+{
+  return kms->shutting_down;
 }
 
 static void

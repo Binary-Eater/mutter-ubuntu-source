@@ -1,0 +1,5 @@
+  [ Simon McVittie ]
+  * d/control: Drop compatibility with old libgdk-pixbuf2.0-dev package
+  [ Marco Trevisan (Treviño) ]
+  * debian/patches: Update triple-buffering patch against newest version
+    (LP: #1969422, #1988625)

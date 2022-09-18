@@ -240,6 +240,11 @@ test_cases += [
     'suite': 'unit',
     'sources': [ 'color-management-tests.c', ],
   },
+  {
+    'name': 'color-management-profile-conflict',
+    'suite': 'unit',
+    'sources': [ 'color-management-profile-conflict-test.c', ],
+  },
 ]
 
 if have_native_tests

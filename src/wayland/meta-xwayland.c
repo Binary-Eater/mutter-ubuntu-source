@@ -487,7 +487,7 @@ x_io_error_exit (Display *display,
   if (x11_display_policy == META_X11_DISPLAY_POLICY_MANDATORY)
     g_warning ("X Wayland crashed (X IO error)");
   else
-    meta_topic (META_DEBUG_WAYLAND, "Xwayland disappeared during a Xlib call");
+    meta_topic (META_DEBUG_WAYLAND, "Xwayland disappeared");
 }
 
 static void
@@ -1007,7 +1007,6 @@ meta_xwayland_init (MetaXWaylandManager    *manager,
     display = display_number_override;
   else if (g_getenv ("RUNNING_UNDER_GDM"))
     display = 1024;
-
 
   if (!manager->public_connection.name)
     {

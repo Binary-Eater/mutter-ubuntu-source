@@ -1,0 +1,4 @@
+  * Cherry-pick patches to avoid crash when ICC color profile is invalid
+    (Closes: #1021680) (LP: #1993114)
+  * Cherry-pick patch to fix Night Light availability in GNOME Settings
+    (Closes: #1020941) (LP: #1990207)

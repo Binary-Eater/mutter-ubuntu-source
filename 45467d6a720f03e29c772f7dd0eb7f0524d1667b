@@ -1,0 +1,12 @@
+  [ Marco Trevisan (Treviño) ]
+  * New upstream release (LP: #1985856)
+  * debian/patches: Refresh
+  * debian/libmutter-10-0.symbols: Sync with new and removed internal symbols
+  [ Daniel van Vugt ]
+  * Update Support-Dynamic-triple-double-buffering.patch.
+    Dual-GPUs crash in gbm_surface_release_buffer (LP: #1969422)
+    Leftover mouse pointer when moving between monitors (LP: #1988625)
+  [ Zoe Spellman ]
+  * New upstream release
+  * New upstream release (LP: #1981724)
+  * Drop patches applied in new release

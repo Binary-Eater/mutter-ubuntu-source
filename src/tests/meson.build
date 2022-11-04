@@ -387,6 +387,14 @@ if have_native_tests
         'xwayland-tests.c',
       ],
     },
+    {
+      'name': 'wayland-fullscreen',
+      'suite': 'wayland',
+      'sources': [
+        'wayland-fullscreen-test.c',
+        wayland_test_utils,
+      ],
+    },
   ]
 
   foreach test_case: test_cases
@@ -442,6 +450,10 @@ stacking_tests = [
   'map-fixed-size',
   'client-resize-respect-constraints',
   'map-on-hotplug',
+  'workspace-basic',
+  'workspace-test',
+  'always-on-top',
+  'focus-default-window-globally-active-input',
 ]
 
 foreach stacking_test: stacking_tests

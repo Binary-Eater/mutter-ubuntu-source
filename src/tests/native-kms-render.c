@@ -32,10 +32,11 @@
 #include "core/display-private.h"
 #include "meta/meta-backend.h"
 #include "meta-test/meta-context-test.h"
+#include "tests/meta-test-utils.h"
 #include "tests/meta-wayland-test-driver.h"
 #include "tests/meta-wayland-test-utils.h"
 
-#define N_CLIENT_SCANOUTS 10
+#define N_FRAMES_PER_TEST 10
 
 typedef struct
 {
@@ -45,8 +46,11 @@ typedef struct
   struct {
     int n_paints;
     int n_presentations;
+    int n_direct_scanouts;
     GList *fb_ids;
   } scanout;
+
+  gboolean wait_for_scanout;
 } KmsRenderingTest;
 
 static MetaContext *test_context;
@@ -72,7 +76,7 @@ meta_test_kms_render_basic (void)
   gulong handler_id;
 
   test = (KmsRenderingTest) {
-    .number_of_frames_left = 10,
+    .number_of_frames_left = N_FRAMES_PER_TEST,
     .loop = g_main_loop_new (NULL, FALSE),
   };
   handler_id = g_signal_connect (stage, "after-update",
@@ -146,7 +150,7 @@ on_scanout_presented (ClutterStage     *stage,
   drmModeCrtc *drm_crtc;
   uint32_t first_fb_id_expected;
 
-  if (test->scanout.fb_ids == NULL)
+  if (test->wait_for_scanout && test->scanout.fb_ids == NULL)
     return;
 
   test->scanout.n_presentations++;
@@ -168,9 +172,18 @@ on_scanout_presented (ClutterStage     *stage,
   drm_crtc = drmModeGetCrtc (meta_device_file_get_fd (device_file),
                              meta_kms_crtc_get_id (kms_crtc));
   g_assert_nonnull (drm_crtc);
-  first_fb_id_expected = GPOINTER_TO_UINT (test->scanout.fb_ids->data);
-  test->scanout.fb_ids = g_list_delete_link (test->scanout.fb_ids,
-                                             test->scanout.fb_ids);
+
+  if (test->scanout.fb_ids)
+    {
+      test->scanout.n_direct_scanouts++;
+      first_fb_id_expected = GPOINTER_TO_UINT (test->scanout.fb_ids->data);
+      test->scanout.fb_ids = g_list_delete_link (test->scanout.fb_ids,
+                                                 test->scanout.fb_ids);
+    }
+  else
+    {
+      first_fb_id_expected = 0;
+    }
 
   /* The buffer ID won't match on the first frame because switching from
    * triple buffered compositing to double buffered direct scanout takes
@@ -178,17 +191,29 @@ on_scanout_presented (ClutterStage     *stage,
    * mode and expect the buffer IDs to match.
    */
   if (test->scanout.n_presentations > 1)
-    g_assert_cmpuint (drm_crtc->buffer_id, ==, first_fb_id_expected);
+    {
+      if (first_fb_id_expected == 0)
+        g_assert_cmpuint (drm_crtc->buffer_id, !=, first_fb_id_expected);
+      else
+        g_assert_cmpuint (drm_crtc->buffer_id, ==, first_fb_id_expected);
+    }
 
   drmModeFreeCrtc (drm_crtc);
 
   meta_device_file_release (device_file);
 
-  if (test->scanout.n_presentations >= N_CLIENT_SCANOUTS)
+  test->number_of_frames_left--;
+  if (test->number_of_frames_left <= 0)
     g_main_loop_quit (test->loop);
   else
     clutter_actor_queue_redraw (CLUTTER_ACTOR (stage));
 }
+
+typedef enum
+{
+  SCANOUT_WINDOW_STATE_NONE,
+  SCANOUT_WINDOW_STATE_FULLSCREEN,
+} ScanoutWindowState;
 
 static void
 meta_test_kms_render_client_scanout (void)
@@ -196,7 +221,7 @@ meta_test_kms_render_client_scanout (void)
   MetaBackend *backend = meta_context_get_backend (test_context);
   MetaWaylandCompositor *wayland_compositor =
     meta_context_get_wayland_compositor (test_context);
-  ClutterActor *stage = meta_backend_get_stage (backend);
+  ClutterStage *stage = CLUTTER_STAGE (meta_backend_get_stage (backend));
   MetaKms *kms = meta_backend_native_get_kms (META_BACKEND_NATIVE (backend));
   MetaKmsDevice *kms_device = meta_kms_get_devices (kms)->data;
   KmsRenderingTest test;
@@ -206,6 +231,9 @@ meta_test_kms_render_client_scanout (void)
   gulong before_paint_handler_id;
   gulong paint_view_handler_id;
   gulong presented_handler_id;
+  MetaWindow *window;
+  MetaRectangle view_rect;
+  MetaRectangle buffer_rect;
 
   test_driver = meta_wayland_test_driver_new (wayland_compositor);
   meta_wayland_test_driver_set_property (test_driver,
@@ -217,9 +245,17 @@ meta_test_kms_render_client_scanout (void)
   g_assert_nonnull (wayland_test_client);
 
   test = (KmsRenderingTest) {
+    .number_of_frames_left = N_FRAMES_PER_TEST,
     .loop = g_main_loop_new (NULL, FALSE),
     .scanout = {0},
+    .wait_for_scanout = TRUE,
   };
+
+  g_assert_cmpuint (g_list_length (clutter_stage_peek_stage_views (stage)),
+                    ==,
+                    1);
+  clutter_stage_view_get_layout (clutter_stage_peek_stage_views (stage)->data,
+                                 &view_rect);
 
   paint_view_handler_id =
     g_signal_connect (stage, "paint-view",
@@ -236,9 +272,59 @@ meta_test_kms_render_client_scanout (void)
 
   clutter_actor_queue_redraw (CLUTTER_ACTOR (stage));
   g_main_loop_run (test.loop);
-  g_main_loop_unref (test.loop);
 
-  g_assert_cmpint (test.scanout.n_presentations, ==, N_CLIENT_SCANOUTS);
+  g_assert_cmpint (test.scanout.n_presentations, ==, N_FRAMES_PER_TEST);
+  g_assert_cmpint (test.scanout.n_direct_scanouts, ==, N_FRAMES_PER_TEST);
+
+  g_debug ("Unmake fullscreen");
+  window = meta_find_window_from_title (test_context, "dma-buf-scanout-test");
+  g_assert_true (meta_window_is_fullscreen (window));
+  meta_window_unmake_fullscreen (window);
+
+  g_debug ("Wait for fullscreen");
+  meta_wayland_test_driver_wait_for_sync_point (test_driver,
+                                                SCANOUT_WINDOW_STATE_NONE);
+  g_assert_false (meta_window_is_fullscreen (window));
+
+  g_debug ("Moving to 10, 10");
+  meta_window_move_frame (window, TRUE, 10, 10);
+
+  meta_window_get_buffer_rect (window, &buffer_rect);
+  g_assert_cmpint (buffer_rect.width, ==, view_rect.width);
+  g_assert_cmpint (buffer_rect.height, ==, view_rect.height);
+  g_assert_cmpint (buffer_rect.x, ==, 10);
+  g_assert_cmpint (buffer_rect.y, ==, 10);
+
+  test.wait_for_scanout = FALSE;
+  test.number_of_frames_left = N_FRAMES_PER_TEST;
+  test.scanout.n_presentations = 0;
+  test.scanout.n_direct_scanouts = 0;
+
+  clutter_actor_queue_redraw (CLUTTER_ACTOR (stage));
+  g_main_loop_run (test.loop);
+
+  g_assert_cmpint (test.scanout.n_presentations, ==, N_FRAMES_PER_TEST);
+  g_assert_cmpint (test.scanout.n_direct_scanouts, ==, 0);
+
+  g_debug ("Moving back to 0, 0");
+  meta_window_move_frame (window, TRUE, 0, 0);
+
+  meta_window_get_buffer_rect (window, &buffer_rect);
+  g_assert_cmpint (buffer_rect.width, ==, view_rect.width);
+  g_assert_cmpint (buffer_rect.height, ==, view_rect.height);
+  g_assert_cmpint (buffer_rect.x, ==, 0);
+  g_assert_cmpint (buffer_rect.y, ==, 0);
+
+  test.wait_for_scanout = TRUE;
+  test.number_of_frames_left = N_FRAMES_PER_TEST;
+  test.scanout.n_presentations = 0;
+  test.scanout.n_direct_scanouts = 0;
+
+  clutter_actor_queue_redraw (CLUTTER_ACTOR (stage));
+  g_main_loop_run (test.loop);
+
+  g_assert_cmpint (test.scanout.n_presentations, ==, N_FRAMES_PER_TEST);
+  g_assert_cmpint (test.scanout.n_direct_scanouts, ==, N_FRAMES_PER_TEST);
 
   g_signal_handler_disconnect (stage, before_update_handler_id);
   g_signal_handler_disconnect (stage, before_paint_handler_id);
@@ -247,6 +333,7 @@ meta_test_kms_render_client_scanout (void)
 
   meta_wayland_test_driver_emit_sync_event (test_driver, 0);
   meta_wayland_test_client_finish (wayland_test_client);
+  g_main_loop_unref (test.loop);
 }
 
 static void

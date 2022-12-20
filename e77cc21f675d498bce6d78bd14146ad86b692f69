@@ -1,0 +1,3 @@
+  * Team upload
+  * Mark xwayland test-case as known to be flaky on 32-bit ARM.
+    Mitigates: #1026445

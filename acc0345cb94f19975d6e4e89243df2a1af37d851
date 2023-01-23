@@ -1,0 +1,8 @@
+  * Merge with Debian. Remaining change:
+    - Add x11-Add-support-for-fractional-scaling-using-Randr.patch
+  [ Daniel van Vugt ]
+  * Update Support-Dynamic-triple-double-buffering.patch.
+    Fix tearing on monitors attached to secondary GPUs (LP: #1999216)
+  * Add patch for cursor-renderer-native to workaround broken arm64 drivers.
+    By forcing cursors to use dumb buffers. At least until Mesa gets fixed
+    for panfrost, vc4, v3d... (LP: #1988859)

@@ -1733,6 +1733,18 @@ evdev_add_device (MetaSeatImpl           *seat_impl,
   if (is_touchscreen || is_tablet_switch || is_pointer)
     update_touch_mode (seat_impl);
 
+  if (type == CLUTTER_KEYBOARD_DEVICE)
+    {
+      MetaKbdA11ySettings kbd_a11y_settings;
+      MetaInputDeviceNative *keyboard_native;
+
+      keyboard_native = META_INPUT_DEVICE_NATIVE (seat_impl->core_keyboard);
+      meta_input_settings_get_kbd_a11y_settings (seat_impl->input_settings,
+                                                 &kbd_a11y_settings);
+      meta_input_device_native_apply_kbd_a11y_settings_in_impl (keyboard_native,
+                                                                &kbd_a11y_settings);
+    }
+
   return device;
 }
 

@@ -1,3 +1,15 @@
+mutter (43.3-2) unstable; urgency=medium
+
+  * Team upload
+  * Mention LP: #1985089 in the 43.2-6 changelog
+  * d/p/Support-Dynamic-triple-double-buffering.patch:
+    Record the exact revision that was used (no content changes)
+  * Remove Lintian overrides that are no longer necessary now that
+    lintian/lintian!452 is in a release
+  * Upload to unstable
+
+ -- Simon McVittie <smcv@debian.org>  Thu, 16 Feb 2023 09:37:11 +0000
+
 mutter (43.3-1) experimental; urgency=medium
 
   * Team upload
@@ -42,7 +54,8 @@ mutter (43.2-6) unstable; urgency=medium
   * Team upload
   * d/patches: Update to upstream gnome-43 branch commit 43.2-29-g35763ca0cc
     - Avoid lag while altering the split point between edge-tiled windows
-      on the left and right halves of the screen (mutter#2246)
+      on the left and right halves of the screen
+      (mutter#2246, LP: #1985089)
     - Disable direct scanout optimization during drag-and-drop to ensure
       the dragged content is visible (mutter#2470)
     - Performance improvements (mutter!2671)

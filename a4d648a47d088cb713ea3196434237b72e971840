@@ -1,0 +1,7 @@
+  * Team upload
+  * Mention LP: #1985089 in the 43.2-6 changelog
+  * d/p/Support-Dynamic-triple-double-buffering.patch:
+    Record the exact revision that was used (no content changes)
+  * Remove Lintian overrides that are no longer necessary now that
+    lintian/lintian!452 is in a release
+  * Upload to unstable

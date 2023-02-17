@@ -1148,6 +1148,7 @@ ensure_cursor_priv (MetaCursorSprite *cursor_sprite)
   return cursor_priv;
 }
 
+#ifndef __aarch64__
 static MetaDrmBuffer *
 create_cursor_drm_buffer_gbm (MetaGpuKms         *gpu_kms,
                               MetaDeviceFile     *device_file,
@@ -1205,6 +1206,7 @@ create_cursor_drm_buffer_gbm (MetaGpuKms         *gpu_kms,
 
   return META_DRM_BUFFER (buffer_gbm);
 }
+#endif
 
 static MetaDrmBuffer *
 create_cursor_drm_buffer_dumb (MetaGpuKms      *gpu_kms,
@@ -1250,6 +1252,7 @@ create_cursor_drm_buffer (MetaGpuKms      *gpu_kms,
                           uint32_t         format,
                           GError         **error)
 {
+#ifndef __aarch64__
   struct gbm_device *gbm_device;
 
   gbm_device = meta_gbm_device_from_gpu (gpu_kms);
@@ -1263,6 +1266,7 @@ create_cursor_drm_buffer (MetaGpuKms      *gpu_kms,
                                            error);
     }
   else
+#endif
     {
       return create_cursor_drm_buffer_dumb (gpu_kms, device_file,
                                             pixels,

@@ -25,7 +25,7 @@
 #include <xf86drmMode.h>
 
 #include "backends/native/meta-kms-types.h"
-#include "backends/native/meta-drm-buffer.h"
+#include "backends/native/meta-swap-chain.h"
 #include "core/util-private.h"
 #include "meta/boxes.h"
 
@@ -85,12 +85,6 @@ MetaKmsCrtcGamma * meta_kms_crtc_gamma_new (MetaKmsCrtc    *crtc,
                                             const uint16_t *green,
                                             const uint16_t *blue);
 
-void meta_kms_crtc_remember_plane_buffer (MetaKmsCrtc   *crtc,
-                                          uint32_t       plane_id,
-                                          MetaDrmBuffer *buffer);
-
-void meta_kms_crtc_on_scanout_started (MetaKmsCrtc *crtc);
-
-void meta_kms_crtc_release_buffers (MetaKmsCrtc *crtc);
+MetaSwapChain * meta_kms_crtc_get_swap_chain (MetaKmsCrtc *crtc);
 
 #endif /* META_KMS_CRTC_H */

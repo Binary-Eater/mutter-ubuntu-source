@@ -58,6 +58,7 @@ static MetaContext *test_context;
 static void
 on_after_update (ClutterStage     *stage,
                  ClutterStageView *stage_view,
+                 ClutterFrame     *frame,
                  KmsRenderingTest *test)
 {
   test->number_of_frames_left--;
@@ -94,6 +95,7 @@ meta_test_kms_render_basic (void)
 static void
 on_scanout_before_update (ClutterStage     *stage,
                           ClutterStageView *stage_view,
+                          ClutterFrame     *frame,
                           KmsRenderingTest *test)
 {
   test->scanout.n_paints = 0;
@@ -102,6 +104,7 @@ on_scanout_before_update (ClutterStage     *stage,
 static void
 on_scanout_before_paint (ClutterStage     *stage,
                          ClutterStageView *stage_view,
+                         ClutterFrame     *frame,
                          KmsRenderingTest *test)
 {
   CoglScanout *scanout;
@@ -127,6 +130,8 @@ on_scanout_before_paint (ClutterStage     *stage,
 static void
 on_scanout_paint_view (ClutterStage     *stage,
                        ClutterStageView *stage_view,
+                       cairo_region_t   *region,
+                       ClutterFrame     *frame,
                        KmsRenderingTest *test)
 {
   test->scanout.n_paints++;
@@ -241,7 +246,7 @@ meta_test_kms_render_client_scanout (void)
                                          meta_kms_device_get_path (kms_device));
 
   wayland_test_client =
-    meta_wayland_test_client_new ("dma-buf-scanout");
+    meta_wayland_test_client_new (test_context, "dma-buf-scanout");
   g_assert_nonnull (wayland_test_client);
 
   test = (KmsRenderingTest) {
@@ -359,6 +364,8 @@ main (int    argc,
   test_context = context;
 
   init_tests ();
+
+  test_context = context;
 
   return meta_context_test_run_tests (META_CONTEXT_TEST (context),
                                       META_TEST_RUN_FLAG_CAN_SKIP);

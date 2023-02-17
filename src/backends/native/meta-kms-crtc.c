@@ -32,12 +32,6 @@ typedef struct _MetaKmsCrtcPropTable
   MetaKmsProp props[META_KMS_CRTC_N_PROPS];
 } MetaKmsCrtcPropTable;
 
-typedef struct
-{
-  MetaDrmBuffer *front, *back;
-  gboolean back_is_set;
-} PlaneState;
-
 struct _MetaKmsCrtc
 {
   GObject parent;
@@ -51,7 +45,7 @@ struct _MetaKmsCrtc
 
   MetaKmsCrtcPropTable prop_table;
 
-  GHashTable *plane_states;
+  MetaSwapChain *swap_chain;
 };
 
 G_DEFINE_TYPE (MetaKmsCrtc, meta_kms_crtc, G_TYPE_OBJECT)
@@ -101,6 +95,12 @@ meta_kms_crtc_get_prop_drm_value (MetaKmsCrtc     *crtc,
 {
   MetaKmsProp *prop = &crtc->prop_table.props[property];
   return meta_kms_prop_convert_value (prop, value);
+}
+
+MetaSwapChain *
+meta_kms_crtc_get_swap_chain (MetaKmsCrtc *crtc)
+{
+  return crtc->swap_chain;
 }
 
 gboolean
@@ -418,58 +418,12 @@ meta_kms_crtc_new (MetaKmsImplDevice  *impl_device,
   return crtc;
 }
 
-void
-meta_kms_crtc_remember_plane_buffer (MetaKmsCrtc   *crtc,
-                                     uint32_t       plane_id,
-                                     MetaDrmBuffer *buffer)
-{
-  gpointer key = GUINT_TO_POINTER (plane_id);
-  PlaneState *plane_state;
-
-  plane_state = g_hash_table_lookup (crtc->plane_states, key);
-  if (plane_state == NULL)
-    {
-      plane_state = g_new0 (PlaneState, 1);
-      g_hash_table_insert (crtc->plane_states, key, plane_state);
-    }
-
-  plane_state->back_is_set = TRUE;  /* note buffer may be NULL */
-  g_set_object (&plane_state->back, buffer);
-}
-
-static void
-swap_plane_buffers (gpointer key,
-                    gpointer value,
-                    gpointer user_data)
-{
-  PlaneState *plane_state = value;
-
-  if (plane_state->back_is_set)
-    {
-      g_set_object (&plane_state->front, plane_state->back);
-      g_clear_object (&plane_state->back);
-      plane_state->back_is_set = FALSE;
-    }
-}
-
-void
-meta_kms_crtc_on_scanout_started (MetaKmsCrtc *crtc)
-{
-  g_hash_table_foreach (crtc->plane_states, swap_plane_buffers, NULL);
-}
-
-void
-meta_kms_crtc_release_buffers (MetaKmsCrtc *crtc)
-{
-  g_hash_table_remove_all (crtc->plane_states);
-}
-
 static void
 meta_kms_crtc_dispose (GObject *object)
 {
   MetaKmsCrtc *crtc = META_KMS_CRTC (object);
 
-  meta_kms_crtc_release_buffers (crtc);
+  meta_swap_chain_release_buffers (crtc->swap_chain);
 
   G_OBJECT_CLASS (meta_kms_crtc_parent_class)->dispose (object);
 }
@@ -480,29 +434,16 @@ meta_kms_crtc_finalize (GObject *object)
   MetaKmsCrtc *crtc = META_KMS_CRTC (object);
 
   clear_gamma_state (&crtc->current_state);
-  g_hash_table_unref (crtc->plane_states);
+  g_clear_object (&crtc->swap_chain);
 
   G_OBJECT_CLASS (meta_kms_crtc_parent_class)->finalize (object);
-}
-
-static void
-destroy_plane_state (gpointer data)
-{
-  PlaneState *plane_state = data;
-
-  g_clear_object (&plane_state->front);
-  g_clear_object (&plane_state->back);
-  g_free (plane_state);
 }
 
 static void
 meta_kms_crtc_init (MetaKmsCrtc *crtc)
 {
   crtc->current_state.gamma.size = 0;
-  crtc->plane_states = g_hash_table_new_full (NULL,
-                                              NULL,
-                                              NULL,
-                                              destroy_plane_state);
+  crtc->swap_chain = meta_swap_chain_new ();
 }
 
 static void

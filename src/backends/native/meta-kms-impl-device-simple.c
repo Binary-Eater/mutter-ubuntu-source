@@ -486,7 +486,7 @@ process_mode_set (MetaKmsImplDevice  *impl_device,
       return FALSE;
     }
 
-  meta_kms_crtc_on_scanout_started (crtc);
+  meta_swap_chain_swap_buffers (meta_kms_crtc_get_swap_chain (crtc));
 
   if (drm_mode)
     {
@@ -883,7 +883,7 @@ mode_set_fallback (MetaKmsImplDeviceSimple  *impl_device_simple,
       return FALSE;
     }
 
-  meta_kms_crtc_on_scanout_started (crtc);
+  meta_swap_chain_swap_buffers (meta_kms_crtc_get_swap_chain (crtc));
 
   if (!impl_device_simple->mode_set_fallback_feedback_source)
     {
@@ -1341,9 +1341,9 @@ process_plane_assignment (MetaKmsImplDevice       *impl_device,
   g_assert_not_reached ();
 
 assigned:
-  meta_kms_crtc_remember_plane_buffer (plane_assignment->crtc,
-                                       meta_kms_plane_get_id (plane),
-                                       plane_assignment->buffer);
+  meta_swap_chain_push_buffer (meta_kms_crtc_get_swap_chain (plane_assignment->crtc),
+                               meta_kms_plane_get_id (plane),
+                               G_OBJECT (plane_assignment->buffer));
   return TRUE;
 }
 

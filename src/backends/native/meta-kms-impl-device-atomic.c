@@ -612,9 +612,9 @@ process_plane_assignment (MetaKmsImplDevice  *impl_device,
     }
 
   if (!(flags & META_KMS_UPDATE_FLAG_TEST_ONLY))
-    meta_kms_crtc_remember_plane_buffer (plane_assignment->crtc,
-                                         meta_kms_plane_get_id (plane),
-                                         buffer);
+    meta_swap_chain_push_buffer (meta_kms_crtc_get_swap_chain (plane_assignment->crtc),
+                                 meta_kms_plane_get_id (plane),
+                                 G_OBJECT (buffer));
 
   return TRUE;
 }

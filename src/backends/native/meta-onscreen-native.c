@@ -72,7 +72,6 @@ typedef struct _MetaOnscreenNativeSecondaryGpuState
   struct {
     MetaDrmBufferDumb *current_dumb_fb;
     MetaDrmBufferDumb *dumb_fbs[3];
-    MetaDrmBuffer *source_fbs[3];
   } cpu;
 
   gboolean noted_primary_gpu_copy_ok;
@@ -107,7 +106,11 @@ struct _MetaOnscreenNative
 
   MetaRendererView *view;
 
+  gboolean is_gamma_lut_invalid;
+  gboolean is_privacy_screen_invalid;
+
   unsigned int swaps_pending;
+
   struct {
     int *rectangles;  /* 4 x n_rectangles */
     int n_rectangles;
@@ -116,6 +119,8 @@ struct _MetaOnscreenNative
 
 G_DEFINE_TYPE (MetaOnscreenNative, meta_onscreen_native,
                COGL_TYPE_ONSCREEN_EGL)
+
+static GQuark blit_source_quark = 0;
 
 static void
 try_post_latest_swap (CoglOnscreen *onscreen);
@@ -178,12 +183,16 @@ notify_view_crtc_presented (MetaRendererView *view,
   CoglFramebuffer *framebuffer =
     clutter_stage_view_get_onscreen (stage_view);
   CoglOnscreen *onscreen = COGL_ONSCREEN (framebuffer);
+  MetaOnscreenNative *onscreen_native = META_ONSCREEN_NATIVE (onscreen);
   CoglFrameInfo *frame_info;
   MetaCrtc *crtc;
 
   frame_info = cogl_onscreen_peek_head_frame_info (onscreen);
 
   g_return_if_fail (frame_info != NULL);
+
+  onscreen_native->is_gamma_lut_invalid = FALSE;
+  onscreen_native->is_privacy_screen_invalid = FALSE;
 
   crtc = META_CRTC (meta_crtc_kms_from_kms_crtc (kms_crtc));
   maybe_update_frame_info (crtc, frame_info, time_us, flags, sequence);
@@ -512,40 +521,12 @@ meta_onscreen_native_set_crtc_mode (CoglOnscreen              *onscreen,
 }
 
 static void
-hold_primary_gpu_fb_for_secondary_gpu_scanout (MetaOnscreenNativeSecondaryGpuState *secondary_gpu_state,
-                                               MetaDrmBuffer                       *primary_gpu_fb,
-                                               MetaDrmBuffer                       *secondary_gpu_fb)
-{
-  if (META_IS_DRM_BUFFER_DUMB (secondary_gpu_fb))
-    {
-      MetaDrmBufferDumb *dumb_fb = META_DRM_BUFFER_DUMB (secondary_gpu_fb);
-      int i;
-      const int n = G_N_ELEMENTS (secondary_gpu_state->cpu.dumb_fbs);
-
-      for (i = 0; i < n; i++)
-        {
-          if (dumb_fb == secondary_gpu_state->cpu.dumb_fbs[i])
-            {
-              g_set_object (&secondary_gpu_state->cpu.source_fbs[i],
-                            primary_gpu_fb);
-              break;
-            }
-        }
-
-      g_warn_if_fail (i < n);
-    }
-}
-
-static void
 secondary_gpu_release_dumb (MetaOnscreenNativeSecondaryGpuState *secondary_gpu_state)
 {
   unsigned i;
 
   for (i = 0; i < G_N_ELEMENTS (secondary_gpu_state->cpu.dumb_fbs); i++)
-    {
-      g_clear_object (&secondary_gpu_state->cpu.dumb_fbs[i]);
-      g_clear_object (&secondary_gpu_state->cpu.source_fbs[i]);
-    }
+    g_clear_object (&secondary_gpu_state->cpu.dumb_fbs[i]);
 }
 
 static void
@@ -710,6 +691,11 @@ copy_shared_framebuffer_gpu (CoglOnscreen                        *onscreen,
       return NULL;
     }
 
+  g_object_set_qdata_full (G_OBJECT (buffer_gbm),
+                           blit_source_quark,
+                           g_object_ref (primary_gpu_fb),
+                           g_object_unref);
+
   return META_DRM_BUFFER (buffer_gbm);
 }
 
@@ -838,7 +824,10 @@ copy_shared_framebuffer_primary_gpu (CoglOnscreen                        *onscre
         }
     }
 
-  g_object_unref (dmabuf_fb);
+  g_object_set_qdata_full (G_OBJECT (buffer),
+                           blit_source_quark,
+                           g_steal_pointer (&dmabuf_fb),
+                           g_object_unref);
 
   secondary_gpu_state->cpu.current_dumb_fb = buffer_dumb;
 
@@ -1143,17 +1132,9 @@ meta_onscreen_native_swap_buffers_with_damage (CoglOnscreen  *onscreen,
         }
 
       if (onscreen_native->secondary_gpu_state)
-        {
-          g_set_object (&onscreen_native->gbm.next_fb, secondary_gpu_fb);
-          hold_primary_gpu_fb_for_secondary_gpu_scanout (
-            onscreen_native->secondary_gpu_state,
-            primary_gpu_fb,
-            secondary_gpu_fb);
-        }
+        g_set_object (&onscreen_native->gbm.next_fb, secondary_gpu_fb);
       else
-        {
-          g_set_object (&onscreen_native->gbm.next_fb, primary_gpu_fb);
-        }
+        g_set_object (&onscreen_native->gbm.next_fb, primary_gpu_fb);
       break;
     case META_RENDERER_NATIVE_MODE_SURFACELESS:
       break;
@@ -1494,13 +1475,57 @@ add_onscreen_frame_info (MetaCrtc *crtc)
 }
 
 void
+meta_onscreen_native_prepare_frame (CoglOnscreen *onscreen,
+                                    ClutterFrame *frame)
+{
+  MetaOnscreenNative *onscreen_native = META_ONSCREEN_NATIVE (onscreen);
+  MetaCrtcKms *crtc_kms = META_CRTC_KMS (onscreen_native->crtc);
+  MetaOutputKms *output_kms = META_OUTPUT_KMS (onscreen_native->output);
+  MetaKmsCrtc *kms_crtc = meta_crtc_kms_get_kms_crtc (crtc_kms);
+  MetaKmsDevice *kms_device = meta_kms_crtc_get_device (kms_crtc);
+  MetaKms *kms = meta_kms_device_get_kms (kms_device);
+
+  if (onscreen_native->is_gamma_lut_invalid)
+    {
+      const MetaKmsCrtcGamma *gamma;
+
+      gamma = meta_crtc_kms_peek_gamma_lut (crtc_kms);
+      if (gamma)
+        {
+          MetaKmsUpdate *kms_update;
+
+          kms_update = meta_kms_ensure_pending_update_for_crtc (kms, kms_crtc);
+          meta_kms_update_set_crtc_gamma (kms_update,
+                                          kms_crtc,
+                                          gamma->size,
+                                          gamma->red,
+                                          gamma->green,
+                                          gamma->blue);
+        }
+    }
+
+  if (onscreen_native->is_privacy_screen_invalid)
+    {
+      MetaKmsConnector *kms_connector =
+        meta_output_kms_get_kms_connector (output_kms);
+      MetaKmsUpdate *kms_update;
+      gboolean enabled;
+
+      kms_update = meta_kms_ensure_pending_update_for_crtc (kms, kms_crtc);
+
+      enabled = meta_output_is_privacy_screen_enabled (onscreen_native->output);
+      meta_kms_update_set_privacy_screen (kms_update, kms_connector, enabled);
+    }
+}
+
+void
 meta_onscreen_native_finish_frame (CoglOnscreen *onscreen,
                                    ClutterFrame *frame)
 {
   MetaOnscreenNative *onscreen_native = META_ONSCREEN_NATIVE (onscreen);
   MetaCrtc *crtc = onscreen_native->crtc;
   MetaKmsCrtc *kms_crtc = meta_crtc_kms_get_kms_crtc (META_CRTC_KMS (crtc));
-  MetaKmsDevice *kms_device = meta_kms_crtc_get_device (kms_crtc);;
+  MetaKmsDevice *kms_device = meta_kms_crtc_get_device (kms_crtc);
   MetaKms *kms = meta_kms_device_get_kms (kms_device);
   MetaKmsUpdateFlag flags;
   MetaKmsUpdate *kms_update;
@@ -2108,21 +2133,6 @@ pick_secondary_gpu_framebuffer_format_for_cpu (CoglOnscreen *onscreen)
   return DRM_FORMAT_INVALID;
 }
 
-static void
-dumb_toggle_notify (gpointer  data,
-                    GObject  *object,
-                    gboolean  is_last_ref)
-{
-  MetaDrmBuffer **source_fb = data;
-
-  g_return_if_fail (source_fb != NULL);
-  if (is_last_ref && *source_fb)
-    {
-      g_return_if_fail (META_IS_DRM_BUFFER (*source_fb));
-      g_clear_object (source_fb);
-    }
-}
-
 static gboolean
 init_secondary_gpu_state_cpu_copy_mode (MetaRendererNative         *renderer_native,
                                         CoglOnscreen               *onscreen,
@@ -2179,12 +2189,6 @@ init_secondary_gpu_state_cpu_copy_mode (MetaRendererNative         *renderer_nat
         }
 
       secondary_gpu_state->cpu.dumb_fbs[i] = META_DRM_BUFFER_DUMB (dumb_buffer);
-      g_object_add_toggle_ref (G_OBJECT (dumb_buffer),
-                               dumb_toggle_notify,
-                               &secondary_gpu_state->cpu.source_fbs[i]);
-
-      /* It was incremented higher than we need by add_toggle_ref */
-      g_object_unref (dumb_buffer);
     }
 
   /*
@@ -2249,6 +2253,36 @@ init_secondary_gpu_state (MetaRendererNative  *renderer_native,
   return TRUE;
 }
 
+void
+meta_onscreen_native_invalidate (MetaOnscreenNative *onscreen_native)
+{
+  if (meta_crtc_get_gamma_lut_size (onscreen_native->crtc) > 0)
+    onscreen_native->is_gamma_lut_invalid = TRUE;
+  if (meta_output_is_privacy_screen_supported (onscreen_native->output))
+    onscreen_native->is_privacy_screen_invalid = TRUE;
+}
+
+static void
+on_gamma_lut_changed (MetaCrtc           *crtc,
+                      MetaOnscreenNative *onscreen_native)
+{
+  ClutterStageView *stage_view = CLUTTER_STAGE_VIEW (onscreen_native->view);
+
+  onscreen_native->is_gamma_lut_invalid = TRUE;
+  clutter_stage_view_schedule_update (stage_view);
+}
+
+static void
+on_privacy_screen_enabled_changed (MetaOutput         *output,
+                                   GParamSpec         *pspec,
+                                   MetaOnscreenNative *onscreen_native)
+{
+  ClutterStageView *stage_view = CLUTTER_STAGE_VIEW (onscreen_native->view);
+
+  onscreen_native->is_privacy_screen_invalid = TRUE;
+  clutter_stage_view_schedule_update (stage_view);
+}
+
 MetaOnscreenNative *
 meta_onscreen_native_new (MetaRendererNative *renderer_native,
                           MetaGpuKms         *render_gpu,
@@ -2275,6 +2309,22 @@ meta_onscreen_native_new (MetaRendererNative *renderer_native,
   onscreen_native->render_gpu = render_gpu;
   onscreen_native->output = output;
   onscreen_native->crtc = g_object_ref (crtc);
+
+  if (meta_crtc_get_gamma_lut_size (crtc) > 0)
+    {
+      onscreen_native->is_gamma_lut_invalid = TRUE;
+      g_signal_connect_object (crtc, "gamma-lut-changed",
+                               G_CALLBACK (on_gamma_lut_changed),
+                               onscreen_native, G_CONNECT_DEFAULT);
+    }
+
+  if (meta_output_is_privacy_screen_supported (output))
+    {
+      onscreen_native->is_privacy_screen_invalid = TRUE;
+      g_signal_connect_object (output, "notify::is-privacy-screen-enabled",
+                               G_CALLBACK (on_privacy_screen_enabled_changed),
+                               onscreen_native, G_CONNECT_DEFAULT);
+    }
 
   return onscreen_native;
 }
@@ -2349,6 +2399,8 @@ meta_onscreen_native_class_init (MetaOnscreenNativeClass *klass)
   onscreen_class->swap_buffers_with_damage =
     meta_onscreen_native_swap_buffers_with_damage;
   onscreen_class->direct_scanout = meta_onscreen_native_direct_scanout;
+
+  blit_source_quark = g_quark_from_static_string ("Blit source");
 }
 
 MetaCrtc *

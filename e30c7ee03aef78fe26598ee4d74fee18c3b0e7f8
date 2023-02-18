@@ -1,0 +1,14 @@
+  * New upstream release
+  * Rename packages for API bump (mutter-11 -> mutter-12)
+  * Update symbols files
+  * Add mutter-common-bin to install libexec binaries
+  * Have libmutter-test-12 install the new MetaTest typelib
+    and add a Provides for it instead of creating a new binary package
+  * debian/mutter.install: mutter.desktop is no longer provided
+  * Bump minimum glib to 2.75.1
+  * Refresh patches
+  * Update triple buffering patch to the latest version
+  * Drop patch applied in new release
+  * Drop 2 patches that no longer apply:
+    - theme-load-icons-as-Gtk-does-with-fallback-and-RTL-suppor.patch
+    - theme-use-gtk_render_icon_suface-to-paint-button-icon.patch

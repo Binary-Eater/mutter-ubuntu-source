@@ -1,0 +1,6 @@
+  * Team upload
+  * d/p/x11-Avoid-updating-focus-on-wayland-compositor.patch:
+    Add patch from upstream fixing a focus-handling regression in
+    Wayland sessions.
+    In 43.3, switching from an Xwayland window to a native Wayland window
+    would not always work.

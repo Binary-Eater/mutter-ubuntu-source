@@ -40,7 +40,6 @@
 #include "wayland/meta-wayland-dma-buf.h"
 
 #include <drm_fourcc.h>
-#include <glib/gstdio.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -1790,7 +1789,10 @@ meta_wayland_dma_buf_buffer_finalize (GObject *object)
   int i;
 
   for (i = 0; i < META_WAYLAND_DMA_BUF_MAX_FDS; i++)
-    g_clear_fd (&dma_buf->fds[i], NULL);
+    {
+      if (dma_buf->fds[i] != -1)
+        close (dma_buf->fds[i]);
+    }
 
   G_OBJECT_CLASS (meta_wayland_dma_buf_buffer_parent_class)->finalize (object);
 }

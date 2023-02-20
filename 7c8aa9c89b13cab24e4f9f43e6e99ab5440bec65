@@ -1,0 +1,4 @@
+  * Add patch to keep using glib 2.74 for now
+  * debian/control.in: Build-Depend on glib 2.74.0
+  * Have libmutter-12-0 depend on the required mutter-common-bin
+    (Closes: #1031688)

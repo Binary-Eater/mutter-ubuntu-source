@@ -29,7 +29,6 @@
 #include <errno.h>
 #include <glib-unix.h>
 #include <glib.h>
-#include <glib/gstdio.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -250,7 +249,11 @@ try_display (int      display,
       g_free (filename);
       filename = NULL;
 
-      g_clear_fd (&fd, NULL);
+      if (fd >= 0)
+        {
+          close (fd);
+          fd = -1;
+        }
     }
 
   *filename_out = filename;

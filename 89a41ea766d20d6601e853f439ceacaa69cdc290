@@ -1,0 +1,2 @@
+  * debian/patches: Update code to get backend on X11-fractional scaling
+  * debian/control: Do not depend on legacy EGL package name

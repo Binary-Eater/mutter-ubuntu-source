@@ -31,6 +31,7 @@ struct _ClutterFrame
 
   gboolean has_result;
   ClutterFrameResult result;
+  ClutterFrameHint hints;
 };
 
 CLUTTER_EXPORT

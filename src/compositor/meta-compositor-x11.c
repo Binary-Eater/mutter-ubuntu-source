@@ -282,7 +282,9 @@ on_redirected_monitor_changed (MetaWindow        *window,
                                int                old_monitor,
                                MetaCompositorX11 *compositor_x11)
 {
-  MetaBackend *backend = meta_get_backend ();
+  MetaDisplay *display = meta_compositor_get_display (compositor_x11);
+  MetaContext *context = meta_display_get_context (display);
+  MetaBackend *backend = meta_context_get_backend (context);
   MetaMonitorManager *monitor_manager =
     meta_backend_get_monitor_manager (backend);
 
@@ -330,8 +332,10 @@ static void
 set_unredirected_window (MetaCompositorX11 *compositor_x11,
                          MetaWindow        *window)
 {
-  MetaBackend *backend;
-  MetaMonitorManager *monitor_manager;
+  MetaDisplay *display = meta_compositor_get_display (compositor_x11);
+  MetaContext *context = meta_display_get_context (display);
+  MetaBackend *backend = meta_context_get_backend (context);
+  MetaMonitorManager *monitor_manager = meta_backend_get_monitor_manager (backend);
   MetaWindow *prev_unredirected_window = compositor_x11->unredirected_window;
 
   if (prev_unredirected_window == window)
@@ -339,9 +343,6 @@ set_unredirected_window (MetaCompositorX11 *compositor_x11,
       if (!window && compositor_x11->randr_scale_disabled &&
           !get_unredirectable_window (compositor_x11))
         {
-          backend = meta_get_backend ();
-          monitor_manager = meta_backend_get_monitor_manager (backend);
-
           compositor_x11->randr_scale_disabled =
             meta_monitor_manager_disable_scale_for_monitor (monitor_manager,
                                                             NULL);
@@ -349,9 +350,6 @@ set_unredirected_window (MetaCompositorX11 *compositor_x11,
 
       return;
     }
-
-  backend = meta_get_backend ();
-  monitor_manager = meta_backend_get_monitor_manager (backend);
 
   if (prev_unredirected_window)
     {

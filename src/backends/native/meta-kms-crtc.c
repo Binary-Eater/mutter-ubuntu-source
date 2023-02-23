@@ -44,6 +44,8 @@ struct _MetaKmsCrtc
   MetaKmsCrtcState current_state;
 
   MetaKmsCrtcPropTable prop_table;
+
+  MetaSwapChain *swap_chain;
 };
 
 G_DEFINE_TYPE (MetaKmsCrtc, meta_kms_crtc, G_TYPE_OBJECT)
@@ -93,6 +95,12 @@ meta_kms_crtc_get_prop_drm_value (MetaKmsCrtc     *crtc,
 {
   MetaKmsProp *prop = &crtc->prop_table.props[property];
   return meta_kms_prop_convert_value (prop, value);
+}
+
+MetaSwapChain *
+meta_kms_crtc_get_swap_chain (MetaKmsCrtc *crtc)
+{
+  return crtc->swap_chain;
 }
 
 gboolean
@@ -411,11 +419,22 @@ meta_kms_crtc_new (MetaKmsImplDevice  *impl_device,
 }
 
 static void
+meta_kms_crtc_dispose (GObject *object)
+{
+  MetaKmsCrtc *crtc = META_KMS_CRTC (object);
+
+  meta_swap_chain_release_buffers (crtc->swap_chain);
+
+  G_OBJECT_CLASS (meta_kms_crtc_parent_class)->dispose (object);
+}
+
+static void
 meta_kms_crtc_finalize (GObject *object)
 {
   MetaKmsCrtc *crtc = META_KMS_CRTC (object);
 
   clear_gamma_state (&crtc->current_state);
+  g_clear_object (&crtc->swap_chain);
 
   G_OBJECT_CLASS (meta_kms_crtc_parent_class)->finalize (object);
 }
@@ -424,6 +443,7 @@ static void
 meta_kms_crtc_init (MetaKmsCrtc *crtc)
 {
   crtc->current_state.gamma.size = 0;
+  crtc->swap_chain = meta_swap_chain_new ();
 }
 
 static void
@@ -431,5 +451,6 @@ meta_kms_crtc_class_init (MetaKmsCrtcClass *klass)
 {
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
+  object_class->dispose = meta_kms_crtc_dispose;
   object_class->finalize = meta_kms_crtc_finalize;
 }

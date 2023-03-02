@@ -1,0 +1,5 @@
+  * Team upload
+  * d/p/color-device-Make-sure-lcms_context-is-not-NULL.patch,
+    d/p/color-device-Don-t-close-lcms-profile-on-error-from-cd_ic.patch:
+    Fix a double-free when loading the ICC profile from a device's EDID
+    fails (Closes: #1031847)

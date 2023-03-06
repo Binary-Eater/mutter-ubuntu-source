@@ -847,7 +847,6 @@ create_icc_profile_from_edid (MetaColorDevice     *color_device,
     }
 
   lcms_context = meta_color_manager_get_lcms_context (color_manager);
-
   if (!lcms_context)
     {
       g_set_error (error, G_IO_ERROR, G_IO_ERROR_FAILED,
@@ -890,6 +889,7 @@ create_icc_profile_from_edid (MetaColorDevice     *color_device,
   cmsSetHeaderRenderingIntent (lcms_profile, INTENT_PERCEPTUAL);
   cmsSetDeviceClass (lcms_profile, cmsSigDisplayClass);
 
+  g_warn_if_fail (cmsGetProfileContextID (lcms_profile));
   if (!cd_icc_load_handle (cd_icc, g_steal_pointer (&lcms_profile),
                            CD_ICC_LOAD_FLAGS_PRIMARIES, error))
     return NULL;

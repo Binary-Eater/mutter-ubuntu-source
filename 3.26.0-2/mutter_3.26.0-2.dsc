@@ -1,0 +1,46 @@
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA512
+
+Format: 3.0 (quilt)
+Source: mutter
+Binary: mutter, libmutter-1-0, mutter-common, libmutter-1-dev, gir1.2-mutter-1
+Architecture: any all
+Version: 3.26.0-2
+Maintainer: Debian GNOME Maintainers <pkg-gnome-maintainers@lists.alioth.debian.org>
+Uploaders: Iain Lane <laney@debian.org>, Jeremy Bicha <jbicha@debian.org>, Michael Biebl <biebl@debian.org>, Sjoerd Simons <sjoerd@debian.org>
+Standards-Version: 4.1.0
+Vcs-Browser: https://anonscm.debian.org/viewvc/pkg-gnome/desktop/unstable/mutter
+Vcs-Svn: svn://anonscm.debian.org/pkg-gnome/desktop/unstable/mutter
+Build-Depends: debhelper (>= 10), gnome-pkg-tools (>= 0.10), gtk-doc-tools (>= 1.15), libgtk-3-dev (>= 3.19.8), libglib2.0-dev (>= 2.53.2), libcanberra-gtk3-dev, gobject-introspection (>= 1.41.3), gsettings-desktop-schemas-dev (>= 3.21.4), libgirepository1.0-dev (>= 0.9.12), libjson-glib-dev (>= 0.13.2-1~), libgbm-dev (>= 10.3), libpango1.0-dev (>= 1.2.0), libcairo2-dev (>= 1.10.0), libgl1-mesa-dev (>= 7.1~rc3-1~), libdrm-dev [!hurd-any], libegl1-mesa-dev, libgnome-desktop-3-dev (>= 3.21.2), libgudev-1.0-dev (>= 232) [linux-any], libinput-dev [linux-any], libstartup-notification0-dev (>= 0.7), libsystemd-dev (>= 212) [linux-any], libupower-glib-dev (>= 0.99.0), libwacom-dev (>= 0.13) [linux-any], libxcb-randr0-dev, libxcb-res0-dev, libxcomposite-dev (>= 1:0.2), libxi-dev (>= 2:1.6.0), libxkbfile-dev, libxkbcommon-x11-dev, libxkbcommon-dev (>= 0.4.3), libx11-xcb-dev, libxfixes-dev, libxdamage-dev, libxcursor-dev, libxt-dev, libx11-dev, libxinerama-dev, libxext-dev, libxrandr-dev, libxrender-dev, libsm-dev, libice-dev, libpam0g-dev, libwayland-dev (>= 1.13.0) [linux-any], wayland-protocols (>= 1.9) [linux-any], xkb-data, xvfb <!nocheck>, xauth <!nocheck>, zenity
+Package-List:
+ gir1.2-mutter-1 deb introspection optional arch=any
+ libmutter-1-0 deb libs optional arch=any
+ libmutter-1-dev deb libdevel optional arch=any
+ mutter deb x11 optional arch=any
+ mutter-common deb misc optional arch=all
+Checksums-Sha1:
+ 926e2905432571aa13af520efe3bfe931efa42d8 3618704 mutter_3.26.0.orig.tar.xz
+ b49de57f34c0de3a0059e62cb96ad2c863e7f873 22904 mutter_3.26.0-2.debian.tar.xz
+Checksums-Sha256:
+ 2a62933a11632830c430570b0f8d762fd9f76a2eb955d54cc14f73274d06e577 3618704 mutter_3.26.0.orig.tar.xz
+ 0d4ab5c6a3d2bdfd1c1fb115e7f989c7f680e569507cd3ec11fdd7d840dedd4e 22904 mutter_3.26.0-2.debian.tar.xz
+Files:
+ b821221e98ae640c98b29ba7fa033628 3618704 mutter_3.26.0.orig.tar.xz
+ d2fb59e6863ab578f72aa700b2121472 22904 mutter_3.26.0-2.debian.tar.xz
+
+-----BEGIN PGP SIGNATURE-----
+
+iQIcBAEBCgAGBQJZxVLjAAoJEONS1cUcUEHUf04P/j59J9ll1A2BRYctYHWAVO5F
+q7xjTctUYovrhaWKJxz0K9Eh149+OI8upuQRpwcgPkriHiTNrLDgfCeIsVBoSnxD
++egqbHg6Wlqqgoo+ciNRQSo5su3a7dHGe1vLAaT2rWzFXor1PITC6KSp6Zo9B5ac
+Gmndsza4sMZ8phJ3BqSYv4hWsLxl1Sjctyi0pTyagwTPQmRwbIqD1+5+WgrbiknP
+GbZBeW8bmkGmTGrIRF7tB+bVqEjReP0aUJAQVZGGTbHtyq9AVEU5vah8YZoskBeC
+Ww2FUUnDf6dzq4O23DPKfQc0JtdGk/q5bCw0sn+NuILE8m0G8SUbxr/pVC0/pAof
+ijZ2f78oO/hkb6HS2LA0axpenvGMFLLgZJObgwR/sWkfzzChQyY+5aPbb7lUJaEl
+Eu1Z5dJ2Av6FnnZDA5tYARykeA6yvQHxMlwOnXU8m0VwQDqGZZmZ66c+vOpFw9hD
+aVKo/GAqJ4Zu/3NKUPrXtSNSCcu3GjL/Gv/wuQyAGhEMkv60u9O1qX77pYfDb698
+SMkGIMClG6BR1fA6GazLhydFzNz2asYuB5xyrSkTMjGov73AYA6xne0tj3nJWWL9
+AAmrOyO3L18RW3jXLsW9HEOEix4di9LWGVM++sehpVCH2N5R4hr35lBKhJdNCueL
+KerU4C+6WDVsK7F0hsU2
+=wVoC
+-----END PGP SIGNATURE-----

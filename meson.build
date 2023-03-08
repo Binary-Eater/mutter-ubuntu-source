@@ -1,5 +1,5 @@
 project('mutter', 'c',
-  version: '44.beta',
+  version: '44.rc',
   meson_version: '>= 0.58.0',
   license: 'GPLv2+'
 )
@@ -16,7 +16,7 @@ mutter_builddir = meson.current_build_dir()
 lcms2_req = '>= 2.6'
 colord_req = '>= 1.4.5'
 fribidi_req = '>= 1.0.0'
-glib_req = '>= 2.69.0'
+glib_req = '>= 2.75.1'
 gi_req = '>= 0.9.5'
 graphene_req = '>= 1.10.2'
 gtk3_req = '>= 3.19.8'
@@ -46,7 +46,7 @@ gudev_req = '>= 232'
 
 # wayland version requirements
 wayland_server_req = '>= 1.21'
-wayland_protocols_req = '>= 1.26'
+wayland_protocols_req = '>= 1.31'
 
 # native backend version requirements
 libinput_req = '>= 1.19.0'
@@ -146,7 +146,6 @@ if not have_wayland and not have_x11
 endif
 
 if have_x11_client
-  gtk3_dep = dependency('gtk+-3.0', version: gtk3_req)
   gtk4_dep = dependency('gtk4', version: gtk4_req)
 
   x11_dep = dependency('x11', version: x11_req)
@@ -172,7 +171,7 @@ endif
 
 have_gnome_desktop = get_option('libgnome_desktop')
 if have_gnome_desktop
-  gnome_desktop_dep = dependency('gnome-desktop-3.0')
+  gnome_desktop_dep = dependency('gnome-desktop-4')
 endif
 
 have_sound_player = get_option('sound_player')
@@ -332,6 +331,8 @@ have_tty_tests = false
 have_installed_tests = false
 
 if have_tests
+  gtk3_dep = dependency('gtk+-3.0', version: gtk3_req)
+
   have_core_tests = get_option('core_tests')
   if have_core_tests
     if not have_wayland

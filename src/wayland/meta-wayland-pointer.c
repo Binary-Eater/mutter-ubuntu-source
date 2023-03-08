@@ -1077,7 +1077,7 @@ meta_wayland_pointer_set_focus (MetaWaylandPointer *pointer,
       pointer->focus_surface = NULL;
     }
 
-  if (surface != NULL)
+  if (surface != NULL && surface->resource != NULL)
     {
       struct wl_client *client = wl_resource_get_client (surface->resource);
 

@@ -124,6 +124,7 @@ if have_clutter_tests
 endif
 
 subdir('protocol')
+subdir('drm-mock')
 subdir('wayland-test-clients')
 
 if have_installed_tests
@@ -234,6 +235,7 @@ test_cases += [
       'monitor-transform-tests.c',
       'monitor-transform-tests.h',
       'orientation-manager-unit-tests.c',
+      'hdr-metadata-unit-tests.c',
     ],
   },
   {
@@ -245,11 +247,6 @@ test_cases += [
     'name': 'monitor-utils',
     'suite': 'unit',
     'sources': [ 'monitor-util-tests.c', ],
-  },
-  {
-    'name': 'headless-start',
-    'suite': 'backend',
-    'sources': [ 'headless-start-test.c', ],
   },
   {
     'name': 'stage-views',
@@ -398,6 +395,21 @@ if have_native_tests
       ],
       'variants': kms_test_variants,
     },
+    {
+      'name': 'kms-headless-start',
+      'suite': 'backend/native/kms',
+      'sources': [ 'native-kms-headless-start.c', ],
+    },
+    {
+      'name': 'kms-hotplug',
+      'suite': 'backends/native/kms',
+      'sources': [
+        'meta-kms-test-utils.c',
+        'meta-kms-test-utils.h',
+        'native-kms-hotplug.c',
+      ],
+      'variants': kms_test_variants,
+    },
   ]
 
   privileged_test_cases += kms_test_cases
@@ -405,14 +417,10 @@ if have_native_tests
   # Wayland tests
   test_cases += [
     {
-      'name': 'wayland-unit',
+      'name': 'wayland-client-tests',
       'suite': 'wayland',
       'sources': [
-        'wayland-unit-tests.c',
-        dummy_client_header,
-        dummy_server_header,
-        dummy_protocol_code,
-        wayland_test_utils,
+        'wayland-client-tests.c',
       ],
     },
     {
@@ -424,17 +432,21 @@ if have_native_tests
       ],
     },
     {
-      'name': 'wayland-client-tests',
+      'name': 'wayland-fractional-scale',
       'suite': 'wayland',
       'sources': [
-        'wayland-client-tests.c',
+        'wayland-fractional-scale-test.c',
+        wayland_test_utils,
       ],
     },
     {
-      'name': 'service-channel',
+      'name': 'wayland-unit',
       'suite': 'wayland',
       'sources': [
-        'service-channel-tests.c',
+        'wayland-unit-tests.c',
+        dummy_client_header,
+        dummy_server_header,
+        dummy_protocol_code,
         wayland_test_utils,
       ],
     },
@@ -462,6 +474,18 @@ if have_native_tests
       },
     ]
   endif
+
+  # Miscellaneous tests
+  test_cases += [
+    {
+      'name': 'service-channel',
+      'suite': 'wayland',
+      'sources': [
+        'service-channel-tests.c',
+        wayland_test_utils,
+      ],
+    },
+  ]
 
   foreach test_case: test_cases
     test_executable = executable('mutter-' + test_case['name'],
@@ -583,7 +607,10 @@ if have_kvm_tests or have_tty_tests
         tests_c_args,
         '-DG_LOG_DOMAIN="mutter-@0@-test"'.format(test_case['name']),
       ],
-      dependencies: libmutter_test_dep,
+      dependencies: [
+        libmutter_test_dep,
+        drm_mock_dep
+      ],
       install: have_installed_tests,
       install_dir: mutter_installed_tests_libexecdir,
       install_rpath: pkglibdir,
@@ -622,20 +649,20 @@ if have_kvm_tests or have_tty_tests
   endif
 endif
 
-#if have_x11
-#  test('x11', xvfb,
-#    args: [
-#      xvfb_args,
-#      find_program('x11-test.sh').full_path(),
-#      mutter.full_path(),
-#    ],
-#    depends: [mutter],
-#    suite: ['core', 'mutter/x11'],
-#    env: test_env,
-#    is_parallel: false,
-#    timeout: 60,
-#  )
-#endif
+if have_x11
+  test('x11', xvfb,
+    args: [
+      xvfb_args,
+      find_program('x11-test.sh').full_path(),
+      mutter.full_path(),
+    ],
+    depends: [mutter],
+    suite: ['core', 'mutter/x11'],
+    env: test_env,
+    is_parallel: false,
+    timeout: 60,
+  )
+endif
 
 tools_test_env = test_env
 tools_test_env.set('G_DEBUG', 'fatal-warnings')

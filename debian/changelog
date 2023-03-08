@@ -1,3 +1,38 @@
+mutter (44~rc-1) experimental; urgency=medium
+
+  [ Jeremy Bicha ]
+  * New upstream release
+  * d/p/wayland-Don-t-overwrite-surface-offsets.patch,
+    d/p/x11-Avoid-updating-focus-on-wayland-compositor.patch:
+    Drop, applied in new release
+  * debian/control.in: Build-Depend on libgnome-desktop-4-dev instead of -3
+  * debian/control.in: Mark libgtk-3-dev as only needed for build tests
+  * debian/control.in: Bump minimum wayland-protocols to 1.31
+  * debian/*.symbols: Update; some "private" meta_* symbols were dropped
+
+  [ Simon McVittie ]
+  * Merge packaging from unstable (Closes: #1031945, #1032388, #1031847)
+    - Drop patches that were backported from upstream 44.rc into unstable
+    - d/p/tests-Use-a-more-interoperable-path-to-bash.patch:
+      Fix path to interpreter in x11-test.sh instead of disabling it
+    - d/p/tests-Disable-broken-test.patch: Drop patch, no longer needed
+  * d/p/debian/backends-native-kms-crtc-Don-t-compare-gamma-values-on-un.patch:
+    Drop patch from upstream !2371, which no longer applies cleanly.
+    As far as I can see, this is unnecessary since commit 9001fa97
+    "kms/crtc: Always read the gamma state" from !2435.
+
+  [ Marco Trevisan (Treviño) ]
+  * d/p/debian/Support-Dynamic-triple-double-buffering.patch:
+    Refreshed with the 44-WIP version from Daniel, it's working properly in
+    main tested scenarios.
+  * debian/patches: Drop patch removing dependency on glib 2.75
+  * debian/control: Bump build-dependency on glib-2.75
+  * debian/control: Add breaks on gnome-shell << 44~rc.
+    It's not possible to compile older gnome-shell versions with mutter
+    44~rc due to the gtk dependency removal
+
+ -- Marco Trevisan (Treviño) <marco@ubuntu.com>  Wed, 08 Mar 2023 02:29:22 +0100
+
 mutter (44~beta-3) experimental; urgency=medium
 
   * debian/control.in: Fix misspelling Replaces
@@ -34,6 +69,46 @@ mutter (44~beta-1) experimental; urgency=medium
     - theme-use-gtk_render_icon_suface-to-paint-button-icon.patch
 
  -- Jeremy Bicha <jbicha@ubuntu.com>  Fri, 17 Feb 2023 16:41:43 -0500
+
+mutter (43.3-5) unstable; urgency=medium
+
+  * Team upload
+  * d/patches: Use the same order in which patches were applied upstream
+  * d/p/color-device-Make-sure-lcms_context-is-not-NULL.patch,
+    d/p/color-device-Don-t-close-lcms-profile-on-error-from-cd_ic.patch:
+    Use final version of these patches as applied upstream
+  * d/p/Revert-x11-Do-not-move-X11-input-focus-during-grabs.patch,
+    d/p/Revert-x11-events-Do-not-update-focus-XWindow-during-grab.patch,
+    d/p/x11-Ignore-_NET_ACTIVE_WINDOW-client-messages-while-grabb.patch,
+    d/p/core-Avoid-focusing-windows-on-map-during-grabs.patch:
+    Backport upstream merge request !2878, fixing X11 focus regressions
+    (Closes: #1032388, #1031945)
+  * d/p/tests-Use-a-more-interoperable-path-to-bash.patch:
+    Fix path to interpreter in x11-test.sh instead of disabling it
+    - d/p/tests-Disable-broken-test.patch: Drop patch, no longer needed
+
+ -- Simon McVittie <smcv@debian.org>  Mon, 06 Mar 2023 11:35:23 +0000
+
+mutter (43.3-4) unstable; urgency=medium
+
+  * Team upload
+  * d/p/color-device-Make-sure-lcms_context-is-not-NULL.patch,
+    d/p/color-device-Don-t-close-lcms-profile-on-error-from-cd_ic.patch:
+    Fix a double-free when loading the ICC profile from a device's EDID
+    fails (Closes: #1031847)
+
+ -- Simon McVittie <smcv@debian.org>  Thu, 02 Mar 2023 08:50:50 +0000
+
+mutter (43.3-3) unstable; urgency=medium
+
+  * Team upload
+  * d/p/x11-Avoid-updating-focus-on-wayland-compositor.patch:
+    Add patch from upstream fixing a focus-handling regression in
+    Wayland sessions.
+    In 43.3, switching from an Xwayland window to a native Wayland window
+    would not always work.
+
+ -- Simon McVittie <smcv@debian.org>  Sat, 18 Feb 2023 18:44:12 +0000
 
 mutter (43.3-2) unstable; urgency=medium
 

@@ -1,0 +1,8 @@
+  [ Jeremy Bicha
+  * Merge with Debian. Remaining changes:
+    - Add x11-Add-support-for-fractional-scaling-using-Randr.patch
+    - debian/control: Do not depend on legacy EGL package name
+  * Temporarily disable triple buffering patch to ensure quality
+    after major changes to mutter since 44~beta
+  [ Marco Trevisan (Treviño) ]
+  * Update the fractional scaling patch

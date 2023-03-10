@@ -59,6 +59,19 @@
 #include "wayland/meta-wayland-buffer.h"
 #endif
 
+/* When animating a cursor, we usually call drmModeSetCursor2 once per frame.
+ * Though, testing shows that we need to triple buffer the cursor buffer in
+ * order to avoid glitches when animating the cursor, at least when running on
+ * Intel. The reason for this might be (but is not confirmed to be) due to
+ * the user space gbm_bo cache, making us reuse and overwrite the kernel side
+ * buffer content before it was scanned out. To avoid this, we keep a user space
+ * reference to each buffer we set until at least one frame after it was drawn.
+ * In effect, this means we three active cursor gbm_bo's: one that that just has
+ * been set, one that was previously set and may or may not have been scanned
+ * out, and one pending that will be replaced if the cursor sprite changes.
+ */
+#define HW_CURSOR_BUFFER_COUNT 3
+
 static GQuark quark_cursor_sprite = 0;
 
 typedef struct _CrtcCursorData
@@ -92,10 +105,19 @@ typedef struct _MetaCursorRendererNativeGpuData
   uint64_t cursor_height;
 } MetaCursorRendererNativeGpuData;
 
+typedef enum _MetaCursorBufferState
+{
+  META_CURSOR_BUFFER_STATE_NONE,
+  META_CURSOR_BUFFER_STATE_SET,
+  META_CURSOR_BUFFER_STATE_INVALIDATED,
+} MetaCursorBufferState;
+
 typedef struct _MetaCursorNativeGpuState
 {
   MetaGpu *gpu;
-  MetaDrmBuffer *buffer;
+  unsigned int active_buffer_idx;
+  MetaCursorBufferState pending_buffer_state;
+  MetaDrmBuffer *buffers[HW_CURSOR_BUFFER_COUNT];
 } MetaCursorNativeGpuState;
 
 typedef struct _MetaCursorNativePrivate
@@ -176,17 +198,44 @@ meta_cursor_renderer_native_finalize (GObject *object)
   G_OBJECT_CLASS (meta_cursor_renderer_native_parent_class)->finalize (object);
 }
 
+static unsigned int
+get_pending_cursor_sprite_buffer_index (MetaCursorNativeGpuState *cursor_gpu_state)
+{
+  return (cursor_gpu_state->active_buffer_idx + 1) % HW_CURSOR_BUFFER_COUNT;
+}
+
+static MetaDrmBuffer *
+get_pending_cursor_sprite_buffer (MetaCursorNativeGpuState *cursor_gpu_state)
+{
+  unsigned int pending_buffer_idx;
+
+  pending_buffer_idx =
+    get_pending_cursor_sprite_buffer_index (cursor_gpu_state);
+  return cursor_gpu_state->buffers[pending_buffer_idx];
+}
+
+static MetaDrmBuffer *
+get_active_cursor_sprite_buffer (MetaCursorNativeGpuState *cursor_gpu_state)
+{
+  return cursor_gpu_state->buffers[cursor_gpu_state->active_buffer_idx];
+}
+
 static void
-set_cursor_sprite_buffer (MetaCursorSprite *cursor_sprite,
-                          MetaGpuKms       *gpu_kms,
-                          MetaDrmBuffer    *buffer)
+set_pending_cursor_sprite_buffer (MetaCursorSprite *cursor_sprite,
+                                  MetaGpuKms       *gpu_kms,
+                                  MetaDrmBuffer    *buffer)
 {
   MetaCursorNativePrivate *cursor_priv;
   MetaCursorNativeGpuState *cursor_gpu_state;
+  unsigned int pending_buffer_idx;
 
   cursor_priv = ensure_cursor_priv (cursor_sprite);
   cursor_gpu_state = ensure_cursor_gpu_state (cursor_priv, gpu_kms);
-  cursor_gpu_state->buffer = buffer;
+
+  pending_buffer_idx =
+    get_pending_cursor_sprite_buffer_index (cursor_gpu_state);
+  cursor_gpu_state->buffers[pending_buffer_idx] = buffer;
+  cursor_gpu_state->pending_buffer_state = META_CURSOR_BUFFER_STATE_SET;
 }
 
 static void
@@ -263,7 +312,10 @@ assign_cursor_plane (MetaCursorRendererNative *native,
   MetaKmsUpdate *kms_update;
   MetaKmsPlaneAssignment *plane_assignment;
 
-  buffer = cursor_gpu_state->buffer;
+  if (cursor_gpu_state->pending_buffer_state == META_CURSOR_BUFFER_STATE_SET)
+    buffer = get_pending_cursor_sprite_buffer (cursor_gpu_state);
+  else
+    buffer = get_active_cursor_sprite_buffer (cursor_gpu_state);
 
   kms_crtc = meta_crtc_kms_get_kms_crtc (crtc_kms);
   kms_device = meta_kms_crtc_get_device (kms_crtc);
@@ -313,6 +365,13 @@ assign_cursor_plane (MetaCursorRendererNative *native,
                                        native);
 
   crtc_cursor_data->buffer = buffer;
+
+  if (cursor_gpu_state->pending_buffer_state == META_CURSOR_BUFFER_STATE_SET)
+    {
+      cursor_gpu_state->active_buffer_idx =
+        (cursor_gpu_state->active_buffer_idx + 1) % HW_CURSOR_BUFFER_COUNT;
+      cursor_gpu_state->pending_buffer_state = META_CURSOR_BUFFER_STATE_NONE;
+    }
 }
 
 static float
@@ -554,7 +613,19 @@ has_valid_cursor_sprite_buffer (MetaCursorSprite *cursor_sprite,
   if (!cursor_gpu_state)
     return FALSE;
 
-  return cursor_gpu_state->buffer != NULL;
+  switch (cursor_gpu_state->pending_buffer_state)
+    {
+    case META_CURSOR_BUFFER_STATE_NONE:
+      return get_active_cursor_sprite_buffer (cursor_gpu_state) != NULL;
+    case META_CURSOR_BUFFER_STATE_SET:
+      return TRUE;
+    case META_CURSOR_BUFFER_STATE_INVALIDATED:
+      return FALSE;
+    }
+
+  g_assert_not_reached ();
+
+  return FALSE;
 }
 
 static void
@@ -1061,14 +1132,16 @@ unset_crtc_cursor_renderer_privates (MetaGpu       *gpu,
 static void
 cursor_gpu_state_free (MetaCursorNativeGpuState *cursor_gpu_state)
 {
+  int i;
   MetaDrmBuffer *active_buffer;
 
-  active_buffer = cursor_gpu_state->buffer;
+  active_buffer = get_active_cursor_sprite_buffer (cursor_gpu_state);
   if (active_buffer)
     unset_crtc_cursor_renderer_privates (cursor_gpu_state->gpu,
                                          active_buffer);
 
-  g_clear_object (&cursor_gpu_state->buffer);
+  for (i = 0; i < HW_CURSOR_BUFFER_COUNT; i++)
+    g_clear_object (&cursor_gpu_state->buffers[i]);
   g_free (cursor_gpu_state);
 }
 
@@ -1105,7 +1178,14 @@ invalidate_cursor_gpu_state (MetaCursorSprite *cursor_sprite)
 
   g_hash_table_iter_init (&iter, cursor_priv->gpu_states);
   while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &cursor_gpu_state))
-    g_clear_object (&cursor_gpu_state->buffer);
+    {
+      unsigned int pending_buffer_idx;
+
+      pending_buffer_idx = get_pending_cursor_sprite_buffer_index (cursor_gpu_state);
+      g_clear_object (&cursor_gpu_state->buffers[pending_buffer_idx]);
+      cursor_gpu_state->pending_buffer_state =
+        META_CURSOR_BUFFER_STATE_INVALIDATED;
+    }
 }
 
 static void
@@ -1347,7 +1427,35 @@ load_cursor_sprite_gbm_buffer_for_gpu (MetaCursorRendererNative *native,
       return;
     }
 
-  set_cursor_sprite_buffer (cursor_sprite, gpu_kms, buffer);
+  set_pending_cursor_sprite_buffer (cursor_sprite, gpu_kms, buffer);
+}
+
+static gboolean
+is_cursor_hw_state_valid (MetaCursorSprite *cursor_sprite,
+                          MetaGpuKms       *gpu_kms)
+{
+  MetaCursorNativePrivate *cursor_priv;
+  MetaCursorNativeGpuState *cursor_gpu_state;
+
+  cursor_priv = get_cursor_priv (cursor_sprite);
+  if (!cursor_priv)
+    return FALSE;
+
+  cursor_gpu_state = get_cursor_gpu_state (cursor_priv, gpu_kms);
+  if (!cursor_gpu_state)
+    return FALSE;
+
+  switch (cursor_gpu_state->pending_buffer_state)
+    {
+    case META_CURSOR_BUFFER_STATE_SET:
+    case META_CURSOR_BUFFER_STATE_NONE:
+      return TRUE;
+    case META_CURSOR_BUFFER_STATE_INVALIDATED:
+      return FALSE;
+    }
+
+  g_assert_not_reached ();
+  return FALSE;
 }
 
 static gboolean
@@ -1534,7 +1642,7 @@ realize_cursor_sprite_from_wl_buffer_for_gpu (MetaCursorRenderer      *renderer,
   if (!cursor_renderer_gpu_data || cursor_renderer_gpu_data->hw_cursor_broken)
     return;
 
-  if (has_valid_cursor_sprite_buffer (cursor_sprite, gpu_kms) &&
+  if (is_cursor_hw_state_valid (cursor_sprite, gpu_kms) &&
       is_cursor_scale_and_transform_valid (renderer, cursor_sprite))
     return;
 
@@ -1679,8 +1787,8 @@ realize_cursor_sprite_from_wl_buffer_for_gpu (MetaCursorRenderer      *renderer,
           return;
         }
 
-      set_cursor_sprite_buffer (cursor_sprite, gpu_kms,
-                                META_DRM_BUFFER (buffer_gbm));
+      set_pending_cursor_sprite_buffer (cursor_sprite, gpu_kms,
+                                        META_DRM_BUFFER (buffer_gbm));
     }
 }
 #endif
@@ -1704,7 +1812,7 @@ realize_cursor_sprite_from_xcursor_for_gpu (MetaCursorRenderer      *renderer,
   if (!cursor_renderer_gpu_data || cursor_renderer_gpu_data->hw_cursor_broken)
     return;
 
-  if (has_valid_cursor_sprite_buffer (cursor_sprite, gpu_kms) &&
+  if (is_cursor_hw_state_valid (cursor_sprite, gpu_kms) &&
       is_cursor_scale_and_transform_valid (renderer, cursor_sprite))
     return;
 

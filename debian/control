@@ -7,7 +7,7 @@ Section: x11
 Priority: optional
 Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
 XSBC-Original-Maintainer: Debian GNOME Maintainers <pkg-gnome-maintainers@lists.alioth.debian.org>
-Uploaders: Iain Lane <laney@debian.org>, Jeremy Bicha <jbicha@debian.org>, Laurent Bigonville <bigon@debian.org>
+Uploaders: Jeremy Bicha <jbicha@ubuntu.com>
 Build-Depends: debhelper-compat (= 13),
                dh-exec,
                dh-sequence-gir,
@@ -206,6 +206,7 @@ Depends: gir1.2-mutter-12 (= ${binary:Version}),
          libcairo2-dev,
          libdrm-dev,
          libegl-dev,
+         libegl1-mesa-dev,
          libgbm-dev,
          libgdk-pixbuf-2.0-dev,
          libgles-dev,

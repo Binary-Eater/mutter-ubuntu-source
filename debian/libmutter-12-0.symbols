@@ -814,6 +814,7 @@ libmutter-12.so.0 libmutter-12-0 #MINVER#
  meta_window_move_frame@Base 43.0
  meta_window_move_resize_frame@Base 43.0
  meta_window_move_to_monitor@Base 43.0
+ meta_window_override_constraints@Base 44~rc-1ubuntu2
  meta_window_raise@Base 43.0
  meta_window_raise_and_make_recent@Base 44~rc
  meta_window_set_compositor_private@Base 43.0
@@ -1472,16 +1473,13 @@ libmutter-clutter-12.so.0 libmutter-12-0 #MINVER#
  clutter_frame_clock_schedule_update_now@Base 43.0
  clutter_frame_clock_uninhibit@Base 43.0
  clutter_frame_get_count@Base 44~beta
- clutter_frame_get_hints@Base 43.0
  clutter_frame_get_target_presentation_time@Base 44~beta
  clutter_frame_get_type@Base 44~beta
  clutter_frame_has_result@Base 43.0
- clutter_frame_hint_get_type@Base 43.0
  clutter_frame_info_flag_get_type@Base 43.0
  clutter_frame_new@Base 44~beta
  clutter_frame_ref@Base 44~beta
  clutter_frame_result_get_type@Base 43.0
- clutter_frame_set_hint@Base 43.0
  clutter_frame_set_result@Base 43.0
  clutter_frame_unref@Base 44~beta
  clutter_gesture_action_cancel@Base 43.0
@@ -2524,7 +2522,6 @@ libmutter-cogl-12.so.0 libmutter-12-0 #MINVER#
  cogl_onscreen_add_dirty_callback@Base 43.0
  cogl_onscreen_add_frame_callback@Base 43.0
  cogl_onscreen_add_frame_info@Base 43.0
- cogl_onscreen_count_pending_frames@Base 43.0
  cogl_onscreen_direct_scanout@Base 43.0
  cogl_onscreen_dirty_closure_get_gtype@Base 43.0
  cogl_onscreen_egl_get_egl_surface@Base 43.0

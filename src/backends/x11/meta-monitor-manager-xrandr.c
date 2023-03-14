@@ -257,8 +257,8 @@ meta_monitor_manager_xrandr_update_screen_size (MetaMonitorManagerXrandr *manage
 
       XGetErrorText (manager_xrandr->xdisplay, xcb_error->error_code, buf,
                      sizeof (buf) - 1);
-      g_warning ("Impossible to resize screen at size %dx%d, error id %u: %s",
-                 width, height, xcb_error->error_code, buf);
+      meta_warning ("Impossible to resize screen at size %dx%d, error id %u: %s",
+                    width, height, xcb_error->error_code, buf);
       g_clear_pointer (&xcb_error, free);
     }
 

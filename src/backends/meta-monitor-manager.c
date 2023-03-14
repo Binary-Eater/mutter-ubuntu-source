@@ -1196,8 +1196,8 @@ apply_x11_fractional_scaling_config (MetaMonitorManager *manager)
           if (G_UNLIKELY (applied_config !=
                           meta_monitor_config_manager_get_previous (manager->config_manager)))
             {
-              g_warning ("The removed configuration doesn't match the "
-                         "previously applied one, reverting may not work");
+              meta_warning ("The removed configuration doesn't match the "
+                            "previously applied one, reverting may not work");
             }
           else
             {
@@ -1217,8 +1217,8 @@ apply_x11_fractional_scaling_config (MetaMonitorManager *manager)
     }
   else
     {
-      g_warning ("Impossible to apply the layout config %s\n",
-                 error->message);
+      meta_warning ("Impossible to apply the layout config %s\n",
+                    error->message);
       return FALSE;
     }
 

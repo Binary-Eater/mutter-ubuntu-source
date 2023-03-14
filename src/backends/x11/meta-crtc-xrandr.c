@@ -164,8 +164,8 @@ meta_crtc_xrandr_set_scale (MetaCrtc         *crtc,
   xcb_error = xcb_request_check (xcb_conn, transform_cookie);
   if (xcb_error)
     {
-      g_warning ("Impossible to set scaling on crtc %u to %f, error id %u",
-                 xrandr_crtc, scale, xcb_error->error_code);
+      meta_warning ("Impossible to set scaling on crtc %u to %f, error id %u",
+                    xrandr_crtc, scale, xcb_error->error_code);
       g_clear_pointer (&xcb_error, free);
 
       return FALSE;

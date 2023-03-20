@@ -7,7 +7,7 @@ Section: x11
 Priority: optional
 Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
 XSBC-Original-Maintainer: Debian GNOME Maintainers <pkg-gnome-maintainers@lists.alioth.debian.org>
-Uploaders: Jeremy Bicha <jbicha@ubuntu.com>
+Uploaders: Iain Lane <laney@debian.org>, Jeremy Bicha <jbicha@debian.org>, Laurent Bigonville <bigon@debian.org>
 Build-Depends: debhelper-compat (= 13),
                dh-exec,
                dh-sequence-gir,
@@ -28,6 +28,7 @@ Build-Depends: debhelper-compat (= 13),
                libcolord-dev,
                libdrm-dev (>= 2.4.83) [linux-any],
                libegl-dev,
+               libegl1-mesa-dev (>= 17),
                libfribidi-dev (>= 1.0.0),
                libgbm-dev (>= 17.3) [linux-any],
                libgdk-pixbuf-2.0-dev,

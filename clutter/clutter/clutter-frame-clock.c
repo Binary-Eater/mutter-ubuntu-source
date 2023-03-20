@@ -745,9 +745,8 @@ clutter_frame_clock_schedule_update_now (ClutterFrameClock *frame_clock)
       next_update_time_us = g_get_monotonic_time ();
       frame_clock->state = CLUTTER_FRAME_CLOCK_STATE_SCHEDULED;
       break;
-    case CLUTTER_FRAME_CLOCK_STATE_DISPATCHED_ONE_AND_SCHEDULED:
-      return;
     case CLUTTER_FRAME_CLOCK_STATE_DISPATCHED_ONE:
+    case CLUTTER_FRAME_CLOCK_STATE_DISPATCHED_ONE_AND_SCHEDULED:
       next_update_time_us = g_get_monotonic_time ();
       frame_clock->state =
         CLUTTER_FRAME_CLOCK_STATE_DISPATCHED_ONE_AND_SCHEDULED;

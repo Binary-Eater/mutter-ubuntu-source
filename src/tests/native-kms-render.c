@@ -41,7 +41,7 @@
 #include "tests/meta-wayland-test-driver.h"
 #include "tests/meta-wayland-test-utils.h"
 
-#define N_FRAMES_PER_TEST 10
+#define N_FRAMES_PER_TEST 30
 
 typedef struct
 {
@@ -58,6 +58,7 @@ typedef struct
   gboolean wait_for_scanout;
 
   struct {
+    int scanouts_attempted;
     gboolean scanout_sabotaged;
     gboolean fallback_painted;
     guint repaint_guard_id;
@@ -409,6 +410,15 @@ on_scanout_fallback_before_paint (ClutterStage     *stage,
   if (!scanout)
     return;
 
+  test->scanout_fallback.scanouts_attempted++;
+
+  /* The first scanout candidate frame will get composited due to triple
+   * buffering draining the queue to drop to double buffering. So don't
+   * sabotage that first frame.
+   */
+  if (test->scanout_fallback.scanouts_attempted < 2)
+    return;
+
   g_assert_false (test->scanout_fallback.scanout_sabotaged);
 
   if (is_atomic_mode_setting (kms_device))
@@ -443,6 +453,15 @@ on_scanout_fallback_paint_view (ClutterStage     *stage,
       g_clear_handle_id (&test->scanout_fallback.repaint_guard_id,
                          g_source_remove);
       test->scanout_fallback.fallback_painted = TRUE;
+      test->scanout_fallback.scanout_sabotaged = FALSE;
+    }
+  else if (test->scanout_fallback.scanouts_attempted == 1)
+    {
+      /* Now that we've seen the first scanout attempt that was inhibited by
+       * triple buffering, try a second frame. The second one should scanout
+       * and will be sabotaged.
+       */
+      clutter_actor_queue_redraw (CLUTTER_ACTOR (stage));
     }
 }
 
@@ -452,11 +471,11 @@ on_scanout_fallback_presented (ClutterStage     *stage,
                                ClutterFrameInfo *frame_info,
                                KmsRenderingTest *test)
 {
-  if (!test->scanout_fallback.scanout_sabotaged)
-    return;
+  if (test->scanout_fallback.fallback_painted)
+    g_main_loop_quit (test->loop);
 
-  g_assert_true (test->scanout_fallback.fallback_painted);
-  g_main_loop_quit (test->loop);
+  test->number_of_frames_left--;
+  g_assert_cmpint (test->number_of_frames_left, >, 0);
 }
 
 static void
@@ -485,6 +504,7 @@ meta_test_kms_render_client_scanout_fallback (void)
   g_assert_nonnull (wayland_test_client);
 
   test = (KmsRenderingTest) {
+    .number_of_frames_left = N_FRAMES_PER_TEST,
     .loop = g_main_loop_new (NULL, FALSE),
   };
 

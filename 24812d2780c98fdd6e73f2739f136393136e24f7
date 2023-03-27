@@ -1,0 +1,3 @@
+  * Update debian/patches/debian/Support-Dynamic-triple-double-buffering.patch:
+    Compared to the last update, a crash on resuming from sleep has been
+    fixed. And some minor code tidying.

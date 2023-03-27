@@ -1235,9 +1235,9 @@ try_post_latest_swap (CoglOnscreen *onscreen)
   g_autoptr (MetaKmsFeedback) kms_feedback = NULL;
   g_autoptr (ClutterFrame) frame = NULL;
   MetaFrameNative *frame_native;
-  unsigned int frames_pending = cogl_onscreen_count_pending_frames (onscreen);
 
-  g_assert (frames_pending >= onscreen_native->swaps_pending);
+  if (onscreen_native->next_post.frame == NULL)
+    return;
 
   if (meta_kms_is_shutting_down (kms))
     {
@@ -1248,8 +1248,11 @@ try_post_latest_swap (CoglOnscreen *onscreen)
   power_save_mode = meta_monitor_manager_get_power_save_mode (monitor_manager);
   if (power_save_mode == META_POWER_SAVE_ON)
     {
+      unsigned int frames_pending =
+        cogl_onscreen_count_pending_frames (onscreen);
       unsigned int posts_pending;
 
+      g_assert (frames_pending >= onscreen_native->swaps_pending);
       posts_pending = frames_pending - onscreen_native->swaps_pending;
       if (posts_pending > 0)
         return;  /* wait for the next frame notification and then try again */

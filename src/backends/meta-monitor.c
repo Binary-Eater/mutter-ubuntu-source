@@ -1980,7 +1980,6 @@ get_closest_scale_factor_for_resolution (float width,
   i = 0;
   found_one = FALSE;
   base_scaled_w = floorf (width / scale);
-
   do
     {
       for (j = 0; j < 2; j++)

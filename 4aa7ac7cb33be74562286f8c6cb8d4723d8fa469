@@ -1,0 +1,2 @@
+  * debian/patches: Listen to XSettings changes to update decorations
+    (LP: #2012733)

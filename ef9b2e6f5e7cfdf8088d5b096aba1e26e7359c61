@@ -1,0 +1,4 @@
+  [ Daniel van Vugt ]
+  * Add proposed patch to treat XIChangeProperty errors as warnings,
+    fixes crash on login or resume from suspend with Nvidia graphics drivers
+    (LP: #2014986)

@@ -1,0 +1,4 @@
+  [ Marco Trevisan (Treviño) ]
+  * Fix issue with Firefox opening black window in wayland sessions
+    - d/p/display-Set-compositor-selection-earlier-on-XWayland.patch
+      (LP: #1987976)

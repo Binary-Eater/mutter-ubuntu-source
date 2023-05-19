@@ -736,6 +736,11 @@ take_manager_selection (MetaX11Display *x11_display,
     {
       XEvent event;
 
+#ifdef HAVE_XWAYLAND
+      if (meta_is_wayland_compositor ())
+        g_return_val_if_reached (new_owner);
+#endif
+
       /* We sort of block infinitely here which is probably lame. */
 
       meta_verbose ("Waiting for old window manager to exit");
@@ -1429,6 +1434,11 @@ meta_x11_display_new (MetaDisplay  *display,
   x11_display->wm_sn_selection_window = new_wm_sn_owner;
   x11_display->wm_sn_atom = wm_sn_atom;
   x11_display->wm_sn_timestamp = timestamp;
+
+#ifdef HAVE_XWAYLAND
+  if (meta_is_wayland_compositor ())
+    meta_x11_display_set_cm_selection (x11_display);
+#endif
 
   init_event_masks (x11_display);
 

@@ -1003,6 +1003,10 @@ main(int argc, char **argv)
   gtk_init (NULL, NULL);
 
   screen = gdk_screen_get_default ();
+
+  if (!wayland)
+    g_assert_true (gdk_screen_is_composited (screen));
+
   provider = gtk_css_provider_new ();
   static const char *no_decoration_css =
     "decoration {"

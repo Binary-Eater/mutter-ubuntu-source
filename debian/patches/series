@@ -1,4 +1,3 @@
-tests-Use-a-more-interoperable-path-to-bash.patch
 meson-add-back-default_driver-option.patch
 tests-Mark-view-verification-tests-as-incomplete-in-big-e.patch
 debian/meson-Do-not-mark-CI-test-tools-as-required.patch
@@ -11,3 +10,4 @@ debian/tests-Disable-restore-size-test.patch
 workspace-Don-t-crash-on-invalid-argument-to-meta_workspa.patch
 debian/Mark-xwayland-test-case-as-known-to-be-flaky-on-32-bit-AR.patch
 cursor-renderer-native-Workaround-broken-arm64-drivers.patch
+display-Set-compositor-selection-earlier-on-XWayland.patch

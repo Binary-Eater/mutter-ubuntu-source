@@ -274,13 +274,10 @@ page_flip_feedback_ready (MetaKmsCrtc *kms_crtc,
   CoglFramebuffer *framebuffer =
     clutter_stage_view_get_onscreen (CLUTTER_STAGE_VIEW (view));
   CoglOnscreen *onscreen = COGL_ONSCREEN (framebuffer);
-  MetaOnscreenNative *onscreen_native = META_ONSCREEN_NATIVE (onscreen);
   CoglFrameInfo *frame_info;
 
   frame_info = cogl_onscreen_peek_head_frame_info (onscreen);
   frame_info->flags |= COGL_FRAME_INFO_FLAG_SYMBOLIC;
-
-  g_warn_if_fail (!onscreen_native->gbm.next_fb);
 
   meta_onscreen_native_notify_frame_complete (onscreen);
   try_post_latest_swap (onscreen);
@@ -1637,6 +1634,29 @@ meta_onscreen_native_prepare_frame (CoglOnscreen *onscreen,
     }
 }
 
+static void
+on_finish_frame_update_result (const MetaKmsFeedback *kms_feedback,
+                               gpointer               user_data)
+{
+  CoglOnscreen *onscreen = COGL_ONSCREEN (user_data);
+  const GError *error;
+  CoglFrameInfo *frame_info;
+
+  error = meta_kms_feedback_get_error (kms_feedback);
+  if (!error)
+    return;
+
+  if (!g_error_matches (error,
+                        G_IO_ERROR,
+                        G_IO_ERROR_PERMISSION_DENIED))
+    g_warning ("Cursor update failed: %s", error->message);
+
+  frame_info = cogl_onscreen_peek_head_frame_info (onscreen);
+  frame_info->flags |= COGL_FRAME_INFO_FLAG_SYMBOLIC;
+
+  meta_onscreen_native_notify_frame_complete (onscreen);
+}
+
 void
 meta_onscreen_native_finish_frame (CoglOnscreen *onscreen,
                                    ClutterFrame *frame)
@@ -1704,6 +1724,10 @@ post_finish_frame (MetaOnscreenNative *onscreen_native,
   MetaKmsCrtc *kms_crtc = meta_crtc_kms_get_kms_crtc (META_CRTC_KMS (crtc));
   MetaKmsDevice *kms_device = meta_kms_crtc_get_device (kms_crtc);
   g_autoptr (MetaKmsFeedback) kms_feedback = NULL;
+
+  meta_kms_update_add_result_listener (kms_update,
+                                       on_finish_frame_update_result,
+                                       onscreen_native);
 
   meta_kms_update_add_page_flip_listener (kms_update,
                                           kms_crtc,

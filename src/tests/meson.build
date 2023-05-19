@@ -250,6 +250,7 @@ test_cases += [
   },
   {
     'name': 'stage-views',
+    'flaky': true,
     'suite': 'compositor',
     'sources': [ 'stage-view-tests.c', ],
   },
@@ -508,7 +509,8 @@ if have_native_tests
     )
 
     test(test_case['name'], test_executable,
-      suite: ['core', 'mutter/' + test_case['suite']],
+      suite: ['core', 'mutter/' + test_case['suite']]
+        + (test_case.get('flaky', false) ? ['flaky'] : []),
       env: test_env,
       is_parallel: false,
       timeout: 60,
@@ -517,7 +519,6 @@ if have_native_tests
 endif
 
 stacking_tests = [
-  'basic-x11',
   'basic-wayland',
   'client-side-decorated',
   'closed-transient',
@@ -529,7 +530,6 @@ stacking_tests = [
   'closed-transient-no-input-parents',
   'closed-transient-no-input-parents-queued-default-focus-destroyed',
   'closed-transient-only-take-focus-parents',
-  'minimized',
   'mixed-windows',
   'set-parent',
   'override-redirect',
@@ -553,6 +553,23 @@ stacking_tests = [
   'click-to-focus-and-raise',
   'workspace-only-on-primary-focus',
 ]
+
+flaky_stacking_tests = [
+  'basic-x11',
+  'minimized',
+]
+
+foreach flaky_stacking_test: flaky_stacking_tests
+  test(flaky_stacking_test, test_runner,
+    suite: ['core', 'mutter/stacking', 'flaky'],
+    env: test_env,
+    args: [
+      files(join_paths('stacking', flaky_stacking_test + '.metatest')),
+    ],
+    is_parallel: false,
+    timeout: 60,
+  )
+endforeach
 
 foreach stacking_test: stacking_tests
   test(stacking_test, test_runner,

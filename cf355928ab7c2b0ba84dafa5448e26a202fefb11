@@ -1,0 +1,10 @@
+  [ Jeremy Bícha ]
+  * New upstream release
+  * Drop bash patch applied in new release
+  * debian/libmutter-12-0.symbols: Add new symbols
+  [ Daniel van Vugt ]
+  * Update triple buffering patch for Mutter 44.1
+  [ Marco Trevisan (Treviño) ]
+  * Fix issue with Firefox opening black window in wayland sessions
+    - Add d/p/display-Set-compositor-selection-earlier-on-XWayland.patch
+      (LP: #1987976)

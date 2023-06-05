@@ -1,0 +1,8 @@
+  [ Jeremy Bícha ]
+  * New upstream release (LP: #2022951)
+    - Fix drag and drop for Qt applications (LP: #2013235)
+  * Drop display-Set-compositor-selection-earlier patch: applied in new release
+  * Try dropping 2 of our flaky tests patches
+  [ Daniel van Vugt ]
+  * Update triple buffering patch to avoid NULL dereference on resume
+    from suspend (LP: #2020652)

@@ -17,6 +17,8 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "config.h"
+
 #include <stdio.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>

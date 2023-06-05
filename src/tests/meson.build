@@ -242,7 +242,7 @@ test_cases += [
     'name': 'monitor-unit',
     'suite': 'backend',
     'sources': [ 'monitor-unit-tests.c', ],
-    'depends': [test_client],
+    'depends': [ test_client ],
   },
   {
     'name': 'monitor-utils',
@@ -251,10 +251,9 @@ test_cases += [
   },
   {
     'name': 'stage-views',
-    'flaky': true,
     'suite': 'compositor',
     'sources': [ 'stage-view-tests.c', ],
-    'depends': [test_client],
+    'depends': [ test_client ],
   },
   {
     'name': 'anonymous-file',
@@ -321,7 +320,7 @@ if have_native_tests
       'name': 'pointer-constraints',
       'suite': 'backends/native',
       'sources': [ 'native-pointer-constraints.c' ],
-      'depends': [test_client],
+      'depends': [ test_client ],
     },
     {
       'name': 'ref-test-sanity',
@@ -471,12 +470,13 @@ if have_native_tests
         wayland_protocol_files['mutter-x11-interop']['protocol-code'],
         built_dbus_sources['meta-dbus-service-channel'],
       ],
-      'depends': [test_client],
+      'depends': [ test_client ],
     },
   ]
   if have_xwayland
     x11_compositor_checker = executable('x11-compositor-checker',
       sources: ['x11-compositor-checker.c'],
+      include_directories: tests_includes,
       c_args: [
         tests_c_args,
       ],
@@ -492,8 +492,10 @@ if have_native_tests
       {
         'name': 'xwayland',
         'suite': 'wayland',
-        'flaky': host_machine.cpu_family() == 'arm',
-        'depends': [test_client, x11_compositor_checker],
+        'depends': [
+          test_client,
+          x11_compositor_checker,
+        ],
         'sources': [
           'xwayland-tests.c',
         ],
@@ -528,8 +530,7 @@ if have_native_tests
     )
 
     test(test_case['name'], test_executable,
-      suite: ['core', 'mutter/' + test_case['suite']]
-        + (test_case.get('flaky', false) ? ['flaky'] : []),
+      suite: ['core', 'mutter/' + test_case['suite']],
       env: test_env,
       depends: test_case.get('depends', []),
       is_parallel: false,
@@ -539,6 +540,7 @@ if have_native_tests
 endif
 
 stacking_tests = [
+  'basic-x11',
   'basic-wayland',
   'client-side-decorated',
   'closed-transient',
@@ -550,6 +552,7 @@ stacking_tests = [
   'closed-transient-no-input-parents',
   'closed-transient-no-input-parents-queued-default-focus-destroyed',
   'closed-transient-only-take-focus-parents',
+  'minimized',
   'mixed-windows',
   'set-parent',
   'override-redirect',
@@ -572,23 +575,6 @@ stacking_tests = [
   'click-to-focus-and-raise',
   'workspace-only-on-primary-focus',
 ]
-
-flaky_stacking_tests = [
-  'basic-x11',
-  'minimized',
-]
-
-foreach flaky_stacking_test: flaky_stacking_tests
-  test(flaky_stacking_test, test_runner,
-    suite: ['core', 'mutter/stacking', 'flaky'],
-    env: test_env,
-    args: [
-      files(join_paths('stacking', flaky_stacking_test + '.metatest')),
-    ],
-    is_parallel: false,
-    timeout: 60,
-  )
-endforeach
 
 foreach stacking_test: stacking_tests
   test(stacking_test, test_runner,

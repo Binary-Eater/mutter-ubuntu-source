@@ -1058,9 +1058,15 @@ on_swap_buffer_update_result (const MetaKmsFeedback *kms_feedback,
     g_warning ("Page flip failed: %s", error->message);
 
   frame_info = cogl_onscreen_peek_head_frame_info (onscreen);
-  frame_info->flags |= COGL_FRAME_INFO_FLAG_SYMBOLIC;
 
-  meta_onscreen_native_notify_frame_complete (onscreen);
+  /* After resuming from suspend, drop_stalled_swap might have done this
+   * already and emptied the frame_info queue.
+   */
+  if (frame_info)
+    {
+      frame_info->flags |= COGL_FRAME_INFO_FLAG_SYMBOLIC;
+      meta_onscreen_native_notify_frame_complete (onscreen);
+    }
 }
 
 static void

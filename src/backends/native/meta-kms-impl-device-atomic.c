@@ -1200,6 +1200,7 @@ is_atomic_allowed (const char *driver_name)
     "vboxvideo",
     "nvidia-drm",
     "virtio_gpu",
+    "xlnx",
     NULL,
   };
 

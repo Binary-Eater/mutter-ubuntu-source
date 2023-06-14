@@ -2022,6 +2022,15 @@ window_state_on_map (MetaWindow *window,
       return;
     }
 
+  /* Do not focus window on map if input is already taken by the
+   * compositor.
+   */
+  if (!meta_display_windows_are_interactable (window->display))
+    {
+      *takes_focus = FALSE;
+      return;
+    }
+
   /* Terminal usage may be different; some users intend to launch
    * many apps in quick succession or to just view things in the new
    * window while still interacting with the terminal.  In that case,
@@ -2486,6 +2495,7 @@ queue_calc_showing_func (MetaWindow *window,
 void
 meta_window_minimize (MetaWindow  *window)
 {
+  g_return_if_fail (META_IS_WINDOW (window));
   g_return_if_fail (!window->override_redirect);
 
   if (!window->minimized)
@@ -2639,6 +2649,7 @@ meta_window_maximize (MetaWindow        *window,
   MetaRectangle *saved_rect = NULL;
   gboolean maximize_horizontally, maximize_vertically;
 
+  g_return_if_fail (META_IS_WINDOW (window));
   g_return_if_fail (!window->override_redirect);
 
   /* At least one of the two directions ought to be set */
@@ -2912,6 +2923,8 @@ update_edge_constraints (MetaWindow *window)
 void
 meta_window_untile (MetaWindow *window)
 {
+  g_return_if_fail (META_IS_WINDOW (window));
+
   window->tile_monitor_number =
     window->saved_maximize ? window->monitor->number
                            : -1;
@@ -2930,7 +2943,8 @@ meta_window_tile (MetaWindow   *window,
                   MetaTileMode  tile_mode)
 {
   MetaMaximizeFlags directions;
-  MetaRectangle old_frame_rect, old_buffer_rect;
+
+  g_return_if_fail (META_IS_WINDOW (window));
 
   meta_window_get_tile_fraction (window, tile_mode, &window->tile_hfraction);
   window->tile_mode = tile_mode;
@@ -2954,15 +2968,17 @@ meta_window_tile (MetaWindow   *window,
   meta_window_maximize_internal (window, directions, NULL);
   meta_display_update_tile_preview (window->display, FALSE);
 
-  /* Setup the edge constraints */
-  update_edge_constraints (window);
+  if (!window->tile_match || window->tile_match != window->display->grab_window)
+    {
+      MetaRectangle old_frame_rect, old_buffer_rect;
 
-  meta_window_get_frame_rect (window, &old_frame_rect);
-  meta_window_get_buffer_rect (window, &old_buffer_rect);
+      meta_window_get_frame_rect (window, &old_frame_rect);
+      meta_window_get_buffer_rect (window, &old_buffer_rect);
 
-  meta_compositor_size_change_window (window->display->compositor, window,
-                                      META_SIZE_CHANGE_MAXIMIZE,
-                                      &old_frame_rect, &old_buffer_rect);
+      meta_compositor_size_change_window (window->display->compositor, window,
+                                          META_SIZE_CHANGE_MAXIMIZE,
+                                          &old_frame_rect, &old_buffer_rect);
+    }
 
   meta_window_move_resize_internal (window,
                                     (META_MOVE_RESIZE_MOVE_ACTION |
@@ -3071,6 +3087,7 @@ meta_window_unmaximize (MetaWindow        *window,
 {
   gboolean unmaximize_horizontally, unmaximize_vertically;
 
+  g_return_if_fail (META_IS_WINDOW (window));
   g_return_if_fail (!window->override_redirect);
 
   /* At least one of the two directions ought to be set */
@@ -3276,6 +3293,7 @@ meta_window_make_fullscreen_internal (MetaWindow  *window)
 void
 meta_window_make_fullscreen (MetaWindow  *window)
 {
+  g_return_if_fail (META_IS_WINDOW (window));
   g_return_if_fail (!window->override_redirect);
 
   if (!window->fullscreen)
@@ -3302,6 +3320,7 @@ meta_window_make_fullscreen (MetaWindow  *window)
 void
 meta_window_unmake_fullscreen (MetaWindow  *window)
 {
+  g_return_if_fail (META_IS_WINDOW (window));
   g_return_if_fail (!window->override_redirect);
 
   if (window->fullscreen)
@@ -4549,6 +4568,14 @@ meta_window_focus (MetaWindow  *window,
               "Setting input focus to window %s, input: %d focusable: %d",
               window->desc, window->input, meta_window_is_focusable (window));
 
+  if (window->in_workspace_change)
+    {
+      meta_topic (META_DEBUG_FOCUS,
+                  "Window %s is currently changing workspaces, not focusing it after all",
+                  window->desc);
+      return;
+    }
+
   if (window->display->grab_window &&
       window->display->grab_window != window &&
       window->display->grab_window->all_keys_grabbed &&
@@ -4640,6 +4667,8 @@ set_workspace_state (MetaWindow    *window,
       !window->constructing)
     return;
 
+  window->in_workspace_change = TRUE;
+
   if (window->workspace)
     meta_workspace_remove_window (window->workspace, window);
   else if (window->on_all_workspaces)
@@ -4666,6 +4695,8 @@ set_workspace_state (MetaWindow    *window,
           meta_workspace_add_window (ws, window);
         }
     }
+
+  window->in_workspace_change = FALSE;
 
   if (!window->constructing)
     meta_window_update_appears_focused (window);

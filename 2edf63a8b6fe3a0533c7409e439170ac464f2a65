@@ -1,0 +1,6 @@
+  * New upstream release (LP: #1998286)
+    - Fix high memory and lagginess when resizing side-by-side
+      tiled windows (LP: #1985089)
+  * Cherry-pick patch to fix dialog for enabling or disabling
+    accessibility features with keyboard shortcuts
+  * debian/libmutter-10-0.symbols: Add symbol from patch

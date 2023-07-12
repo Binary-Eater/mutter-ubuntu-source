@@ -105,6 +105,9 @@ calculate_xrandr_refresh_rate (XRRModeInfo *xmode)
   float h_total;
   float v_total;
 
+  if (xmode->hTotal == 0 || xmode->vTotal == 0)
+    return 0.0;
+
   h_total = (float) xmode->hTotal;
   v_total = (float) xmode->vTotal;
 

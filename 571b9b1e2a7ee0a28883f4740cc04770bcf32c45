@@ -1,0 +1,4 @@
+  * Add Revert-data-udev-Don-t-disable-KMS-modifiers-on-newer-i91.patch
+    to fix rendering failures on older kernels (5.15) when run on newer
+    hardware (Intel Alder Lake). This was a regression introduced by Intel
+    in 42.9! (LP: #2026887)

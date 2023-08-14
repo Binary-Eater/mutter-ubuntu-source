@@ -239,10 +239,6 @@ static void
 update_longterm_max (int64_t *longterm_max,
                      int64_t *shortterm_max)
 {
-  /* Do not update long term max if there has been no measurement in over a second. */
-  if (!*shortterm_max)
-    return;
-
   if (*longterm_max > *shortterm_max)
     /* Exponential drop-off toward the short term max */
     *longterm_max -= (*longterm_max - *shortterm_max) / 2;
@@ -341,7 +337,8 @@ clutter_frame_clock_notify_presented (ClutterFrameClock *frame_clock,
 
   frame_clock->got_measurements_last_frame = FALSE;
 
-  if (frame_info->cpu_time_before_buffer_swap_us != 0)
+  if (frame_info->cpu_time_before_buffer_swap_us != 0 ||
+      frame_clock->ever_got_measurements)
     {
       int64_t dispatch_to_swap_us, swap_to_rendering_done_us, swap_to_flip_us;
       int64_t dispatch_time_us = 0, flip_time_us = 0;
@@ -364,14 +361,21 @@ clutter_frame_clock_notify_presented (ClutterFrameClock *frame_clock,
           break;
         }
 
-      dispatch_to_swap_us =
-        frame_info->cpu_time_before_buffer_swap_us -
-        dispatch_time_us;
+      if (frame_info->cpu_time_before_buffer_swap_us == 0)
+        {
+          /* Cursor-only updates with no "swap" or "flip" */
+          dispatch_to_swap_us = 0;
+          swap_to_flip_us = 0;
+        }
+      else
+        {
+          dispatch_to_swap_us = frame_info->cpu_time_before_buffer_swap_us -
+                                dispatch_time_us;
+          swap_to_flip_us = flip_time_us -
+                            frame_info->cpu_time_before_buffer_swap_us;
+        }
       swap_to_rendering_done_us =
         frame_info->gpu_rendering_duration_ns / 1000;
-      swap_to_flip_us =
-        flip_time_us -
-        frame_info->cpu_time_before_buffer_swap_us;
 
       CLUTTER_NOTE (FRAME_TIMINGS,
                     "%s: update2dispatch %ld µs, dispatch2swap %ld µs, swap2render %ld µs, swap2flip %ld µs",

@@ -1,0 +1,13 @@
+  * Merge with Debian. Remaining changes:
+    - Add x11-Add-support-for-fractional-scaling-using-Randr.patch
+    - Add window-Add-ability-to-override-the-edge-constraints.patch
+      + Make possible for extensions (such as Tiling Assistant) to override
+        window constraints
+  [ Simon McVittie ]
+  * Merge changelog from unstable
+    - All fixes in 43.6 were also in 44.2 or earlier
+  * d/control: Regenerate
+  [ Daniel van Vugt ]
+  * Update Support-Dynamic-triple-double-buffering.patch:
+    Fix increased mouse pointer latency that occurred in 44.1 when using
+    the default atomic KMS backend with Wayland sessions (LP: #2023363)

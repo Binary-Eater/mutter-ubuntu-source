@@ -1,0 +1,9 @@
+  * debian/control.in: Build-Depend on libgtk-4-dev & libsysprof-4-dev
+  [ Simon McVittie ]
+  * Merge changelog from unstable
+    - All fixes in 43.6 were also in 44.2 or earlier
+  * d/control: Regenerate
+  [ Daniel van Vugt ]
+  * Update Support-Dynamic-triple-double-buffering.patch:
+    Fix increased mouse pointer latency that occurred in 44.1 when using
+    the default atomic KMS backend with Wayland sessions (LP: #2023363)

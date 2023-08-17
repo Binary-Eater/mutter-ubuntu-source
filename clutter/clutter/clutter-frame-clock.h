@@ -15,8 +15,7 @@
  * License along with this library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef CLUTTER_FRAME_CLOCK_H
-#define CLUTTER_FRAME_CLOCK_H
+#pragma once
 
 #if !defined(__CLUTTER_H_INSIDE__) && !defined(CLUTTER_COMPILATION)
 #error "Only <clutter/clutter.h> can be included directly."
@@ -36,7 +35,7 @@ typedef enum _ClutterFrameResult
 
 typedef enum _ClutterFrameHint
 {
-  CLUTTER_FRAME_HINT_NONE = 0,
+  CLUTTER_FRAME_HINT_NONE                     = 0,
   CLUTTER_FRAME_HINT_DIRECT_SCANOUT_ATTEMPTED = 1 << 0,
 } ClutterFrameHint;
 
@@ -103,5 +102,3 @@ void clutter_frame_clock_record_flip (ClutterFrameClock *frame_clock,
                                       ClutterFrameHint   hints);
 
 GString * clutter_frame_clock_get_max_render_time_debug_info (ClutterFrameClock *frame_clock);
-
-#endif /* CLUTTER_FRAME_CLOCK_H */

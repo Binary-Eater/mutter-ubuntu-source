@@ -15,8 +15,7 @@
  * License along with this library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef CLUTTER_FRAME_H
-#define CLUTTER_FRAME_H
+#pragma once
 
 #if !defined(__CLUTTER_H_INSIDE__) && !defined(CLUTTER_COMPILATION)
 #error "Only <clutter/clutter.h> can be included directly."
@@ -63,5 +62,3 @@ CLUTTER_EXPORT
 ClutterFrameHint clutter_frame_get_hints (ClutterFrame *frame);
 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (ClutterFrame, clutter_frame_unref)
-
-#endif /* CLUTTER_FRAME_H */

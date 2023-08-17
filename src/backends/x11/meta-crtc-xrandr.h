@@ -19,8 +19,7 @@
  * 02111-1307, USA.
  */
 
-#ifndef META_CRTC_XRANDR_H
-#define META_CRTC_XRANDR_H
+#pragma once
 
 #include <X11/extensions/Xrandr.h>
 #include <xcb/randr.h>
@@ -59,5 +58,3 @@ MetaCrtcXrandr * meta_crtc_xrandr_new (MetaGpuXrandr              *gpu_xrandr,
                                        XRRScreenResources         *resources,
                                        XRRCrtcTransformAttributes *transform_attributes,
                                        float                       scale_multiplier);
-
-#endif /* META_CRTC_XRANDR_H */

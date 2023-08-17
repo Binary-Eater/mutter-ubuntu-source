@@ -380,8 +380,8 @@ needs_repainted_guard (gpointer user_data)
 }
 
 static void
-on_scanout_fallback_result (const MetaKmsFeedback *kms_feedback,
-                            gpointer               user_data)
+scanout_fallback_result_feedback (const MetaKmsFeedback *kms_feedback,
+                                  gpointer               user_data)
 {
   KmsRenderingTest *test = user_data;
 
@@ -391,6 +391,10 @@ on_scanout_fallback_result (const MetaKmsFeedback *kms_feedback,
   test->scanout_fallback.repaint_guard_id =
     g_idle_add_full (G_PRIORITY_LOW, needs_repainted_guard, test, NULL);
 }
+
+static const MetaKmsResultListenerVtable scanout_fallback_result_listener_vtable = {
+  .feedback = scanout_fallback_result_feedback,
+};
 
 static void
 on_scanout_fallback_before_paint (ClutterStage     *stage,
@@ -435,7 +439,10 @@ on_scanout_fallback_before_paint (ClutterStage     *stage,
 
   kms_update = meta_frame_native_ensure_kms_update (frame_native, kms_device);
   meta_kms_update_add_result_listener (kms_update,
-                                       on_scanout_fallback_result, test);
+                                       &scanout_fallback_result_listener_vtable,
+                                       NULL,
+                                       test,
+                                       NULL);
 
   test->scanout_fallback.scanout_failed_view = stage_view;
 }

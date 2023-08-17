@@ -541,8 +541,8 @@ update_xwayland_allow_byte_swapped_clients (MetaSettings *settings)
 {
 
   settings->xwayland_allow_byte_swapped_clients =
-    g_settings_get_flags (settings->wayland_settings,
-                          "xwayland-allow-byte-swapped-clients");
+    g_settings_get_boolean (settings->wayland_settings,
+                            "xwayland-allow-byte-swapped-clients");
 }
 
 static void
@@ -605,7 +605,6 @@ meta_settings_get_xwayland_disable_extensions (MetaSettings *settings)
 gboolean
 meta_settings_are_xwayland_byte_swapped_clients_allowed (MetaSettings *settings)
 {
-
   return settings->xwayland_allow_byte_swapped_clients;
 }
 
@@ -698,6 +697,7 @@ meta_settings_init (MetaSettings *settings)
   update_xwayland_allow_grabs (settings);
   update_xwayland_disable_extensions (settings);
   update_privacy_settings (settings);
+  update_xwayland_allow_byte_swapped_clients (settings);
 }
 
 static void

@@ -19,8 +19,7 @@
  * 02111-1307, USA.
  */
 
-#ifndef META_SETTINGS_PRIVATE_H
-#define META_SETTINGS_PRIVATE_H
+#pragma once
 
 #include <glib-object.h>
 
@@ -96,5 +95,3 @@ MetaX11ScaleMode meta_settings_get_x11_scale_mode (MetaSettings *settings);
 
 void meta_settings_enable_x11_fractional_scaling (MetaSettings *settings,
                                                   gboolean      enabled);
-
-#endif /* META_SETTINGS_PRIVATE_H */

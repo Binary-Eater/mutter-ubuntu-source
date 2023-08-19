@@ -1,0 +1,38 @@
+  * Team upload
+  * d/patches: Reorder patch series with closest-to-upstream first
+  * d/patches: Improve tracking of bug references and upstream status
+  * d/.gitignore: Add
+  * d/patches/44/, d/patches/45/: Move patches that were applied upstream
+    into topic subdirs.
+    We have enough patches in this package, some of them short-term and
+    some of them long-term delta, that it seems useful to keep track
+    of this.
+  * d/patches, d/rules: Stop trying to force gles2 driver on armel, armhf.
+    This patch was rejected by upstream, and according to comments on the
+    upstream merge request, it is no longer effective either, because
+    mutter's driver selection is now done in a higher layer.
+    Users of systems with a working gles2 driver but a broken or slow gl3
+    driver can work around this by setting environment variable
+    CLUTTER_DRIVER=gles2.
+    See #1050014 for more details of what would be involved in making this
+    driver choice happen automatically in an upstreamable way.
+  * d/p/cursor-renderer-native-Workaround-broken-arm64-drivers.patch:
+    Drop patch forcing use of simpler cursor buffers on aarch64.
+    According to the upstream and Ubuntu bugs, this should be fixed in Mesa
+    since 22.3.3, which is included in the Debian 12 initial release and in
+    Ubuntu 22.04 as an update.
+  * Merge packaging from unstable
+    - No functional changes; all changes relevant to this branch were
+      already in experimental
+  * d/gbp.conf: Use upstream/44.x branch.
+    The Ubuntu GNOME team have already started packaging v45 prereleases.
+  * Team upload
+  * New upstream stable release 43.7
+    - Functionally equivalent to 43.6-1
+  * d/p/wayland-outputs-Fix-potential-crash-when-output-has-no-mo.patch:
+    Drop patch, applied upstream
+  * d/gbp.conf, d/control.in: Use debian/trixie branch
+  * d/p/cogl-gl-framebuffer-Fix-inverted-test-in-ensure_bits_init.patch:
+    Add patch from upstream 45.beta to fix a test failure with recent Mesa
+    (Closes: #1042055, LP: #2025287)
+  * d/patches: Improve tracking of upstream status

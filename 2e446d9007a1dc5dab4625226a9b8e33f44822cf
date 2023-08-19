@@ -1,0 +1,10 @@
+  * Team upload
+  * New upstream stable release 43.7
+    - Functionally equivalent to 43.6-1
+  * d/p/wayland-outputs-Fix-potential-crash-when-output-has-no-mo.patch:
+    Drop patch, applied upstream
+  * d/gbp.conf, d/control.in: Use debian/trixie branch
+  * d/p/cogl-gl-framebuffer-Fix-inverted-test-in-ensure_bits_init.patch:
+    Add patch from upstream 45.beta to fix a test failure with recent Mesa
+    (Closes: #1042055, LP: #2025287)
+  * d/patches: Improve tracking of upstream status

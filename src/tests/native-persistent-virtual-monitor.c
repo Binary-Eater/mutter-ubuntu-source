@@ -27,11 +27,13 @@
 #include "tests/meta-test-shell.h"
 #include "tests/meta-test-utils.h"
 
+static MetaContext *test_context;
+
 static gboolean
 wait_for_paint (gpointer user_data)
 {
   MetaContext *context = user_data;
-  MetaBackend *backend = meta_get_backend ();
+  MetaBackend *backend = meta_context_get_backend (test_context);
   ClutterActor *stage = meta_backend_get_stage (backend);
   MetaMonitorManager *monitor_manager =
     meta_backend_get_monitor_manager (backend);
@@ -94,6 +96,8 @@ main (int    argc,
   g_assert (meta_context_start (context, &error));
 
   g_idle_add (wait_for_paint, context);
+
+  test_context = context;
 
   g_assert (meta_context_run_main_loop (context, &error));
 

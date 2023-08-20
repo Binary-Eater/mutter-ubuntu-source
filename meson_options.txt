@@ -39,6 +39,12 @@ option('wayland',
   description: 'Enable Wayland support'
 )
 
+option('xwayland',
+  type: 'boolean',
+  value: true,
+  description: 'Enable Xwayland support'
+)
+
 option('systemd',
   type: 'boolean',
   value: true,
@@ -73,12 +79,6 @@ option('wayland_eglstream',
   type: 'boolean',
   value: false,
   description: 'Enable Wayland EGLStream support client support'
-)
-
-option('default_driver',
-  type: 'combo',
-  choices: ['auto', 'gl', 'gl3', 'gles2', 'nop'],
-  value: 'auto'
 )
 
 option('udev',

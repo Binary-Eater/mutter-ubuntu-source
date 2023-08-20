@@ -140,41 +140,37 @@ meta_output_kms_get_privacy_screen_state (MetaOutput *output)
 }
 
 static gboolean
-meta_output_kms_set_privacy_screen_enabled (MetaOutput  *output,
-                                            gboolean     enabled,
-                                            GError     **error)
+meta_output_kms_is_color_space_supported (MetaOutput           *output,
+                                          MetaOutputColorspace  color_space)
 {
-  MetaGpu *gpu = meta_output_get_gpu (output);
-  MetaBackend *backend = meta_gpu_get_backend (gpu);
-  MetaRenderer *renderer = meta_backend_get_renderer (backend);
-  MetaKmsDevice *kms_device = meta_gpu_kms_get_kms_device (META_GPU_KMS (gpu));
-  MetaKms *kms = meta_kms_device_get_kms (kms_device);
   MetaOutputKms *output_kms = META_OUTPUT_KMS (output);
-  MetaKmsConnector *connector = meta_output_kms_get_kms_connector (output_kms);
-  MetaKmsUpdate *kms_update;
-  MetaCrtc *crtc;
+  const MetaKmsConnectorState *connector_state;
+  const MetaOutputInfo *output_info;
 
-  if (!meta_kms_connector_is_privacy_screen_supported (connector))
-    {
-      g_set_error_literal (error, G_IO_ERROR, G_IO_ERROR_NOT_SUPPORTED,
-                           "No privacy screen support");
-      return FALSE;
-    }
+  output_info = meta_output_get_info (output);
 
-  kms_update = meta_kms_ensure_pending_update (kms, kms_device);
+  if (!meta_output_info_is_color_space_supported (output_info, color_space))
+    return FALSE;
 
-  meta_kms_update_set_privacy_screen (kms_update, connector, enabled);
+  connector_state =
+    meta_kms_connector_get_current_state (output_kms->kms_connector);
 
-  crtc = meta_output_get_assigned_crtc (output);
-  if (crtc)
-    {
-      MetaRendererView *view;
-
-      view = meta_renderer_get_view_for_crtc (renderer, crtc);
-      clutter_stage_view_schedule_update (CLUTTER_STAGE_VIEW (view));
-    }
+  if (!(connector_state->colorspace.supported & (1 << color_space)))
+    return FALSE;
 
   return TRUE;
+}
+
+static gboolean
+meta_output_kms_is_hdr_metadata_supported (MetaOutput *output)
+{
+  MetaOutputKms *output_kms = META_OUTPUT_KMS (output);
+  const MetaKmsConnectorState *connector_state;
+
+  connector_state =
+    meta_kms_connector_get_current_state (output_kms->kms_connector);
+
+  return connector_state->hdr.supported;
 }
 
 uint32_t
@@ -550,8 +546,10 @@ meta_output_kms_class_init (MetaOutputKmsClass *klass)
 
   output_class->get_privacy_screen_state =
     meta_output_kms_get_privacy_screen_state;
-  output_class->set_privacy_screen_enabled =
-    meta_output_kms_set_privacy_screen_enabled;
+  output_class->is_color_space_supported =
+    meta_output_kms_is_color_space_supported;
+  output_class->is_hdr_metadata_supported =
+    meta_output_kms_is_hdr_metadata_supported;
 
   output_native_class->read_edid = meta_output_kms_read_edid;
 }

@@ -34,6 +34,7 @@ clutter_conform_tests_classes_tests = [
 clutter_conform_tests_general_tests = [
   'binding-pool',
   'color',
+  'event-delivery',
   'frame-clock',
   'frame-clock-timeline',
   'grab',
@@ -72,12 +73,8 @@ foreach test : clutter_conform_tests
     install: false,
   )
 
-  suites = ['clutter', 'clutter/conform']
-  if test in ['timeline', 'timeline-interpolate']
-    suites += ['flaky']
-  endif
   test(test, test_executable,
-    suite: suites,
+    suite: ['clutter', 'clutter/conform'],
     env: test_env,
     is_parallel: false,
   )

@@ -75,6 +75,10 @@ gboolean meta_test_client_dov (MetaTestClient  *client,
                                va_list          vap);
 
 META_EXPORT
+void meta_test_client_run (MetaTestClient *client,
+                           const char     *script);
+
+META_EXPORT
 gboolean meta_test_client_do (MetaTestClient  *client,
                               GError         **error,
                               ...) G_GNUC_NULL_TERMINATED;
@@ -106,9 +110,6 @@ META_EXPORT
 void meta_test_client_destroy (MetaTestClient *client);
 
 META_EXPORT
-const char * meta_test_get_plugin_name (void);
-
-META_EXPORT
 void meta_set_custom_monitor_config_full (MetaBackend            *backend,
                                           const char             *filename,
                                           MetaMonitorsConfigFlag  configs_flags);
@@ -121,5 +122,8 @@ MetaVirtualMonitor * meta_create_test_monitor (MetaContext *context,
                                                int          width,
                                                int          height,
                                                float        refresh_rate);
+
+META_EXPORT
+void meta_flush_input (MetaContext *context);
 
 #endif /* TEST_UTILS_H */

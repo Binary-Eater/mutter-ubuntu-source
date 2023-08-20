@@ -26,6 +26,7 @@
 
 #include "backends/meta-backend-private.h"
 #include "backends/meta-cursor-tracker-private.h"
+#include "backends/meta-dbus-session-manager.h"
 #include "backends/meta-screen-cast-area-stream.h"
 #include "backends/meta-screen-cast-session.h"
 #include "backends/meta-stage-private.h"
@@ -168,7 +169,7 @@ sync_cursor_state (MetaScreenCastAreaStreamSrc *area_src)
     return;
 
   flags = META_SCREEN_CAST_RECORD_FLAG_CURSOR_ONLY;
-  meta_screen_cast_stream_src_maybe_record_frame (src, flags);
+  meta_screen_cast_stream_src_maybe_record_frame (src, flags, NULL);
 }
 
 static void
@@ -191,6 +192,7 @@ cursor_changed (MetaCursorTracker           *cursor_tracker,
 static void
 on_prepare_frame (ClutterStage                *stage,
                   ClutterStageView            *stage_view,
+                  ClutterFrame                *frame,
                   MetaScreenCastAreaStreamSrc *area_src)
 {
   sync_cursor_state (area_src);
@@ -237,7 +239,7 @@ maybe_record_frame_on_idle (gpointer user_data)
   area_src->maybe_record_idle_id = 0;
 
   flags = META_SCREEN_CAST_RECORD_FLAG_NONE;
-  meta_screen_cast_stream_src_maybe_record_frame (src, flags);
+  meta_screen_cast_stream_src_maybe_record_frame (src, flags, NULL);
 
   return G_SOURCE_REMOVE;
 }
@@ -246,6 +248,7 @@ static void
 before_stage_painted (MetaStage           *stage,
                       ClutterStageView    *view,
                       ClutterPaintContext *paint_context,
+                      ClutterFrame        *frame,
                       gpointer             user_data)
 {
   MetaScreenCastAreaStreamSrc *area_src =
@@ -265,6 +268,7 @@ static void
 stage_painted (MetaStage           *stage,
                ClutterStageView    *view,
                ClutterPaintContext *paint_context,
+               ClutterFrame        *frame,
                gpointer             user_data)
 {
   MetaScreenCastAreaStreamSrc *area_src =
@@ -542,7 +546,7 @@ meta_screen_cast_area_stream_record_follow_up (MetaScreenCastStreamSrc *src)
   g_clear_handle_id (&area_src->maybe_record_idle_id, g_source_remove);
 
   flags = META_SCREEN_CAST_RECORD_FLAG_NONE;
-  meta_screen_cast_stream_src_maybe_record_frame (src, flags);
+  meta_screen_cast_stream_src_maybe_record_frame (src, flags, NULL);
 }
 
 static void

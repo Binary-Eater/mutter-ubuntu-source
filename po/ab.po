@@ -1,7 +1,7 @@
 msgid ""
 msgstr ""
 "Report-Msgid-Bugs-To: https://gitlab.gnome.org/GNOME/mutter/issues\n"
-"POT-Creation-Date: 2023-03-20 13:53+0000\n"
+"POT-Creation-Date: 2022-09-20 14:08+0000\n"
 "Last-Translator: Нанба Наала <naala-nanba@rambler.ru>\n"
 "Language-Team: Abkhazian <daniel.abzakh@gmail.com>\n"
 "Language: ab\n"
@@ -12,23 +12,23 @@ msgstr ""
 
 #: data/50-mutter-navigation.xml:6
 msgid "Navigation"
-msgstr "Ахырхарҭарбара"
+msgstr ""
 
 #: data/50-mutter-navigation.xml:9
 msgid "Move window to workspace 1"
-msgstr "Аҧенџьыр аусуратә ҭыҧ 1 ахь аиагара"
+msgstr ""
 
 #: data/50-mutter-navigation.xml:12
 msgid "Move window to workspace 2"
-msgstr "Аҧенџьыр аусуратә ҭыҧ 2 ахь аиагара"
+msgstr ""
 
 #: data/50-mutter-navigation.xml:15
 msgid "Move window to workspace 3"
-msgstr "Аҧенџьыр аусуратә ҭыҧ 3 ахь аиагара"
+msgstr ""
 
 #: data/50-mutter-navigation.xml:18
 msgid "Move window to workspace 4"
-msgstr "Аҧенџьыр аусуратә ҭыҧ 4 ахь аиагара"
+msgstr ""
 
 #: data/50-mutter-navigation.xml:21
 msgid "Move window to last workspace"
@@ -132,15 +132,15 @@ msgstr ""
 
 #: data/50-mutter-navigation.xml:119
 msgid "Switch to workspace 2"
-msgstr "2 аусуратә ҭыҧ ахь аиагара"
+msgstr ""
 
 #: data/50-mutter-navigation.xml:122
 msgid "Switch to workspace 3"
-msgstr "3 аусуратә ҭыҧ ахь аиагара"
+msgstr ""
 
 #: data/50-mutter-navigation.xml:125
 msgid "Switch to workspace 4"
-msgstr "4 аусуратә ҭыҧ ахь аиагара"
+msgstr ""
 
 #: data/50-mutter-navigation.xml:128
 msgid "Switch to last workspace"
@@ -164,7 +164,7 @@ msgstr ""
 
 #: data/50-mutter-system.xml:6 data/50-mutter-wayland.xml:6
 msgid "System"
-msgstr "Асистема"
+msgstr ""
 
 #: data/50-mutter-system.xml:8
 msgid "Show the run command prompt"
@@ -415,51 +415,51 @@ msgstr ""
 
 #: data/org.gnome.mutter.wayland.gschema.xml.in:12
 msgid "Switch to VT 1"
-msgstr "Ихыҭҳәаау атерминал ахь аиасра 1"
+msgstr ""
 
 #: data/org.gnome.mutter.wayland.gschema.xml.in:16
 msgid "Switch to VT 2"
-msgstr "Ихыҭҳәаау атерминал ахь аиасра 2"
+msgstr ""
 
 #: data/org.gnome.mutter.wayland.gschema.xml.in:20
 msgid "Switch to VT 3"
-msgstr "Ихыҭҳәаау атерминал ахь аиасра 3"
+msgstr ""
 
 #: data/org.gnome.mutter.wayland.gschema.xml.in:24
 msgid "Switch to VT 4"
-msgstr "Ихыҭҳәаау атерминал ахь аиасра 4"
+msgstr ""
 
 #: data/org.gnome.mutter.wayland.gschema.xml.in:28
 msgid "Switch to VT 5"
-msgstr "Ихыҭҳәаау атерминал ахь аиасра 5"
+msgstr ""
 
 #: data/org.gnome.mutter.wayland.gschema.xml.in:32
 msgid "Switch to VT 6"
-msgstr "Ихыҭҳәаау атерминал ахь аиасра 6"
+msgstr ""
 
 #: data/org.gnome.mutter.wayland.gschema.xml.in:36
 msgid "Switch to VT 7"
-msgstr "Ихыҭҳәаау атерминал ахь аиасра 7"
+msgstr ""
 
 #: data/org.gnome.mutter.wayland.gschema.xml.in:40
 msgid "Switch to VT 8"
-msgstr "Ихыҭҳәаау атерминал ахь аиасра 8"
+msgstr ""
 
 #: data/org.gnome.mutter.wayland.gschema.xml.in:44
 msgid "Switch to VT 9"
-msgstr "Ихыҭҳәаау атерминал ахь аиасра 9"
+msgstr ""
 
 #: data/org.gnome.mutter.wayland.gschema.xml.in:48
 msgid "Switch to VT 10"
-msgstr "Ихыҭҳәаау атерминал ахь аиасра 10"
+msgstr ""
 
 #: data/org.gnome.mutter.wayland.gschema.xml.in:52
 msgid "Switch to VT 11"
-msgstr "Ихыҭҳәаау атерминал ахь аиасра 11"
+msgstr ""
 
 #: data/org.gnome.mutter.wayland.gschema.xml.in:56
 msgid "Switch to VT 12"
-msgstr "Ихыҭҳәаау атерминал ахь аиасра 12"
+msgstr ""
 
 #: data/org.gnome.mutter.wayland.gschema.xml.in:60
 msgid "Re-enable shortcuts"
@@ -539,6 +539,11 @@ msgctxt ""
 "This is a monitor vendor name followed by product/model name where size in "
 "inches could not be calculated, e.g. Dell U2414H"
 msgid "%s %s"
+msgstr ""
+
+#. Translators: this string will appear in Sysprof
+#: src/backends/meta-profiler.c:79
+msgid "Compositor"
 msgstr ""
 
 #. This probably means that a non-WM compositor like xcompmgr is running;
@@ -630,15 +635,10 @@ msgstr ""
 #.
 #: src/core/meta-pad-action-mapper.c:871
 msgid "Switch monitor"
-msgstr "Амонитор аиагара"
+msgstr ""
 
 #: src/core/meta-pad-action-mapper.c:873
 msgid "Show on-screen help"
-msgstr "Аекрантә еилыркаа арбара"
-
-#. Translators: this string will appear in Sysprof
-#: src/core/meta-profiler.c:80 src/core/meta-profiler.c:217
-msgid "Compositor"
 msgstr ""
 
 #: src/core/mutter.c:74
@@ -658,7 +658,7 @@ msgstr "Аусуратә ҵакыра %d"
 msgid "Mutter was compiled without support for verbose mode"
 msgstr "Mutter акомпилиациа азун арежим verbose ацхыраарада"
 
-#: src/core/workspace.c:542
+#: src/core/workspace.c:533
 msgid "Workspace switched"
 msgstr ""
 
@@ -667,23 +667,23 @@ msgstr ""
 msgid "Mode Switch: Mode %d"
 msgstr ""
 
-#: src/x11/meta-x11-display.c:659
+#: src/x11/meta-x11-display.c:657
 #, c-format
 msgid ""
 "Display “%s” already has a window manager; try using the --replace option to "
 "replace the current window manager."
 msgstr ""
 
-#: src/x11/meta-x11-display.c:1050
+#: src/x11/meta-x11-display.c:1048
 msgid "Failed to initialize GDK"
 msgstr ""
 
-#: src/x11/meta-x11-display.c:1076
+#: src/x11/meta-x11-display.c:1074
 #, c-format
 msgid "Failed to open X Window System display “%s”"
 msgstr ""
 
-#: src/x11/meta-x11-display.c:1189
+#: src/x11/meta-x11-display.c:1187
 #, c-format
 msgid "Screen %d on display “%s” is invalid"
 msgstr ""
@@ -932,6 +932,7 @@ msgstr ""
 
 
 
+#, fuzzy
 
 
 
@@ -955,6 +956,7 @@ msgstr ""
 
 
 
+#, fuzzy
 
 
 
@@ -1041,6 +1043,7 @@ msgstr ""
 
 
 
+#, fuzzy
 
 
 
@@ -2411,6 +2414,7 @@ msgstr ""
 
 
 
+#, fuzzy
 
 
 
@@ -2612,6 +2616,7 @@ msgstr ""
 
 
 
+#, fuzzy
 
 
 
@@ -2962,16 +2967,20 @@ msgstr ""
 
 
 
+#, fuzzy
 
 
 
+#, fuzzy
 
+#, fuzzy
 
 
 
 
 
 
+#, fuzzy
 
 
 
@@ -3192,6 +3201,7 @@ msgstr ""
 
 
 
+#, fuzzy
 
 
 
@@ -3939,6 +3949,7 @@ msgstr ""
 
 
 
+#, fuzzy
 
 
 
@@ -4411,6 +4422,7 @@ msgstr ""
 
 
 
+#, fuzzy
 
 
 
@@ -4436,234 +4448,7 @@ msgstr ""
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#, fuzzy
 
 
 

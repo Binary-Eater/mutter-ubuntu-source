@@ -28,6 +28,39 @@
 #include "backends/meta-gpu.h"
 #include "core/util-private.h"
 
+typedef enum _MetaOutputColorspace
+{
+  META_OUTPUT_COLORSPACE_UNKNOWN = 0,
+  META_OUTPUT_COLORSPACE_DEFAULT,
+  META_OUTPUT_COLORSPACE_BT2020,
+} MetaOutputColorspace;
+
+typedef enum
+{
+  META_OUTPUT_HDR_METADATA_EOTF_TRADITIONAL_GAMMA_SDR,
+  META_OUTPUT_HDR_METADATA_EOTF_TRADITIONAL_GAMMA_HDR,
+  META_OUTPUT_HDR_METADATA_EOTF_PQ,
+  META_OUTPUT_HDR_METADATA_EOTF_HLG,
+} MetaOutputHdrMetadataEOTF;
+
+typedef struct _MetaOutputHdrMetadata
+{
+  gboolean active;
+  MetaOutputHdrMetadataEOTF eotf;
+  struct {
+    double x;
+    double y;
+  } mastering_display_primaries[3];
+  struct {
+    double x;
+    double y;
+  } mastering_display_white_point;
+  double mastering_display_max_luminance;
+  double mastering_display_min_luminance;
+  double max_cll;
+  double max_fall;
+} MetaOutputHdrMetadata;
+
 struct _MetaTileInfo
 {
   uint32_t group_id;
@@ -149,6 +182,9 @@ META_EXPORT_TEST
 void meta_output_info_parse_edid (MetaOutputInfo *output_info,
                                   GBytes         *edid);
 
+gboolean meta_output_info_is_color_space_supported (const MetaOutputInfo *output_info,
+                                                    MetaOutputColorspace  color_space);
+
 gboolean meta_output_is_laptop  (MetaOutput *output);
 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (MetaOutputInfo, meta_output_info_unref)
@@ -165,6 +201,9 @@ struct _MetaOutputClass
   gboolean (* set_privacy_screen_enabled) (MetaOutput  *output,
                                            gboolean     enabled,
                                            GError     **error);
+  gboolean (* is_color_space_supported) (MetaOutput           *output,
+                                         MetaOutputColorspace  color_space);
+  gboolean (* is_hdr_metadata_supported) (MetaOutput *output);
 };
 
 META_EXPORT_TEST
@@ -203,9 +242,29 @@ int meta_output_get_backlight (MetaOutput *output);
 
 MetaPrivacyScreenState meta_output_get_privacy_screen_state (MetaOutput *output);
 
+gboolean meta_output_is_privacy_screen_supported (MetaOutput *output);
+
+gboolean meta_output_is_privacy_screen_enabled (MetaOutput *output);
+
 gboolean meta_output_set_privacy_screen_enabled (MetaOutput  *output,
                                                  gboolean     enabled,
                                                  GError     **error);
+
+gboolean meta_output_is_color_space_supported (MetaOutput *output,
+                                               MetaOutputColorspace color_space);
+
+void meta_output_set_color_space (MetaOutput           *output,
+                                  MetaOutputColorspace  color_space);
+
+MetaOutputColorspace meta_output_peek_color_space (MetaOutput *output);
+
+gboolean meta_output_is_hdr_metadata_supported (MetaOutput                *output,
+                                                MetaOutputHdrMetadataEOTF  eotf);
+
+void meta_output_set_hdr_metadata (MetaOutput            *output,
+                                   MetaOutputHdrMetadata *metadata);
+
+MetaOutputHdrMetadata * meta_output_peek_hdr_metadata (MetaOutput *output);
 
 void meta_output_add_possible_clone (MetaOutput *output,
                                      MetaOutput *possible_clone);

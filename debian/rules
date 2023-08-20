@@ -37,11 +37,6 @@ CONFFLAGS = \
 	-Dremote_desktop=false
 endif
 
-ifeq ($(DEB_HOST_ARCH),$(findstring $(DEB_HOST_ARCH),armel armhf))
-CONFFLAGS += \
-	-Ddefault_driver=gles2
-endif
-
 override_dh_auto_configure:
 	dh_auto_configure -- \
 		$(CONFFLAGS)
@@ -64,7 +59,7 @@ TEST_COMMAND_FLAKY=$(TEST_COMMAND_BASE) --suite flaky
 override_dh_auto_test:
 ifeq ($(filter nocheck,$(DEB_BUILD_OPTIONS)),)
 	glib-compile-schemas $(BUILDDIR)/data
-ifeq (,$(filter mips mips64el mipsel riscv64 alpha hppa powerpc sparc64 x32,$(DEB_HOST_ARCH)))
+ifeq (,$(filter mips mips64el mipsel riscv64 s390x alpha hppa powerpc sparc64 x32,$(DEB_HOST_ARCH)))
 	$(TEST_COMMAND)
 	-$(TEST_COMMAND_FLAKY) --logbase flaky-tests
 endif

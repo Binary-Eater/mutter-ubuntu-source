@@ -109,7 +109,8 @@ update_displayed_cursor (MetaCursorTracker *tracker)
 {
   MetaCursorTrackerPrivate *priv =
     meta_cursor_tracker_get_instance_private (tracker);
-  MetaDisplay *display = meta_get_display ();
+  MetaContext *context = meta_backend_get_context (priv->backend);
+  MetaDisplay *display = meta_context_get_display (context);
   MetaCursorSprite *cursor = NULL;
 
   if (display && meta_display_windows_are_interactable (display) &&
@@ -319,12 +320,13 @@ meta_cursor_tracker_class_init (MetaCursorTrackerClass *klass)
  *
  * Retrieves the cursor tracker object for @display.
  *
- * Returns: (transfer none):
+ * Returns: (transfer none): the cursor tracker object for @display.
  */
 MetaCursorTracker *
 meta_cursor_tracker_get_for_display (MetaDisplay *display)
 {
-  MetaBackend *backend = meta_get_backend ();
+  MetaContext *context = meta_display_get_context (display);
+  MetaBackend *backend = meta_context_get_backend (context);
   MetaCursorTracker *tracker = meta_backend_get_cursor_tracker (backend);
 
   g_assert (tracker);
@@ -349,8 +351,11 @@ set_window_cursor (MetaCursorTracker *tracker,
 
 /**
  * meta_cursor_tracker_get_sprite:
+ * @tracker: a #MetaCursorTracker
  *
- * Returns: (transfer none):
+ * Get the #CoglTexture of the cursor sprite
+ *
+ * Returns: (transfer none) (nullable): the #CoglTexture of the cursor sprite
  */
 CoglTexture *
 meta_cursor_tracker_get_sprite (MetaCursorTracker *tracker)
@@ -368,9 +373,11 @@ meta_cursor_tracker_get_sprite (MetaCursorTracker *tracker)
 
 /**
  * meta_cursor_tracker_get_scale:
- * @tracker:
+ * @tracker: a #MetaCursorTracker
  *
- * Returns:
+ * Get the scale factor of the cursor sprite
+ *
+ * Returns: The scale factor of the cursor sprite
  */
 float
 meta_cursor_tracker_get_scale (MetaCursorTracker *tracker)
@@ -387,10 +394,11 @@ meta_cursor_tracker_get_scale (MetaCursorTracker *tracker)
 
 /**
  * meta_cursor_tracker_get_hot:
- * @tracker:
- * @x: (out):
- * @y: (out):
+ * @tracker: a #MetaCursorTracker
+ * @x: (out): the x coordinate of the cursor hotspot
+ * @y: (out): the y coordinate of the cursor hotspot
  *
+ * Get the hotspot of the current cursor sprite.
  */
 void
 meta_cursor_tracker_get_hot (MetaCursorTracker *tracker,
@@ -430,7 +438,7 @@ meta_cursor_tracker_unset_window_cursor (MetaCursorTracker *tracker)
 /**
  * meta_cursor_tracker_set_root_cursor:
  * @tracker: a #MetaCursorTracker object.
- * @cursor_sprite: (transfer none): the new root cursor
+ * @cursor_sprite: (transfer none) (nullable): the new root cursor
  *
  * Sets the root cursor (the cursor that is shown if not modified by a window).
  * The #MetaCursorTracker will take a strong reference to the sprite.
@@ -458,8 +466,8 @@ meta_cursor_tracker_invalidate_position (MetaCursorTracker *tracker)
 /**
  * meta_cursor_tracker_get_pointer:
  * @tracker: a #MetaCursorTracker object
- * @coords: (out caller-allocates): the coordinates of the pointer
- * @mods: (out): the current #ClutterModifierType of the pointer
+ * @coords: (out caller-allocates) (optional): the coordinates of the pointer
+ * @mods: (out) (optional): the current #ClutterModifierType of the pointer
  *
  * Get the current pointer position and state.
  */

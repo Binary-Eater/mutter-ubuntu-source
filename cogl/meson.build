@@ -10,10 +10,6 @@ cdata.set('HAVE_COGL_GLES2', have_gles2)
 cdata.set('HAVE_TRACING', have_profiler)
 cdata.set('ENABLE_UNIT_TESTS', have_cogl_tests)
 
-if default_driver != 'auto'
-  cdata.set_quoted('COGL_DEFAULT_DRIVER', default_driver)
-endif
-
 cogl_config_h = configure_file(
   input: 'cogl-config.h.meson',
   output: 'cogl-config.h',
@@ -35,7 +31,7 @@ cogl_pkg_private_deps = [
 
 if have_profiler
   cogl_pkg_private_deps += [
-    sysprof_dep,
+    libsysprof_capture_dep,
   ]
 endif
 
@@ -110,7 +106,6 @@ if get_option('debug')
   ]
 elif buildtype != 'plain'
   cogl_debug_c_args += [
-    '-DG_DISABLE_CHECKS',
     '-DG_DISABLE_CAST_CHECKS'
   ]
 endif

@@ -36,7 +36,16 @@
 #include "meta/meta-x11-display.h"
 #include "meta-startup-notification-x11.h"
 #include "meta-x11-stack-private.h"
-#include "ui/ui.h"
+#include "x11/meta-sync-counter.h"
+
+/* This is basically a bogus number, just has to be large enough
+ * to handle the expected case of the alt+tab operation, where
+ * we want to ignore serials from UnmapNotify on the tab popup,
+ * and the LeaveNotify/EnterNotify from the pointer ungrab. It
+ * also has to be big enough to hold ignored serials from the point
+ * where we reshape the stage to the point where we get events back.
+ */
+#define N_IGNORED_CROSSING_SERIALS  10
 
 typedef struct _MetaGroupPropHooks  MetaGroupPropHooks;
 typedef struct _MetaWindowPropHooks MetaWindowPropHooks;
@@ -56,7 +65,6 @@ struct _MetaX11Display
   GObject parent;
 
   MetaDisplay *display;
-  GdkDisplay *gdk_display;
 
   char *name;
   char *screen_name;
@@ -109,6 +117,9 @@ struct _MetaX11Display
   Window composite_overlay_window;
 
   GHashTable *xids;
+  GHashTable *alarms;
+
+  GList *event_funcs;
 
   gboolean has_xinerama_indices;
 
@@ -128,7 +139,11 @@ struct _MetaX11Display
 
   GPtrArray *alarm_filters;
 
-  MetaUI *ui;
+  GSubprocess *frames_client;
+  GCancellable *frames_client_cancellable;
+
+  GList *error_traps;
+  GSource *event_source;
 
   struct {
     Window xwindow;
@@ -151,6 +166,12 @@ struct _MetaX11Display
   guint keys_grabbed : 1;
 
   guint closing : 1;
+
+  /* serials of leave/unmap events that may
+   * correspond to an enter event we should
+   * ignore
+   */
+  unsigned long ignored_crossing_serials[N_IGNORED_CROSSING_SERIALS];
 
   /* we use property updates as sentinels for certain window focus events
    * to avoid some race conditions on EnterNotify events
@@ -185,6 +206,8 @@ struct _MetaX11Display
   MetaX11Stack *x11_stack;
 
   XserverRegion empty_region;
+
+  unsigned int reload_x11_cursor_later;
 };
 
 MetaX11Display *meta_x11_display_new (MetaDisplay *display, GError **error);
@@ -208,11 +231,13 @@ void        meta_x11_display_register_x_window   (MetaX11Display *x11_display,
 void        meta_x11_display_unregister_x_window (MetaX11Display *x11_display,
                                                   Window          xwindow);
 
-MetaWindow *meta_x11_display_lookup_sync_alarm     (MetaX11Display *x11_display,
-                                                    XSyncAlarm      alarm);
-void        meta_x11_display_register_sync_alarm   (MetaX11Display *x11_display,
-                                                    XSyncAlarm     *alarmp,
-                                                    MetaWindow     *window);
+MetaSyncCounter * meta_x11_display_lookup_sync_alarm (MetaX11Display *x11_display,
+                                                      XSyncAlarm      alarm);
+
+void        meta_x11_display_register_sync_alarm (MetaX11Display  *x11_display,
+                                                  XSyncAlarm      *alarmp,
+                                                  MetaSyncCounter *sync_counter);
+
 void        meta_x11_display_unregister_sync_alarm (MetaX11Display *x11_display,
                                                     XSyncAlarm      alarm);
 
@@ -259,5 +284,22 @@ void meta_x11_display_set_input_focus (MetaX11Display *x11_display,
                                        uint32_t        timestamp);
 
 MetaDisplay * meta_x11_display_get_display (MetaX11Display *x11_display);
+
+void meta_x11_display_run_event_funcs (MetaX11Display *x11_display,
+                                       XEvent         *xevent);
+
+int meta_x11_display_get_screen_number (MetaX11Display *x11_display);
+
+int meta_x11_display_get_damage_event_base (MetaX11Display *x11_display);
+
+void meta_x11_display_set_cm_selection (MetaX11Display *x11_display,
+                                        uint32_t        timestamp);
+
+gboolean meta_x11_display_xwindow_is_a_no_focus_window (MetaX11Display *x11_display,
+                                                        Window xwindow);
+
+void meta_x11_display_clear_stage_input_region (MetaX11Display *x11_display);
+
+void meta_x11_display_init_error_traps (MetaX11Display *x11_display);
 
 #endif /* META_X11_DISPLAY_PRIVATE_H */

@@ -64,19 +64,8 @@ _cogl_driver_gl_real_context_init (CoglContext *context)
       context->glBindVertexArray (vertex_array);
     }
 
-  /* As far as I can tell, GL_POINT_SPRITE doesn't have any effect
-     unless GL_COORD_REPLACE is enabled for an individual layer.
-     Therefore it seems like it should be ok to just leave it enabled
-     all the time instead of having to have a set property on each
-     pipeline to track whether any layers have point sprite coords
-     enabled. We don't need to do this for GL3 or GLES2 because point
-     sprites are handled using a builtin varying in the shader. */
-  if (context->driver == COGL_DRIVER_GL)
-    GE (context, glEnable (GL_POINT_SPRITE));
-
   /* There's no enable for this in GLES2, it's always on */
-  if (context->driver == COGL_DRIVER_GL ||
-      context->driver == COGL_DRIVER_GL3)
+  if (context->driver == COGL_DRIVER_GL3)
     GE (context, glEnable (GL_PROGRAM_POINT_SIZE) );
 
   return TRUE;
@@ -355,6 +344,15 @@ _cogl_driver_pixel_format_to_gl (CoglContext     *context,
 }
 
 static gboolean
+_cogl_driver_read_pixels_format_supported (CoglContext *context,
+                                           GLenum       glintformat,
+                                           GLenum       glformat,
+                                           GLenum       gltype)
+{
+  return TRUE;
+}
+
+static gboolean
 _cogl_get_gl_version (CoglContext *ctx,
                       int *major_out,
                       int *minor_out)
@@ -509,15 +507,8 @@ _cogl_driver_update_features (CoglContext *ctx,
     COGL_FLAGS_SET (private_features,
                     COGL_PRIVATE_FEATURE_TEXTURE_SWIZZLE, TRUE);
 
-  if (ctx->driver == COGL_DRIVER_GL)
-    {
-      /* Features which are not available in GL 3 */
-      COGL_FLAGS_SET (private_features,
-                      COGL_PRIVATE_FEATURE_ALPHA_TEXTURES, TRUE);
-    }
-
   COGL_FLAGS_SET (private_features,
-                  COGL_PRIVATE_FEATURE_READ_PIXELS_ANY_FORMAT, TRUE);
+                  COGL_PRIVATE_FEATURE_READ_PIXELS_ANY_STRIDE, TRUE);
   COGL_FLAGS_SET (private_features, COGL_PRIVATE_FEATURE_ANY_GL, TRUE);
   COGL_FLAGS_SET (private_features,
                   COGL_PRIVATE_FEATURE_FORMAT_CONVERSION, TRUE);
@@ -559,8 +550,7 @@ _cogl_driver_update_features (CoglContext *ctx,
 
   g_strfreev (gl_extensions);
 
-  if (!COGL_FLAGS_GET (private_features, COGL_PRIVATE_FEATURE_ALPHA_TEXTURES) &&
-      !COGL_FLAGS_GET (private_features, COGL_PRIVATE_FEATURE_TEXTURE_SWIZZLE))
+  if (!COGL_FLAGS_GET (private_features, COGL_PRIVATE_FEATURE_TEXTURE_SWIZZLE))
     {
       g_set_error (error,
                    COGL_DRIVER_ERROR,
@@ -582,6 +572,7 @@ _cogl_driver_gl =
     _cogl_gl_get_graphics_reset_status,
     _cogl_driver_pixel_format_from_gl_internal,
     _cogl_driver_pixel_format_to_gl,
+    _cogl_driver_read_pixels_format_supported,
     _cogl_driver_update_features,
     _cogl_driver_gl_create_framebuffer_driver,
     _cogl_driver_gl_flush_framebuffer_state,

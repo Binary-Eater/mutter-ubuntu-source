@@ -73,6 +73,7 @@ enum
   PROP_PANEL_ORIENTATION_MANAGED,
   PROP_HAS_BUILTIN_PANEL,
   PROP_NIGHT_LIGHT_SUPPORTED,
+  PROP_EXPERIMENTAL_HDR,
 
   PROP_LAST
 };
@@ -114,6 +115,9 @@ typedef struct _MetaMonitorManagerPrivate
 
   gboolean has_builtin_panel;
   gboolean night_light_supported;
+  const char *experimental_hdr;
+
+  guint switch_config_handle_id;
 } MetaMonitorManagerPrivate;
 
 G_DEFINE_TYPE_WITH_PRIVATE (MetaMonitorManager, meta_monitor_manager,
@@ -475,6 +479,71 @@ prepare_shutdown (MetaBackend        *backend,
     meta_monitor_manager_get_instance_private (manager);
 
   priv->shutting_down = TRUE;
+}
+
+static void
+ensure_hdr_settings (MetaMonitorManager *manager)
+{
+  MetaMonitorManagerPrivate *priv =
+    meta_monitor_manager_get_instance_private (manager);
+  MetaOutputColorspace color_space;
+  MetaOutputHdrMetadata hdr_metadata;
+  GList *l;
+
+  if (g_strcmp0 (priv->experimental_hdr, "on") == 0)
+    {
+      color_space = META_OUTPUT_COLORSPACE_BT2020;
+      hdr_metadata = (MetaOutputHdrMetadata) {
+        .active = TRUE,
+        .eotf = META_OUTPUT_HDR_METADATA_EOTF_PQ,
+      };
+    }
+  else
+    {
+      color_space = META_OUTPUT_COLORSPACE_DEFAULT;
+      hdr_metadata = (MetaOutputHdrMetadata) {
+        .active = FALSE,
+      };
+    }
+
+  for (l = manager->monitors; l; l = l->next)
+    {
+      MetaMonitor *monitor = l->data;
+      g_autoptr (GError) error = NULL;
+
+      if (!meta_monitor_set_color_space (monitor, color_space, &error))
+        {
+          if (g_error_matches (error, G_IO_ERROR, G_IO_ERROR_NOT_SUPPORTED))
+            continue;
+
+          g_warning ("Failed to set color space on monitor %s: %s",
+                     meta_monitor_get_display_name (monitor), error->message);
+
+          meta_monitor_set_color_space (monitor,
+                                        META_OUTPUT_COLORSPACE_DEFAULT,
+                                        NULL);
+
+          continue;
+        }
+
+      if (!meta_monitor_set_hdr_metadata (monitor, &hdr_metadata, &error))
+        {
+          if (g_error_matches (error, G_IO_ERROR, G_IO_ERROR_NOT_SUPPORTED))
+            continue;
+
+          g_warning ("Failed to set HDR metadata on monitor %s: %s",
+                     meta_monitor_get_display_name (monitor), error->message);
+
+          meta_monitor_set_color_space (monitor,
+                                        META_OUTPUT_COLORSPACE_DEFAULT,
+                                        NULL);
+          meta_monitor_set_hdr_metadata (monitor, &(MetaOutputHdrMetadata) {
+                                           .active = FALSE,
+                                         }, NULL);
+
+          continue;
+        }
+    }
 }
 
 /**
@@ -1262,6 +1331,10 @@ meta_monitor_manager_constructed (GObject *object)
                     G_CALLBACK (prepare_shutdown),
                     manager);
 
+  g_signal_connect (manager, "notify::experimental-hdr",
+                    G_CALLBACK (ensure_hdr_settings),
+                    NULL);
+
   manager->current_switch_config = META_MONITOR_SWITCH_CONFIG_UNKNOWN;
 
   initialize_dbus_interface (manager);
@@ -1285,17 +1358,17 @@ static void
 meta_monitor_manager_dispose (GObject *object)
 {
   MetaMonitorManager *manager = META_MONITOR_MANAGER (object);
+  MetaMonitorManagerPrivate *priv =
+    meta_monitor_manager_get_instance_private (manager);
 
-  if (manager->dbus_name_id != 0)
-    {
-      g_bus_unown_name (manager->dbus_name_id);
-      manager->dbus_name_id = 0;
-    }
+  g_clear_handle_id (&manager->dbus_name_id, g_bus_unown_name);
 
   g_clear_object (&manager->display_config);
   g_clear_object (&manager->config_manager);
 
   g_clear_handle_id (&manager->persistent_timeout_id, g_source_remove);
+  g_clear_handle_id (&manager->restore_config_id, g_source_remove);
+  g_clear_handle_id (&priv->switch_config_handle_id, g_source_remove);
 
   G_OBJECT_CLASS (meta_monitor_manager_parent_class)->dispose (object);
 }
@@ -1314,11 +1387,16 @@ meta_monitor_manager_set_property (GObject      *object,
                                    GParamSpec   *pspec)
 {
   MetaMonitorManager *manager = META_MONITOR_MANAGER (object);
+  MetaMonitorManagerPrivate *priv =
+    meta_monitor_manager_get_instance_private (manager);
 
   switch (prop_id)
     {
     case PROP_BACKEND:
       manager->backend = g_value_get_object (value);
+      break;
+    case PROP_EXPERIMENTAL_HDR:
+      priv->experimental_hdr = g_value_dup_string (value);
       break;
     case PROP_PANEL_ORIENTATION_MANAGED:
     case PROP_HAS_BUILTIN_PANEL:
@@ -1351,6 +1429,9 @@ meta_monitor_manager_get_property (GObject    *object,
       break;
     case PROP_NIGHT_LIGHT_SUPPORTED:
       g_value_set_boolean (value, priv->night_light_supported);
+      break;
+    case PROP_EXPERIMENTAL_HDR:
+      g_value_set_string (value, priv->experimental_hdr);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -1453,6 +1534,14 @@ meta_monitor_manager_class_init (MetaMonitorManagerClass *klass)
                           G_PARAM_READABLE |
                           G_PARAM_EXPLICIT_NOTIFY |
                           G_PARAM_STATIC_STRINGS);
+
+  obj_props[PROP_EXPERIMENTAL_HDR] =
+    g_param_spec_string ("experimental-hdr",
+                         "Experimental HDR",
+                         "Experimental HDR settings string",
+                         NULL,
+                         G_PARAM_READWRITE |
+                         G_PARAM_STATIC_STRINGS);
 
   g_object_class_install_properties (object_class, PROP_LAST, obj_props);
 }
@@ -1704,7 +1793,7 @@ meta_monitor_manager_handle_get_resources (MetaDBusDisplayConfig *skeleton,
       supports_underscanning = output_info->supports_underscanning;
       supports_color_transform = output_info->supports_color_transform;
       vendor = output_info->vendor;
-      product = output_info->product;;
+      product = output_info->product;
       serial = output_info->serial;
 
       g_variant_builder_init (&properties, G_VARIANT_TYPE ("a{sv}"));
@@ -1861,8 +1950,8 @@ restore_previous_config (MetaMonitorManager *manager)
   meta_monitor_manager_ensure_configured (manager);
 }
 
-gint
-meta_monitor_manager_get_display_configuration_timeout (void)
+int
+meta_monitor_manager_get_display_configuration_timeout (MetaMonitorManager *manager)
 {
   return DEFAULT_DISPLAY_CONFIGURATION_TIMEOUT;
 }
@@ -1879,15 +1968,12 @@ save_config_timeout (gpointer user_data)
 }
 
 static void
-cancel_persistent_confirmation (MetaMonitorManager *manager)
-{
-  g_clear_handle_id (&manager->persistent_timeout_id, g_source_remove);
-}
-
-static void
 request_persistent_confirmation (MetaMonitorManager *manager)
 {
-  manager->persistent_timeout_id = g_timeout_add_seconds (meta_monitor_manager_get_display_configuration_timeout (),
+  int timeout_s;
+
+  timeout_s = meta_monitor_manager_get_display_configuration_timeout (manager);
+  manager->persistent_timeout_id = g_timeout_add_seconds (timeout_s,
                                                           save_config_timeout,
                                                           manager);
   g_source_set_name_by_id (manager->persistent_timeout_id,
@@ -2736,9 +2822,11 @@ meta_monitor_manager_handle_apply_monitors_config (MetaDBusDisplayConfig *skelet
       return TRUE;
     }
 
-  if (manager->persistent_timeout_id &&
-      method != META_MONITORS_CONFIG_METHOD_VERIFY)
-    cancel_persistent_confirmation (manager);
+  if (method != META_MONITORS_CONFIG_METHOD_VERIFY)
+    {
+      g_clear_handle_id (&manager->restore_config_id, g_source_remove);
+      g_clear_handle_id (&manager->persistent_timeout_id, g_source_remove);
+    }
 
   if (!meta_monitor_manager_apply_monitors_config (manager,
                                                    config,
@@ -2766,28 +2854,25 @@ meta_monitor_manager_handle_apply_monitors_config (MetaDBusDisplayConfig *skelet
 #undef MONITOR_CONFIGS_FORMAT
 #undef LOGICAL_MONITOR_CONFIG_FORMAT
 
-static void
-confirm_configuration (MetaMonitorManager *manager,
-                       gboolean            confirmed)
-{
-  if (confirmed)
-    meta_monitor_config_manager_save_current (manager->config_manager);
-  else
-    restore_previous_config (manager);
-}
-
 void
 meta_monitor_manager_confirm_configuration (MetaMonitorManager *manager,
                                             gboolean            ok)
 {
   if (!manager->persistent_timeout_id)
-    {
-      /* too late */
-      return;
-    }
+    return;
 
-  cancel_persistent_confirmation (manager);
-  confirm_configuration (manager, ok);
+  g_clear_handle_id (&manager->restore_config_id, g_source_remove);
+  g_clear_handle_id (&manager->persistent_timeout_id, g_source_remove);
+
+  if (ok)
+    {
+      meta_monitor_config_manager_save_current (manager->config_manager);
+    }
+  else
+    {
+      manager->restore_config_id =
+        g_idle_add_once ((GSourceOnceFunc) restore_previous_config, manager);
+    }
 }
 
 static gboolean
@@ -3100,21 +3185,6 @@ initialize_dbus_interface (MetaMonitorManager *manager)
 }
 
 /**
- * meta_monitor_manager_get:
- *
- * Accessor for the singleton MetaMonitorManager.
- *
- * Returns: (transfer none): The only #MetaMonitorManager there is.
- */
-MetaMonitorManager *
-meta_monitor_manager_get (void)
-{
-  MetaBackend *backend = meta_get_backend ();
-
-  return meta_backend_get_monitor_manager (backend);
-}
-
-/**
  * meta_monitor_manager_get_num_logical_monitors:
  * @manager: A #MetaMonitorManager object
  *
@@ -3280,8 +3350,9 @@ meta_monitor_manager_get_logical_monitor_at (MetaMonitorManager *manager,
  * @manager: A #MetaMonitorManager object
  * @rect: The rectangle
  *
- * Finds the #MetaLogicalMonitor which has the largest area in common with the
- * given @rect in the total layout.
+ * Finds the #MetaLogicalMonitor which contains the center of the given @rect
+ * or which has the largest area in common with the given @rect in the total
+ * layout if the center is not on a monitor.
  *
  * Returns: (transfer none) (nullable): The #MetaLogicalMonitor which
  *          corresponds the most to the given @rect, or %NULL if none.
@@ -3293,6 +3364,8 @@ meta_monitor_manager_get_logical_monitor_from_rect (MetaMonitorManager *manager,
   MetaLogicalMonitor *best_logical_monitor;
   int best_logical_monitor_area;
   GList *l;
+  int center_x = rect->x + (rect->width / 2);
+  int center_y = rect->y + (rect->height / 2);
 
   best_logical_monitor = NULL;
   best_logical_monitor_area = 0;
@@ -3302,6 +3375,9 @@ meta_monitor_manager_get_logical_monitor_from_rect (MetaMonitorManager *manager,
       MetaLogicalMonitor *logical_monitor = l->data;
       MetaRectangle intersection;
       int intersection_area;
+
+      if (META_POINT_IN_RECT (center_x, center_y, logical_monitor->rect))
+        return logical_monitor;
 
       if (!meta_rectangle_intersect (&logical_monitor->rect,
                                      rect,
@@ -3316,10 +3392,6 @@ meta_monitor_manager_get_logical_monitor_from_rect (MetaMonitorManager *manager,
           best_logical_monitor_area = intersection_area;
         }
     }
-
-  if (!best_logical_monitor && (rect->width == 0 || rect->height == 0))
-    best_logical_monitor =
-      meta_monitor_manager_get_logical_monitor_at (manager, rect->x, rect->y);
 
   if (!best_logical_monitor)
     best_logical_monitor = manager->primary_logical_monitor;
@@ -3607,6 +3679,8 @@ meta_monitor_manager_rebuild (MetaMonitorManager *manager,
 
   ensure_privacy_screen_settings (manager);
 
+  ensure_hdr_settings (manager);
+
   g_list_free_full (old_logical_monitors, g_object_unref);
 }
 
@@ -3794,35 +3868,66 @@ meta_monitor_manager_rotate_monitor (MetaMonitorManager *manager)
   g_object_unref (config);
 }
 
-void
-meta_monitor_manager_switch_config (MetaMonitorManager          *manager,
-                                    MetaMonitorSwitchConfigType  config_type)
+typedef struct
 {
-  GError *error = NULL;
-  MetaMonitorsConfig *config;
+  MetaMonitorManager *monitor_manager;
+  MetaMonitorSwitchConfigType config_type;
+} SwitchConfigData;
 
-  g_return_if_fail (config_type != META_MONITOR_SWITCH_CONFIG_UNKNOWN);
+static gboolean
+switch_config_idle_cb (gpointer user_data)
+{
+  SwitchConfigData *data = user_data;
+  MetaMonitorManager *monitor_manager = data->monitor_manager;
+  MetaMonitorManagerPrivate *priv =
+    meta_monitor_manager_get_instance_private (monitor_manager);
+  MetaMonitorConfigManager *config_manager = monitor_manager->config_manager;
+  MetaMonitorsConfig *config;
+  g_autoptr (GError) error = NULL;
+
+  priv->switch_config_handle_id = 0;
 
   config =
-    meta_monitor_config_manager_create_for_switch_config (manager->config_manager,
-                                                          config_type);
+    meta_monitor_config_manager_create_for_switch_config (config_manager,
+                                                          data->config_type);
   if (!config)
-    return;
+    return G_SOURCE_REMOVE;
 
-  if (!meta_monitor_manager_apply_monitors_config (manager,
+  if (!meta_monitor_manager_apply_monitors_config (monitor_manager,
                                                    config,
                                                    META_MONITORS_CONFIG_METHOD_TEMPORARY,
                                                    &error))
     {
       g_warning ("Failed to use switch monitor configuration: %s",
                  error->message);
-      g_error_free (error);
     }
   else
     {
-      manager->current_switch_config = config_type;
+      monitor_manager->current_switch_config = data->config_type;
     }
-  g_object_unref (config);
+
+  return G_SOURCE_REMOVE;
+}
+
+void
+meta_monitor_manager_switch_config (MetaMonitorManager          *manager,
+                                    MetaMonitorSwitchConfigType  config_type)
+{
+  MetaMonitorManagerPrivate *priv =
+    meta_monitor_manager_get_instance_private (manager);
+  SwitchConfigData *data;
+
+  g_return_if_fail (config_type != META_MONITOR_SWITCH_CONFIG_UNKNOWN);
+
+  data = g_new0 (SwitchConfigData, 1);
+  data->monitor_manager = manager;
+  data->config_type = config_type;
+
+  g_clear_handle_id (&priv->switch_config_handle_id, g_source_remove);
+  priv->switch_config_handle_id = g_idle_add_full (G_PRIORITY_DEFAULT_IDLE,
+                                                   switch_config_idle_cb,
+                                                   data,
+                                                   g_free);
 }
 
 gboolean
@@ -3878,6 +3983,7 @@ meta_monitor_manager_post_init (MetaMonitorManager *manager)
 MetaViewportInfo *
 meta_monitor_manager_get_viewports (MetaMonitorManager *manager)
 {
+  MetaBackend *backend = meta_monitor_manager_get_backend (manager);
   MetaViewportInfo *info;
   GArray *views, *scales;
   GList *logical_monitors, *l;
@@ -3903,7 +4009,7 @@ meta_monitor_manager_get_viewports (MetaMonitorManager *manager)
   info = meta_viewport_info_new ((cairo_rectangle_int_t *) views->data,
                                  (float *) scales->data,
                                  views->len,
-                                 meta_is_stage_views_scaled ());
+                                 meta_backend_is_stage_views_scaled (backend));
   g_array_unref (views);
   g_array_unref (scales);
 

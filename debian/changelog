@@ -1,3 +1,19 @@
+mutter (44.3-6) unstable; urgency=medium
+
+  * Team upload
+  * d/patches: Update to upstream gnome-44 branch commit
+    44.3-15-g0b5ab083b4 (no functional changes)
+    - Patches previously in d/patches/45 have been applied to the gnome-44
+      branch and move to d/patches/44
+  * Merge packaging from unstable
+    - No functional changes; all changes relevant to this branch were
+      already in experimental
+    - d/p/tests-Reinstate-meta_test_get_plugin_name.patch intentionally
+      omitted to avoid creating longer-term delta
+  * Upload to unstable (starts transition: #1043144)
+
+ -- Simon McVittie <smcv@debian.org>  Sun, 20 Aug 2023 21:30:31 +0100
+
 mutter (43.7-2) unstable; urgency=medium
 
   * Team upload
@@ -26,6 +42,39 @@ mutter (43.7-2) unstable; urgency=medium
 
  -- Simon McVittie <smcv@debian.org>  Sun, 20 Aug 2023 11:35:31 +0100
 
+mutter (44.3-5) experimental; urgency=medium
+
+  * Team upload
+  * d/patches: Reorder patch series with closest-to-upstream first
+  * d/patches: Improve tracking of bug references and upstream status
+  * d/.gitignore: Add
+  * d/patches/44/, d/patches/45/: Move patches that were applied upstream
+    into topic subdirs.
+    We have enough patches in this package, some of them short-term and
+    some of them long-term delta, that it seems useful to keep track
+    of this.
+  * d/patches, d/rules: Stop trying to force gles2 driver on armel, armhf.
+    This patch was rejected by upstream, and according to comments on the
+    upstream merge request, it is no longer effective either, because
+    mutter's driver selection is now done in a higher layer.
+    Users of systems with a working gles2 driver but a broken or slow gl3
+    driver can work around this by setting environment variable
+    CLUTTER_DRIVER=gles2.
+    See #1050014 for more details of what would be involved in making this
+    driver choice happen automatically in an upstreamable way.
+  * d/p/cursor-renderer-native-Workaround-broken-arm64-drivers.patch:
+    Drop patch forcing use of simpler cursor buffers on aarch64.
+    According to the upstream and Ubuntu bugs, this should be fixed in Mesa
+    since 22.3.3, which is included in the Debian 12 initial release and in
+    Ubuntu 22.04 as an update.
+  * Merge packaging from unstable
+    - No functional changes; all changes relevant to this branch were
+      already in experimental
+  * d/gbp.conf: Use upstream/44.x branch.
+    The Ubuntu GNOME team have already started packaging v45 prereleases.
+
+ -- Simon McVittie <smcv@debian.org>  Fri, 18 Aug 2023 20:49:18 +0100
+
 mutter (43.7-1) unstable; urgency=medium
 
   * Team upload
@@ -40,6 +89,99 @@ mutter (43.7-1) unstable; urgency=medium
   * d/patches: Improve tracking of upstream status
 
  -- Simon McVittie <smcv@debian.org>  Fri, 18 Aug 2023 17:40:39 +0100
+
+mutter (44.3-4) experimental; urgency=medium
+
+  * Team upload
+  * d/patches: Update to upstream gnome-44 branch commit 44.3-7-g5d0354035b,
+    excluding CI-only changes
+    - Make the choice of preferred video mode consistent between code
+      paths, fixing choice of video mode on some monitors (mutter!3055)
+    - Fix the configuration option to allow byteswapped X11 clients so
+      that it is possible to allow them (mutter#2938)
+    - Fix a crash if a window is destroyed by a Wayland protocol error
+      while it is being moved (mutter#2853)
+    - Translation update: fa
+  * d/p/clutter-stage-Add-is-grabbed-property.patch,
+    d/p/window-Postpone-focusing-until-grab-ended-if-uninteractab.patch,
+    d/p/compositor-Handle-grab-state-through-ClutterStage-is-grab.patch:
+    Add patches from upstream to give focus to new app windows when
+    launched from the gnome-shell overview (Closes: #1035092, #1049934)
+  * d/p/tests-Introduce-and-use-a-custom-test-shell.patch,
+    d/p/tests-test-shell-Emulate-overview-grabs.patch,
+    d/p/tests-test-runner-Add-toggle_overview-command.patch,
+    d/p/tests-Add-test-case-for-restoring-focus-after-overview.patch:
+    Add patches from upstream adding test coverage for #1035092
+  * d/libmutter-test-12.symbols: Update for #1035092 changes.
+    Ignore removal of meta_test_get_plugin_name(): this is a private
+    symbol and is not declared in any headers.
+
+ -- Simon McVittie <smcv@debian.org>  Thu, 17 Aug 2023 10:44:06 +0100
+
+mutter (44.3-3) experimental; urgency=medium
+
+  * debian/control.in: Build-Depend on libgtk-4-dev & libsysprof-4-dev
+
+ -- Jeremy Bícha <jbicha@ubuntu.com>  Mon, 14 Aug 2023 17:54:56 -0400
+
+mutter (44.3-2) experimental; urgency=medium
+
+  [ Simon McVittie ]
+  * Merge changelog from unstable
+    - All fixes in 43.6 were also in 44.2 or earlier
+  * d/control: Regenerate
+
+  [ Daniel van Vugt ]
+  * Update Support-Dynamic-triple-double-buffering.patch:
+    Fix increased mouse pointer latency that occurred in 44.1 when using
+    the default atomic KMS backend with Wayland sessions (LP: #2023363)
+
+ -- Jeremy Bícha <jbicha@ubuntu.com>  Mon, 14 Aug 2023 17:08:48 -0400
+
+mutter (44.3-1) experimental; urgency=medium
+
+  [ Jeremy Bícha ]
+  * New upstream release
+  * Drop 2 patches applied in new release
+
+  [ Daniel van Vugt ]
+  * Update triple buffering patch
+
+ -- Jeremy Bícha <jbicha@ubuntu.com>  Thu, 06 Jul 2023 17:04:05 -0400
+
+mutter (44.2-3) experimental; urgency=medium
+
+  * Cherry-pick patch to fix build test with mesa 23.1 (LP: #2025287)
+
+ -- Jeremy Bícha <jbicha@ubuntu.com>  Wed, 28 Jun 2023 15:29:10 -0400
+
+mutter (44.2-2) experimental; urgency=medium
+
+  [ Daniel van Vugt ]
+  * Cherry-pick 2 patches for stuttering fixes
+    * Avoid cursor stuttering over some windows (LP: #2023766). This will also
+      improve best-case input latency by roughly half a frame.
+    * Avoid render stuttering in some fullscreen games (LP: #2016990).
+  * Update Support-Dynamic-triple-double-buffering.patch
+    * Fix a failure to resume from sleep (frozen black screen), which seems
+      to be an old bug but only became likely in 44.1.
+    * Fix a crash on resume from sleep (LP: #2020049).
+
+ -- Jeremy Bícha <jbicha@ubuntu.com>  Wed, 28 Jun 2023 09:42:56 -0400
+
+mutter (44.2-1) experimental; urgency=medium
+
+  [ Jeremy Bícha ]
+  * New upstream release (LP: #2022951)
+    - Fix drag and drop for Qt applications (LP: #2013235)
+  * Drop display-Set-compositor-selection-earlier patch: applied in new release
+  * Try dropping 2 of our flaky tests patches
+
+  [ Daniel van Vugt ]
+  * Update triple buffering patch to avoid NULL dereference on resume
+    from suspend (LP: #2020652)
+
+ -- Jeremy Bícha <jbicha@ubuntu.com>  Mon, 05 Jun 2023 11:47:52 -0400
 
 mutter (43.6-1) unstable; urgency=medium
 
@@ -97,11 +239,125 @@ mutter (43.4-1) unstable; urgency=medium
   * d/patches: Update to upstream gnome-43 branch commit 43.4-2-gba5cb0542
     - Fix a crash with newer GStreamer gtkwaylandsink (GNOME/mutter!2917)
     - Translation update: ab
-  * Remove #1032388 from previous changelog entry.
+  * Remove #1032388 from 43.3-5 changelog entry.
     I hoped !2878 would fix both #1032388 and #1031945, but in fact it
     only fixes #1031945.
 
  -- Simon McVittie <smcv@debian.org>  Mon, 10 Apr 2023 14:07:33 +0100
+
+mutter (44.1-1) experimental; urgency=medium
+
+  [ Jeremy Bícha ]
+  * New upstream release
+  * Drop bash patch applied in new release
+  * debian/libmutter-12-0.symbols: Add new symbols
+
+  [ Daniel van Vugt ]
+  * Update triple buffering patch for Mutter 44.1
+
+  [ Marco Trevisan (Treviño) ]
+  * Fix issue with Firefox opening black window in wayland sessions
+    - Add d/p/display-Set-compositor-selection-earlier-on-XWayland.patch
+      (LP: #1987976)
+
+ -- Jeremy Bícha <jbicha@ubuntu.com>  Fri, 19 May 2023 16:18:13 -0400
+
+mutter (44.0-2) experimental; urgency=medium
+
+  * Update debian/patches/debian/Support-Dynamic-triple-double-buffering.patch:
+    Compared to the last update, a crash on resuming from sleep has been
+    fixed. And some minor code tidying.
+
+ -- Daniel van Vugt <daniel.van.vugt@canonical.com>  Mon, 27 Mar 2023 09:27:35 -0400
+
+mutter (44.0-1) experimental; urgency=medium
+
+  [ Marco Trevisan (Treviño) ]
+  * New upstream release:
+    - Fixes feedback loops with old statically compiled SDL applications
+      (LP: #2011803)
+  * debian/patches: refresh indexes
+  * debian/patches/debian/Support-Dynamic-triple-double-buffering.patch: Update
+    We still keep it enabled, given that we're in experimental anyways
+
+  [ Simon McVittie ]
+  * Remove #1032388 from previous changelog entry.
+    I hoped !2878 would fix both #1032388 and #1031945, but in fact it
+    only solves #1031945.
+
+ -- Marco Trevisan (Treviño) <marco@ubuntu.com>  Mon, 20 Mar 2023 20:35:02 +0100
+
+mutter (44~rc-1) experimental; urgency=medium
+
+  [ Jeremy Bicha ]
+  * New upstream release
+  * d/p/wayland-Don-t-overwrite-surface-offsets.patch,
+    d/p/x11-Avoid-updating-focus-on-wayland-compositor.patch:
+    Drop, applied in new release
+  * debian/control.in: Build-Depend on libgnome-desktop-4-dev instead of -3
+  * debian/control.in: Mark libgtk-3-dev as only needed for build tests
+  * debian/control.in: Bump minimum wayland-protocols to 1.31
+  * debian/*.symbols: Update; some "private" meta_* symbols were dropped
+
+  [ Simon McVittie ]
+  * Merge packaging from unstable (Closes: #1031945, #1031847)
+    - Drop patches that were backported from upstream 44.rc into unstable
+    - d/p/tests-Use-a-more-interoperable-path-to-bash.patch:
+      Fix path to interpreter in x11-test.sh instead of disabling it
+    - d/p/tests-Disable-broken-test.patch: Drop patch, no longer needed
+  * d/p/debian/backends-native-kms-crtc-Don-t-compare-gamma-values-on-un.patch:
+    Drop patch from upstream !2371, which no longer applies cleanly.
+    As far as I can see, this is unnecessary since commit 9001fa97
+    "kms/crtc: Always read the gamma state" from !2435.
+
+  [ Marco Trevisan (Treviño) ]
+  * d/p/debian/Support-Dynamic-triple-double-buffering.patch:
+    Refreshed with the 44-WIP version from Daniel, it's working properly in
+    main tested scenarios.
+  * debian/patches: Drop patch removing dependency on glib 2.75
+  * debian/control: Bump build-dependency on glib-2.75
+  * debian/control: Add breaks on gnome-shell << 44~rc.
+    It's not possible to compile older gnome-shell versions with mutter
+    44~rc due to the gtk dependency removal
+
+ -- Marco Trevisan (Treviño) <marco@ubuntu.com>  Wed, 08 Mar 2023 02:29:22 +0100
+
+mutter (44~beta-3) experimental; urgency=medium
+
+  * debian/control.in: Fix misspelling Replaces
+  * Mark 2 more tests as flaky for now
+  * Ignore test failures on s390x for now
+  * Cherry-pick a focus fix
+
+ -- Jeremy Bicha <jbicha@ubuntu.com>  Wed, 22 Feb 2023 20:34:02 -0500
+
+mutter (44~beta-2) experimental; urgency=medium
+
+  * Add patch to keep using glib 2.74 for now
+  * debian/control.in: Build-Depend on glib 2.74.0
+  * Have libmutter-12-0 depend on the required mutter-common-bin
+    (Closes: #1031688)
+
+ -- Jeremy Bicha <jbicha@ubuntu.com>  Mon, 20 Feb 2023 11:33:16 -0500
+
+mutter (44~beta-1) experimental; urgency=medium
+
+  * New upstream release
+  * Rename packages for API bump (mutter-11 -> mutter-12)
+  * Update symbols files
+  * Add mutter-common-bin to install libexec binaries
+  * Have libmutter-test-12 install the new MetaTest typelib
+    and add a Provides for it instead of creating a new binary package
+  * debian/mutter.install: mutter.desktop is no longer provided
+  * Bump minimum glib to 2.75.1
+  * Refresh patches
+  * Update triple buffering patch to the latest version
+  * Drop patch applied in new release
+  * Drop 2 patches that no longer apply:
+    - theme-load-icons-as-Gtk-does-with-fallback-and-RTL-suppor.patch
+    - theme-use-gtk_render_icon_suface-to-paint-button-icon.patch
+
+ -- Jeremy Bicha <jbicha@ubuntu.com>  Fri, 17 Feb 2023 16:41:43 -0500
 
 mutter (43.3-5) unstable; urgency=medium
 

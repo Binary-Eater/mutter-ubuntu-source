@@ -159,12 +159,10 @@ append_monitor (MetaMonitorManager *manager,
       for (i = 0; specs[i]; ++i)
         {
           int width, height;
-          float refresh_rate = 60.0;
+          float refresh_rate;
 
-          if (sscanf (specs[i], "%dx%d@%f",
-                      &width, &height, &refresh_rate) == 3 ||
-              sscanf (specs[i], "%dx%d",
-                      &width, &height) == 2)
+          if (meta_parse_monitor_mode (specs[i], &width, &height, &refresh_rate,
+                                       60.0))
             {
               CrtcModeSpec *spec;
 
@@ -209,6 +207,7 @@ append_monitor (MetaMonitorManager *manager,
 
   crtc = g_object_new (META_TYPE_CRTC_DUMMY,
                        "id", (uint64_t) g_list_length (*crtcs) + 1,
+                       "backend", meta_gpu_get_backend (gpu),
                        "gpu", gpu,
                        NULL);
   *crtcs = g_list_append (*crtcs, crtc);
@@ -295,6 +294,7 @@ append_tiled_monitor (MetaMonitorManager *manager,
 
       crtc = g_object_new (META_TYPE_CRTC_DUMMY,
                            "id", (uint64_t) g_list_length (*crtcs) + i + 1,
+                           "backend", meta_gpu_get_backend (gpu),
                            "gpu", gpu,
                            NULL);
       new_crtcs = g_list_append (new_crtcs, crtc);
@@ -674,9 +674,9 @@ meta_monitor_manager_dummy_calculate_supported_scales (MetaMonitorManager       
 }
 
 static gboolean
-is_monitor_framebuffers_scaled (void)
+is_monitor_framebuffers_scaled (MetaMonitorManager *manager)
 {
-  MetaBackend *backend = meta_get_backend ();
+  MetaBackend *backend = meta_monitor_manager_get_backend (manager);
   MetaSettings *settings = meta_backend_get_settings (backend);
 
   return meta_settings_is_experimental_feature_enabled (
@@ -687,7 +687,7 @@ is_monitor_framebuffers_scaled (void)
 static MetaMonitorManagerCapability
 meta_monitor_manager_dummy_get_capabilities (MetaMonitorManager *manager)
 {
-  MetaBackend *backend = meta_get_backend ();
+  MetaBackend *backend = meta_monitor_manager_get_backend (manager);
   MetaSettings *settings = meta_backend_get_settings (backend);
   MetaMonitorManagerCapability capabilities =
     META_MONITOR_MANAGER_CAPABILITY_NONE;
@@ -711,7 +711,7 @@ meta_monitor_manager_dummy_get_max_screen_size (MetaMonitorManager *manager,
 static MetaLogicalMonitorLayoutMode
 meta_monitor_manager_dummy_get_default_layout_mode (MetaMonitorManager *manager)
 {
-  if (is_monitor_framebuffers_scaled ())
+  if (is_monitor_framebuffers_scaled (manager))
     return META_LOGICAL_MONITOR_LAYOUT_MODE_LOGICAL;
   else
     return META_LOGICAL_MONITOR_LAYOUT_MODE_PHYSICAL;

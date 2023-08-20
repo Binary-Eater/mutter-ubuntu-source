@@ -43,6 +43,7 @@
 #include "backends/native/meta-device-pool.h"
 #include "backends/native/meta-drm-buffer-dumb.h"
 #include "backends/native/meta-drm-buffer-gbm.h"
+#include "backends/native/meta-frame-native.h"
 #include "backends/native/meta-kms-device.h"
 #include "backends/native/meta-kms-plane.h"
 #include "backends/native/meta-kms-update.h"
@@ -233,6 +234,7 @@ ensure_crtc_cursor_data (MetaCrtcKms *crtc_kms)
 
 static void
 assign_cursor_plane (MetaCursorRendererNative *native,
+                     ClutterFrame             *frame,
                      MetaCrtcKms              *crtc_kms,
                      int                       x,
                      int                       y,
@@ -245,6 +247,7 @@ assign_cursor_plane (MetaCursorRendererNative *native,
     meta_cursor_renderer_native_gpu_data_from_gpu (gpu_kms);
   MetaCursorNativeGpuState *cursor_gpu_state =
     get_cursor_gpu_state (cursor_priv, gpu_kms);
+  MetaFrameNative *frame_native = meta_frame_native_from_frame (frame);
   MetaKmsCrtc *kms_crtc;
   MetaKmsDevice *kms_device;
   MetaKmsPlane *cursor_plane;
@@ -288,9 +291,8 @@ assign_cursor_plane (MetaCursorRendererNative *native,
   if (!crtc_cursor_data->hw_state_invalidated && buffer == crtc_buffer)
     flags |= META_KMS_ASSIGN_PLANE_FLAG_FB_UNCHANGED;
 
-  kms_update =
-    meta_kms_ensure_pending_update_for_crtc (meta_kms_device_get_kms (kms_device),
-                                             kms_crtc);
+  kms_update = meta_frame_native_ensure_kms_update (frame_native,
+                                                    kms_device);
   plane_assignment = meta_kms_update_assign_plane (kms_update,
                                                    kms_crtc,
                                                    cursor_plane,
@@ -314,26 +316,30 @@ assign_cursor_plane (MetaCursorRendererNative *native,
 }
 
 static float
-calculate_cursor_crtc_sprite_scale (MetaCursorSprite   *cursor_sprite,
+calculate_cursor_crtc_sprite_scale (MetaBackend        *backend,
+                                    MetaCursorSprite   *cursor_sprite,
                                     MetaLogicalMonitor *logical_monitor)
 {
-  if (meta_is_stage_views_scaled ())
+  if (meta_backend_is_stage_views_scaled (backend))
     {
       return (meta_logical_monitor_get_scale (logical_monitor) *
               meta_cursor_sprite_get_texture_scale (cursor_sprite));
     }
   else
     {
-      return 1.0;
+      return meta_cursor_sprite_get_texture_scale (cursor_sprite);
     }
 }
 
 static void
 set_crtc_cursor (MetaCursorRendererNative *cursor_renderer_native,
+                 ClutterFrame             *frame,
                  MetaRendererView         *view,
                  MetaCrtc                 *crtc,
                  MetaCursorSprite         *cursor_sprite)
 {
+  MetaCursorRendererNativePrivate *priv =
+    meta_cursor_renderer_native_get_instance_private (cursor_renderer_native);
   MetaCursorRenderer *cursor_renderer =
     META_CURSOR_RENDERER (cursor_renderer_native);
   MetaOutput *output = meta_crtc_get_outputs (crtc)->data;
@@ -379,7 +385,8 @@ set_crtc_cursor (MetaCursorRendererNative *cursor_renderer_native,
   tex_height = cogl_texture_get_height (texture);
 
   cursor_crtc_scale =
-    calculate_cursor_crtc_sprite_scale (cursor_sprite,
+    calculate_cursor_crtc_sprite_scale (priv->backend,
+                                        cursor_sprite,
                                         logical_monitor);
 
   cursor_rect = (MetaRectangle) {
@@ -404,6 +411,7 @@ set_crtc_cursor (MetaCursorRendererNative *cursor_renderer_native,
                             &cursor_rect);
 
   assign_cursor_plane (cursor_renderer_native,
+                       frame,
                        META_CRTC_KMS (crtc),
                        cursor_rect.x,
                        cursor_rect.y,
@@ -412,9 +420,11 @@ set_crtc_cursor (MetaCursorRendererNative *cursor_renderer_native,
 
 static void
 unset_crtc_cursor (MetaCursorRendererNative *native,
+                   ClutterFrame             *frame,
                    MetaCrtc                 *crtc)
 {
   MetaCrtcKms *crtc_kms = META_CRTC_KMS (crtc);
+  MetaFrameNative *frame_native = meta_frame_native_from_frame (frame);
   CrtcCursorData *crtc_cursor_data;
   MetaKmsCrtc *kms_crtc;
   MetaKmsDevice *kms_device;
@@ -432,10 +442,10 @@ unset_crtc_cursor (MetaCursorRendererNative *native,
 
   if (cursor_plane)
     {
-      MetaKms *kms = meta_kms_device_get_kms (kms_device);
       MetaKmsUpdate *kms_update;
 
-      kms_update = meta_kms_ensure_pending_update_for_crtc (kms, kms_crtc);
+      kms_update = meta_frame_native_ensure_kms_update (frame_native,
+                                                        kms_device);
       meta_kms_update_unassign_plane (kms_update, kms_crtc, cursor_plane);
     }
 
@@ -468,7 +478,8 @@ disable_hw_cursor_for_crtc (MetaKmsCrtc  *kms_crtc,
 
 void
 meta_cursor_renderer_native_prepare_frame (MetaCursorRendererNative *cursor_renderer_native,
-                                           MetaRendererView         *view)
+                                           MetaRendererView         *view,
+                                           ClutterFrame             *frame)
 {
   MetaCursorRenderer *cursor_renderer =
     META_CURSOR_RENDERER (cursor_renderer_native);
@@ -511,7 +522,7 @@ meta_cursor_renderer_native_prepare_frame (MetaCursorRendererNative *cursor_rend
   if (!graphene_rect_intersection (&cursor_rect, &view_rect, NULL))
     goto unset_cursor;
 
-  set_crtc_cursor (cursor_renderer_native, view, crtc, cursor_sprite);
+  set_crtc_cursor (cursor_renderer_native, frame, view, crtc, cursor_sprite);
 
   meta_cursor_renderer_emit_painted (cursor_renderer,
                                      cursor_sprite,
@@ -522,7 +533,7 @@ meta_cursor_renderer_native_prepare_frame (MetaCursorRendererNative *cursor_rend
   return;
 
 unset_cursor:
-  unset_crtc_cursor (cursor_renderer_native, crtc);
+  unset_crtc_cursor (cursor_renderer_native, frame, crtc);
 
   crtc_cursor_data = ensure_crtc_cursor_data (META_CRTC_KMS (crtc));
   crtc_cursor_data->hw_state_invalidated = FALSE;
@@ -692,7 +703,9 @@ get_common_crtc_sprite_scale_for_logical_monitors (MetaCursorRenderer *renderer,
         continue;
 
       tmp_scale =
-        calculate_cursor_crtc_sprite_scale (cursor_sprite, logical_monitor);
+        calculate_cursor_crtc_sprite_scale (backend,
+                                            cursor_sprite,
+                                            logical_monitor);
 
       if (has_visible_crtc_sprite && scale != tmp_scale)
         return FALSE;
@@ -1142,7 +1155,6 @@ ensure_cursor_priv (MetaCursorSprite *cursor_sprite)
   return cursor_priv;
 }
 
-#ifndef __aarch64__
 static MetaDrmBuffer *
 create_cursor_drm_buffer_gbm (MetaGpuKms         *gpu_kms,
                               MetaDeviceFile     *device_file,
@@ -1200,7 +1212,6 @@ create_cursor_drm_buffer_gbm (MetaGpuKms         *gpu_kms,
 
   return META_DRM_BUFFER (buffer_gbm);
 }
-#endif
 
 static MetaDrmBuffer *
 create_cursor_drm_buffer_dumb (MetaGpuKms      *gpu_kms,
@@ -1246,7 +1257,6 @@ create_cursor_drm_buffer (MetaGpuKms      *gpu_kms,
                           uint32_t         format,
                           GError         **error)
 {
-#ifndef __aarch64__
   struct gbm_device *gbm_device;
 
   gbm_device = meta_gbm_device_from_gpu (gpu_kms);
@@ -1260,7 +1270,6 @@ create_cursor_drm_buffer (MetaGpuKms      *gpu_kms,
                                            error);
     }
   else
-#endif
     {
       return create_cursor_drm_buffer_dumb (gpu_kms, device_file,
                                             pixels,
@@ -1360,6 +1369,7 @@ is_cursor_scale_and_transform_valid (MetaCursorRenderer *renderer,
 
 static cairo_surface_t *
 scale_and_transform_cursor_sprite_cpu (uint8_t              *pixels,
+                                       cairo_format_t        pixel_format,
                                        int                   width,
                                        int                   height,
                                        int                   rowstride,
@@ -1417,7 +1427,7 @@ scale_and_transform_cursor_sprite_cpu (uint8_t              *pixels,
   cairo_scale (cr, scale, scale);
 
   source_surface = cairo_image_surface_create_for_data (pixels,
-                                                        CAIRO_FORMAT_ARGB32,
+                                                        pixel_format,
                                                         width,
                                                         height,
                                                         rowstride);
@@ -1428,6 +1438,21 @@ scale_and_transform_cursor_sprite_cpu (uint8_t              *pixels,
   cairo_surface_destroy (source_surface);
 
   return target_surface;
+}
+
+static cairo_format_t
+gbm_format_to_cairo_format (uint32_t gbm_format)
+{
+  switch (gbm_format)
+    {
+    case GBM_FORMAT_XRGB8888:
+      return CAIRO_FORMAT_RGB24;
+    default:
+      g_warn_if_reached ();
+      G_GNUC_FALLTHROUGH;
+    case GBM_FORMAT_ARGB8888:
+      return CAIRO_FORMAT_ARGB32;
+    }
 }
 
 static void
@@ -1443,11 +1468,15 @@ load_scaled_and_transformed_cursor_sprite (MetaCursorRendererNative *native,
                                            uint32_t                  gbm_format)
 {
   if (!G_APPROX_VALUE (relative_scale, 1.f, FLT_EPSILON) ||
-      relative_transform != META_MONITOR_TRANSFORM_NORMAL)
+      relative_transform != META_MONITOR_TRANSFORM_NORMAL ||
+      gbm_format != GBM_FORMAT_ARGB8888)
     {
       cairo_surface_t *surface;
+      cairo_format_t cairo_format;
 
+      cairo_format = gbm_format_to_cairo_format (gbm_format),
       surface = scale_and_transform_cursor_sprite_cpu (data,
+                                                       cairo_format,
                                                        width,
                                                        height,
                                                        rowstride,
@@ -1461,7 +1490,7 @@ load_scaled_and_transformed_cursor_sprite (MetaCursorRendererNative *native,
                                              cairo_image_surface_get_width (surface),
                                              cairo_image_surface_get_width (surface),
                                              cairo_image_surface_get_stride (surface),
-                                             gbm_format);
+                                             GBM_FORMAT_ARGB8888);
 
       cairo_surface_destroy (surface);
     }

@@ -28,6 +28,7 @@ enum
   PROP_0,
 
   PROP_ID,
+  PROP_BACKEND,
   PROP_GPU,
   PROP_ALL_TRANSFORMS,
 
@@ -40,6 +41,7 @@ typedef struct _MetaCrtcPrivate
 {
   uint64_t id;
 
+  MetaBackend *backend;
   MetaGpu *gpu;
 
   MetaMonitorTransform all_transforms;
@@ -56,6 +58,14 @@ meta_crtc_get_id (MetaCrtc *crtc)
   MetaCrtcPrivate *priv = meta_crtc_get_instance_private (crtc);
 
   return priv->id;
+}
+
+MetaBackend *
+meta_crtc_get_backend (MetaCrtc *crtc)
+{
+  MetaCrtcPrivate *priv = meta_crtc_get_instance_private (crtc);
+
+  return priv->backend;
 }
 
 MetaGpu *
@@ -165,6 +175,122 @@ meta_gamma_lut_free (MetaGammaLut *lut)
   g_free (lut);
 }
 
+MetaGammaLut *
+meta_gamma_lut_new (int             size,
+                    const uint16_t *red,
+                    const uint16_t *green,
+                    const uint16_t *blue)
+{
+  MetaGammaLut *gamma;
+
+  gamma = g_new0 (MetaGammaLut, 1);
+  *gamma = (MetaGammaLut) {
+    .size = size,
+    .red = g_memdup2 (red, size * sizeof (*red)),
+    .green = g_memdup2 (green, size * sizeof (*green)),
+    .blue = g_memdup2 (blue, size * sizeof (*blue)),
+  };
+
+  return gamma;
+}
+
+MetaGammaLut *
+meta_gamma_lut_new_sized (int size)
+{
+  MetaGammaLut *gamma;
+
+  gamma = g_new0 (MetaGammaLut, 1);
+  *gamma = (MetaGammaLut) {
+    .size = size,
+    .red = g_new0 (uint16_t, size),
+    .green = g_new0 (uint16_t, size),
+    .blue = g_new0 (uint16_t, size),
+  };
+
+  return gamma;
+}
+
+MetaGammaLut *
+meta_gamma_lut_copy (const MetaGammaLut *gamma)
+{
+  g_return_val_if_fail (gamma != NULL, NULL);
+
+  return meta_gamma_lut_new (gamma->size, gamma->red, gamma->green, gamma->blue);
+}
+
+MetaGammaLut *
+meta_gamma_lut_copy_to_size (const MetaGammaLut *gamma,
+                             int                 target_size)
+{
+  MetaGammaLut *out;
+
+  g_return_val_if_fail (gamma != NULL, NULL);
+
+  if (gamma->size == target_size)
+    return meta_gamma_lut_copy (gamma);
+
+  out = meta_gamma_lut_new_sized (target_size);
+
+  if (target_size >= gamma->size)
+    {
+      int i, j;
+      int slots;
+
+      slots = target_size / gamma->size;
+      for (i = 0; i < gamma->size; i++)
+        {
+          for (j = 0; j < slots; j++)
+            {
+              out->red[i * slots + j] = gamma->red[i];
+              out->green[i * slots + j] = gamma->green[i];
+              out->blue[i * slots + j] = gamma->blue[i];
+            }
+        }
+
+      for (j = i * slots; j < target_size; j++)
+        {
+          out->red[j] = gamma->red[i - 1];
+          out->green[j] = gamma->green[i - 1];
+          out->blue[j] = gamma->blue[i - 1];
+        }
+    }
+  else
+    {
+      int i;
+      int idx;
+
+      for (i = 0; i < target_size; i++)
+        {
+          idx = i * (gamma->size - 1) / (target_size - 1);
+
+          out->red[i] = gamma->red[idx];
+          out->green[i] = gamma->green[idx];
+          out->blue[i] = gamma->blue[idx];
+        }
+    }
+
+  return out;
+}
+
+gboolean
+meta_gamma_lut_equal (const MetaGammaLut *gamma,
+                      const MetaGammaLut *other_gamma)
+{
+  if (gamma == other_gamma)
+    return TRUE;
+
+  if (gamma == NULL || other_gamma == NULL)
+    return FALSE;
+
+  return gamma->size == other_gamma->size &&
+         memcmp (gamma->red, other_gamma->red,
+                 gamma->size * sizeof (uint16_t)) == 0 &&
+         memcmp (gamma->green, other_gamma->green,
+                 gamma->size * sizeof (uint16_t)) == 0 &&
+         memcmp (gamma->blue, other_gamma->blue,
+                 gamma->size * sizeof (uint16_t)) == 0;
+}
+
 static void
 meta_crtc_set_property (GObject      *object,
                         guint         prop_id,
@@ -178,6 +304,9 @@ meta_crtc_set_property (GObject      *object,
     {
     case PROP_ID:
       priv->id = g_value_get_uint64 (value);
+      break;
+    case PROP_BACKEND:
+      priv->backend = g_value_get_object (value);
       break;
     case PROP_GPU:
       priv->gpu = g_value_get_object (value);
@@ -203,6 +332,9 @@ meta_crtc_get_property (GObject    *object,
     {
     case PROP_ID:
       g_value_set_uint64 (value, priv->id);
+      break;
+    case PROP_BACKEND:
+      g_value_set_object (value, priv->backend);
       break;
     case PROP_GPU:
       g_value_set_object (value, priv->gpu);
@@ -249,6 +381,14 @@ meta_crtc_class_init (MetaCrtcClass *klass)
                          "id",
                          "CRTC id",
                          0, UINT64_MAX, 0,
+                         G_PARAM_READWRITE |
+                         G_PARAM_CONSTRUCT_ONLY |
+                         G_PARAM_STATIC_STRINGS);
+  obj_props[PROP_BACKEND] =
+    g_param_spec_object ("backend",
+                         "backend",
+                         "MetaBackend",
+                         META_TYPE_BACKEND,
                          G_PARAM_READWRITE |
                          G_PARAM_CONSTRUCT_ONLY |
                          G_PARAM_STATIC_STRINGS);

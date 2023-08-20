@@ -15,15 +15,16 @@ cogl_tests = [
   [ 'test-sub-texture', [] ],
   [ 'test-custom-attributes', [] ],
   [ 'test-offscreen', [] ],
+  [ 'test-offscreen-texture-formats', [] ],
   [ 'test-journal', [] ],
   [ 'test-primitive', [] ],
   [ 'test-sparse-pipeline', [] ],
-  [ 'test-read-texture-formats', ['gl', 'gl3'] ],
+  [ 'test-read-texture-formats', ['gl3'] ],
   [ 'test-write-texture-formats', [] ],
   [ 'test-point-size', [] ],
   [ 'test-point-size-attribute', [] ],
   [ 'test-point-sprite', [] ],
-  [ 'test-point-sprite-known-failure', ['gl', 'gl3', 'gles2'] ],
+  [ 'test-point-sprite-known-failure', ['gl3', 'gles2'] ],
   [ 'test-no-gl-header', [] ],
   [ 'test-layer-remove', [] ],
   [ 'test-alpha-test', [] ],
@@ -70,7 +71,7 @@ test_env.set('G_TEST_SRCDIR', meson.current_source_dir())
 test_env.set('G_TEST_BUILDDIR', meson.current_build_dir())
 test_env.set('G_ENABLE_DIAGNOSTIC', '0')
 
-cogl_test_variants = [ 'gl', 'gl3', 'gles2' ]
+cogl_test_variants = [ 'gl3', 'gles2' ]
 
 foreach cogl_test: cogl_tests
   test_case = cogl_test[0]

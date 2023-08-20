@@ -309,6 +309,8 @@ meta_kms_device_process_update_sync (MetaKmsDevice     *device,
   MetaKms *kms = META_KMS (meta_kms_device_get_kms (device));
   PostUpdateData data;
 
+  meta_kms_update_seal (update);
+
   data = (PostUpdateData) {
     .update = update,
     .flags = flags,
@@ -576,6 +578,9 @@ meta_kms_device_finalize (GObject *object)
   MetaKmsDevice *device = META_KMS_DEVICE (object);
 
   g_free (device->path);
+  g_free (device->driver_name);
+  g_free (device->driver_description);
+  g_list_free (device->fallback_modes);
   g_list_free (device->crtcs);
   g_list_free (device->connectors);
   g_list_free (device->planes);

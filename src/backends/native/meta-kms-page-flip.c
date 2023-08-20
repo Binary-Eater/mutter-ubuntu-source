@@ -151,7 +151,7 @@ meta_kms_page_flip_data_flipped (MetaKms  *kms,
 
   meta_assert_not_in_kms_impl (kms);
 
-  meta_kms_crtc_on_scanout_started (page_flip_data->crtc);
+  meta_swap_chain_swap_buffers (meta_kms_crtc_get_swap_chain (page_flip_data->crtc));
 
   for (l = page_flip_data->closures; l; l = l->next)
     {

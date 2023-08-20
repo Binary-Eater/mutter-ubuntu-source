@@ -123,7 +123,7 @@ sync_cursor_state (MetaScreenCastVirtualStreamSrc *virtual_src)
     return;
 
   flags = META_SCREEN_CAST_RECORD_FLAG_CURSOR_ONLY;
-  meta_screen_cast_stream_src_maybe_record_frame (src, flags);
+  meta_screen_cast_stream_src_maybe_record_frame (src, flags, NULL);
 }
 
 static void
@@ -146,6 +146,7 @@ cursor_changed (MetaCursorTracker              *cursor_tracker,
 static void
 on_prepare_frame (ClutterStage                   *stage,
                   ClutterStageView               *stage_view,
+                  ClutterFrame                   *frame,
                   MetaScreenCastVirtualStreamSrc *virtual_src)
 {
   sync_cursor_state (virtual_src);
@@ -185,13 +186,16 @@ static void
 actors_painted (MetaStage           *stage,
                 ClutterStageView    *view,
                 ClutterPaintContext *paint_context,
+                ClutterFrame        *frame,
                 gpointer             user_data)
 {
   MetaScreenCastStreamSrc *src = META_SCREEN_CAST_STREAM_SRC (user_data);
   MetaScreenCastRecordFlag flags;
+  const cairo_region_t *redraw_clip = NULL;
 
   flags = META_SCREEN_CAST_RECORD_FLAG_NONE;
-  meta_screen_cast_stream_src_maybe_record_frame (src, flags);
+  redraw_clip = clutter_paint_context_get_redraw_clip (paint_context);
+  meta_screen_cast_stream_src_maybe_record_frame (src, flags, redraw_clip);
 }
 
 static void

@@ -123,7 +123,7 @@ META_EXPORT
 const char* meta_preference_to_string (MetaPreference pref);
 
 META_EXPORT
-MetaVirtualModifier         meta_prefs_get_mouse_button_mods  (void);
+ClutterModifierType         meta_prefs_get_mouse_button_mods  (void);
 
 META_EXPORT
 gint                        meta_prefs_get_mouse_button_resize (void);
@@ -467,6 +467,9 @@ GType meta_key_binding_get_type    (void);
 
 META_EXPORT
 MetaKeyBindingAction meta_prefs_get_keybinding_action (const char *name);
+
+META_EXPORT
+char * meta_prefs_get_keybinding_label (const char *name);
 
 META_EXPORT
 gboolean           meta_prefs_get_visual_bell      (void);

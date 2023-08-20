@@ -486,7 +486,7 @@ process_mode_set (MetaKmsImplDevice  *impl_device,
       return FALSE;
     }
 
-  meta_kms_crtc_on_scanout_started (crtc);
+  meta_swap_chain_swap_buffers (meta_kms_crtc_get_swap_chain (crtc));
 
   if (drm_mode)
     {
@@ -505,35 +505,40 @@ process_mode_set (MetaKmsImplDevice  *impl_device,
 }
 
 static gboolean
-process_crtc_gamma (MetaKmsImplDevice  *impl_device,
-                    MetaKmsUpdate      *update,
-                    gpointer            update_entry,
-                    GError            **error)
+process_crtc_color_updates (MetaKmsImplDevice  *impl_device,
+                            MetaKmsUpdate      *update,
+                            gpointer            update_entry,
+                            GError            **error)
 {
-  MetaKmsCrtcGamma *gamma = update_entry;
-  MetaKmsCrtc *crtc = gamma->crtc;
-  int fd;
-  int ret;
+  MetaKmsCrtcColorUpdate *color_update = update_entry;
+  MetaKmsCrtc *crtc = color_update->crtc;
 
-  meta_topic (META_DEBUG_KMS,
-              "[simple] Setting CRTC %u (%s) gamma, size: %d",
-              meta_kms_crtc_get_id (crtc),
-              meta_kms_impl_device_get_path (impl_device),
-              gamma->size);
-
-  fd = meta_kms_impl_device_get_fd (impl_device);
-  ret = drmModeCrtcSetGamma (fd, meta_kms_crtc_get_id (crtc),
-                             gamma->size,
-                             gamma->red,
-                             gamma->green,
-                             gamma->blue);
-  if (ret != 0)
+  if (color_update->gamma.has_update)
     {
-      g_set_error (error, G_IO_ERROR, g_io_error_from_errno (-ret),
-                   "drmModeCrtcSetGamma on CRTC %u failed: %s",
-                   meta_kms_crtc_get_id (crtc),
-                   g_strerror (-ret));
-      return FALSE;
+      MetaGammaLut *gamma = color_update->gamma.state;
+      int fd;
+      int ret;
+
+      meta_topic (META_DEBUG_KMS,
+                  "[simple] Setting CRTC %u (%s) gamma, size: %zu",
+                  meta_kms_crtc_get_id (crtc),
+                  meta_kms_impl_device_get_path (impl_device),
+                  gamma->size);
+
+      fd = meta_kms_impl_device_get_fd (impl_device);
+      ret = drmModeCrtcSetGamma (fd, meta_kms_crtc_get_id (crtc),
+                                 gamma->size,
+                                 gamma->red,
+                                 gamma->green,
+                                 gamma->blue);
+      if (ret != 0)
+        {
+          g_set_error (error, G_IO_ERROR, g_io_error_from_errno (-ret),
+                       "drmModeCrtcSetGamma on CRTC %u failed: %s",
+                       meta_kms_crtc_get_id (crtc),
+                       g_strerror (-ret));
+          return FALSE;
+        }
     }
 
   return TRUE;
@@ -883,7 +888,7 @@ mode_set_fallback (MetaKmsImplDeviceSimple  *impl_device_simple,
       return FALSE;
     }
 
-  meta_kms_crtc_on_scanout_started (crtc);
+  meta_swap_chain_swap_buffers (meta_kms_crtc_get_swap_chain (crtc));
 
   if (!impl_device_simple->mode_set_fallback_feedback_source)
     {
@@ -1136,15 +1141,14 @@ maybe_dispatch_page_flips (MetaKmsImplDevice  *impl_device,
                            MetaKmsUpdateFlag   flags,
                            GError            **error)
 {
-  g_autoptr (GList) page_flip_datas = NULL;
-  GList *l;
+  g_autolist (MetaKmsPageFlipData) page_flip_datas = NULL;
 
   page_flip_datas = generate_page_flip_datas (impl_device, update);
 
   while (page_flip_datas)
     {
       g_autoptr (GList) l = NULL;
-      MetaKmsPageFlipData *page_flip_data;
+      g_autoptr (MetaKmsPageFlipData) page_flip_data = NULL;
 
       l = page_flip_datas;
       page_flip_datas = g_list_remove_link (page_flip_datas, l);
@@ -1171,25 +1175,17 @@ maybe_dispatch_page_flips (MetaKmsImplDevice  *impl_device,
               *failed_planes = g_list_prepend (*failed_planes, plane_feedback);
             }
 
-          if (!(flags & META_KMS_UPDATE_FLAG_PRESERVE_ON_ERROR))
-            meta_kms_page_flip_data_discard_in_impl (page_flip_data, *error);
-
           goto err;
+        }
+      else
+        {
+          meta_kms_page_flip_data_ref (page_flip_data);
         }
     }
 
   return TRUE;
 
 err:
-  if (!(flags & META_KMS_UPDATE_FLAG_PRESERVE_ON_ERROR))
-    {
-      for (l = page_flip_datas; l; l = l->next)
-        {
-          MetaKmsPageFlipData *page_flip_data = l->data;
-
-          meta_kms_page_flip_data_discard_in_impl (page_flip_data, *error);
-        }
-    }
   g_list_free (page_flip_datas);
 
   return FALSE;
@@ -1341,9 +1337,9 @@ process_plane_assignment (MetaKmsImplDevice       *impl_device,
   g_assert_not_reached ();
 
 assigned:
-  meta_kms_crtc_remember_plane_buffer (plane_assignment->crtc,
-                                       meta_kms_plane_get_id (plane),
-                                       plane_assignment->buffer);
+  meta_swap_chain_push_buffer (meta_kms_crtc_get_swap_chain (plane_assignment->crtc),
+                               meta_kms_plane_get_id (plane),
+                               G_OBJECT (plane_assignment->buffer));
   return TRUE;
 }
 
@@ -1515,9 +1511,7 @@ meta_kms_impl_device_simple_process_update (MetaKmsImplDevice *impl_device,
   GError *error = NULL;
   GList *failed_planes = NULL;
 
-  meta_topic (META_DEBUG_KMS,
-              "[simple] Processing update %" G_GUINT64_FORMAT,
-              meta_kms_update_get_sequence_number (update));
+  meta_topic (META_DEBUG_KMS, "[simple] Processing update");
 
   if (flags & META_KMS_UPDATE_FLAG_TEST_ONLY)
     return perform_update_test (impl_device, update);
@@ -1538,8 +1532,8 @@ meta_kms_impl_device_simple_process_update (MetaKmsImplDevice *impl_device,
 
   if (!process_entries (impl_device,
                         update,
-                        meta_kms_update_get_crtc_gammas (update),
-                        process_crtc_gamma,
+                        meta_kms_update_get_crtc_color_updates (update),
+                        process_crtc_color_updates,
                         &error))
     goto err;
 
@@ -1701,7 +1695,7 @@ meta_kms_impl_device_simple_finalize (GObject *object)
 
   g_clear_pointer (&impl_device_simple->mode_set_fallback_feedback_source,
                    g_source_destroy);
-  g_hash_table_destroy (impl_device_simple->cached_mode_sets);
+  g_clear_pointer (&impl_device_simple->cached_mode_sets, g_hash_table_destroy);
 
   G_OBJECT_CLASS (meta_kms_impl_device_simple_parent_class)->finalize (object);
 }

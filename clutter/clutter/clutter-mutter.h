@@ -29,6 +29,7 @@
 #include "clutter-backend-private.h"
 #include "clutter-damage-history.h"
 #include "clutter-event-private.h"
+#include "clutter-frame-private.h"
 #include "clutter-input-device-private.h"
 #include "clutter-input-pointer-a11y-private.h"
 #include "clutter-macros.h"
@@ -110,6 +111,7 @@ CLUTTER_EXPORT
 void clutter_stage_update_device (ClutterStage         *stage,
                                   ClutterInputDevice   *device,
                                   ClutterEventSequence *sequence,
+                                  ClutterInputDevice   *source_device,
                                   graphene_point_t      point,
                                   uint32_t              time,
                                   ClutterActor         *new_actor,

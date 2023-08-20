@@ -17,6 +17,79 @@
 
 #include "clutter/clutter-frame-private.h"
 
+G_DEFINE_BOXED_TYPE (ClutterFrame, clutter_frame,
+                     clutter_frame_ref,
+                     clutter_frame_unref)
+
+ClutterFrame *
+clutter_frame_ref (ClutterFrame *frame)
+{
+  g_ref_count_inc (&frame->ref_count);
+  return frame;
+}
+
+void
+clutter_frame_unref (ClutterFrame *frame)
+{
+  if (g_ref_count_dec (&frame->ref_count))
+    {
+      if (frame->release)
+        frame->release (frame);
+      g_free (frame);
+    }
+}
+
+gpointer
+(clutter_frame_new) (size_t              size,
+                     ClutterFrameRelease release)
+{
+  ClutterFrame *frame;
+
+  g_assert (size >= sizeof (ClutterFrame));
+
+  frame = g_malloc0 (size);
+  g_ref_count_init (&frame->ref_count);
+  frame->release = release;
+
+  return frame;
+}
+
+int64_t
+clutter_frame_get_count (ClutterFrame *frame)
+{
+  return frame->frame_count;
+}
+
+gboolean
+clutter_frame_get_target_presentation_time (ClutterFrame *frame,
+                                            int64_t      *target_presentation_time_us)
+{
+  if (frame->has_target_presentation_time)
+    {
+      *target_presentation_time_us = frame->target_presentation_time_us;
+      return TRUE;
+    }
+  else
+    {
+      return FALSE;
+    }
+}
+
+gboolean
+clutter_frame_get_min_render_time_allowed (ClutterFrame *frame,
+                                           int64_t      *min_render_time_allowed_us)
+{
+  if (frame->has_target_presentation_time)
+    {
+      *min_render_time_allowed_us = frame->min_render_time_allowed_us;
+      return TRUE;
+    }
+  else
+    {
+      return FALSE;
+    }
+}
+
 ClutterFrameResult
 clutter_frame_get_result (ClutterFrame *frame)
 {

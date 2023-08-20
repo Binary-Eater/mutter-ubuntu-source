@@ -12,6 +12,7 @@ mutter_test_sources = [
   'meta-ref-test.h',
   'meta-sensors-proxy-mock.c',
   'meta-sensors-proxy-mock.h',
+  'meta-test-monitor.c',
   'meta-test-utils.c',
   'meta-test-utils.h',
 ]
@@ -32,11 +33,13 @@ tests_includepath = include_directories('.')
 tests_includes = mutter_includes
 tests_c_args = mutter_c_args
 
+subdir('meta-test')
+
 tests_deps = [
-  mutter_deps,
-  libmutter_dep,
   libmutter_cogl_dep,
   libmutter_clutter_dep,
+  libmutter_dep,
+  mutter_deps,
 ]
 
 libmutter_test = shared_library(libmutter_test_name,
@@ -58,6 +61,45 @@ libmutter_test_dep = declare_dependency(
   include_directories: tests_includes,
   dependencies: tests_deps,
 )
+
+if have_introspection
+  mutter_test_introspected_sources = []
+  foreach source: mutter_test_sources
+    if source.endswith('.c')
+      mutter_test_introspected_sources += source
+    endif
+  endforeach
+
+  libmutter_test_gir =  gnome.generate_gir(libmutter_test,
+    sources: [
+      mutter_test_introspected_sources,
+      mutter_test_public_headers,
+    ],
+    nsversion: libmutter_api_version,
+    namespace: 'MetaTest',
+    symbol_prefix: 'meta',
+    identifier_prefix: 'Meta',
+    includes: [
+      'GObject-2.0',
+      'GDesktopEnums-3.0',
+      'xlib-2.0',
+      'xfixes-4.0',
+      libmutter_cogl_gir[0],
+      libmutter_cogl_pango_gir[0],
+      libmutter_clutter_gir[0],
+      libmutter_gir[0],
+    ],
+    dependencies: [
+      libmutter_test_dep,
+      libmutter_dep,
+      mutter_deps,
+    ],
+    extra_args: mutter_c_args + introspection_args,
+    install_dir_gir: pkglibdir,
+    install_dir_typelib: pkglibdir,
+    install: true
+  )
+endif
 
 pkg.generate(libmutter_test,
   name: 'Meta (test framework)',
@@ -81,24 +123,12 @@ if have_clutter_tests
   subdir('clutter')
 endif
 
-subdir('meta-test')
+subdir('protocol')
+subdir('drm-mock')
 subdir('wayland-test-clients')
 
 if have_installed_tests
   stacking_files_datadir = join_paths(pkgdatadir, 'tests')
-
-  installed_tests_cdata = configuration_data()
-  installed_tests_cdata.set('libexecdir', libexecdir)
-  installed_tests_cdata.set('apiversion', libmutter_api_version)
-
-  configure_file(
-    input: 'mutter-all.test.in',
-    output: 'mutter-all.test',
-    configuration: installed_tests_cdata,
-    install: true,
-    install_dir: mutter_installed_tests_datadir,
-  )
-
   install_subdir('stacking', install_dir: stacking_files_datadir)
 endif
 
@@ -126,6 +156,9 @@ test_client = executable('mutter-test-client',
     gio_unix_dep,
     x11_dep,
     xext_dep,
+    graphene_dep,
+    json_glib_dep,
+    gsettings_desktop_schemas_dep,
   ],
   install: have_installed_tests,
   install_dir: mutter_installed_tests_libexecdir,
@@ -202,12 +235,14 @@ test_cases += [
       'monitor-transform-tests.c',
       'monitor-transform-tests.h',
       'orientation-manager-unit-tests.c',
+      'hdr-metadata-unit-tests.c',
     ],
   },
   {
     'name': 'monitor-unit',
     'suite': 'backend',
     'sources': [ 'monitor-unit-tests.c', ],
+    'depends': [ test_client ],
   },
   {
     'name': 'monitor-utils',
@@ -215,14 +250,10 @@ test_cases += [
     'sources': [ 'monitor-util-tests.c', ],
   },
   {
-    'name': 'headless-start',
-    'suite': 'backend',
-    'sources': [ 'headless-start-test.c', ],
-  },
-  {
     'name': 'stage-views',
     'suite': 'compositor',
     'sources': [ 'stage-view-tests.c', ],
+    'depends': [ test_client ],
   },
   {
     'name': 'anonymous-file',
@@ -250,8 +281,8 @@ if have_native_tests
   screen_cast_client = executable('mutter-screen-cast-client',
     sources: [
       'screen-cast-client.c',
-      dbus_remote_desktop_built_sources,
-      dbus_screen_cast_built_sources,
+      built_dbus_sources['meta-dbus-remote-desktop'],
+      built_dbus_sources['meta-dbus-screen-cast'],
     ],
     include_directories: tests_includes,
     c_args: [
@@ -289,6 +320,7 @@ if have_native_tests
       'name': 'pointer-constraints',
       'suite': 'backends/native',
       'sources': [ 'native-pointer-constraints.c' ],
+      'depends': [ test_client ],
     },
     {
       'name': 'ref-test-sanity',
@@ -366,6 +398,21 @@ if have_native_tests
       'variants': kms_test_variants,
     },
     {
+      'name': 'kms-headless-start',
+      'suite': 'backend/native/kms',
+      'sources': [ 'native-kms-headless-start.c', ],
+    },
+    {
+      'name': 'kms-hotplug',
+      'suite': 'backends/native/kms',
+      'sources': [
+        'meta-kms-test-utils.c',
+        'meta-kms-test-utils.h',
+        'native-kms-hotplug.c',
+      ],
+      'variants': kms_test_variants,
+    },
+    {
       'name': 'kms-cursor-hotplug',
       'suite': 'backends/native',
       'sources': [
@@ -380,18 +427,10 @@ if have_native_tests
   # Wayland tests
   test_cases += [
     {
-      'name': 'wayland-unit',
+      'name': 'wayland-client-tests',
       'suite': 'wayland',
       'sources': [
-        'wayland-unit-tests.c',
-        wayland_test_utils,
-      ],
-    },
-    {
-      'name': 'xwayland',
-      'suite': 'wayland',
-      'sources': [
-        'xwayland-tests.c',
+        'wayland-client-tests.c',
       ],
     },
     {
@@ -399,6 +438,78 @@ if have_native_tests
       'suite': 'wayland',
       'sources': [
         'wayland-fullscreen-test.c',
+        wayland_test_utils,
+      ],
+    },
+    {
+      'name': 'wayland-fractional-scale',
+      'suite': 'wayland',
+      'sources': [
+        'wayland-fractional-scale-test.c',
+        wayland_test_utils,
+      ],
+    },
+    {
+      'name': 'wayland-unit',
+      'suite': 'wayland',
+      'sources': [
+        'wayland-unit-tests.c',
+        dummy_client_header,
+        dummy_server_header,
+        dummy_protocol_code,
+        wayland_test_utils,
+      ],
+    },
+    {
+      'name': 'wayland-x11-interop',
+      'suite': 'wayland',
+      'sources': [
+        'wayland-x11-interop-tests.c',
+        wayland_test_client_utils,
+        wayland_test_utils,
+        wayland_protocol_files['mutter-x11-interop']['protocol-code'],
+        built_dbus_sources['meta-dbus-service-channel'],
+      ],
+      'depends': [ test_client ],
+    },
+  ]
+  if have_xwayland
+    x11_compositor_checker = executable('x11-compositor-checker',
+      sources: ['x11-compositor-checker.c'],
+      include_directories: tests_includes,
+      c_args: [
+        tests_c_args,
+      ],
+      dependencies: [
+        x11_dep,
+      ],
+      install: have_installed_tests,
+      install_dir: mutter_installed_tests_libexecdir,
+      install_rpath: pkglibdir,
+    )
+
+    test_cases += [
+      {
+        'name': 'xwayland',
+        'suite': 'wayland',
+        'depends': [
+          test_client,
+          x11_compositor_checker,
+        ],
+        'sources': [
+          'xwayland-tests.c',
+        ],
+      },
+    ]
+  endif
+
+  # Miscellaneous tests
+  test_cases += [
+    {
+      'name': 'service-channel',
+      'suite': 'wayland',
+      'sources': [
+        'service-channel-tests.c',
         wayland_test_utils,
       ],
     },
@@ -421,6 +532,7 @@ if have_native_tests
     test(test_case['name'], test_executable,
       suite: ['core', 'mutter/' + test_case['suite']],
       env: test_env,
+      depends: test_case.get('depends', []),
       is_parallel: false,
       timeout: 60,
     )
@@ -460,6 +572,9 @@ stacking_tests = [
   'workspace-test',
   'always-on-top',
   'focus-default-window-globally-active-input',
+  'workspace-unmanaging-window',
+  'click-to-focus-and-raise',
+  'workspace-only-on-primary-focus',
 ]
 
 foreach stacking_test: stacking_tests
@@ -472,6 +587,22 @@ foreach stacking_test: stacking_tests
     is_parallel: false,
     timeout: 60,
   )
+
+  if have_installed_tests
+    installed_tests_cdata = configuration_data()
+    installed_tests_cdata.set('apiversion', libmutter_api_version)
+    installed_tests_cdata.set('libexecdir', libexecdir)
+    installed_tests_cdata.set('tests_datadir', tests_datadir)
+    installed_tests_cdata.set('stacking_test', stacking_test)
+
+    configure_file(
+      input: 'stacking.test.in',
+      output: stacking_test + '.test',
+      configuration: installed_tests_cdata,
+      install: true,
+      install_dir: mutter_installed_tests_datadir,
+    )
+  endif
 endforeach
 
 if have_kvm_tests or have_tty_tests
@@ -490,7 +621,10 @@ if have_kvm_tests or have_tty_tests
         tests_c_args,
         '-DG_LOG_DOMAIN="mutter-@0@-test"'.format(test_case['name']),
       ],
-      dependencies: libmutter_test_dep,
+      dependencies: [
+        libmutter_test_dep,
+        drm_mock_dep
+      ],
       install: have_installed_tests,
       install_dir: mutter_installed_tests_libexecdir,
       install_rpath: pkglibdir,

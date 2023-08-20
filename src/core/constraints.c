@@ -31,6 +31,7 @@
 #include "backends/meta-backend-private.h"
 #include "backends/meta-logical-monitor.h"
 #include "backends/meta-monitor-manager-private.h"
+#include "compositor/compositor-private.h"
 #include "core/boxes-private.h"
 #include "core/meta-workspace-manager-private.h"
 #include "core/place.h"
@@ -121,6 +122,8 @@ typedef enum
 
 typedef struct
 {
+  MetaBackend *backend;
+
   MetaRectangle        orig;
   MetaRectangle        current;
   MetaRectangle        temporary;
@@ -205,7 +208,8 @@ static gboolean constrain_partially_onscreen (MetaWindow         *window,
                                               ConstraintPriority  priority,
                                               gboolean            check_only);
 
-static void setup_constraint_info        (ConstraintInfo      *info,
+static void setup_constraint_info        (MetaBackend         *backend,
+                                          ConstraintInfo      *info,
                                           MetaWindow          *window,
                                           MetaMoveResizeFlags  flags,
                                           MetaGravity          resize_gravity,
@@ -291,6 +295,9 @@ meta_window_constrain (MetaWindow          *window,
                        int                 *rel_x,
                        int                 *rel_y)
 {
+  MetaDisplay *display = meta_window_get_display (window);
+  MetaContext *context = meta_display_get_context (display);
+  MetaBackend *backend = meta_context_get_backend (context);
   ConstraintInfo info;
   ConstraintPriority priority = PRIORITY_MINIMUM;
   gboolean satisfied = FALSE;
@@ -301,7 +308,8 @@ meta_window_constrain (MetaWindow          *window,
               orig->x, orig->y, orig->width, orig->height,
               new->x,  new->y,  new->width,  new->height);
 
-  setup_constraint_info (&info,
+  setup_constraint_info (backend,
+                         &info,
                          window,
                          flags,
                          resize_gravity,
@@ -338,20 +346,21 @@ meta_window_constrain (MetaWindow          *window,
 }
 
 static void
-setup_constraint_info (ConstraintInfo      *info,
+setup_constraint_info (MetaBackend         *backend,
+                       ConstraintInfo      *info,
                        MetaWindow          *window,
                        MetaMoveResizeFlags  flags,
                        MetaGravity          resize_gravity,
                        const MetaRectangle *orig,
                        MetaRectangle       *new)
 {
-  MetaBackend *backend = meta_get_backend ();
   MetaMonitorManager *monitor_manager =
     meta_backend_get_monitor_manager (backend);
   MetaLogicalMonitor *logical_monitor;
   MetaWorkspace *cur_workspace;
   MetaPlacementRule *placement_rule;
 
+  info->backend = backend;
   info->orig    = *orig;
   info->current = *new;
   info->temporary = *orig;
@@ -458,6 +467,11 @@ setup_constraint_info (ConstraintInfo      *info,
       meta_rectangle_union (&info->entire_monitor,
                             &window->fullscreen_monitors.right->rect,
                             &info->entire_monitor);
+      if (window->fullscreen_monitors.top == logical_monitor &&
+          window->fullscreen_monitors.bottom == logical_monitor &&
+          window->fullscreen_monitors.left == logical_monitor &&
+          window->fullscreen_monitors.right == logical_monitor)
+        meta_window_adjust_fullscreen_monitor_rect (window, &info->entire_monitor);
     }
   else
     {
@@ -532,9 +546,8 @@ place_window_if_needed(MetaWindow     *window,
       !window->minimized &&
       !window->fullscreen)
     {
-      MetaBackend *backend = meta_get_backend ();
       MetaMonitorManager *monitor_manager =
-        meta_backend_get_monitor_manager (backend);
+        meta_backend_get_monitor_manager (info->backend);
       MetaRectangle orig_rect;
       MetaRectangle placed_rect;
       MetaWorkspace *cur_workspace;
@@ -613,13 +626,12 @@ place_window_if_needed(MetaWindow     *window,
            */
           window->unconstrained_rect = info->current;
 
-          if (window->maximize_horizontally_after_placement ||
-              window->maximize_vertically_after_placement)
-            meta_window_maximize_internal (window,
-                (window->maximize_horizontally_after_placement ?
-                 META_MAXIMIZE_HORIZONTAL : 0 ) |
-                (window->maximize_vertically_after_placement ?
-                 META_MAXIMIZE_VERTICAL : 0), &info->current);
+          meta_window_maximize_internal (window,
+            (window->maximize_horizontally_after_placement ?
+             META_MAXIMIZE_HORIZONTAL : 0) |
+            (window->maximize_vertically_after_placement ?
+             META_MAXIMIZE_VERTICAL : 0),
+            &info->current);
 
           window->maximize_horizontally_after_placement = FALSE;
           window->maximize_vertically_after_placement = FALSE;
@@ -1688,9 +1700,8 @@ constrain_to_single_monitor (MetaWindow         *window,
                              ConstraintPriority  priority,
                              gboolean            check_only)
 {
-  MetaBackend *backend = meta_get_backend ();
   MetaMonitorManager *monitor_manager =
-    meta_backend_get_monitor_manager (backend);
+    meta_backend_get_monitor_manager (info->backend);
 
   if (priority > PRIORITY_ENTIRELY_VISIBLE_ON_SINGLE_MONITOR)
     return TRUE;
@@ -1755,15 +1766,21 @@ constrain_titlebar_visible (MetaWindow         *window,
   int bottom_amount;
   int horiz_amount_offscreen, vert_amount_offscreen;
   int horiz_amount_onscreen,  vert_amount_onscreen;
+  MetaWindowDrag *window_drag;
 
   if (priority > PRIORITY_TITLEBAR_VISIBLE)
     return TRUE;
+
+  window_drag = meta_compositor_get_current_window_drag (window->display->compositor);
 
   /* Allow the titlebar beyond the top of the screen only if the user wasn't
    * clicking on the frame to start the move.
    */
   unconstrained_user_action =
-    info->is_user_action && !window->display->grab_frame_action;
+    info->is_user_action &&
+    (!window_drag ||
+     (meta_window_drag_get_grab_op (window_drag) &
+      META_GRAB_OP_WINDOW_FLAG_UNCONSTRAINED) != 0);
 
   /* Exit early if we know the constraint won't apply--note that this constraint
    * is only meant for normal windows (e.g. we don't want docks to be shoved

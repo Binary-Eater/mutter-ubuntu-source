@@ -23,12 +23,19 @@
 #include "backends/meta-stage-view-private.h"
 
 #define META_TYPE_RENDERER_VIEW (meta_renderer_view_get_type ())
-G_DECLARE_FINAL_TYPE (MetaRendererView, meta_renderer_view,
-                      META, RENDERER_VIEW,
-                      MetaStageView)
+META_EXPORT_TEST
+G_DECLARE_DERIVABLE_TYPE (MetaRendererView, meta_renderer_view,
+                          META, RENDERER_VIEW,
+                          MetaStageView)
+
+struct _MetaRendererViewClass
+{
+  MetaStageViewClass parent_class;
+};
 
 MetaMonitorTransform meta_renderer_view_get_transform (MetaRendererView *view);
 
+META_EXPORT_TEST
 MetaCrtc *meta_renderer_view_get_crtc (MetaRendererView *view);
 
 #endif /* META_RENDERER_VIEW_H */

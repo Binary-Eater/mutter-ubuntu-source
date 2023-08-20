@@ -112,6 +112,7 @@ gboolean meta_monitor_is_active (MetaMonitor *monitor);
 META_EXPORT_TEST
 MetaOutput * meta_monitor_get_main_output (MetaMonitor *monitor);
 
+META_EXPORT_TEST
 gboolean meta_monitor_is_primary (MetaMonitor *monitor);
 
 gboolean meta_monitor_supports_underscanning (MetaMonitor *monitor);
@@ -308,5 +309,20 @@ size_t meta_monitor_get_gamma_lut_size (MetaMonitor *monitor);
 
 void meta_monitor_set_gamma_lut (MetaMonitor        *monitor,
                                  const MetaGammaLut *lut);
+
+gboolean meta_monitor_set_color_space (MetaMonitor           *monitor,
+                                       MetaOutputColorspace   color_space,
+                                       GError               **error);
+
+gboolean meta_monitor_set_hdr_metadata (MetaMonitor            *monitor,
+                                        MetaOutputHdrMetadata  *metadata,
+                                        GError                **error);
+
+META_EXPORT_TEST
+gboolean meta_parse_monitor_mode (const char *string,
+                                  int        *out_width,
+                                  int        *out_height,
+                                  float      *out_refresh_rate,
+                                  float       fallback_refresh_rate);
 
 #endif /* META_MONITOR_H */

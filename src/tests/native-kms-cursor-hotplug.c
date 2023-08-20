@@ -81,7 +81,8 @@ meta_test_cursor_hotplug (void)
                                                        g_get_monotonic_time (),
                                                        50, 50);
 
-  test_client = meta_wayland_test_client_new ("kms-cursor-hotplug-helper");
+  test_client = meta_wayland_test_client_new (test_context,
+                                              "kms-cursor-hotplug-helper");
   if (!test_client)
     g_error ("Failed to launch test client: %s", error->message);
 

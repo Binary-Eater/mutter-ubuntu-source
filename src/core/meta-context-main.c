@@ -289,6 +289,17 @@ meta_context_main_configure (MetaContext   *context,
     meta_wayland_override_display_name (context_main->options.wayland_display);
 #endif
 
+  if (!context_main->options.sm.client_id)
+    {
+      const char *desktop_autostart_id;
+
+      desktop_autostart_id = g_getenv ("DESKTOP_AUTOSTART_ID");
+      if (desktop_autostart_id)
+        context_main->options.sm.client_id = g_strdup (desktop_autostart_id);
+    }
+
+  g_unsetenv ("DESKTOP_AUTOSTART_ID");
+
   return TRUE;
 }
 
@@ -343,7 +354,8 @@ static gboolean
 add_persistent_virtual_monitors (MetaContextMain  *context_main,
                                  GError          **error)
 {
-  MetaBackend *backend = meta_get_backend ();
+  MetaContext *context = META_CONTEXT (context_main);
+  MetaBackend *backend = meta_context_get_backend (context);
   MetaMonitorManager *monitor_manager =
     meta_backend_get_monitor_manager (backend);
   GList *l;
@@ -521,12 +533,9 @@ add_virtual_monitor_cb (const char  *option_name,
 {
   MetaContextMain *context_main = user_data;
   int width, height;
-  float refresh_rate = 60.0;
+  float refresh_rate;
 
-  if (sscanf (value, "%dx%d@%f",
-              &width, &height, &refresh_rate) == 3 ||
-      sscanf (value, "%dx%d",
-              &width, &height) == 2)
+  if (meta_parse_monitor_mode (value, &width, &height, &refresh_rate, 60.0))
     {
       g_autofree char *serial = NULL;
       MetaVirtualMonitorInfo *virtual_monitor;

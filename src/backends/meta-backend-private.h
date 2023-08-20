@@ -119,7 +119,7 @@ META_EXPORT_TEST
 ClutterBackend * meta_backend_get_clutter_backend (MetaBackend *backend);
 
 META_EXPORT_TEST
-ClutterSeat * meta_backend_get_default_seat (MetaBackend *bakcend);
+ClutterSeat * meta_backend_get_default_seat (MetaBackend *backend);
 
 MetaIdleMonitor * meta_backend_get_idle_monitor (MetaBackend        *backend,
                                                  ClutterInputDevice *device);
@@ -140,6 +140,8 @@ MetaCursorRenderer * meta_backend_get_cursor_renderer (MetaBackend *backend);
 META_EXPORT_TEST
 MetaRenderer * meta_backend_get_renderer (MetaBackend *backend);
 MetaEgl * meta_backend_get_egl (MetaBackend *backend);
+
+MetaDbusSessionWatcher * meta_backend_get_dbus_session_watcher (MetaBackend *backend);
 
 #ifdef HAVE_REMOTE_DESKTOP
 MetaRemoteDesktop * meta_backend_get_remote_desktop (MetaBackend *backend);
@@ -173,7 +175,7 @@ void meta_backend_set_client_pointer_constraint (MetaBackend *backend,
 
 void meta_backend_monitors_changed (MetaBackend *backend);
 
-gboolean meta_is_stage_views_scaled (void);
+gboolean meta_backend_is_stage_views_scaled (MetaBackend *backend);
 
 MetaInputMapper *meta_backend_get_input_mapper (MetaBackend *backend);
 MetaInputSettings *meta_backend_get_input_settings (MetaBackend *backend);

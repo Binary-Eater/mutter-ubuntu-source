@@ -38,6 +38,7 @@
  * might decide they need to launch it again.
  */
 #define STARTUP_TIMEOUT_MS 15000
+#define UPDATE_CURSOR_TIMEOUT_MS 20
 
 enum
 {
@@ -49,6 +50,7 @@ enum
 enum
 {
   PROP_SEQ_0,
+  PROP_SEQ_DISPLAY,
   PROP_SEQ_ID,
   PROP_SEQ_TIMESTAMP,
   PROP_SEQ_ICON_NAME,
@@ -91,9 +93,14 @@ struct _MetaStartupNotification
 
   GSList *startup_sequences;
   guint startup_sequence_timeout_id;
+  guint update_cursor_timeout_id;
+  MetaCursor cursor;
 };
 
-typedef struct {
+typedef struct
+{
+  MetaDisplay *display;
+
   char *wmclass;
   char *name;
   char *application_id;
@@ -129,22 +136,53 @@ meta_startup_notification_has_pending_sequences (MetaStartupNotification *sn)
 }
 
 static void
-meta_startup_notification_update_feedback (MetaStartupNotification *sn)
+meta_startup_notification_update_cursor (MetaStartupNotification *sn)
 {
   MetaDisplay *display = sn->display;
+  MetaCursor cursor;
 
   if (meta_startup_notification_has_pending_sequences (sn))
     {
       meta_topic (META_DEBUG_STARTUP,
                   "Setting busy cursor");
-      meta_display_set_cursor (display, META_CURSOR_BUSY);
+      cursor = META_CURSOR_BUSY;
     }
   else
     {
       meta_topic (META_DEBUG_STARTUP,
                   "Setting default cursor");
-      meta_display_set_cursor (display, META_CURSOR_DEFAULT);
+      cursor = META_CURSOR_DEFAULT;
     }
+
+  if (sn->cursor != cursor)
+    {
+      meta_display_set_cursor (display, cursor);
+      sn->cursor = cursor;
+    }
+}
+
+static gboolean
+meta_startup_notification_cursor_timeout (gpointer user_data)
+{
+  MetaStartupNotification *sn = user_data;
+
+  meta_startup_notification_update_cursor (sn);
+  sn->update_cursor_timeout_id = 0;
+
+  return G_SOURCE_REMOVE;
+}
+
+static void
+meta_startup_notification_update_feedback (MetaStartupNotification *sn)
+{
+  if (sn->update_cursor_timeout_id)
+    return;
+
+  meta_startup_notification_update_cursor (sn);
+  sn->update_cursor_timeout_id =
+    g_timeout_add (UPDATE_CURSOR_TIMEOUT_MS,
+                   meta_startup_notification_cursor_timeout,
+                   sn);
 }
 
 static void
@@ -183,6 +221,9 @@ meta_startup_sequence_set_property (GObject      *object,
 
   switch (prop_id)
     {
+    case PROP_SEQ_DISPLAY:
+      priv->display = g_value_get_object (value);
+      break;
     case PROP_SEQ_ID:
       priv->id = g_value_dup_string (value);
       break;
@@ -224,6 +265,9 @@ meta_startup_sequence_get_property (GObject    *object,
 
   switch (prop_id)
     {
+    case PROP_SEQ_DISPLAY:
+      g_value_set_object (value, priv->display);
+      break;
     case PROP_SEQ_ID:
       g_value_set_string (value, priv->id);
       break;
@@ -275,6 +319,13 @@ meta_startup_sequence_class_init (MetaStartupSequenceClass *klass)
                   0, NULL, NULL, NULL,
                   G_TYPE_NONE, 0);
 
+  seq_props[PROP_SEQ_DISPLAY] =
+    g_param_spec_object ("display",
+                         "Display",
+                         "Display",
+                         META_TYPE_DISPLAY,
+                         G_PARAM_READWRITE |
+                         G_PARAM_CONSTRUCT_ONLY);
   seq_props[PROP_SEQ_ID] =
     g_param_spec_string ("id",
                          "ID",
@@ -455,6 +506,17 @@ meta_startup_sequence_get_wmclass (MetaStartupSequence *seq)
   return priv->wmclass;
 }
 
+MetaDisplay *
+meta_startup_sequence_get_display (MetaStartupSequence *seq)
+{
+  MetaStartupSequencePrivate *priv;
+
+  g_return_val_if_fail (META_IS_STARTUP_SEQUENCE (seq), NULL);
+
+  priv = meta_startup_sequence_get_instance_private (seq);
+  return priv->display;
+}
+
 static void
 on_sequence_completed (MetaStartupSequence     *seq,
                        MetaStartupNotification *sn)
@@ -603,6 +665,7 @@ meta_startup_notification_finalize (GObject *object)
   MetaStartupNotification *sn = META_STARTUP_NOTIFICATION (object);
 
   g_clear_handle_id (&sn->startup_sequence_timeout_id, g_source_remove);
+  g_clear_handle_id (&sn->update_cursor_timeout_id, g_source_remove);
 
   g_slist_free_full (sn->startup_sequences, g_object_unref);
   sn->startup_sequences = NULL;

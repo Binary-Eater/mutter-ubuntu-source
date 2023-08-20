@@ -36,6 +36,15 @@
 #include "backends/native/meta-kms.h"
 #include "backends/native/meta-monitor-manager-native.h"
 
+enum
+{
+  GAMMA_LUT_CHANGED,
+
+  N_SIGNALS
+};
+
+static guint signals[N_SIGNALS];
+
 #define ALL_TRANSFORMS_MASK ((1 << META_MONITOR_N_TRANSFORMS) - 1)
 
 struct _MetaCrtcKms
@@ -97,6 +106,16 @@ meta_crtc_kms_get_gamma_lut_size (MetaCrtc *crtc)
   return crtc_state->gamma.size;
 }
 
+const MetaGammaLut *
+meta_crtc_kms_peek_gamma_lut (MetaCrtcKms *crtc_kms)
+{
+  MetaMonitorManagerNative *monitor_manager_native =
+    monitor_manager_from_crtc (META_CRTC (crtc_kms));
+
+  return meta_monitor_manager_native_get_cached_crtc_gamma (monitor_manager_native,
+                                                            crtc_kms);
+}
+
 static MetaGammaLut *
 meta_crtc_kms_get_gamma_lut (MetaCrtc *crtc)
 {
@@ -105,37 +124,21 @@ meta_crtc_kms_get_gamma_lut (MetaCrtc *crtc)
   MetaMonitorManagerNative *monitor_manager_native =
     monitor_manager_from_crtc (crtc);
   const MetaKmsCrtcState *crtc_state;
-  MetaKmsCrtcGamma *crtc_gamma;
-  MetaGammaLut *lut;
+  MetaGammaLut *gamma;
 
-  crtc_gamma =
+  gamma =
     meta_monitor_manager_native_get_cached_crtc_gamma (monitor_manager_native,
                                                        crtc_kms);
-  if (crtc_gamma)
+  if (!gamma)
     {
-      lut = g_new0 (MetaGammaLut, 1);
-      lut->size = crtc_gamma->size;
-      lut->red = g_memdup2 (crtc_gamma->red,
-                            lut->size * sizeof (uint16_t));
-      lut->green = g_memdup2 (crtc_gamma->green,
-                              lut->size * sizeof (uint16_t));
-      lut->blue = g_memdup2 (crtc_gamma->blue,
-                             lut->size * sizeof (uint16_t));
-      return lut;
+      crtc_state = meta_kms_crtc_get_current_state (kms_crtc);
+      gamma = crtc_state->gamma.value;
     }
 
-  crtc_state = meta_kms_crtc_get_current_state (kms_crtc);
+  if (!gamma)
+    return meta_gamma_lut_new (0, NULL, NULL, NULL);
 
-  lut = g_new0 (MetaGammaLut, 1);
-  lut->size = crtc_state->gamma.size;
-  lut->red = g_memdup2 (crtc_state->gamma.red,
-                        lut->size * sizeof (uint16_t));
-  lut->green = g_memdup2 (crtc_state->gamma.green,
-                          lut->size * sizeof (uint16_t));
-  lut->blue = g_memdup2 (crtc_state->gamma.blue,
-                         lut->size * sizeof (uint16_t));
-
-  return lut;
+  return meta_gamma_lut_copy (gamma);
 }
 
 static char *
@@ -203,42 +206,27 @@ meta_crtc_kms_set_gamma_lut (MetaCrtc           *crtc,
                              const MetaGammaLut *lut)
 {
   MetaCrtcKms *crtc_kms = META_CRTC_KMS (crtc);
-  MetaKmsCrtc *kms_crtc = meta_crtc_kms_get_kms_crtc (crtc_kms);
   MetaBackend *backend = meta_gpu_get_backend (meta_crtc_get_gpu (crtc));
   MetaMonitorManagerNative *monitor_manager_native =
     monitor_manager_from_crtc (crtc);
   ClutterActor *stage = meta_backend_get_stage (backend);
-  const MetaKmsCrtcState *crtc_state;
   g_autofree char *gamma_ramp_string = NULL;
-  MetaKmsCrtcGamma *crtc_gamma;
-
-  crtc_state = meta_kms_crtc_get_current_state (kms_crtc);
-
-  if (lut->size != crtc_state->gamma.size)
-    {
-      MetaKmsDevice *kms_device = meta_kms_crtc_get_device (kms_crtc);
-
-      g_warning ("Tried to set a different gamma LUT size on %u (%s)",
-                 meta_kms_crtc_get_id (kms_crtc),
-                 meta_kms_device_get_path (kms_device));
-      return;
-    }
+  MetaGammaLut *new_gamma;
 
   gamma_ramp_string = generate_gamma_ramp_string (lut);
   meta_topic (META_DEBUG_COLOR,
               "Setting CRTC (%" G_GUINT64_FORMAT ") gamma to %s",
               meta_crtc_get_id (crtc), gamma_ramp_string);
 
-  crtc_gamma = meta_kms_crtc_gamma_new (kms_crtc,
-                                        lut->size,
-                                        lut->red,
-                                        lut->green,
-                                        lut->blue);
+  new_gamma = meta_gamma_lut_copy (lut);
+  if (!new_gamma)
+    new_gamma = meta_gamma_lut_new (0, NULL, NULL, NULL);
+
   meta_monitor_manager_native_update_cached_crtc_gamma (monitor_manager_native,
                                                         crtc_kms,
-                                                        crtc_gamma);
+                                                        new_gamma);
 
-  meta_crtc_kms_invalidate_gamma (crtc_kms);
+  g_signal_emit (crtc_kms, signals[GAMMA_LUT_CHANGED], 0);
   clutter_stage_schedule_update (CLUTTER_STAGE (stage));
 }
 
@@ -368,41 +356,10 @@ generate_crtc_connector_list (MetaGpu  *gpu,
   return connectors;
 }
 
-void
-meta_crtc_kms_maybe_set_gamma (MetaCrtcKms   *crtc_kms,
-                               MetaKmsDevice *kms_device)
+gboolean
+meta_crtc_kms_is_gamma_invalid (MetaCrtcKms *crtc_kms)
 {
-  MetaGpu *gpu = meta_crtc_get_gpu (META_CRTC (crtc_kms));
-  MetaBackend *backend = meta_gpu_get_backend (gpu);
-  MetaMonitorManager *monitor_manager =
-    meta_backend_get_monitor_manager (backend);
-  MetaMonitorManagerNative *monitor_manager_native =
-    META_MONITOR_MANAGER_NATIVE (monitor_manager);
-  MetaKms *kms = meta_kms_device_get_kms (kms_device);
-  MetaKmsUpdate *kms_update;
-  MetaKmsCrtcGamma *gamma;
-  MetaKmsCrtc *kms_crtc = meta_crtc_kms_get_kms_crtc (crtc_kms);
-
-  if (crtc_kms->is_gamma_valid)
-    return;
-
-  if (!meta_kms_crtc_has_gamma (kms_crtc))
-    return;
-
-  gamma = meta_monitor_manager_native_get_cached_crtc_gamma (monitor_manager_native,
-                                                             crtc_kms);
-  if (!gamma)
-    return;
-
-  kms_update = meta_kms_ensure_pending_update (kms, kms_device);
-  meta_kms_update_set_crtc_gamma (kms_update,
-                                  kms_crtc,
-                                  gamma->size,
-                                  gamma->red,
-                                  gamma->green,
-                                  gamma->blue);
-
-  crtc_kms->is_gamma_valid = TRUE;
+  return !crtc_kms->is_gamma_valid;
 }
 
 void
@@ -499,12 +456,6 @@ meta_crtc_kms_supports_format (MetaCrtcKms *crtc_kms,
                                              drm_format);
 }
 
-void
-meta_crtc_kms_invalidate_gamma (MetaCrtcKms *crtc_kms)
-{
-  crtc_kms->is_gamma_valid = FALSE;
-}
-
 MetaCrtcKms *
 meta_crtc_kms_from_kms_crtc (MetaKmsCrtc *kms_crtc)
 {
@@ -525,11 +476,13 @@ meta_crtc_kms_new (MetaGpuKms  *gpu_kms,
                                                          kms_crtc);
   crtc_kms = g_object_new (META_TYPE_CRTC_KMS,
                            "id", (uint64_t) meta_kms_crtc_get_id (kms_crtc),
+                           "backend", meta_gpu_get_backend (gpu),
                            "gpu", gpu,
                            NULL);
 
   crtc_kms->kms_crtc = kms_crtc;
   crtc_kms->primary_plane = primary_plane;
+  crtc_kms->is_gamma_valid = TRUE;
 
   if (!kms_crtc_crtc_kms_quark)
     {
@@ -573,4 +526,12 @@ meta_crtc_kms_class_init (MetaCrtcKmsClass *klass)
 
   crtc_native_class->is_transform_handled = meta_crtc_kms_is_transform_handled;
   crtc_native_class->is_hw_cursor_supported = meta_crtc_kms_is_hw_cursor_supported;
+
+  signals[GAMMA_LUT_CHANGED] =
+    g_signal_new ("gamma-lut-changed",
+                  G_TYPE_FROM_CLASS (klass),
+                  G_SIGNAL_RUN_LAST,
+                  0,
+                  NULL, NULL, NULL,
+                  G_TYPE_NONE, 0);
 }

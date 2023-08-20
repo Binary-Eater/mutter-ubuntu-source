@@ -56,17 +56,20 @@
 #include "backends/meta-barrier-private.h"
 #include "backends/meta-cursor-renderer.h"
 #include "backends/meta-cursor-tracker-private.h"
+#include "backends/meta-dbus-session-watcher.h"
 #include "backends/meta-idle-manager.h"
 #include "backends/meta-idle-monitor-private.h"
 #include "backends/meta-input-mapper-private.h"
 #include "backends/meta-input-settings-private.h"
 #include "backends/meta-logical-monitor.h"
 #include "backends/meta-monitor-manager-dummy.h"
+#include "backends/meta-remote-access-controller-private.h"
 #include "backends/meta-settings-private.h"
 #include "backends/meta-stage-private.h"
 #include "backends/x11/meta-backend-x11.h"
 #include "clutter/clutter-mutter.h"
 #include "clutter/clutter-seat-private.h"
+#include "compositor/meta-dnd-private.h"
 #include "core/meta-context-private.h"
 #include "meta/main.h"
 #include "meta/meta-backend.h"
@@ -75,8 +78,6 @@
 #include "meta/util.h"
 
 #ifdef HAVE_REMOTE_DESKTOP
-#include "backends/meta-dbus-session-watcher.h"
-#include "backends/meta-remote-access-controller-private.h"
 #include "backends/meta-remote-desktop.h"
 #include "backends/meta-screen-cast.h"
 #endif
@@ -115,22 +116,7 @@ enum
 
 static guint signals[N_SIGNALS];
 
-static MetaBackend *_backend;
-
 #define HIDDEN_POINTER_TIMEOUT 300 /* ms */
-
-/**
- * meta_get_backend:
- *
- * Accessor for the singleton MetaBackend.
- *
- * Returns: (transfer none): The only #MetaBackend there is.
- */
-MetaBackend *
-meta_get_backend (void)
-{
-  return _backend;
-}
 
 struct _MetaBackendPrivate
 {
@@ -147,9 +133,9 @@ struct _MetaBackendPrivate
   MetaEgl *egl;
 #endif
   MetaSettings *settings;
-#ifdef HAVE_REMOTE_DESKTOP
-  MetaRemoteAccessController *remote_access_controller;
   MetaDbusSessionWatcher *dbus_session_watcher;
+  MetaRemoteAccessController *remote_access_controller;
+#ifdef HAVE_REMOTE_DESKTOP
   MetaScreenCast *screen_cast;
   MetaRemoteDesktop *remote_desktop;
 #endif
@@ -212,8 +198,6 @@ meta_backend_dispose (GObject *object)
   MetaBackend *backend = META_BACKEND (object);
   MetaBackendPrivate *priv = meta_backend_get_instance_private (backend);
 
-  _backend = NULL;
-
   g_clear_pointer (&priv->cursor_tracker, meta_cursor_tracker_destroy);
   g_clear_object (&priv->current_device);
   g_clear_object (&priv->color_manager);
@@ -222,9 +206,9 @@ meta_backend_dispose (GObject *object)
 #ifdef HAVE_REMOTE_DESKTOP
   g_clear_object (&priv->remote_desktop);
   g_clear_object (&priv->screen_cast);
+#endif
   g_clear_object (&priv->dbus_session_watcher);
   g_clear_object (&priv->remote_access_controller);
-#endif
 
 #ifdef HAVE_LIBWACOM
   g_clear_pointer (&priv->wacom_db, libwacom_database_destroy);
@@ -516,20 +500,21 @@ input_mapper_device_aspect_ratio_cb (MetaInputMapper    *mapper,
 }
 
 static void
-on_stage_shown_cb (MetaBackend *backend)
+on_prepare_shutdown (MetaContext *context,
+                     MetaBackend *backend)
+{
+  g_signal_emit (backend, signals[PREPARE_SHUTDOWN], 0);
+}
+
+static void
+on_started (MetaContext *context,
+            MetaBackend *backend)
 {
   MetaBackendPrivate *priv = meta_backend_get_instance_private (backend);
   ClutterSeat *seat = priv->default_seat;
 
   meta_cursor_tracker_set_pointer_visible (priv->cursor_tracker,
                                            determine_hotplug_pointer_visibility (seat));
-}
-
-static void
-on_prepare_shutdown (MetaContext *context,
-                     MetaBackend *backend)
-{
-  g_signal_emit (backend, signals[PREPARE_SHUTDOWN], 0);
 }
 
 static void
@@ -542,9 +527,6 @@ meta_backend_real_post_init (MetaBackend *backend)
   priv->stage = meta_stage_new (backend);
   clutter_actor_realize (priv->stage);
   META_BACKEND_GET_CLASS (backend)->select_stage_events (backend);
-  g_signal_connect_object (priv->stage, "show",
-                           G_CALLBACK (on_stage_shown_cb), backend,
-                           G_CONNECT_SWAPPED);
 
   meta_monitor_manager_setup (priv->monitor_manager);
 
@@ -558,7 +540,7 @@ meta_backend_real_post_init (MetaBackend *backend)
                            G_CALLBACK (on_device_removed), backend,
                            G_CONNECT_AFTER);
 
-  priv->input_mapper = meta_input_mapper_new ();
+  priv->input_mapper = meta_input_mapper_new (backend);
 
   input_settings = meta_backend_get_input_settings (backend);
 
@@ -575,14 +557,20 @@ meta_backend_real_post_init (MetaBackend *backend)
                         input_settings);
     }
 
-#ifdef HAVE_REMOTE_DESKTOP
-  priv->dbus_session_watcher = g_object_new (META_TYPE_DBUS_SESSION_WATCHER, NULL);
-  priv->screen_cast = meta_screen_cast_new (backend,
-                                            priv->dbus_session_watcher);
-  priv->remote_desktop = meta_remote_desktop_new (backend,
-                                                  priv->dbus_session_watcher);
   priv->remote_access_controller =
-    meta_remote_access_controller_new (priv->remote_desktop, priv->screen_cast);
+    meta_remote_access_controller_new ();
+  priv->dbus_session_watcher =
+    g_object_new (META_TYPE_DBUS_SESSION_WATCHER, NULL);
+
+#ifdef HAVE_REMOTE_DESKTOP
+  priv->screen_cast = meta_screen_cast_new (backend);
+  meta_remote_access_controller_add (
+    priv->remote_access_controller,
+    META_DBUS_SESSION_MANAGER (priv->screen_cast));
+  priv->remote_desktop = meta_remote_desktop_new (backend);
+  meta_remote_access_controller_add (
+    priv->remote_access_controller,
+    META_DBUS_SESSION_MANAGER (priv->remote_desktop));
 #endif /* HAVE_REMOTE_DESKTOP */
 
   if (!meta_monitor_manager_is_headless (priv->monitor_manager))
@@ -595,6 +583,8 @@ meta_backend_real_post_init (MetaBackend *backend)
 
   g_signal_connect (priv->context, "prepare-shutdown",
                     G_CALLBACK (on_prepare_shutdown), backend);
+  g_signal_connect (priv->context, "started",
+                    G_CALLBACK (on_started), backend);
 }
 
 static gboolean
@@ -1207,7 +1197,7 @@ meta_backend_initable_init (GInitable     *initable,
   priv->cursor_tracker =
     META_BACKEND_GET_CLASS (backend)->create_cursor_tracker (backend);
 
-  priv->dnd = g_object_new (META_TYPE_DND, NULL);
+  priv->dnd = meta_dnd_new (backend);
 
   priv->cancellable = g_cancellable_new ();
   g_bus_get (G_BUS_TYPE_SYSTEM,
@@ -1232,7 +1222,6 @@ initable_iface_init (GInitableIface *initable_iface)
 static void
 meta_backend_init (MetaBackend *backend)
 {
-  _backend = backend;
 }
 
 /**
@@ -1380,6 +1369,14 @@ meta_backend_get_settings (MetaBackend *backend)
   return priv->settings;
 }
 
+MetaDbusSessionWatcher *
+meta_backend_get_dbus_session_watcher (MetaBackend *backend)
+{
+  MetaBackendPrivate *priv = meta_backend_get_instance_private (backend);
+
+  return priv->dbus_session_watcher;
+}
+
 #ifdef HAVE_REMOTE_DESKTOP
 /**
  * meta_backend_get_remote_desktop: (skip)
@@ -1413,13 +1410,9 @@ meta_backend_get_screen_cast (MetaBackend *backend)
 MetaRemoteAccessController *
 meta_backend_get_remote_access_controller (MetaBackend *backend)
 {
-#ifdef HAVE_REMOTE_DESKTOP
   MetaBackendPrivate *priv = meta_backend_get_instance_private (backend);
 
   return priv->remote_access_controller;
-#else
-  return NULL;
-#endif
 }
 
 /**
@@ -1595,9 +1588,8 @@ meta_backend_get_capabilities (MetaBackend *backend)
 }
 
 gboolean
-meta_is_stage_views_scaled (void)
+meta_backend_is_stage_views_scaled (MetaBackend *backend)
 {
-  MetaBackend *backend = meta_get_backend ();
   MetaMonitorManager *monitor_manager =
     meta_backend_get_monitor_manager (backend);
   MetaLogicalMonitorLayoutMode layout_mode;

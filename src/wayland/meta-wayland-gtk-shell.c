@@ -47,6 +47,8 @@ struct _MetaWaylandGtkShell
 {
   GObject parent;
 
+  MetaWaylandCompositor *compositor;
+
   GList *shell_resources;
   uint32_t capabilities;
 };
@@ -170,7 +172,8 @@ gtk_surface_request_focus (struct wl_client   *client,
 {
   MetaWaylandGtkSurface *gtk_surface = wl_resource_get_user_data (resource);
   MetaWaylandSurface *surface = gtk_surface->surface;
-  MetaDisplay *display = meta_get_display ();
+  MetaContext *context;
+  MetaDisplay *display;
   MetaStartupSequence *sequence = NULL;
   MetaWindow *window;
 
@@ -180,6 +183,9 @@ gtk_surface_request_focus (struct wl_client   *client,
   window = meta_wayland_surface_get_window (surface);
   if (!window)
     return;
+
+  context = meta_wayland_compositor_get_context (surface->compositor);
+  display = meta_context_get_display (context);
 
   if (startup_id)
     sequence = meta_startup_notification_lookup_sequence (display->startup_notification,
@@ -229,7 +235,8 @@ gtk_surface_titlebar_gesture (struct wl_client   *client,
   if (!window)
     return;
 
-  if (!meta_wayland_seat_get_grab_info (seat, surface, serial, FALSE, &x, &y))
+  if (!meta_wayland_seat_get_grab_info (seat, surface, serial, FALSE,
+                                        NULL, NULL, &x, &y))
     return;
 
   switch (gesture)
@@ -302,11 +309,8 @@ gtk_surface_titlebar_gesture (struct wl_client   *client,
       meta_window_show_menu (window, META_WINDOW_MENU_WM, x, y);
       break;
 
-    case G_DESKTOP_TITLEBAR_ACTION_TOGGLE_SHADE:
-      g_warning ("No shade! The library is closed.");
-      G_GNUC_FALLTHROUGH;
     default:
-      return;
+      break;
     }
 }
 
@@ -491,10 +495,11 @@ gtk_shell_set_startup_id (struct wl_client   *client,
                           struct wl_resource *resource,
                           const char         *startup_id)
 {
+  MetaWaylandGtkShell *gtk_shell = wl_resource_get_user_data (resource);
+  MetaContext *context =
+    meta_wayland_compositor_get_context (gtk_shell->compositor);
+  MetaDisplay *display = meta_context_get_display (context);
   MetaStartupSequence *sequence;
-  MetaDisplay *display;
-
-  display = meta_get_display ();
 
   sequence = meta_startup_notification_lookup_sequence (display->startup_notification,
                                                         startup_id);
@@ -507,7 +512,10 @@ gtk_shell_system_bell (struct wl_client   *client,
                        struct wl_resource *resource,
                        struct wl_resource *gtk_surface_resource)
 {
-  MetaDisplay *display = meta_get_display ();
+  MetaWaylandGtkShell *gtk_shell = wl_resource_get_user_data (resource);
+  MetaContext *context =
+    meta_wayland_compositor_get_context (gtk_shell->compositor);
+  MetaDisplay *display = meta_context_get_display (context);
 
   if (gtk_surface_resource)
     {
@@ -533,7 +541,10 @@ gtk_shell_notify_launch (struct wl_client   *client,
                          struct wl_resource *resource,
                          const char         *startup_id)
 {
-  MetaDisplay *display = meta_get_display ();
+  MetaWaylandGtkShell *gtk_shell = wl_resource_get_user_data (resource);
+  MetaContext *context =
+    meta_wayland_compositor_get_context (gtk_shell->compositor);
+  MetaDisplay *display = meta_context_get_display (context);
   MetaStartupSequence *sequence;
   uint64_t timestamp;
 
@@ -548,6 +559,7 @@ gtk_shell_notify_launch (struct wl_client   *client,
 
   timestamp = meta_display_get_current_time_roundtrip (display);
   sequence = g_object_new (META_TYPE_STARTUP_SEQUENCE,
+                           "display", display,
                            "id", startup_id,
                            "timestamp", timestamp,
                            NULL);
@@ -652,6 +664,7 @@ meta_wayland_gtk_shell_new (MetaWaylandCompositor *compositor)
                         gtk_shell, bind_gtk_shell) == NULL)
     g_error ("Failed to register a global gtk-shell object");
 
+  gtk_shell->compositor = compositor;
   gtk_shell->capabilities = calculate_capabilities ();
 
   meta_prefs_add_listener (prefs_changed, gtk_shell);

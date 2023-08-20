@@ -21,7 +21,6 @@ if get_option('debug')
 elif buildtype != 'plain'
   clutter_debug_c_args += [
     '-DG_DISABLE_ASSERT',
-    '-DG_DISABLE_CHECKS',
     '-DG_DISABLE_CAST_CHECKS',
   ]
 endif
@@ -36,6 +35,7 @@ clutter_pkg_deps = [
   gio_dep,
   json_glib_dep,
   pango_dep,
+  harfbuzz_dep,
 ]
 
 clutter_pkg_private_deps = [

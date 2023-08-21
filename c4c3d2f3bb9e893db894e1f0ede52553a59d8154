@@ -1,0 +1,3 @@
+  * Drop wayland-data-device-Allow-any-drag-timestamp patch:
+    no longer needed (LP: #1964541) (Closes: #1050025)
+  * Add patch to skip new thread priority modification test on arm

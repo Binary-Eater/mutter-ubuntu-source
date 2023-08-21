@@ -357,9 +357,16 @@ drag_grab_motion (MetaWaylandPointerGrab *grab,
 		  const ClutterEvent     *event)
 {
   MetaWaylandDragGrab *drag_grab = (MetaWaylandDragGrab*) grab;
+  graphene_point_t point;
+  uint32_t time_ms;
 
   if (drag_grab->drag_focus)
-    meta_wayland_surface_drag_dest_motion (drag_grab->drag_focus, event);
+    {
+      clutter_event_get_coords (event, &point.x, &point.y);
+      time_ms = clutter_event_get_time (event);
+      meta_wayland_surface_drag_dest_motion (drag_grab->drag_focus,
+                                             point.x, point.y, time_ms);
+    }
 
   if (drag_grab->drag_surface)
     meta_feedback_actor_update (META_FEEDBACK_ACTOR (drag_grab->feedback_actor),
@@ -517,7 +524,7 @@ static gboolean
 keyboard_drag_grab_key (MetaWaylandKeyboardGrab *grab,
                         const ClutterEvent      *event)
 {
-  if (event->key.keyval == CLUTTER_KEY_Escape)
+  if (clutter_event_get_key_symbol (event) == CLUTTER_KEY_Escape)
     {
       MetaWaylandDragGrab *drag_grab;
 
@@ -697,15 +704,6 @@ meta_wayland_data_device_end_drag (MetaWaylandDataDevice *data_device)
     data_device_end_drag_grab (data_device->current_grab);
 }
 
-static int
-compare_times (gconstpointer a, gconstpointer b)
-{
-  const uint32_t *_a = a;
-  const uint32_t *_b = b;
-
-  return *_a - *_b;
-}
-
 static void
 data_device_start_drag (struct wl_client  *client,
                         struct wl_resource *resource,
@@ -727,11 +725,7 @@ data_device_start_drag (struct wl_client  *client,
     return;
 
   if (seat->pointer->button_count == 0 ||
-      (seat->pointer->grab_serial != serial &&
-       !g_array_binary_search (seat->pointer->grab_times,
-                               &serial,
-                               compare_times,
-                               NULL)) ||
+      seat->pointer->grab_serial != serial ||
       !seat->pointer->focus_surface ||
       seat->pointer->focus_surface != surface)
     return;
@@ -839,7 +833,9 @@ meta_wayland_drag_dest_focus_out (MetaWaylandDataDevice *data_device,
 static void
 meta_wayland_drag_dest_motion (MetaWaylandDataDevice *data_device,
                                MetaWaylandSurface    *surface,
-                               const ClutterEvent    *event)
+                               float                  x,
+                               float                  y,
+                               uint32_t               time_ms)
 {
   MetaWaylandDragGrab *grab = data_device->current_grab;
   wl_fixed_t sx, sy;
@@ -851,7 +847,7 @@ meta_wayland_drag_dest_motion (MetaWaylandDataDevice *data_device,
                                                  grab->drag_focus,
                                                  &sx, &sy);
   wl_data_device_send_motion (grab->drag_focus_data_device,
-                              clutter_event_get_time (event),
+                              time_ms,
                               sx, sy);
 }
 

@@ -1,0 +1,2 @@
+  * Cherry-pick 2 proposed patches to build with sysprof 45
+  * debian/control.in: Build-Depend on libsysprof-6-dev

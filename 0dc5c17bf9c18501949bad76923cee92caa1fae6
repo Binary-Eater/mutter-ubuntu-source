@@ -1,0 +1,4 @@
+  * New upstream release
+  * Drop '44' patches applied in new release
+  * Cherry-pick proposed patch to build with sysprof 45
+  * debian/control.in: Build-Depend on libsysprof-6-dev

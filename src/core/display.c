@@ -456,7 +456,7 @@ meta_display_class_init (MetaDisplayClass *klass)
                   g_signal_accumulator_true_handled,
                   NULL, NULL,
                   G_TYPE_BOOLEAN, 4,
-                  G_TYPE_BOOLEAN, META_TYPE_RECTANGLE, G_TYPE_INT, G_TYPE_INT);
+                  G_TYPE_BOOLEAN, MTK_TYPE_RECTANGLE, G_TYPE_INT, G_TYPE_INT);
 
   display_signals[GL_VIDEO_MEMORY_PURGED] =
     g_signal_new ("gl-video-memory-purged",
@@ -995,7 +995,7 @@ meta_display_new (MetaContext  *context,
   meta_display_set_cursor (display, META_CURSOR_DEFAULT);
 
   display->stack = meta_stack_new (display);
-  display->stack_tracker = meta_stack_tracker_new (display);
+  display->stack_tracker = meta_stack_tracker_new (display->stack);
 
   display->workspace_manager = meta_workspace_manager_new (display);
 
@@ -1056,7 +1056,7 @@ meta_display_new (MetaContext  *context,
                           &old_active_xwindow);
 #endif
 
-  if (!meta_compositor_do_manage (display->compositor, error))
+  if (!meta_compositor_manage (display->compositor, error))
     {
       g_object_unref (display);
       return NULL;
@@ -1257,13 +1257,12 @@ meta_display_close (MetaDisplay *display,
   /* Stop caring about events */
   meta_display_free_events (display);
 
-  meta_display_shutdown_x11 (display);
-
-  g_clear_object (&display->stack);
   g_clear_pointer (&display->stack_tracker,
                    meta_stack_tracker_free);
 
   g_clear_pointer (&display->compositor, meta_compositor_destroy);
+  meta_display_shutdown_x11 (display);
+  g_clear_object (&display->stack);
 
   /* Must be after all calls to meta_window_unmanage() since they
    * unregister windows
@@ -2703,11 +2702,11 @@ meta_display_request_restart (MetaDisplay *display)
 }
 
 gboolean
-meta_display_show_resize_popup (MetaDisplay *display,
-                                gboolean show,
-                                MetaRectangle *rect,
-                                int display_w,
-                                int display_h)
+meta_display_show_resize_popup (MetaDisplay  *display,
+                                gboolean      show,
+                                MtkRectangle *rect,
+                                int           display_w,
+                                int           display_h)
 {
   gboolean result = FALSE;
 
@@ -3234,7 +3233,7 @@ check_fullscreen_func (gpointer data)
 
       if (covers_monitors)
         {
-          MetaRectangle window_rect;
+          MtkRectangle window_rect;
 
           meta_window_get_frame_rect (window, &window_rect);
 
@@ -3242,8 +3241,8 @@ check_fullscreen_func (gpointer data)
             {
               MetaLogicalMonitor *logical_monitor = l->data;
 
-              if (meta_rectangle_overlap (&window_rect,
-                                          &logical_monitor->rect) &&
+              if (mtk_rectangle_overlap (&window_rect,
+                                         &logical_monitor->rect) &&
                   !g_slist_find (fullscreen_monitors, logical_monitor) &&
                   !g_slist_find (obscured_monitors, logical_monitor))
                 fullscreen_monitors = g_slist_prepend (fullscreen_monitors,
@@ -3300,8 +3299,8 @@ meta_display_queue_check_fullscreen (MetaDisplay *display)
 }
 
 int
-meta_display_get_monitor_index_for_rect (MetaDisplay   *display,
-                                         MetaRectangle *rect)
+meta_display_get_monitor_index_for_rect (MetaDisplay  *display,
+                                         MtkRectangle *rect)
 {
   MetaBackend *backend = backend_from_display (display);
   MetaMonitorManager *monitor_manager =
@@ -3414,9 +3413,9 @@ meta_display_get_primary_monitor (MetaDisplay *display)
  * Stores the location and size of the indicated @monitor in @geometry.
  */
 void
-meta_display_get_monitor_geometry (MetaDisplay   *display,
-                                   int            monitor,
-                                   MetaRectangle *geometry)
+meta_display_get_monitor_geometry (MetaDisplay  *display,
+                                   int           monitor,
+                                   MtkRectangle *geometry)
 {
   MetaBackend *backend = backend_from_display (display);
   MetaMonitorManager *monitor_manager =

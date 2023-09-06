@@ -12,9 +12,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  */
 
@@ -41,7 +39,7 @@ wait_for_paint (gpointer user_data)
   GList *monitors;
   GList *logical_monitors;
   MetaLogicalMonitor *logical_monitor;
-  MetaRectangle layout;
+  MtkRectangle layout;
 
   loop = g_main_loop_new (NULL, FALSE);
   g_signal_connect_swapped (stage, "presented",

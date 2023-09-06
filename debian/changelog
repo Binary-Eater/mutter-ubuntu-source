@@ -1,3 +1,14 @@
+mutter (45~rc-0ubuntu1) mantic; urgency=medium
+
+  * New upstream release
+  * debian/control.in: Bump minimum libei to 1.0.901
+  * debian/control.in: Bump minimum compatible GNOME Shell to 45~rc
+  * debian/libmutter-13-0.symbols: Update
+  * Add new Mtk sublibrary files to gir & dev install lists
+  * Drop "45" and sysprof patches: applied in new release
+
+ -- Jeremy Bícha <jbicha@ubuntu.com>  Wed, 06 Sep 2023 15:29:01 -0400
+
 mutter (45~beta.1-1ubuntu2) mantic; urgency=medium
 
   * Cherry-pick 2 proposed patches to build with sysprof 45

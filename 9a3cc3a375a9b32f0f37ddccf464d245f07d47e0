@@ -1,0 +1,2 @@
+  * Add cogl-onscreen-glx-Forcefully-disable-cogl_onscreen_glx_ge.patch
+    to work around https://launchpad.net/bugs/2034672

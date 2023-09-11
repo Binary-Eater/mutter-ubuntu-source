@@ -1157,7 +1157,7 @@ assert_realtime (MetaThreadImpl  *thread_impl,
 
   g_variant_get (ret, "(u)", &priority);
 
-#ifdef __arm__
+#if defined  __arm__ || defined __i386__
   g_test_incomplete ("Modifying thread priority is not supported by this architecture");
   return;
 #endif

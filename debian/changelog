@@ -1,3 +1,20 @@
+mutter (45~rc-1) experimental; urgency=medium
+
+  [ Jeremy Bícha ]
+  * New upstream release
+  * debian/control.in: Build-Depend on libsysprof-6-dev
+  * debian/control.in: Bump minimum libei to 1.0.901
+  * debian/control.in: Bump minimum compatible GNOME Shell to 45~rc
+  * debian/libmutter-13-0.symbols: Update
+  * Add new Mtk sublibrary files to gir & dev install lists
+  * Drop "45" and sysprof patches: applied in new release
+
+  [ Daniel van Vugt ]
+  * Add cogl-onscreen-glx-Forcefully-disable-cogl_onscreen_glx_ge.patch
+    to work around https://launchpad.net/bugs/2034672
+
+ -- Jeremy Bícha <jbicha@ubuntu.com>  Sun, 10 Sep 2023 21:04:02 -0400
+
 mutter (45~beta.1-1) experimental; urgency=medium
 
   [ Jeremy Bícha ]
@@ -16,6 +33,20 @@ mutter (45~beta.1-1) experimental; urgency=medium
   * Update triple buffering patch
 
  -- Jeremy Bícha <jbicha@ubuntu.com>  Mon, 21 Aug 2023 11:19:08 -0400
+
+mutter (44.3-7) unstable; urgency=medium
+
+  * Team upload
+  * d/tests/installed-tests: Run installed-tests via a wrapper script.
+    This collects logs as test artifacts, and lets us fail the test if a
+    packaging bug results in no matching tests being present.
+  * d/tests/installed-tests: Ignore test failures on some architectures.
+    These are the same architectures where we don't run build-time tests.
+    On s390x the tests are timing out at the default 5 minute cutoff, and
+    it's not clear whether they would finish successfully if allowed to
+    run for longer.
+
+ -- Simon McVittie <smcv@debian.org>  Mon, 21 Aug 2023 20:57:49 +0100
 
 mutter (44.3-6) unstable; urgency=medium
 

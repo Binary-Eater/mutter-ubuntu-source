@@ -1,0 +1,4 @@
+  [ Daniel van Vugt ]
+  * Drop clutter-frame-clock-Avoid-rapidly-toggling-dynamic-max-re.patch.
+    It was never really required in mutter 42 but has caused some new stutter
+    elsewhere (LP: #2030959)

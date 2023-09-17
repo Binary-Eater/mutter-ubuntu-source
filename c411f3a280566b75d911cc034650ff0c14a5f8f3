@@ -1,0 +1,20 @@
+  * New upstream release
+    - Fix redraw issue when buffer age is unavailable
+      (regression in 44.1, mutter#2771)
+    - Fix crash during GNOME Shell restart in Xorg mode
+      (mutter#2852, mutter!3247; Closes: #1050502)
+    - Fix unresponsive touchscreen after titlebar drag when using a
+      touchscreen (mutter#2836)
+    - Fix some XWayland windows not getting mapped
+      (regression in 44.1, mutter#2965, mutter#2820, mutter#2867)
+    - Avoid a possible crash while changing monitor layout
+      (regression in 44.1, mutter!3229)
+    - Correct a check for monitor portrait orientation when choosing
+      whether to allow tiling (mutter!3199, mutter!3248)
+    - Other crash fixes were included in 44.4-3 already
+  * d/watch: Only watch for v44.x
+  * d/patches: Drop patches that were applied upstream
+  * d/p/x11-events-NULL-Check-input-event-when-getting-name.patch:
+    Add patch from upstream 45~alpha to avoid a crash when being
+    profiled with sysprof 45~rc (mutter#3030)
+  * d/libmutter-12-0.symbols: Update

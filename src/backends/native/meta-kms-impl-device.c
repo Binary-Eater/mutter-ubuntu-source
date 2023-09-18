@@ -98,7 +98,7 @@ typedef struct _MetaKmsImplDevicePrivate
 
   GHashTable *crtc_frames;
 
-  gboolean deadline_timer_failed;
+  gboolean deadline_timer_inhibited;
 } MetaKmsImplDevicePrivate;
 
 static void
@@ -1345,7 +1345,7 @@ is_using_deadline_timer (MetaKmsImplDevice *impl_device)
   MetaKmsImplDevicePrivate *priv =
     meta_kms_impl_device_get_instance_private (impl_device);
 
-  if (priv->deadline_timer_failed)
+  if (priv->deadline_timer_inhibited)
     {
       return FALSE;
     }
@@ -1485,9 +1485,10 @@ meta_kms_impl_device_handle_update (MetaKmsImplDevice *impl_device,
       update = g_steal_pointer (&crtc_frame->pending_update);
     }
 
-  meta_kms_device_handle_flush (priv->device, latch_crtc);
   if (crtc_frame->deadline.armed)
     disarm_crtc_frame_deadline_timer (crtc_frame);
+
+  meta_kms_device_handle_flush (priv->device, latch_crtc);
 
   feedback = do_process (impl_device, latch_crtc, update, flags);
   meta_kms_feedback_unref (feedback);
@@ -1569,7 +1570,7 @@ meta_kms_impl_device_schedule_process (MetaKmsImplDevice *impl_device,
     g_warning ("Failed to determine deadline: %s", error->message);
 
   priv = meta_kms_impl_device_get_instance_private (impl_device);
-  priv->deadline_timer_failed = TRUE;
+  priv->deadline_timer_inhibited = TRUE;
 
 needs_flush:
   meta_kms_device_set_needs_flush (meta_kms_crtc_get_device (crtc), crtc);
@@ -1895,6 +1896,26 @@ get_driver_info (int    fd,
   return TRUE;
 }
 
+static void
+maybe_inhibit_deadline_timer (MetaKmsImplDevice *impl_device)
+{
+  MetaKmsImplDevicePrivate *priv =
+    meta_kms_impl_device_get_instance_private (impl_device);
+  static const char *deadline_timer_deny_list[] = {
+    "vc4",
+  };
+  int i;
+
+  for (i = 0; i < G_N_ELEMENTS (deadline_timer_deny_list); i++)
+    {
+      if (g_strcmp0 (deadline_timer_deny_list[i], priv->driver_name) == 0)
+        {
+          priv->deadline_timer_inhibited = TRUE;
+          break;
+        }
+    }
+}
+
 static gboolean
 meta_kms_impl_device_initable_init (GInitable     *initable,
                                     GCancellable  *cancellable,
@@ -1919,6 +1940,8 @@ meta_kms_impl_device_initable_init (GInitable     *initable,
       priv->driver_name = g_strdup ("unknown");
       priv->driver_description = g_strdup ("Unknown");
     }
+
+  maybe_inhibit_deadline_timer (impl_device);
 
   priv->crtc_frames =
     g_hash_table_new_full (NULL, NULL,

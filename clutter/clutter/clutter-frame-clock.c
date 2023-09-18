@@ -860,6 +860,7 @@ clutter_frame_clock_dispatch (ClutterFrameClock *frame_clock,
   else
     frame_clock->last_dispatch_lateness_us = lateness_us;
 
+#ifdef CLUTTER_ENABLE_DEBUG
   if (G_UNLIKELY (CLUTTER_HAS_DEBUG (FRAME_TIMINGS)))
     {
       int64_t dispatch_interval_us, jitter_us;
@@ -873,6 +874,7 @@ clutter_frame_clock_dispatch (ClutterFrameClock *frame_clock,
                     jitter_us,
                     jitter_us * 100 / frame_clock->refresh_interval_us);
     }
+#endif
 
   frame_clock->prev_last_dispatch_time_us = frame_clock->last_dispatch_time_us;
   frame_clock->last_dispatch_time_us = time_us;

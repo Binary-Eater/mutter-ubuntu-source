@@ -1,0 +1,14 @@
+  [ Jeremy Bícha ]
+  * New upstream release
+    - Fix focus-follows-mouse regression (Closes: #1051780)
+  * debian/libmutter-13-0.symbols: Add new symbol
+  * Refresh patches
+  [ Simon McVittie ]
+  * Merge packaging from 44.4-3 in unstable
+  [ Daniel van Vugt ]
+  * Update Support-Dynamic-triple-double-buffering.patch to match upstream.
+    This fixes a leak when a monitor is unplugged, which may have been
+    preventing discrete GPUs from entering a lower power state.
+    It also moves the freeze fix by a couple of lines so as to match the
+    current upstream merge proposals but I doubt that has any behavioural
+    impact.

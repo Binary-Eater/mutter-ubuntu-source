@@ -1,3 +1,9 @@
+mutter (44.3-0ubuntu1.1) lunar-security; urgency=medium
+
+  * No-change rebuild in the -security pocket.
+
+ -- Marc Deslauriers <marc.deslauriers@ubuntu.com>  Wed, 20 Sep 2023 14:17:27 -0400
+
 mutter (44.3-0ubuntu1) lunar; urgency=medium
 
   * New upstream release (LP: #2026544)

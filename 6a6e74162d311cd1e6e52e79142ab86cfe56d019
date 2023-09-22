@@ -1,0 +1,10 @@
+  * Merge with Debian. Remaining changes:
+    - Add x11-Add-support-for-fractional-scaling-using-Randr.patch
+    - Add window-Add-ability-to-override-the-edge-constraints.patch
+      + Make possible for extensions (such as Tiling Assistant) to override
+        window constraints
+  [ Daniel van Vugt ]
+  * Update triple buffering patch to fix freezing
+    seen when running apps full screen (LP: #2035016)
+  [ Jeremy Bícha ]
+  * Cherry-pick patch to fix changing input language in modal popups

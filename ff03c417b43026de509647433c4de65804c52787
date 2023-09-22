@@ -1,0 +1,5 @@
+  [ Daniel van Vugt ]
+  * Update triple buffering patch to fix freezing
+    seen when running apps full screen (LP: #2035016)
+  [ Jeremy Bícha ]
+  * Cherry-pick patch to fix changing input language in modal popups

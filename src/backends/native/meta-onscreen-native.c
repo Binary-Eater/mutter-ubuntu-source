@@ -122,6 +122,8 @@ struct _MetaOnscreenNative
   gulong color_space_changed_handler_id;
   gulong hdr_metadata_changed_handler_id;
 
+  gboolean needs_flush;
+
   unsigned int swaps_pending;
 
   struct {
@@ -1678,48 +1680,59 @@ meta_onscreen_native_finish_frame (CoglOnscreen *onscreen,
   unsigned int swaps_pending = onscreen_native->swaps_pending;
   unsigned int posts_pending = frames_pending - swaps_pending;
 
-  kms_update = meta_frame_native_steal_kms_update (frame_native);
-  if (!kms_update)
+  onscreen_native->needs_flush |= meta_kms_device_handle_flush (kms_device,
+                                                                kms_crtc);
+
+  if (!meta_frame_native_has_kms_update (frame_native))
     {
-      if (meta_kms_device_handle_flush (kms_device, kms_crtc))
-        {
-          kms_update = meta_kms_update_new (kms_device);
-          meta_kms_update_set_flushing (kms_update, kms_crtc);
-        }
-      else
+      if (!onscreen_native->needs_flush || posts_pending)
         {
           clutter_frame_set_result (frame, CLUTTER_FRAME_RESULT_IDLE);
           return;
         }
     }
 
-  if (posts_pending)
+  if (posts_pending && !swaps_pending)
     {
-      if (!swaps_pending)
-        {
-          g_warn_if_fail (onscreen_native->next_post.frame == NULL);
-          g_clear_pointer (&onscreen_native->next_post.frame, clutter_frame_unref);
-          onscreen_native->next_post.frame = clutter_frame_ref (frame);
-          clutter_frame_set_result (frame, CLUTTER_FRAME_RESULT_PENDING_PRESENTED);
-        }
-      else
-        {
-          MetaFrameNative *older_frame_native;
-          MetaKmsUpdate *older_kms_update;
+      g_return_if_fail (meta_frame_native_has_kms_update (frame_native));
+      g_warn_if_fail (onscreen_native->next_post.frame == NULL);
 
-          g_assert (swaps_pending);
-          g_return_if_fail (onscreen_native->next_post.frame != NULL);
-
-          older_frame_native =
-            meta_frame_native_from_frame (onscreen_native->next_post.frame);
-          older_kms_update =
-            meta_frame_native_ensure_kms_update (older_frame_native, kms_device);
-          meta_kms_update_merge_from (older_kms_update, kms_update);
-          meta_kms_update_free (kms_update);
-
-          clutter_frame_set_result (frame, CLUTTER_FRAME_RESULT_IDLE);
-        }
+      g_clear_pointer (&onscreen_native->next_post.frame, clutter_frame_unref);
+      onscreen_native->next_post.frame = clutter_frame_ref (frame);
+      clutter_frame_set_result (frame, CLUTTER_FRAME_RESULT_PENDING_PRESENTED);
       return;
+    }
+
+  kms_update = meta_frame_native_steal_kms_update (frame_native);
+
+  if (posts_pending && swaps_pending)
+    {
+      MetaFrameNative *older_frame_native;
+      MetaKmsUpdate *older_kms_update;
+
+      g_return_if_fail (kms_update);
+      g_return_if_fail (onscreen_native->next_post.frame != NULL);
+
+      older_frame_native =
+        meta_frame_native_from_frame (onscreen_native->next_post.frame);
+      older_kms_update =
+        meta_frame_native_ensure_kms_update (older_frame_native, kms_device);
+      meta_kms_update_merge_from (older_kms_update, kms_update);
+      meta_kms_update_free (kms_update);
+      clutter_frame_set_result (frame, CLUTTER_FRAME_RESULT_IDLE);
+      return;
+    }
+
+  if (!kms_update)
+    {
+      kms_update = meta_kms_update_new (kms_device);
+      g_warn_if_fail (onscreen_native->needs_flush);
+    }
+
+  if (onscreen_native->needs_flush)
+    {
+      meta_kms_update_set_flushing (kms_update, kms_crtc);
+      onscreen_native->needs_flush = FALSE;
     }
 
   post_finish_frame (onscreen_native, kms_update);

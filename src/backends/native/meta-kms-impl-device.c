@@ -1902,6 +1902,7 @@ maybe_inhibit_deadline_timer (MetaKmsImplDevice *impl_device)
   MetaKmsImplDevicePrivate *priv =
     meta_kms_impl_device_get_instance_private (impl_device);
   static const char *deadline_timer_deny_list[] = {
+    "amdgpu",
     "vc4",
   };
   int i;

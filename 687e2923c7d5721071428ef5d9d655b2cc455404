@@ -1,0 +1,1 @@
+  * Update build autopkgtest to not run dh_auto_test (LP: #2038564)

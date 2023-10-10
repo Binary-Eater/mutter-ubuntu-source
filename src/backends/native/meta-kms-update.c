@@ -31,6 +31,7 @@
 struct _MetaKmsUpdate
 {
   MetaKmsDevice *device;
+  GHashTable *crtcs;
 
   gboolean is_locked;
   uint64_t sequence_number;
@@ -238,6 +239,8 @@ meta_kms_update_assign_plane (MetaKmsUpdate          *update,
   update->plane_assignments = g_list_prepend (update->plane_assignments,
                                               plane_assignment);
 
+  g_hash_table_add (update->crtcs, crtc);
+
   return plane_assignment;
 }
 
@@ -263,6 +266,8 @@ meta_kms_update_unassign_plane (MetaKmsUpdate *update,
   update->plane_assignments = g_list_prepend (update->plane_assignments,
                                               plane_assignment);
 
+  g_hash_table_add (update->crtcs, crtc);
+
   return plane_assignment;
 }
 
@@ -285,6 +290,8 @@ meta_kms_update_mode_set (MetaKmsUpdate *update,
   };
 
   update->mode_sets = g_list_prepend (update->mode_sets, mode_set);
+
+  g_hash_table_add (update->crtcs, crtc);
 }
 
 static MetaKmsConnectorUpdate *
@@ -417,6 +424,8 @@ meta_kms_update_set_crtc_gamma (MetaKmsUpdate  *update,
   gamma = meta_kms_crtc_gamma_new (crtc, size, red, green, blue);
 
   update->crtc_gammas = g_list_prepend (update->crtc_gammas, gamma);
+
+  g_hash_table_add (update->crtcs, crtc);
 }
 
 void
@@ -708,12 +717,15 @@ meta_kms_update_new (MetaKmsDevice *device)
   update->device = device;
   update->sequence_number = sequence_number++;
 
+  update->crtcs = g_hash_table_new (NULL, NULL);
+
   return update;
 }
 
 void
 meta_kms_update_free (MetaKmsUpdate *update)
 {
+  g_hash_table_destroy (update->crtcs);
   g_list_free_full (update->result_listeners,
                     (GDestroyNotify) meta_kms_result_listener_free);
   g_list_free_full (update->plane_assignments,

@@ -25,6 +25,7 @@
 #include "backends/meta-display-config-shared.h"
 #include "backends/native/meta-kms-connector.h"
 #include "backends/native/meta-kms-crtc.h"
+#include "backends/native/meta-kms-device.h"
 #include "backends/native/meta-kms-mode-private.h"
 #include "backends/native/meta-kms-plane.h"
 
@@ -300,6 +301,8 @@ ensure_connector_update (MetaKmsUpdate    *update,
 {
   GList *l;
   MetaKmsConnectorUpdate *connector_update;
+  MetaKmsDevice *device;
+  const MetaKmsConnectorState *state;
 
   for (l = update->connector_updates; l; l = l->next)
     {
@@ -314,6 +317,23 @@ ensure_connector_update (MetaKmsUpdate    *update,
 
   update->connector_updates = g_list_prepend (update->connector_updates,
                                               connector_update);
+  device = meta_kms_connector_get_device (connector);
+  state = meta_kms_connector_get_current_state (connector);
+  if (device && state && state->current_crtc_id)
+    {
+      GList *l;
+
+      for (l = meta_kms_device_get_crtcs (device); l; l = l->next)
+        {
+          MetaKmsCrtc *kms_crtc = l->data;
+
+          if (meta_kms_crtc_get_id (kms_crtc) == state->current_crtc_id)
+            {
+              g_hash_table_add (update->crtcs, kms_crtc);
+              break;
+            }
+        }
+    }
 
   return connector_update;
 }

@@ -2248,7 +2248,7 @@ meta_onscreen_native_new (MetaRendererNative *renderer_native,
   onscreen_native->renderer_native = renderer_native;
   onscreen_native->render_gpu = render_gpu;
   onscreen_native->output = output;
-  onscreen_native->crtc = crtc;
+  onscreen_native->crtc = g_object_ref (crtc);
 
   return onscreen_native;
 }
@@ -2296,6 +2296,7 @@ meta_onscreen_native_dispose (GObject *object)
 
   G_OBJECT_CLASS (meta_onscreen_native_parent_class)->dispose (object);
 
+  g_clear_object (&onscreen_native->crtc);
   g_clear_pointer (&onscreen_native->gbm.surface, gbm_surface_destroy);
   g_clear_pointer (&onscreen_native->secondary_gpu_state,
                    secondary_gpu_state_free);

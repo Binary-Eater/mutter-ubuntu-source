@@ -68,6 +68,8 @@ MetaKmsDevice * meta_kms_create_device (MetaKms            *kms,
 
 void meta_kms_prepare_shutdown (MetaKms *kms);
 
+gboolean meta_kms_is_shutting_down (MetaKms *kms);
+
 MetaKms * meta_kms_new (MetaBackend   *backend,
                         MetaKmsFlags   flags,
                         GError       **error);

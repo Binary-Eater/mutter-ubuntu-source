@@ -1306,7 +1306,7 @@ process_plane_assignment (MetaKmsImplDevice       *impl_device,
     {
     case META_KMS_PLANE_TYPE_PRIMARY:
       /* Handled as part of the mode-set and page flip. */
-      return TRUE;
+      goto assigned;
     case META_KMS_PLANE_TYPE_CURSOR:
       if (!process_cursor_plane_assignment (impl_device, update,
                                             plane_assignment,
@@ -1320,7 +1320,7 @@ process_plane_assignment (MetaKmsImplDevice       *impl_device,
         }
       else
         {
-          return TRUE;
+          goto assigned;
         }
     case META_KMS_PLANE_TYPE_OVERLAY:
       error = g_error_new_literal (G_IO_ERROR, G_IO_ERROR_FAILED,
@@ -1333,6 +1333,12 @@ process_plane_assignment (MetaKmsImplDevice       *impl_device,
     }
 
   g_assert_not_reached ();
+
+assigned:
+  meta_kms_crtc_remember_plane_buffer (plane_assignment->crtc,
+                                       meta_kms_plane_get_id (plane),
+                                       plane_assignment->buffer);
+  return TRUE;
 }
 
 static gboolean

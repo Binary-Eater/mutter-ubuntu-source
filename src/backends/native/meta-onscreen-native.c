@@ -409,6 +409,11 @@ meta_onscreen_native_flip_crtc (CoglOnscreen                *onscreen,
           meta_kms_plane_assignment_set_fb_damage (plane_assignment,
                                                    rectangles, n_rectangles);
         }
+
+      g_object_set_data_full (G_OBJECT (buffer),
+                              "gbm_surface owner",
+                              g_object_ref (onscreen),
+                              (GDestroyNotify) g_object_unref);
       break;
     case META_RENDERER_NATIVE_MODE_SURFACELESS:
       g_assert_not_reached ();

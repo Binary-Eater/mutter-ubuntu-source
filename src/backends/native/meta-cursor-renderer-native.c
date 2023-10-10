@@ -289,8 +289,8 @@ assign_cursor_plane (MetaCursorRendererNative *native,
     flags |= META_KMS_ASSIGN_PLANE_FLAG_FB_UNCHANGED;
 
   kms_update =
-    meta_kms_ensure_pending_update (meta_kms_device_get_kms (kms_device),
-                                    meta_kms_crtc_get_device (kms_crtc));
+    meta_kms_ensure_pending_update_for_crtc (meta_kms_device_get_kms (kms_device),
+                                             kms_crtc);
   plane_assignment = meta_kms_update_assign_plane (kms_update,
                                                    kms_crtc,
                                                    cursor_plane,
@@ -435,7 +435,7 @@ unset_crtc_cursor (MetaCursorRendererNative *native,
       MetaKms *kms = meta_kms_device_get_kms (kms_device);
       MetaKmsUpdate *kms_update;
 
-      kms_update = meta_kms_ensure_pending_update (kms, kms_device);
+      kms_update = meta_kms_ensure_pending_update_for_crtc (kms, kms_crtc);
       meta_kms_update_unassign_plane (kms_update, kms_crtc, cursor_plane);
     }
 

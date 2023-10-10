@@ -109,6 +109,7 @@ struct _ClutterFrameClock
   EstimateQueue swap_to_flip_us;
   /* If we got new measurements last frame. */
   gboolean got_measurements_last_frame;
+  gboolean ever_got_measurements;
 
   gboolean pending_reschedule;
   gboolean pending_reschedule_now;
@@ -286,19 +287,27 @@ clutter_frame_clock_notify_presented (ClutterFrameClock *frame_clock,
 
   frame_clock->got_measurements_last_frame = FALSE;
 
-  if (frame_info->cpu_time_before_buffer_swap_us != 0 &&
-      frame_info->gpu_rendering_duration_ns != 0)
+  if ((frame_info->cpu_time_before_buffer_swap_us != 0 &&
+       frame_info->gpu_rendering_duration_ns != 0) ||
+       frame_clock->ever_got_measurements)
     {
       int64_t dispatch_to_swap_us, swap_to_rendering_done_us, swap_to_flip_us;
 
-      dispatch_to_swap_us =
-        frame_info->cpu_time_before_buffer_swap_us -
-        frame_clock->last_dispatch_time_us;
+      if (frame_info->cpu_time_before_buffer_swap_us == 0)
+        {
+          /* Cursor-only updates with no "swap" or "flip" */
+          dispatch_to_swap_us = 0;
+          swap_to_flip_us = 0;
+        }
+      else
+        {
+          dispatch_to_swap_us = frame_info->cpu_time_before_buffer_swap_us -
+                                frame_clock->last_dispatch_time_us;
+          swap_to_flip_us = frame_clock->last_flip_time_us -
+                            frame_info->cpu_time_before_buffer_swap_us;
+        }
       swap_to_rendering_done_us =
         frame_info->gpu_rendering_duration_ns / 1000;
-      swap_to_flip_us =
-        frame_clock->last_flip_time_us -
-        frame_info->cpu_time_before_buffer_swap_us;
 
       CLUTTER_NOTE (FRAME_TIMINGS,
                     "%s: dispatch2swap %ld µs, swap2render %ld µs, swap2flip %ld µs",
@@ -315,6 +324,7 @@ clutter_frame_clock_notify_presented (ClutterFrameClock *frame_clock,
                                 swap_to_flip_us);
 
       frame_clock->got_measurements_last_frame = TRUE;
+      frame_clock->ever_got_measurements = TRUE;
     }
   else
     {
@@ -389,10 +399,18 @@ clutter_frame_clock_compute_max_render_time_us (ClutterFrameClock *frame_clock)
 
   refresh_interval_us = frame_clock->refresh_interval_us;
 
-  if (!frame_clock->got_measurements_last_frame ||
+  if (!frame_clock->ever_got_measurements ||
       G_UNLIKELY (clutter_paint_debug_flags &
                   CLUTTER_DEBUG_DISABLE_DYNAMIC_MAX_RENDER_TIME))
-    return refresh_interval_us * SYNC_DELAY_FALLBACK_FRACTION;
+    {
+      int64_t ret = refresh_interval_us * SYNC_DELAY_FALLBACK_FRACTION;
+
+      if (!triple_buffering_disabled &&
+          frame_clock->state == CLUTTER_FRAME_CLOCK_STATE_DISPATCHED_ONE)
+        ret += refresh_interval_us;
+
+      return ret;
+    }
 
   for (i = 0; i < ESTIMATE_QUEUE_LENGTH; ++i)
     {

@@ -72,6 +72,7 @@ typedef struct _MetaOnscreenNativeSecondaryGpuState
   struct {
     MetaDrmBufferDumb *current_dumb_fb;
     MetaDrmBufferDumb *dumb_fbs[2];
+    MetaDrmBuffer *source_fbs[2];
   } cpu;
 
   gboolean noted_primary_gpu_copy_ok;
@@ -496,12 +497,40 @@ meta_onscreen_native_set_crtc_mode (CoglOnscreen              *onscreen,
 }
 
 static void
+hold_primary_gpu_fb_for_secondary_gpu_scanout (MetaOnscreenNativeSecondaryGpuState *secondary_gpu_state,
+                                               MetaDrmBuffer                       *primary_gpu_fb,
+                                               MetaDrmBuffer                       *secondary_gpu_fb)
+{
+  if (META_IS_DRM_BUFFER_DUMB (secondary_gpu_fb))
+    {
+      MetaDrmBufferDumb *dumb_fb = META_DRM_BUFFER_DUMB (secondary_gpu_fb);
+      int i;
+      const int n = G_N_ELEMENTS (secondary_gpu_state->cpu.dumb_fbs);
+
+      for (i = 0; i < n; i++)
+        {
+          if (dumb_fb == secondary_gpu_state->cpu.dumb_fbs[i])
+            {
+              g_set_object (&secondary_gpu_state->cpu.source_fbs[i],
+                            primary_gpu_fb);
+              break;
+            }
+        }
+
+      g_warn_if_fail (i < n);
+    }
+}
+
+static void
 secondary_gpu_release_dumb (MetaOnscreenNativeSecondaryGpuState *secondary_gpu_state)
 {
   unsigned i;
 
   for (i = 0; i < G_N_ELEMENTS (secondary_gpu_state->cpu.dumb_fbs); i++)
-    g_clear_object (&secondary_gpu_state->cpu.dumb_fbs[i]);
+    {
+      g_clear_object (&secondary_gpu_state->cpu.dumb_fbs[i]);
+      g_clear_object (&secondary_gpu_state->cpu.source_fbs[i]);
+    }
 }
 
 static void
@@ -1084,9 +1113,17 @@ meta_onscreen_native_swap_buffers_with_damage (CoglOnscreen  *onscreen,
     case META_RENDERER_NATIVE_MODE_GBM:
       g_warn_if_fail (onscreen_native->gbm.next_fb == NULL);
       if (onscreen_native->secondary_gpu_state)
-        g_set_object (&onscreen_native->gbm.next_fb, secondary_gpu_fb);
+        {
+          g_set_object (&onscreen_native->gbm.next_fb, secondary_gpu_fb);
+          hold_primary_gpu_fb_for_secondary_gpu_scanout (
+            onscreen_native->secondary_gpu_state,
+            primary_gpu_fb,
+            secondary_gpu_fb);
+        }
       else
-        g_set_object (&onscreen_native->gbm.next_fb, primary_gpu_fb);
+        {
+          g_set_object (&onscreen_native->gbm.next_fb, primary_gpu_fb);
+        }
       break;
     case META_RENDERER_NATIVE_MODE_SURFACELESS:
       break;
@@ -1966,6 +2003,21 @@ pick_secondary_gpu_framebuffer_format_for_cpu (CoglOnscreen *onscreen)
   return DRM_FORMAT_INVALID;
 }
 
+static void
+dumb_toggle_notify (gpointer  data,
+                    GObject  *object,
+                    gboolean  is_last_ref)
+{
+  MetaDrmBuffer **source_fb = data;
+
+  g_return_if_fail (source_fb != NULL);
+  if (is_last_ref && *source_fb)
+    {
+      g_return_if_fail (META_IS_DRM_BUFFER (*source_fb));
+      g_clear_object (source_fb);
+    }
+}
+
 static gboolean
 init_secondary_gpu_state_cpu_copy_mode (MetaRendererNative         *renderer_native,
                                         CoglOnscreen               *onscreen,
@@ -2022,6 +2074,12 @@ init_secondary_gpu_state_cpu_copy_mode (MetaRendererNative         *renderer_nat
         }
 
       secondary_gpu_state->cpu.dumb_fbs[i] = META_DRM_BUFFER_DUMB (dumb_buffer);
+      g_object_add_toggle_ref (G_OBJECT (dumb_buffer),
+                               dumb_toggle_notify,
+                               &secondary_gpu_state->cpu.source_fbs[i]);
+
+      /* It was incremented higher than we need by add_toggle_ref */
+      g_object_unref (dumb_buffer);
     }
 
   /*

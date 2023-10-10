@@ -287,19 +287,27 @@ clutter_frame_clock_notify_presented (ClutterFrameClock *frame_clock,
 
   frame_clock->got_measurements_last_frame = FALSE;
 
-  if (frame_info->cpu_time_before_buffer_swap_us != 0 &&
-      frame_info->gpu_rendering_duration_ns != 0)
+  if ((frame_info->cpu_time_before_buffer_swap_us != 0 &&
+       frame_info->gpu_rendering_duration_ns != 0) ||
+       frame_clock->ever_got_measurements)
     {
       int64_t dispatch_to_swap_us, swap_to_rendering_done_us, swap_to_flip_us;
 
-      dispatch_to_swap_us =
-        frame_info->cpu_time_before_buffer_swap_us -
-        frame_clock->last_dispatch_time_us;
+      if (frame_info->cpu_time_before_buffer_swap_us == 0)
+        {
+          /* Cursor-only updates with no "swap" or "flip" */
+          dispatch_to_swap_us = 0;
+          swap_to_flip_us = 0;
+        }
+      else
+        {
+          dispatch_to_swap_us = frame_info->cpu_time_before_buffer_swap_us -
+                                frame_clock->last_dispatch_time_us;
+          swap_to_flip_us = frame_clock->last_flip_time_us -
+                            frame_info->cpu_time_before_buffer_swap_us;
+        }
       swap_to_rendering_done_us =
         frame_info->gpu_rendering_duration_ns / 1000;
-      swap_to_flip_us =
-        frame_clock->last_flip_time_us -
-        frame_info->cpu_time_before_buffer_swap_us;
 
       CLUTTER_NOTE (FRAME_TIMINGS,
                     "%s: dispatch2swap %ld µs, swap2render %ld µs, swap2flip %ld µs",

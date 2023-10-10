@@ -709,6 +709,20 @@ meta_kms_update_get_device (MetaKmsUpdate *update)
   return update->device;
 }
 
+gboolean
+meta_kms_update_includes_crtc (MetaKmsUpdate *update,
+                               MetaKmsCrtc   *crtc)
+{
+  return g_hash_table_contains (update->crtcs, crtc);
+}
+
+void
+meta_kms_update_include_crtc (MetaKmsUpdate *update,
+                              MetaKmsCrtc   *crtc)
+{
+  g_hash_table_add (update->crtcs, crtc);
+}
+
 MetaKmsCustomPageFlip *
 meta_kms_update_take_custom_page_flip_func (MetaKmsUpdate *update)
 {

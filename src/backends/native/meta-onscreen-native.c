@@ -1205,6 +1205,12 @@ try_post_latest_swap (CoglOnscreen *onscreen)
   const GError *feedback_error;
   unsigned int frames_pending = cogl_onscreen_count_pending_frames (onscreen);
 
+  if (meta_kms_is_shutting_down (kms))
+    {
+      meta_onscreen_native_discard_pending_swaps (onscreen);
+      return;
+    }
+
   if (onscreen_native->swaps_pending == 0)
     return;
 

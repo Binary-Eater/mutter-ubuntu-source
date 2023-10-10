@@ -380,6 +380,7 @@ clutter_frame_clock_compute_max_render_time_us (ClutterFrameClock *frame_clock)
   int64_t max_swap_to_rendering_done_us = 0;
   int64_t max_swap_to_flip_us = 0;
   int64_t max_render_time_us;
+  int buffer_queue_latency_frames = 0;
   int i;
 
   refresh_interval_us = frame_clock->refresh_interval_us;
@@ -401,6 +402,27 @@ clutter_frame_clock_compute_max_render_time_us (ClutterFrameClock *frame_clock)
         MAX (max_swap_to_flip_us,
              frame_clock->swap_to_flip_us.values[i]);
     }
+
+  switch (frame_clock->state)
+    {
+    case CLUTTER_FRAME_CLOCK_STATE_INIT:
+    case CLUTTER_FRAME_CLOCK_STATE_IDLE:
+    case CLUTTER_FRAME_CLOCK_STATE_SCHEDULED:
+      buffer_queue_latency_frames = 0;
+      break;
+    case CLUTTER_FRAME_CLOCK_STATE_DISPATCHED_ONE:
+    case CLUTTER_FRAME_CLOCK_STATE_DISPATCHED_ONE_AND_SCHEDULED:
+      buffer_queue_latency_frames = 1;
+      break;
+    case CLUTTER_FRAME_CLOCK_STATE_DISPATCHED_TWO:
+      g_warn_if_reached ();
+      buffer_queue_latency_frames = 2;
+      break;
+    }
+
+  max_swap_to_flip_us -= refresh_interval_us * buffer_queue_latency_frames;
+  if (max_swap_to_flip_us < 0)
+    max_swap_to_flip_us = 0;
 
   /* Max render time shows how early the frame clock needs to be dispatched
    * to make it to the predicted next presentation time. It is composed of:

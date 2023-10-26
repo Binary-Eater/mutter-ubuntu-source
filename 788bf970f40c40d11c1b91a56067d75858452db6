@@ -1,0 +1,2 @@
+  * Cherry pick 4 commits to fix SIGKILL on lockscreen. (LP: #2034619)
+  * Drop kms-impl-device-Inhibit-deadline-timer-on-amdgpu.patch

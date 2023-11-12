@@ -74,6 +74,7 @@
 #include "core/constraints.h"
 #include "core/frame.h"
 #include "core/keybindings-private.h"
+#include "core/meta-private-introspected.h"
 #include "core/meta-workspace-manager-private.h"
 #include "core/place.h"
 #include "core/stack.h"
@@ -230,6 +231,7 @@ enum
   UNMANAGED,
   SIZE_CHANGED,
   POSITION_CHANGED,
+  MONITOR_CHANGED,
   SHOWN,
   HIGHEST_SCALE_MONITOR_CHANGED,
 
@@ -437,6 +439,9 @@ meta_window_get_property(GObject         *object,
       break;
     case PROP_ON_ALL_WORKSPACES:
       g_value_set_boolean (value, win->on_all_workspaces);
+      break;
+    case PROP_IS_ALIVE:
+      g_value_set_boolean (value, win->is_alive);
       break;
     case PROP_DISPLAY:
       g_value_set_object (value, win->display);
@@ -694,6 +699,21 @@ meta_window_class_init (MetaWindowClass *klass)
                   0,
                   NULL, NULL, NULL,
                   G_TYPE_NONE, 0);
+
+    /**
+   * MetaWindow::monitor-changed:
+   * @window: a #MetaWindow
+   * @old_monitor: the old monitor index or -1 if not known
+   *
+   * This is emitted when the window has changed monitor
+   */
+  window_signals[MONITOR_CHANGED] =
+    g_signal_new ("monitor-changed",
+                  G_TYPE_FROM_CLASS (object_class),
+                  G_SIGNAL_RUN_LAST,
+                  0,
+                  NULL, NULL, NULL,
+                  G_TYPE_NONE, 1, G_TYPE_INT);
 
   /**
    * MetaWindow::shown:
@@ -975,6 +995,9 @@ meta_window_main_monitor_changed (MetaWindow               *window,
                                   const MetaLogicalMonitor *old)
 {
   META_WINDOW_GET_CLASS (window)->main_monitor_changed (window, old);
+
+  g_signal_emit (window, window_signals[MONITOR_CHANGED], 0,
+                 old ? old->number : -1);
 
   if (old)
     g_signal_emit_by_name (window->display, "window-left-monitor",
@@ -2881,6 +2904,38 @@ meta_window_update_tile_fraction (MetaWindow *window,
     meta_window_tile (tile_match, tile_match->tile_mode);
 }
 
+G_ALWAYS_INLINE static inline MetaEdgeConstraint
+get_edge_constraint (MetaWindowConstraint constraint)
+{
+  switch (constraint)
+    {
+      case META_WINDOW_CONSTRAINT_NONE:
+        return META_EDGE_CONSTRAINT_NONE;
+      case META_WINDOW_CONSTRAINT_WINDOW:
+        return META_EDGE_CONSTRAINT_WINDOW;
+      case META_WINDOW_CONSTRAINT_MONITOR:
+        return META_EDGE_CONSTRAINT_MONITOR;
+    }
+
+  g_return_val_if_reached (META_WINDOW_CONSTRAINT_NONE);
+}
+
+void
+meta_window_override_constraints (MetaWindow           *window,
+                                  MetaWindowConstraint  top,
+                                  MetaWindowConstraint  left,
+                                  MetaWindowConstraint  right,
+                                  MetaWindowConstraint  bottom)
+{
+  window->overridden_constraints.left = get_edge_constraint (left);
+  window->overridden_constraints.right = get_edge_constraint (right);
+  window->overridden_constraints.top = get_edge_constraint (top);
+  window->overridden_constraints.bottom = get_edge_constraint (bottom);
+
+  update_edge_constraints (window);
+  meta_window_frame_size_changed (window);
+}
+
 static void
 update_edge_constraints (MetaWindow *window)
 {
@@ -2936,6 +2991,18 @@ update_edge_constraints (MetaWindow *window)
       window->edge_constraints.right = META_EDGE_CONSTRAINT_MONITOR;
       window->edge_constraints.left = META_EDGE_CONSTRAINT_MONITOR;
     }
+
+  if (window->overridden_constraints.top != META_EDGE_CONSTRAINT_NONE)
+      window->edge_constraints.top = window->overridden_constraints.top;
+
+  if (window->overridden_constraints.bottom != META_EDGE_CONSTRAINT_NONE)
+      window->edge_constraints.bottom = window->overridden_constraints.bottom;
+
+  if (window->overridden_constraints.left != META_EDGE_CONSTRAINT_NONE)
+      window->edge_constraints.left = window->overridden_constraints.left;
+
+  if (window->overridden_constraints.right != META_EDGE_CONSTRAINT_NONE)
+      window->edge_constraints.right = window->overridden_constraints.right;
 }
 
 void
@@ -5219,19 +5286,15 @@ meta_window_propagate_focus_appearance (MetaWindow *window,
   parent = meta_window_get_transient_for (child);
   while (parent && (!focused || should_propagate_focus_appearance (child)))
     {
-      gboolean child_focus_state_changed;
+      gboolean child_focus_state_changed = FALSE;
 
-      if (focused)
+      if (focused && parent->attached_focus_window != focus_window)
         {
-          if (parent->attached_focus_window == focus_window)
-            break;
           child_focus_state_changed = (parent->attached_focus_window == NULL);
           parent->attached_focus_window = focus_window;
         }
-      else
+      else if (parent->attached_focus_window == focus_window)
         {
-          if (parent->attached_focus_window != focus_window)
-            break;
           child_focus_state_changed = (parent->attached_focus_window != NULL);
           parent->attached_focus_window = NULL;
         }

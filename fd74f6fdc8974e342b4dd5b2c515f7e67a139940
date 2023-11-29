@@ -1,0 +1,2 @@
+  * Cherry-pick several commits to fix Wacom on X11 issues (LP: #2043027)
+  * Cherry-pick other commits suggested in !3414 to fix several issues

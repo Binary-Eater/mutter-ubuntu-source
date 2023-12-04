@@ -1,0 +1,3 @@
+  * New upstream release (LP: #2043000)
+  * Drop patches applied in new release
+  * Drop unimportant patch not included in the mutter 45.2 backports

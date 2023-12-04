@@ -1,3 +1,18 @@
+mutter (45.2-0ubuntu1) mantic; urgency=medium
+
+  [ Jeremy Bícha ]
+  * New upstream release (LP: #2043000)
+    - Fix entering capital accent letters with Caps Lock (LP: #2035076)
+    - Fix Wacom on X11 issues (LP: #2043027)
+  * debian/libmutter-13-0.symbols: Add new symbols
+  * Drop patches applied in new release
+  * Rebase X11 fractional scaling patch
+
+  [ Daniel van Vugt ]
+  * Rebase triple buffering patch
+
+ -- Jeremy Bícha <jbicha@ubuntu.com>  Mon, 04 Dec 2023 13:45:25 -0500
+
 mutter (45.0-3ubuntu3.1) mantic; urgency=medium
 
   * Cherry pick 4 commits to fix SIGKILL on lockscreen. (LP: #2034619)

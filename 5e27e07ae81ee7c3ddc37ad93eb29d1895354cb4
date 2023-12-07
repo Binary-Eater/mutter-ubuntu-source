@@ -1,0 +1,9 @@
+  [ Jeremy Bícha ]
+  * New upstream release (LP: #2043000)
+    - Fix entering capital accent letters with Caps Lock (LP: #2035076)
+    - Fix Wacom on X11 issues (LP: #2043027)
+  * debian/libmutter-13-0.symbols: Add new symbols
+  * Drop patches applied in new release
+  * Rebase X11 fractional scaling patch
+  [ Daniel van Vugt ]
+  * Rebase triple buffering patch

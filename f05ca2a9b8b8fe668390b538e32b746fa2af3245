@@ -1,0 +1,6 @@
+  * Team upload
+  [ Simon McVittie ]
+  * New upstream release
+  * Drop patches that were included in the upstream release
+  [ Chris Hofstaedtler ]
+  * Honor udev.pc's udevdir when installing udev rules (Closes: #1057319)

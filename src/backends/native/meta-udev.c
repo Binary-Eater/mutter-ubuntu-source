@@ -12,9 +12,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  */
 
@@ -100,13 +98,6 @@ meta_is_udev_device_disable_modifiers (GUdevDevice *device)
 {
   return meta_has_udev_device_tag (device,
                                    "mutter-device-disable-kms-modifiers");
-}
-
-gboolean
-meta_is_udev_device_disable_client_modifiers (GUdevDevice *device)
-{
-  return meta_has_udev_device_tag (device,
-                                   "mutter-device-disable-client-modifiers");
 }
 
 gboolean

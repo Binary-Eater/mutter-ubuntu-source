@@ -115,9 +115,7 @@ meta_background_actor_class_init (MetaBackgroundActorClass *klass)
   object_class->set_property = meta_background_actor_set_property;
   object_class->get_property = meta_background_actor_get_property;
 
-  param_spec = g_param_spec_object ("meta-display",
-                                    "MetaDisplay",
-                                    "MetaDisplay",
+  param_spec = g_param_spec_object ("meta-display", NULL, NULL,
                                     META_TYPE_DISPLAY,
                                     G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY);
 
@@ -125,9 +123,7 @@ meta_background_actor_class_init (MetaBackgroundActorClass *klass)
                                    PROP_META_DISPLAY,
                                    param_spec);
 
-  param_spec = g_param_spec_int ("monitor",
-                                 "monitor",
-                                 "monitor",
+  param_spec = g_param_spec_int ("monitor", NULL, NULL,
                                  0, G_MAXINT, 0,
                                  G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY);
 
@@ -168,36 +164,34 @@ meta_background_actor_new (MetaDisplay *display,
 }
 
 static void
-meta_background_actor_cull_out (MetaCullable   *cullable,
-                                cairo_region_t *unobscured_region,
-                                cairo_region_t *clip_region)
+meta_background_actor_cull_unobscured (MetaCullable   *cullable,
+                                       cairo_region_t *unobscured_region)
 {
   MetaBackgroundActor *self = META_BACKGROUND_ACTOR (cullable);
 
   if (!self->content)
     return;
 
-  meta_background_content_cull_out (self->content,
-                                    unobscured_region,
-                                    clip_region);
+  meta_background_content_cull_unobscured (self->content, unobscured_region);
 }
 
 static void
-meta_background_actor_reset_culling (MetaCullable *cullable)
+meta_background_actor_cull_redraw_clip (MetaCullable   *cullable,
+                                        cairo_region_t *clip_region)
 {
   MetaBackgroundActor *self = META_BACKGROUND_ACTOR (cullable);
 
   if (!self->content)
     return;
 
-  meta_background_content_reset_culling (self->content);
+  meta_background_content_cull_redraw_clip (self->content, clip_region);
 }
 
 static void
 cullable_iface_init (MetaCullableInterface *iface)
 {
-  iface->cull_out = meta_background_actor_cull_out;
-  iface->reset_culling = meta_background_actor_reset_culling;
+  iface->cull_unobscured = meta_background_actor_cull_unobscured;
+  iface->cull_redraw_clip = meta_background_actor_cull_redraw_clip;
 }
 
 /**

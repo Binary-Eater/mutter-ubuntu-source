@@ -14,14 +14,11 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  */
 
-#ifndef META_SCREEN_CAST_MONITOR_STREAM_H
-#define META_SCREEN_CAST_MONITOR_STREAM_H
+#pragma once
 
 #include <glib-object.h>
 
@@ -46,5 +43,3 @@ MetaScreenCastMonitorStream * meta_screen_cast_monitor_stream_new (MetaScreenCas
 ClutterStage * meta_screen_cast_monitor_stream_get_stage (MetaScreenCastMonitorStream *monitor_stream);
 
 MetaMonitor * meta_screen_cast_monitor_stream_get_monitor (MetaScreenCastMonitorStream *monitor_stream);
-
-#endif /* META_SCREEN_CAST_MONITOR_STREAM_H */

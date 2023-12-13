@@ -150,7 +150,7 @@
  *  static void
  *  my_effect_class_init (MyEffectClass *klass)
  *  {
- *    ClutterActorMetaClas *meta_class = CLUTTER_ACTOR_META_CLASS (klass);
+ *    ClutterActorMetaClass *meta_class = CLUTTER_ACTOR_META_CLASS (klass);
  *
  *    meta_class->set_actor = my_effect_set_actor;
  *
@@ -159,19 +159,19 @@
  * ```
  */
 
-#include "clutter-build-config.h"
+#include "clutter/clutter-build-config.h"
 
-#include "clutter-effect.h"
+#include "clutter/clutter-effect.h"
 
-#include "clutter-actor-meta-private.h"
-#include "clutter-debug.h"
-#include "clutter-effect-private.h"
-#include "clutter-enum-types.h"
-#include "clutter-marshal.h"
-#include "clutter-paint-node-private.h"
-#include "clutter-paint-nodes.h"
-#include "clutter-private.h"
-#include "clutter-actor-private.h"
+#include "clutter/clutter-actor-meta-private.h"
+#include "clutter/clutter-debug.h"
+#include "clutter/clutter-effect-private.h"
+#include "clutter/clutter-enum-types.h"
+#include "clutter/clutter-marshal.h"
+#include "clutter/clutter-paint-node-private.h"
+#include "clutter/clutter-paint-nodes.h"
+#include "clutter/clutter-private.h"
+#include "clutter/clutter-actor-private.h"
 
 G_DEFINE_ABSTRACT_TYPE (ClutterEffect,
                         clutter_effect,

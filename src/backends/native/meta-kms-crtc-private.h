@@ -12,13 +12,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef META_KMS_CRTC_PRIVATE_H
-#define META_KMS_CRTC_PRIVATE_H
+#pragma once
 
 #include <xf86drmMode.h>
 
@@ -56,4 +53,7 @@ uint64_t meta_kms_crtc_get_prop_drm_value (MetaKmsCrtc     *crtc,
                                            MetaKmsCrtcProp  prop,
                                            uint64_t         value);
 
-#endif /* META_KMS_CRTC_PRIVATE_H */
+gboolean meta_kms_crtc_determine_deadline (MetaKmsCrtc  *crtc,
+                                           int64_t      *out_next_deadline_us,
+                                           int64_t      *out_next_presentation_us,
+                                           GError      **error);

@@ -12,14 +12,11 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  */
 
-#ifndef META_SCREEN_CAST_WINDOW_STREAM_H
-#define META_SCREEN_CAST_WINDOW_STREAM_H
+#pragma once
 
 #include <glib-object.h>
 
@@ -42,5 +39,3 @@ MetaScreenCastWindowStream * meta_screen_cast_window_stream_new (MetaScreenCastS
 MetaWindow  * meta_screen_cast_window_stream_get_window (MetaScreenCastWindowStream *window_stream);
 int           meta_screen_cast_window_stream_get_width  (MetaScreenCastWindowStream *window_stream);
 int           meta_screen_cast_window_stream_get_height (MetaScreenCastWindowStream *window_stream);
-
-#endif /* META_SCREEN_CAST_WINDOW_STREAM_H */

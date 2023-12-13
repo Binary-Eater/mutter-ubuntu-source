@@ -12,9 +12,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Written by:
  *     Georges Basile Stavracas Neto <gbsneto@gnome.org>
@@ -51,6 +49,7 @@ struct _MetaWindowActorWayland
   MetaWindowActor parent;
   ClutterActor *background;
   MetaSurfaceContainerActorWayland *surface_container;
+  gulong highest_scale_monitor_handler_id;
 };
 
 static void cullable_iface_init (MetaCullableInterface *iface);
@@ -79,48 +78,76 @@ surface_container_new (MetaWindowActor *window_actor)
 }
 
 static void
-surface_container_cull_out (MetaCullable   *cullable,
-                            cairo_region_t *unobscured_region,
-                            cairo_region_t *clip_region)
+surface_container_cull_unobscured (MetaCullable   *cullable,
+                                   cairo_region_t *unobscured_region)
 {
-  meta_cullable_cull_out_children (cullable, unobscured_region, clip_region);
-}
-
-static gboolean
-surface_container_is_untransformed (MetaCullable *cullable)
-{
-  MetaSurfaceContainerActorWayland *surface_container =
-    META_SURFACE_CONTAINER_ACTOR_WAYLAND (cullable);
-  ClutterActor *actor = CLUTTER_ACTOR (cullable);
-  MetaWindowActor *window_actor;
-  float width, height;
-  graphene_point3d_t verts[4];
-  int geometry_scale;
-
-  clutter_actor_get_size (actor, &width, &height);
-  clutter_actor_get_abs_allocation_vertices (actor, verts);
-
-  window_actor = surface_container->window_actor;
-  geometry_scale = meta_window_actor_get_geometry_scale (window_actor);
-
-  return meta_actor_vertices_are_untransformed (verts,
-                                                width * geometry_scale,
-                                                height * geometry_scale,
-                                                NULL);
+  meta_cullable_cull_unobscured_children (cullable, unobscured_region);
 }
 
 static void
-surface_container_reset_culling (MetaCullable *cullable)
+surface_container_cull_redraw_clip (MetaCullable   *cullable,
+                                    cairo_region_t *clip_region)
 {
-  meta_cullable_reset_culling_children (cullable);
+  meta_cullable_cull_redraw_clip_children (cullable, clip_region);
 }
 
 static void
 surface_container_cullable_iface_init (MetaCullableInterface *iface)
 {
-  iface->cull_out = surface_container_cull_out;
-  iface->is_untransformed = surface_container_is_untransformed;
-  iface->reset_culling = surface_container_reset_culling;
+  iface->cull_unobscured = surface_container_cull_unobscured;
+  iface->cull_redraw_clip = surface_container_cull_redraw_clip;
+}
+
+static void
+surface_container_apply_transform (ClutterActor      *actor,
+                                   graphene_matrix_t *matrix)
+{
+  ClutterActor *parent = clutter_actor_get_parent (actor);
+  ClutterActorClass *parent_class =
+    CLUTTER_ACTOR_CLASS (meta_surface_container_actor_wayland_parent_class);
+  MetaWindow *window;
+  MetaLogicalMonitor *logical_monitor;
+  MtkRectangle monitor_rect;
+  float scale;
+  float rel_x, rel_y;
+  float abs_x, abs_y;
+  float adj_rel_x, adj_rel_y;
+  float x_off, y_off;
+
+  parent_class->apply_transform (actor, matrix);
+
+  if (!parent)
+    return;
+
+  window = meta_window_actor_get_meta_window (META_WINDOW_ACTOR (parent));
+  if (!window)
+    return;
+
+  logical_monitor = meta_window_get_highest_scale_monitor (window);
+  if (!logical_monitor)
+    return;
+
+  scale = meta_logical_monitor_get_scale (logical_monitor);
+  monitor_rect = meta_logical_monitor_get_layout (logical_monitor);
+
+  abs_x = clutter_actor_get_x (parent) + clutter_actor_get_x (actor);
+  abs_y = clutter_actor_get_y (parent) + clutter_actor_get_y (actor);
+
+  rel_x = abs_x - monitor_rect.x;
+  rel_y = abs_y - monitor_rect.y;
+
+  adj_rel_x = roundf (rel_x * scale) / scale;
+  adj_rel_y = roundf (rel_y * scale) / scale;
+
+  x_off = adj_rel_x - rel_x;
+  y_off = adj_rel_y - rel_y;
+
+  if (!G_APPROX_VALUE (x_off, 0.0, FLT_EPSILON) ||
+      !G_APPROX_VALUE (y_off, 0.0, FLT_EPSILON))
+    {
+      graphene_matrix_translate (matrix,
+                                 &GRAPHENE_POINT3D_INIT (x_off, y_off, 0));
+    }
 }
 
 static void
@@ -136,7 +163,10 @@ surface_container_dispose (GObject *object)
 static void
 meta_surface_container_actor_wayland_class_init (MetaSurfaceContainerActorWaylandClass *klass)
 {
+  ClutterActorClass *actor_class = CLUTTER_ACTOR_CLASS (klass);
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
+
+  actor_class->apply_transform = surface_container_apply_transform;
 
   object_class->dispose = surface_container_dispose;
 }
@@ -167,6 +197,9 @@ set_surface_actor_index (GNode    *node,
   ClutterActor *container = traverse_data->surface_container;
   ClutterActor *surface_actor =
     CLUTTER_ACTOR (meta_wayland_surface_get_actor (surface));
+  MetaSurfaceContainerActorWayland *surface_container =
+    META_SURFACE_CONTAINER_ACTOR_WAYLAND (container);
+  MetaWindowActor *window_actor = surface_container->window_actor;
 
   if (clutter_actor_contains (container, surface_actor))
     {
@@ -180,6 +213,8 @@ set_surface_actor_index (GNode    *node,
     }
   else
     {
+      meta_window_actor_add_surface_actor (window_actor,
+                                           META_SURFACE_ACTOR (surface_actor));
       clutter_actor_insert_child_at_index (container,
                                            surface_actor,
                                            traverse_data->index);
@@ -218,6 +253,9 @@ meta_window_actor_wayland_rebuild_surface_tree (MetaWindowActor *actor)
 
       if (!g_list_find (surface_actors, child_actor))
         {
+          MetaSurfaceActor *surface_actor = META_SURFACE_ACTOR (child_actor);
+
+          meta_window_actor_remove_surface_actor (actor, surface_actor);
           clutter_actor_remove_child (CLUTTER_ACTOR (self->surface_container),
                                       child_actor);
         }
@@ -240,10 +278,10 @@ calculate_background_cull_region (MetaWindowActorWayland *self)
 {
   MetaWindowActor *window_actor = META_WINDOW_ACTOR (self);
   int geometry_scale;
-  cairo_rectangle_int_t rect;
+  MtkRectangle rect;
 
   geometry_scale = meta_window_actor_get_geometry_scale (window_actor);
-  rect = (cairo_rectangle_int_t) {
+  rect = (MtkRectangle) {
     .x = 0,
     .y = 0,
     .width = clutter_actor_get_width (self->background) * geometry_scale,
@@ -254,42 +292,54 @@ calculate_background_cull_region (MetaWindowActorWayland *self)
 }
 
 static void
-meta_window_actor_wayland_cull_out (MetaCullable   *cullable,
-                                    cairo_region_t *unobscured_region,
-                                    cairo_region_t *clip_region)
+subtract_background_opaque_region (MetaWindowActorWayland *self,
+                                   cairo_region_t         *region)
 {
-  MetaWindowActorWayland *self =
-    META_WINDOW_ACTOR_WAYLAND (cullable);
+  if (!region)
+    return;
 
-  meta_cullable_cull_out_children (META_CULLABLE (self),
-                                   unobscured_region,
-                                   clip_region);
-  if (self->background)
+  if (self->background &&
+      clutter_actor_get_paint_opacity (CLUTTER_ACTOR (self)) == 0xff)
     {
       cairo_region_t *background_cull_region;
 
       background_cull_region = calculate_background_cull_region (self);
 
-      if (unobscured_region)
-        cairo_region_subtract (unobscured_region, background_cull_region);
-      if (clip_region)
-        cairo_region_subtract (clip_region, background_cull_region);
+      cairo_region_subtract (region, background_cull_region);
 
       cairo_region_destroy (background_cull_region);
     }
 }
 
 static void
-meta_window_actor_wayland_reset_culling (MetaCullable *cullable)
+meta_window_actor_wayland_cull_unobscured (MetaCullable   *cullable,
+                                           cairo_region_t *unobscured_region)
 {
-  meta_cullable_reset_culling_children (cullable);
+  MetaWindowActorWayland *self =
+    META_WINDOW_ACTOR_WAYLAND (cullable);
+
+  meta_cullable_cull_unobscured_children (META_CULLABLE (self), unobscured_region);
+
+  subtract_background_opaque_region (self, unobscured_region);
+}
+
+static void
+meta_window_actor_wayland_cull_redraw_clip (MetaCullable   *cullable,
+                                            cairo_region_t *clip_region)
+{
+  MetaWindowActorWayland *self =
+    META_WINDOW_ACTOR_WAYLAND (cullable);
+
+  meta_cullable_cull_redraw_clip_children (META_CULLABLE (self), clip_region);
+
+  subtract_background_opaque_region (self, clip_region);
 }
 
 static void
 cullable_iface_init (MetaCullableInterface *iface)
 {
-  iface->cull_out = meta_window_actor_wayland_cull_out;
-  iface->reset_culling = meta_window_actor_wayland_reset_culling;
+  iface->cull_unobscured = meta_window_actor_wayland_cull_unobscured;
+  iface->cull_redraw_clip = meta_window_actor_wayland_cull_redraw_clip;
 }
 
 static MetaSurfaceActor *
@@ -428,7 +478,7 @@ maybe_configure_black_background (MetaWindowActorWayland *self,
   MetaWindow *window = meta_window_actor_get_meta_window (window_actor);
   MetaLogicalMonitor *logical_monitor;
   int geometry_scale;
-  MetaRectangle fullscreen_layout;
+  MtkRectangle fullscreen_layout;
   ClutterActor *child;
   ClutterActorIter iter;
   float max_width = 0;
@@ -448,24 +498,23 @@ maybe_configure_black_background (MetaWindowActorWayland *self,
   clutter_actor_iter_init (&iter, CLUTTER_ACTOR (self->surface_container));
   while (clutter_actor_iter_next (&iter, &child))
     {
-      float child_width, child_height;
+      ClutterActorBox actor_box;
 
-      clutter_actor_get_size (child, &child_width, &child_height);
+      if (!clutter_actor_is_mapped (child))
+        continue;
 
-      if (META_IS_SURFACE_ACTOR (child) &&
-          meta_surface_actor_is_opaque (META_SURFACE_ACTOR (child)) &&
-          G_APPROX_VALUE (clutter_actor_get_x (child), 0,
+      clutter_actor_get_allocation_box (child, &actor_box);
+      if (meta_surface_actor_is_opaque (META_SURFACE_ACTOR (child)) &&
+          G_APPROX_VALUE (actor_box.x1, 0, CLUTTER_COORDINATE_EPSILON) &&
+          G_APPROX_VALUE (actor_box.y1, 0, CLUTTER_COORDINATE_EPSILON) &&
+          G_APPROX_VALUE (actor_box.x2, fullscreen_layout.width,
                           CLUTTER_COORDINATE_EPSILON) &&
-          G_APPROX_VALUE (clutter_actor_get_y (child), 0,
-                          CLUTTER_COORDINATE_EPSILON) &&
-          G_APPROX_VALUE (child_width, fullscreen_layout.width,
-                          CLUTTER_COORDINATE_EPSILON) &&
-          G_APPROX_VALUE (child_height, fullscreen_layout.height,
+          G_APPROX_VALUE (actor_box.y2, fullscreen_layout.height,
                           CLUTTER_COORDINATE_EPSILON))
         return FALSE;
 
-      max_width = MAX (max_width, child_width);
-      max_height = MAX (max_height, child_height);
+      max_width = MAX (max_width, actor_box.x2 - actor_box.x1);
+      max_height = MAX (max_height, actor_box.y2 - actor_box.y1);
     }
 
   *surfaces_width = max_width;
@@ -476,8 +525,8 @@ maybe_configure_black_background (MetaWindowActorWayland *self,
 }
 
 static void
-meta_window_actor_wayland_sync_geometry (MetaWindowActor     *actor,
-                                         const MetaRectangle *actor_rect)
+meta_window_actor_wayland_sync_geometry (MetaWindowActor    *actor,
+                                         const MtkRectangle *actor_rect)
 {
   MetaWindowActorWayland *self = META_WINDOW_ACTOR_WAYLAND (actor);
   ClutterActor *surface_container = CLUTTER_ACTOR (self->surface_container);
@@ -526,9 +575,38 @@ meta_window_actor_wayland_sync_geometry (MetaWindowActor     *actor,
 }
 
 static void
+meta_window_actor_wayland_dispose (GObject *object)
+{
+  MetaWindowActorWayland *self = META_WINDOW_ACTOR_WAYLAND (object);
+  MetaWindow *window = meta_window_actor_get_meta_window (META_WINDOW_ACTOR (self));
+  GObjectClass *parent_class =
+    G_OBJECT_CLASS (meta_window_actor_wayland_parent_class);
+
+  g_clear_signal_handler (&self->highest_scale_monitor_handler_id,
+                          window);
+
+  parent_class->dispose (object);
+}
+
+static void
+meta_window_actor_wayland_constructed (GObject *object)
+{
+  MetaWindowActorWayland *self = META_WINDOW_ACTOR_WAYLAND (object);
+  MetaWindow *window = meta_window_actor_get_meta_window (META_WINDOW_ACTOR (self));
+
+  G_OBJECT_CLASS (meta_window_actor_wayland_parent_class)->constructed (object);
+
+  self->highest_scale_monitor_handler_id =
+    g_signal_connect_swapped (window, "highest-scale-monitor-changed",
+                              G_CALLBACK (clutter_actor_notify_transform_invalid),
+                              self->surface_container);
+}
+
+static void
 meta_window_actor_wayland_class_init (MetaWindowActorWaylandClass *klass)
 {
   MetaWindowActorClass *window_actor_class = META_WINDOW_ACTOR_CLASS (klass);
+  GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
   window_actor_class->get_scanout_candidate = meta_window_actor_wayland_get_scanout_candidate;
   window_actor_class->assign_surface_actor = meta_window_actor_wayland_assign_surface_actor;
@@ -542,6 +620,9 @@ meta_window_actor_wayland_class_init (MetaWindowActorWaylandClass *klass)
   window_actor_class->can_freeze_commits = meta_window_actor_wayland_can_freeze_commits;
   window_actor_class->sync_geometry = meta_window_actor_wayland_sync_geometry;
   window_actor_class->is_single_surface_actor = meta_window_actor_wayland_is_single_surface_actor;
+
+  object_class->constructed = meta_window_actor_wayland_constructed;
+  object_class->dispose = meta_window_actor_wayland_dispose;
 }
 
 static void
@@ -551,4 +632,8 @@ meta_window_actor_wayland_init (MetaWindowActorWayland *self)
 
   clutter_actor_add_child (CLUTTER_ACTOR (self),
                            CLUTTER_ACTOR (self->surface_container));
+
+  g_signal_connect_swapped (self, "notify::allocation",
+                            G_CALLBACK (clutter_actor_notify_transform_invalid),
+                            self->surface_container);
 }

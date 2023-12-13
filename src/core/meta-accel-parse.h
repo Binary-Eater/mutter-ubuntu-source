@@ -13,16 +13,13 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Written by:
  *     Jasper St. Pierre <jstpierre@mecheye.net>
  */
 
-#ifndef META_ACCEL_PARSE_H
-#define META_ACCEL_PARSE_H
+#pragma once
 
 #include <glib.h>
 
@@ -40,5 +37,3 @@ gboolean meta_parse_accelerator (const char   *accel,
                                  MetaKeyCombo *combo);
 gboolean meta_parse_modifier    (const char          *accel,
                                  ClutterModifierType *mask);
-
-#endif /* META_ACCEL_PARSE_H */

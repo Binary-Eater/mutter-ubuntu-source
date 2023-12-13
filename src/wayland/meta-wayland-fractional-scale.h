@@ -14,14 +14,11 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  */
 
-#ifndef META_WAYLAND_FRACTIONAL_SCALE_H
-#define META_WAYLAND_FRACTIONAL_SCALE_H
+#pragma once
 
 #include "wayland/meta-wayland-types.h"
 
@@ -29,5 +26,3 @@ void meta_wayland_init_fractional_scale (MetaWaylandCompositor *compositor);
 
 void meta_wayland_fractional_scale_maybe_send_preferred_scale (MetaWaylandSurface *surface,
                                                                double              scale);
-
-#endif /* META_WAYLAND_FRACTIONAL_SCALE_H */

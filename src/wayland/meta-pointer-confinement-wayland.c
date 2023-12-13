@@ -14,18 +14,16 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Written by:
  *     Jonas Ådahl <jadahl@gmail.com>
  */
 
 /**
- * SECTION:meta-pointer-confinement-wayland
- * @title: MetaPointerConfinementWayland
- * @short_description: A #MetaPointerConstraint implementing pointer confinement
+ * MetaPointerConfinementWayland:
+ *
+ * A #MetaPointerConstraint implementing pointer confinement
  *
  * A MetaPointerConfinementConstraint implements the client pointer constraint
  * "pointer confinement": the cursor should not be able to "break out" of a
@@ -269,9 +267,7 @@ meta_pointer_confinement_wayland_class_init (MetaPointerConfinementWaylandClass 
   klass->create_constraint = meta_pointer_confinement_wayland_create_constraint;
 
   props[PROP_WAYLAND_POINTER_CONSTRAINT] =
-    g_param_spec_object ("wayland-pointer-constraint",
-                         "Wayland pointer constraint",
-                         "Wayland pointer constraint",
+    g_param_spec_object ("wayland-pointer-constraint", NULL, NULL,
                          META_TYPE_WAYLAND_POINTER_CONSTRAINT,
                          G_PARAM_READWRITE |
                          G_PARAM_CONSTRUCT_ONLY |

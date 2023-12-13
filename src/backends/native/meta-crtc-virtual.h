@@ -12,22 +12,18 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef META_CRTC_VIRTUAL_H
-#define META_CRTC_VIRTUAL_H
+#pragma once
 
 #include "backends/native/meta-crtc-native.h"
 
 #define META_TYPE_CRTC_VIRTUAL (meta_crtc_virtual_get_type ())
+META_EXPORT_TEST
 G_DECLARE_FINAL_TYPE (MetaCrtcVirtual, meta_crtc_virtual,
                       META, CRTC_VIRTUAL,
                       MetaCrtcNative)
 
 MetaCrtcVirtual * meta_crtc_virtual_new (MetaBackend *backend,
                                          uint64_t     id);
-
-#endif /* META_CRTC_VIRTUAL_H */

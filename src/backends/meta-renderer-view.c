@@ -16,9 +16,9 @@
  */
 
 /**
- * SECTION:meta-renderer-view
- * @title: MetaRendererView
- * @short_description: Renders (a part of) the global stage.
+ * MetaRendererView:
+ *
+ * Renders (a part of) the global stage.
  *
  * A MetaRendererView object is responsible for rendering (a part of) the
  * global stage, or more precisely: the part that matches what can be seen on a
@@ -102,11 +102,11 @@ meta_renderer_view_setup_offscreen_blit_pipeline (ClutterStageView *view,
 }
 
 static void
-meta_renderer_view_transform_rect_to_onscreen (ClutterStageView            *view,
-                                               const cairo_rectangle_int_t *src_rect,
-                                               int                          dst_width,
-                                               int                          dst_height,
-                                               cairo_rectangle_int_t       *dst_rect)
+meta_renderer_view_transform_rect_to_onscreen (ClutterStageView   *view,
+                                               const MtkRectangle *src_rect,
+                                               int                 dst_width,
+                                               int                 dst_height,
+                                               MtkRectangle       *dst_rect)
 {
   MetaRendererView *renderer_view = META_RENDERER_VIEW (view);
   MetaRendererViewPrivate *priv =
@@ -203,9 +203,7 @@ meta_renderer_view_class_init (MetaRendererViewClass *klass)
   object_class->set_property = meta_renderer_view_set_property;
 
   obj_props[PROP_TRANSFORM] =
-    g_param_spec_uint ("transform",
-                       "Transform",
-                       "Transform to apply to the view",
+    g_param_spec_uint ("transform", NULL, NULL,
                        META_MONITOR_TRANSFORM_NORMAL,
                        META_MONITOR_TRANSFORM_FLIPPED_270,
                        META_MONITOR_TRANSFORM_NORMAL,
@@ -214,9 +212,7 @@ meta_renderer_view_class_init (MetaRendererViewClass *klass)
                        G_PARAM_STATIC_STRINGS);
 
   obj_props[PROP_CRTC] =
-    g_param_spec_object ("crtc",
-                         "MetaCrtc",
-                         "MetaCrtc",
+    g_param_spec_object ("crtc", NULL, NULL,
                          META_TYPE_CRTC,
                          G_PARAM_READWRITE |
                          G_PARAM_CONSTRUCT_ONLY |

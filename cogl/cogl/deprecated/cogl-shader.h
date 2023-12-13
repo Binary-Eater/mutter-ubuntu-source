@@ -28,16 +28,15 @@
  *
  */
 
+#pragma once
+
 #if !defined(__COGL_H_INSIDE__) && !defined(COGL_COMPILATION)
 #error "Only <cogl/cogl.h> can be included directly."
 #endif
 
-#ifndef __COGL_SHADER_H__
-#define __COGL_SHADER_H__
-
-#include <cogl/cogl-types.h>
-#include <cogl/cogl-defines.h>
-#include <cogl/cogl-macros.h>
+#include "cogl/cogl-types.h"
+#include "cogl/cogl-defines.h"
+#include "cogl/cogl-macros.h"
 
 G_BEGIN_DECLS
 
@@ -286,7 +285,7 @@ cogl_shader_source (CoglHandle  shader,
  * Retrieves the type of a shader #CoglHandle
  *
  * Return value: %COGL_SHADER_TYPE_VERTEX if the shader is a vertex processor
- *          or %COGL_SHADER_TYPE_FRAGMENT if the shader is a frament processor
+ *          or %COGL_SHADER_TYPE_FRAGMENT if the shader is a fragment processor
  * Deprecated: 1.16: Use #CoglSnippet api
  */
 COGL_DEPRECATED_FOR (cogl_snippet_)
@@ -475,5 +474,3 @@ cogl_program_set_uniform_matrix (CoglHandle program,
                                  const float *value);
 
 G_END_DECLS
-
-#endif /* __COGL_SHADER_H__ */

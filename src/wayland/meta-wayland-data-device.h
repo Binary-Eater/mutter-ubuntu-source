@@ -20,8 +20,7 @@
  * OF THIS SOFTWARE.
  */
 
-#ifndef META_WAYLAND_DATA_DEVICE_H
-#define META_WAYLAND_DATA_DEVICE_H
+#pragma once
 
 #include <glib-object.h>
 #include <wayland-server.h>
@@ -61,9 +60,6 @@ MetaWaylandSeat * meta_wayland_data_device_get_seat (MetaWaylandDataDevice *data
 
 void meta_wayland_data_device_set_keyboard_focus (MetaWaylandDataDevice *data_device);
 
-gboolean meta_wayland_data_device_is_dnd_surface (MetaWaylandDataDevice *data_device,
-                                                  MetaWaylandSurface    *surface);
-
 MetaWaylandDragGrab *
      meta_wayland_data_device_get_current_grab   (MetaWaylandDataDevice *data_device);
 
@@ -92,5 +88,3 @@ MetaWaylandSurface *
          meta_wayland_drag_grab_get_focus        (MetaWaylandDragGrab             *drag_grab);
 void     meta_wayland_drag_grab_update_feedback_actor (MetaWaylandDragGrab *drag_grab,
                                                        const ClutterEvent  *event);
-
-#endif /* META_WAYLAND_DATA_DEVICE_H */

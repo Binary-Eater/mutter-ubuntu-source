@@ -12,21 +12,18 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Author: Carlos Garnacho <carlosg@gnome.org>
  */
 
-#ifndef CLUTTER_KEYMAP_H
-#define CLUTTER_KEYMAP_H
+#pragma once
 
 #if !defined(__CLUTTER_H_INSIDE__) && !defined(CLUTTER_COMPILATION)
 #error "Only <clutter/clutter.h> can be included directly."
 #endif
 
-#include <clutter/clutter-macros.h>
+#include "clutter/clutter-macros.h"
 
 #include <glib-object.h>
 #include <pango/pango.h>
@@ -54,5 +51,3 @@ CLUTTER_EXPORT
 gboolean clutter_keymap_get_caps_lock_state (ClutterKeymap *keymap);
 
 PangoDirection clutter_keymap_get_direction (ClutterKeymap *keymap);
-
-#endif /* CLUTTER_KEYMAP_H */

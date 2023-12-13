@@ -14,21 +14,16 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Written by:
  *     Jonas Ådahl <jadahl@gmail.com>
  */
 
-#ifndef META_XWAYLAND_SELECTION_PRIVATE_H
-#define META_XWAYLAND_SELECTION_PRIVATE_H
+#pragma once
 
 #define META_TYPE_WAYLAND_DATA_SOURCE_XWAYLAND (meta_wayland_data_source_xwayland_get_type ())
 G_DECLARE_FINAL_TYPE (MetaWaylandDataSourceXWayland,
                       meta_wayland_data_source_xwayland,
                       META, WAYLAND_DATA_SOURCE_XWAYLAND,
                       MetaWaylandDataSource);
-
-#endif /* META_XWAYLAND_SELECTION_PRIVATE_H */

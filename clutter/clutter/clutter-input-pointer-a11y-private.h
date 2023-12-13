@@ -12,18 +12,15 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Author: Olivier Fourdan <ofourdan@redhat.com>
  */
 
-#ifndef __CLUTTER_INPUT_POINTER_A11Y_H__
-#define __CLUTTER_INPUT_POINTER_A11Y_H__
+#pragma once
 
-#include <clutter/clutter-types.h>
-#include "clutter-enum-types.h"
+#include "clutter/clutter-types.h"
+#include "clutter/clutter-enum-types.h"
 
 G_BEGIN_DECLS
 
@@ -47,5 +44,3 @@ void clutter_input_pointer_a11y_update (ClutterInputDevice *device,
                                         const ClutterEvent *event);
 
 G_END_DECLS
-
-#endif /* __CLUTTER_INPUT_POINTER_A11Y_H__ */

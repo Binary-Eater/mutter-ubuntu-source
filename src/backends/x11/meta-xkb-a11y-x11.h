@@ -15,14 +15,11 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  */
 
-#ifndef META_XKB_A11Y_X11_H
-#define META_XKB_A11Y_X11_H
+#pragma once
 
 #include <X11/Xlib.h>
 
@@ -36,4 +33,4 @@ meta_seat_x11_apply_kbd_a11y_settings (ClutterSeat         *seat,
 gboolean
 meta_seat_x11_a11y_init               (ClutterSeat            *seat);
 
-#endif /* META_XKB_A11Y_X11_H */
+void meta_seat_x11_check_xkb_a11y_settings_changed (ClutterSeat *seat);

@@ -19,8 +19,7 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef META_PLUGIN_H_
-#define META_PLUGIN_H_
+#pragma once
 
 #include <X11/extensions/Xfixes.h>
 #include <gmodule.h>
@@ -96,8 +95,8 @@ struct _MetaPluginClass
   void (*size_change)      (MetaPlugin         *plugin,
                             MetaWindowActor    *actor,
                             MetaSizeChange      which_change,
-                            MetaRectangle      *old_frame_rect,
-                            MetaRectangle      *old_buffer_rect);
+                            MtkRectangle       *old_frame_rect,
+                            MtkRectangle       *old_buffer_rect);
 
   /**
    * MetaPluginClass::map:
@@ -132,7 +131,7 @@ struct _MetaPluginClass
 
   void (*show_tile_preview) (MetaPlugin      *plugin,
                              MetaWindow      *window,
-                             MetaRectangle   *tile_rect,
+                             MtkRectangle    *tile_rect,
                              int              tile_monitor_number);
   void (*hide_tile_preview) (MetaPlugin      *plugin);
 
@@ -143,9 +142,9 @@ struct _MetaPluginClass
                              int                 y);
 
   void (*show_window_menu_for_rect)  (MetaPlugin         *plugin,
-		                      MetaWindow         *window,
-				      MetaWindowMenuType  menu,
-				      MetaRectangle      *rect);
+		                                  MetaWindow         *window,
+				                              MetaWindowMenuType  menu,
+				                              MtkRectangle       *rect);
 
   /**
    * MetaPluginClass::kill_window_effects:
@@ -340,5 +339,3 @@ void _meta_plugin_set_compositor (MetaPlugin *plugin, MetaCompositor *compositor
 /* XXX: Putting this in here so it's in the public header. */
 META_EXPORT
 void     meta_plugin_manager_set_plugin_type (GType gtype);
-
-#endif /* META_PLUGIN_H_ */

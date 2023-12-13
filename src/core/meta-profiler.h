@@ -12,13 +12,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef META_PROFILER_H
-#define META_PROFILER_H
+#pragma once
 
 #include <glib-object.h>
 
@@ -34,8 +31,13 @@ G_DECLARE_FINAL_TYPE (MetaProfiler,
                       PROFILER,
                       MetaDBusSysprof3ProfilerSkeleton)
 
-MetaProfiler * meta_profiler_new (void);
+MetaProfiler * meta_profiler_new (const char *trace_file);
+
+void meta_profiler_register_thread (MetaProfiler *profiler,
+                                    GMainContext *main_context,
+                                    const char   *name);
+
+void meta_profiler_unregister_thread (MetaProfiler *profiler,
+                                      GMainContext *main_context);
 
 G_END_DECLS
-
-#endif /* META_PROFILER_H */

@@ -14,13 +14,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef META_WAYLAND_SEAT_H
-#define META_WAYLAND_SEAT_H
+#pragma once
 
 #include <wayland-server.h>
 
@@ -87,5 +84,3 @@ gboolean meta_wayland_seat_has_touch (MetaWaylandSeat *seat);
 MetaWaylandCompositor * meta_wayland_seat_get_compositor (MetaWaylandSeat *seat);
 
 gboolean meta_wayland_seat_is_grabbed (MetaWaylandSeat *seat);
-
-#endif /* META_WAYLAND_SEAT_H */

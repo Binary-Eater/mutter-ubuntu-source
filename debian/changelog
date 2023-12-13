@@ -1,3 +1,23 @@
+mutter (45.2-2) experimental; urgency=medium
+
+  * Team upload
+
+  [ Chris Hofstaedtler ]
+  * Honor udev.pc's udevdir when installing udev rules (Closes: #1057319)
+
+  [ Simon McVittie ]
+  * Merge with version 44.7-1 from unstable
+  * d/control, d/rules: Stop generating d/control from d/control.in
+  * d/patches: Mark several additional tests as flaky.
+    Most of these have never been reliable on Debian buildds, especially
+    on ARM, so having them fail is not a regression. They usually succeed
+    after a few retries, but that's time-consuming and unsuitable to be a
+    QA gate.
+    The restore-size test was previously not run at all: now it is run, but
+    marked as flaky (so its result is ignored).
+
+ -- Simon McVittie <smcv@debian.org>  Wed, 13 Dec 2023 17:08:10 +0000
+
 mutter (44.7-1) unstable; urgency=medium
 
   * Team upload
@@ -10,6 +30,143 @@ mutter (44.7-1) unstable; urgency=medium
   * Honor udev.pc's udevdir when installing udev rules (Closes: #1057319)
 
  -- Simon McVittie <smcv@debian.org>  Tue, 12 Dec 2023 13:31:00 +0000
+
+mutter (45.2-1) experimental; urgency=medium
+
+  * New upstream release (LP: #2043000)
+  * Drop patches applied in new release
+  * Drop unimportant patch not included in the mutter 45.2 backports
+
+ -- Jeremy Bícha <jbicha@ubuntu.com>  Mon, 04 Dec 2023 08:54:20 -0500
+
+mutter (45.1-2) experimental; urgency=medium
+
+  * Cherry-pick several commits to fix Wacom on X11 issues (LP: #2043027)
+  * Cherry-pick other commits suggested in !3414 to fix several issues
+
+ -- Jeremy Bícha <jbicha@ubuntu.com>  Wed, 29 Nov 2023 09:48:34 -0500
+
+mutter (45.1-1) experimental; urgency=medium
+
+  [ Jeremy Bícha ]
+  * New upstream release (LP: #2043000)
+    - Fix capital accent letters (LP: #2035076)
+    - Fix crash when screen locked or heavy load with some Ryzen systems
+      (LP: #2034619)
+  * debian/libmutter-13-0.symbols: Add new symbols
+  * debian/libmutter-13-0.symbols: Add missing Build-Depends-Package annotation
+  * Update build autopkgtest to not run dh_auto_test (LP: #2038564)
+  * Drop patches applied in new release
+
+  [ Daniel van Vugt ]
+  * Rebase triple buffering patch
+
+ -- Jeremy Bícha <jbicha@ubuntu.com>  Wed, 08 Nov 2023 18:49:03 +0200
+
+mutter (45.0-3) experimental; urgency=medium
+
+  [ Simon McVittie ]
+  * Merge packaging from 44.5-2 in unstable.
+    - Add versioned Build-Depends/Breaks to ensure Xwayland supports
+      the -byteswappedclients option (Closes: #1050642)
+    - All changes to the upstream code were already included in 45.0-1
+      or earlier
+
+  [ Daniel van Vugt ]
+  * Add kms-crtc-Increase-default-deadline-evasion-to-800-microse.patch
+    to fix cursor stuttering on low/normal frequency mice and touchpads
+    (LP: #2033719). The same patch is already merged into 45.1 upstream.
+
+  [ Jeremy Bícha ]
+  * Add autopkgtest to ensure mutter is still buildable (LP: #1993226)
+  * Cherry-pick 2 more future 45.1 commits to fix crashes
+
+ -- Jeremy Bícha <jbicha@ubuntu.com>  Tue, 03 Oct 2023 18:38:45 -0400
+
+mutter (45.0-2) experimental; urgency=medium
+
+  [ Daniel van Vugt ]
+  * Update triple buffering patch to fix freezing
+    seen when running apps full screen (LP: #2035016)
+
+  [ Jeremy Bícha ]
+  * Cherry-pick patch to fix changing input language in modal popups
+
+ -- Jeremy Bícha <jbicha@ubuntu.com>  Fri, 22 Sep 2023 10:50:00 -0400
+
+mutter (45.0-1) experimental; urgency=medium
+
+  [ Jeremy Bícha ]
+  * New upstream release
+    - Fix focus-follows-mouse regression (Closes: #1051780)
+  * debian/libmutter-13-0.symbols: Add new symbol
+  * Refresh patches
+
+  [ Simon McVittie ]
+  * Merge packaging from 44.4-3 in unstable
+
+  [ Daniel van Vugt ]
+  * Update Support-Dynamic-triple-double-buffering.patch to match upstream.
+    This fixes a leak when a monitor is unplugged, which may have been
+    preventing discrete GPUs from entering a lower power state.
+    It also moves the freeze fix by a couple of lines so as to match the
+    current upstream merge proposals but I doubt that has any behavioural
+    impact.
+
+ -- Jeremy Bícha <jbicha@ubuntu.com>  Mon, 18 Sep 2023 10:21:08 -0400
+
+mutter (45~rc-4) experimental; urgency=medium
+
+  * Also skip the new "thread priority" test on i386
+
+ -- Jeremy Bícha <jbicha@ubuntu.com>  Mon, 11 Sep 2023 10:31:41 -0400
+
+mutter (45~rc-3) experimental; urgency=medium
+
+  * Fix sysprof Build-Depends for i386 again
+
+ -- Jeremy Bícha <jbicha@ubuntu.com>  Sun, 10 Sep 2023 23:02:07 -0400
+
+mutter (45~rc-2) experimental; urgency=medium
+
+  * Merge changes from 44.4-2
+
+ -- Jeremy Bícha <jbicha@ubuntu.com>  Sun, 10 Sep 2023 22:16:34 -0400
+
+mutter (45~rc-1) experimental; urgency=medium
+
+  [ Jeremy Bícha ]
+  * New upstream release
+  * debian/control.in: Bump minimum libei to 1.0.901
+  * debian/control.in: Bump minimum compatible GNOME Shell to 45~rc
+  * debian/libmutter-13-0.symbols: Update
+  * Add new Mtk sublibrary files to gir & dev install lists
+  * Drop "45" and sysprof patches: applied in new release
+
+  [ Daniel van Vugt ]
+  * Add cogl-onscreen-glx-Forcefully-disable-cogl_onscreen_glx_ge.patch
+    to work around https://launchpad.net/bugs/2034672
+
+ -- Jeremy Bícha <jbicha@ubuntu.com>  Sun, 10 Sep 2023 21:04:02 -0400
+
+mutter (45~beta.1-1) experimental; urgency=medium
+
+  [ Jeremy Bícha ]
+  * New upstream release
+  * Update binary package names for soname bump
+  * Update symbols
+  * debian/control.in: Build-Depend on libei-dev & libeis-dev
+  * Drop many 44 patches applied in new release
+  * Move the remaining unapplied patches to 45
+  * Drop wayland-data-device-Allow-any-drag-timestamp patch:
+    No longer needed (Closes: #1050025)
+  * Add patch to skip new thread priority modification test on arm
+  * Refresh patches
+
+  [ Daniel van Vugt ]
+  * Update triple buffering patch
+
+ -- Jeremy Bícha <jbicha@ubuntu.com>  Mon, 21 Aug 2023 11:19:08 -0400
 
 mutter (44.5-2) unstable; urgency=medium
 

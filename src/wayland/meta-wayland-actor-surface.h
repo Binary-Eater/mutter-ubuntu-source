@@ -13,13 +13,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef META_WAYLAND_ACTOR_SURFACE_H
-#define META_WAYLAND_ACTOR_SURFACE_H
+#pragma once
 
 #include "wayland/meta-wayland-surface.h"
 
@@ -50,5 +47,3 @@ void meta_wayland_actor_surface_queue_frame_callbacks (MetaWaylandActorSurface *
 
 void meta_wayland_actor_surface_emit_frame_callbacks (MetaWaylandActorSurface *actor_surface,
                                                       uint32_t                 timestamp_ms);
-
-#endif /* META_WAYLAND_ACTOR_SURFACE_H */

@@ -14,17 +14,13 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Written by:
  *     Jasper St. Pierre <jstpierre@mecheye.net>
  */
 
-
-#ifndef META_BACKEND_PRIVATE_H
-#define META_BACKEND_PRIVATE_H
+#pragma once
 
 #include <glib-object.h>
 #include <xkbcommon/xkbcommon.h>
@@ -149,6 +145,8 @@ MetaRemoteDesktop * meta_backend_get_remote_desktop (MetaBackend *backend);
 MetaScreenCast * meta_backend_get_screen_cast (MetaBackend *backend);
 #endif
 
+MetaInputCapture * meta_backend_get_input_capture (MetaBackend *backend);
+
 gboolean meta_backend_grab_device (MetaBackend *backend,
                                    int          device_id,
                                    uint32_t     timestamp);
@@ -212,4 +210,8 @@ void meta_backend_update_from_event (MetaBackend  *backend,
 char * meta_backend_get_vendor_name (MetaBackend *backend,
                                      const char  *pnp_id);
 
-#endif /* META_BACKEND_PRIVATE_H */
+META_EXPORT_TEST
+uint32_t meta_clutter_button_to_evdev (uint32_t clutter_button);
+
+META_EXPORT_TEST
+uint32_t meta_evdev_button_to_clutter (uint32_t evdev_button);

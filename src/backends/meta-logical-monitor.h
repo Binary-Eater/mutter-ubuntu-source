@@ -14,13 +14,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef META_LOGICAL_MONITOR_H
-#define META_LOGICAL_MONITOR_H
+#pragma once
 
 #include <glib-object.h>
 
@@ -37,7 +34,7 @@ struct _MetaLogicalMonitor
   GObject parent;
 
   int number;
-  MetaRectangle rect;
+  MtkRectangle rect;
   gboolean is_primary;
   gboolean is_presentation; /* XXX: not yet used */
   gboolean in_fullscreen;
@@ -74,7 +71,7 @@ MetaLogicalMonitor * meta_logical_monitor_new (MetaMonitorManager       *monitor
 
 MetaLogicalMonitor * meta_logical_monitor_new_derived (MetaMonitorManager *monitor_manager,
                                                        MetaMonitor        *monitor,
-                                                       MetaRectangle      *layout,
+                                                       MtkRectangle       *layout,
                                                        float               scale,
                                                        int                 monitor_number);
 
@@ -91,7 +88,7 @@ float meta_logical_monitor_get_scale (MetaLogicalMonitor *logical_monitor);
 MetaMonitorTransform meta_logical_monitor_get_transform (MetaLogicalMonitor *logical_monitor);
 
 META_EXPORT_TEST
-MetaRectangle meta_logical_monitor_get_layout (MetaLogicalMonitor *logical_monitor);
+MtkRectangle meta_logical_monitor_get_layout (MetaLogicalMonitor *logical_monitor);
 
 META_EXPORT_TEST
 GList * meta_logical_monitor_get_monitors (MetaLogicalMonitor *logical_monitor);
@@ -103,5 +100,3 @@ gboolean meta_logical_monitor_has_neighbor (MetaLogicalMonitor   *logical_monito
 void meta_logical_monitor_foreach_crtc (MetaLogicalMonitor        *logical_monitor,
                                         MetaLogicalMonitorCrtcFunc func,
                                         gpointer                   user_data);
-
-#endif /* META_LOGICAL_MONITOR_H */

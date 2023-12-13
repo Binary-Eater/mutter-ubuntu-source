@@ -33,22 +33,22 @@
 
 #include "cogl-config.h"
 
-#include "cogl-debug.h"
-#include "cogl-context-private.h"
-#include "cogl-object.h"
+#include "cogl/cogl-debug.h"
+#include "cogl/cogl-context-private.h"
+#include "cogl/cogl-object.h"
 
-#include "cogl-pipeline-private.h"
-#include "cogl-pipeline-state-private.h"
-#include "cogl-pipeline-layer-state-private.h"
-#include "cogl-texture-private.h"
-#include "cogl-blend-string.h"
-#include "cogl-journal-private.h"
-#include "cogl-color-private.h"
-#include "cogl-util.h"
-#include "cogl-profile.h"
-#include "cogl-depth-state-private.h"
-#include "cogl1-context.h"
-#include "cogl-gtype-private.h"
+#include "cogl/cogl-pipeline-private.h"
+#include "cogl/cogl-pipeline-state-private.h"
+#include "cogl/cogl-pipeline-layer-state-private.h"
+#include "cogl/cogl-texture-private.h"
+#include "cogl/cogl-blend-string.h"
+#include "cogl/cogl-journal-private.h"
+#include "cogl/cogl-color-private.h"
+#include "cogl/cogl-util.h"
+#include "cogl/cogl-profile.h"
+#include "cogl/cogl-depth-state-private.h"
+#include "cogl/cogl1-context.h"
+#include "cogl/cogl-gtype-private.h"
 
 #include <glib.h>
 #include <glib/gprintf.h>
@@ -62,9 +62,9 @@ const CoglPipelineFragend *_cogl_pipeline_fragend;
 const CoglPipelineVertend *_cogl_pipeline_vertend;
 const CoglPipelineProgend *_cogl_pipeline_progend;
 
-#include "driver/gl/cogl-pipeline-fragend-glsl-private.h"
-#include "driver/gl/cogl-pipeline-vertend-glsl-private.h"
-#include "driver/gl/cogl-pipeline-progend-glsl-private.h"
+#include "cogl/driver/gl/cogl-pipeline-fragend-glsl-private.h"
+#include "cogl/driver/gl/cogl-pipeline-vertend-glsl-private.h"
+#include "cogl/driver/gl/cogl-pipeline-progend-glsl-private.h"
 
 COGL_OBJECT_DEFINE (Pipeline, pipeline);
 COGL_GTYPE_DEFINE_CLASS (Pipeline, pipeline);
@@ -74,7 +74,7 @@ COGL_GTYPE_DEFINE_CLASS (Pipeline, pipeline);
  * subsequently instantiated pipelines created via the cogl_pipeline_new()
  * API will initially be a copy of this pipeline.
  *
- * The default pipeline is the topmost ancester for all pipelines.
+ * The default pipeline is the topmost ancestor for all pipelines.
  */
 void
 _cogl_pipeline_init_default_pipeline (void)
@@ -1889,7 +1889,7 @@ _cogl_pipeline_compare_differences (CoglPipeline *pipeline0,
   /* Algorithm:
    *
    * 1) Walk the ancestors of each pipeline to the root node, adding a
-   *    pointer to each ancester node to two linked lists
+   *    pointer to each ancestor node to two linked lists
    *
    * 2) Compare the lists to find the nodes where they start to
    *    differ marking the common_ancestor node for each list.

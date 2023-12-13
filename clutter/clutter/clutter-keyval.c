@@ -12,9 +12,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Author: Bilal Elmoussaoui <belmous@redhat.com>
  * 
@@ -24,10 +22,10 @@
 #include <glib.h>
 #include <glib/gprintf.h>
 
-#include "clutter-keyval.h"
-#include "clutter-event.h"
-#include "clutter-keysyms.h"
-#include "clutter-keyname-table.h"
+#include "clutter/clutter-keyval.h"
+#include "clutter/clutter-event.h"
+#include "clutter/clutter-keysyms.h"
+#include "clutter/clutter-keyname-table.h"
 
 #define CLUTTER_NUM_KEYS G_N_ELEMENTS (clutter_keys_by_keyval)
 

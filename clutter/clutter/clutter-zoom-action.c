@@ -44,18 +44,17 @@
  * distance between two touch points.
  */
 
-#include "clutter-build-config.h"
+#include "clutter/clutter-build-config.h"
 
 #include <math.h>
 
-#include "clutter-zoom-action.h"
+#include "clutter/clutter-zoom-action.h"
 
-#include "clutter-debug.h"
-#include "clutter-enum-types.h"
-#include "clutter-gesture-action-private.h"
-#include "clutter-marshal.h"
-#include "clutter-private.h"
-#include "clutter-stage-private.h"
+#include "clutter/clutter-debug.h"
+#include "clutter/clutter-enum-types.h"
+#include "clutter/clutter-marshal.h"
+#include "clutter/clutter-private.h"
+#include "clutter/clutter-stage-private.h"
 
 typedef struct
 {
@@ -221,12 +220,6 @@ clutter_zoom_action_gesture_cancel (ClutterGestureAction *action,
 }
 
 static void
-clutter_zoom_action_dispose (GObject *gobject)
-{
-  G_OBJECT_CLASS (clutter_zoom_action_parent_class)->dispose (gobject);
-}
-
-static void
 clutter_zoom_action_constructed (GObject *gobject)
 {
   ClutterGestureAction *gesture;
@@ -243,7 +236,6 @@ clutter_zoom_action_class_init (ClutterZoomActionClass *klass)
   GObjectClass *gobject_class = G_OBJECT_CLASS (klass);
 
   gobject_class->constructed = clutter_zoom_action_constructed;
-  gobject_class->dispose = clutter_zoom_action_dispose;
 
   gesture_class->gesture_begin = clutter_zoom_action_gesture_begin;
   gesture_class->gesture_progress = clutter_zoom_action_gesture_progress;

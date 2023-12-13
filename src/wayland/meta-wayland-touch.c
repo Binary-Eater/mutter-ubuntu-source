@@ -14,9 +14,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Author: Carlos Garnacho <carlosg@gnome.org>
  */
@@ -53,6 +51,17 @@ struct _MetaWaylandTouchInfo
   guint updated : 1;
   guint begin_delivered : 1;
 };
+
+static MetaBackend *
+backend_from_touch (MetaWaylandTouch *touch)
+{
+  MetaWaylandInputDevice *input_device = META_WAYLAND_INPUT_DEVICE (touch);
+  MetaWaylandSeat *seat = meta_wayland_input_device_get_seat (input_device);
+  MetaWaylandCompositor *compositor = meta_wayland_seat_get_compositor (seat);
+  MetaContext *context = meta_wayland_compositor_get_context (compositor);
+
+  return meta_context_get_backend (context);
+}
 
 static void
 move_resources (struct wl_list *destination, struct wl_list *source)
@@ -212,15 +221,22 @@ meta_wayland_touch_update (MetaWaylandTouch   *touch,
 {
   MetaWaylandTouchInfo *touch_info;
   ClutterEventSequence *sequence;
+  ClutterEventType event_type;
 
   sequence = clutter_event_get_event_sequence (event);
+  event_type = clutter_event_type (event);
 
-  if (event->type == CLUTTER_TOUCH_BEGIN)
+  if (event_type == CLUTTER_TOUCH_BEGIN)
     {
       MetaWaylandSurface *surface = NULL;
+      MetaBackend *backend;
+      ClutterStage *stage;
       ClutterActor *actor;
 
-      actor = clutter_stage_get_device_actor (clutter_event_get_stage (event),
+      backend = backend_from_touch (touch);
+      stage = CLUTTER_STAGE (meta_backend_get_stage (backend));
+
+      actor = clutter_stage_get_device_actor (stage,
                                               clutter_event_get_device (event),
                                               clutter_event_get_event_sequence (event));
 
@@ -240,15 +256,15 @@ meta_wayland_touch_update (MetaWaylandTouch   *touch,
   if (!touch_info)
     return;
 
-  if (event->type != CLUTTER_TOUCH_BEGIN &&
+  if (event_type != CLUTTER_TOUCH_BEGIN &&
       !touch_info->begin_delivered)
     {
       g_hash_table_remove (touch->touches, sequence);
       return;
     }
 
-  if (event->type == CLUTTER_TOUCH_BEGIN ||
-      event->type == CLUTTER_TOUCH_END)
+  if (event_type == CLUTTER_TOUCH_BEGIN ||
+      event_type == CLUTTER_TOUCH_END)
     {
       MetaWaylandInputDevice *input_device = META_WAYLAND_INPUT_DEVICE (touch);
 
@@ -423,7 +439,7 @@ gboolean
 meta_wayland_touch_handle_event (MetaWaylandTouch   *touch,
                                  const ClutterEvent *event)
 {
-  switch (event->type)
+  switch (clutter_event_type (event))
     {
     case CLUTTER_TOUCH_BEGIN:
       handle_touch_begin (touch, event);

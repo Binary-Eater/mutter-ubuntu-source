@@ -13,9 +13,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "config.h"
@@ -90,6 +88,8 @@ sync_actor_subsurface_state (MetaWaylandSurface *surface)
     clutter_actor_show (actor);
   else
     clutter_actor_hide (actor);
+
+  clutter_actor_notify_transform_invalid (actor);
 }
 
 static gboolean
@@ -111,15 +111,15 @@ void
 meta_wayland_subsurface_union_geometry (MetaWaylandSubsurface *subsurface,
                                         int                    parent_x,
                                         int                    parent_y,
-                                        MetaRectangle         *out_geometry)
+                                        MtkRectangle          *out_geometry)
 {
   MetaWaylandSurfaceRole *surface_role = META_WAYLAND_SURFACE_ROLE (subsurface);
   MetaWaylandSurface *surface =
     meta_wayland_surface_role_get_surface (surface_role);
-  MetaRectangle geometry;
+  MtkRectangle geometry;
   MetaWaylandSurface *subsurface_surface;
 
-  geometry = (MetaRectangle) {
+  geometry = (MtkRectangle) {
     .x = surface->offset_x + surface->sub.x,
     .y = surface->offset_y + surface->sub.y,
     .width = meta_wayland_surface_get_width (surface),
@@ -127,7 +127,7 @@ meta_wayland_subsurface_union_geometry (MetaWaylandSubsurface *subsurface,
   };
 
   if (surface->buffer)
-    meta_rectangle_union (out_geometry, &geometry, out_geometry);
+    mtk_rectangle_union (out_geometry, &geometry, out_geometry);
 
   META_WAYLAND_SURFACE_FOREACH_SUBSURFACE (&surface->output_state,
                                            subsurface_surface)
@@ -554,6 +554,8 @@ wl_subcompositor_get_subsurface (struct wl_client   *client,
 
   surface->sub.synchronous = TRUE;
   surface->protocol_state.parent = parent;
+
+  meta_wayland_surface_notify_highest_scale_monitor (surface);
 
   reference =
     g_node_last_child (parent->protocol_state.subsurface_branch_node)->data;

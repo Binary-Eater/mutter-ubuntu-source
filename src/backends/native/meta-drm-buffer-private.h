@@ -13,13 +13,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef META_DRM_BUFFER_PRIVATE_H
-#define META_DRM_BUFFER_PRIVATE_H
+#pragma once
 
 #include "backends/native/meta-backend-native-types.h"
 #include "backends/native/meta-drm-buffer.h"
@@ -61,5 +58,3 @@ MetaDeviceFile * meta_drm_buffer_get_device_file (MetaDrmBuffer *buffer);
 gboolean meta_drm_buffer_do_ensure_fb_id (MetaDrmBuffer        *buffer,
                                           const MetaDrmFbArgs  *fb_args,
                                           GError              **error);
-
-#endif /* META_DRM_BUFFER_PRIVATE_H */

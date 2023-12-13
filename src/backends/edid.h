@@ -16,14 +16,12 @@
  *
  * You should have received a copy of the GNU Library General Public
  * License along with the Gnome Library; see the file COPYING.LIB.  If not,
- * write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
- * Boston, MA 02110-1301, USA.
+ * see <http://www.gnu.org/licenses/>.
  *
  * Author: Soren Sandmann <sandmann@redhat.com>
  */
 
-#ifndef EDID_H
-#define EDID_H
+#pragma once
 
 #include <stdint.h>
 
@@ -71,7 +69,7 @@ struct _MetaEdidHdrStaticMetadata
 
 struct _MetaEdidInfo
 {
-  char manufacturer_code[4];
+  char *manufacturer_code;
   int product_code;
   unsigned int serial_number;
 
@@ -87,15 +85,13 @@ struct _MetaEdidInfo
   double white_y;
 
   /* Optional product description */
-  char dsc_serial_number[14];
-  char dsc_product_name[14];
-  char dsc_string[14];                  /* Unspecified ASCII data */
+  char *dsc_serial_number;
+  char *dsc_product_name;
 
   MetaEdidColorimetry colorimetry;
   MetaEdidHdrStaticMetadata hdr_static_metadata;
 };
 
 META_EXPORT_TEST
-MetaEdidInfo *meta_edid_info_new_parse (const uint8_t *data);
-
-#endif
+MetaEdidInfo *meta_edid_info_new_parse (const uint8_t *edid,
+                                        size_t size);

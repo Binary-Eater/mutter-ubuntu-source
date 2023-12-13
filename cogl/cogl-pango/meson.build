@@ -54,6 +54,7 @@ if have_introspection
       pango_dep,
       libmutter_cogl_pango_dep,
     ],
+    export_packages: 'mutter-cogl-pango-@0@'.format(libmutter_api_version),
     extra_args: introspection_args + [
       '-UCOGL_COMPILATION',
       '-DG_LOG_DOMAIN="CoglPango"',
@@ -64,14 +65,14 @@ if have_introspection
   )
 endif
 
-cogl_pango_includesubdir = join_paths(cogl_includesubdir, 'cogl-pango')
+cogl_pango_includesubdir = cogl_includesubdir / 'cogl-pango'
 install_headers(cogl_pango_public_headers, subdir: cogl_pango_includesubdir)
 
 pkg.generate(libmutter_cogl_pango,
   name: 'CoglPango',
   filebase: 'mutter-cogl-pango-' + libmutter_api_version,
   description: 'A text rendering for Cogl in mutter',
-  subdirs: join_paths(pkgname, 'cogl'),
+  subdirs: pkgname / 'cogl',
   requires: [cogl_pkg_deps, libmutter_cogl_name, pango_dep, pangocairo_dep],
   version: meson.project_version(),
   variables: [

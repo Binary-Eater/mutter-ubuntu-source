@@ -12,14 +12,11 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  */
 
-#ifndef CLUTTER_KEYMAP_PRIVATE_H
-#define CLUTTER_KEYMAP_PRIVATE_H
+#pragma once
 
 #include "clutter/clutter-keymap.h"
 
@@ -27,5 +24,3 @@ CLUTTER_EXPORT
 void clutter_keymap_set_lock_modifier_state (ClutterKeymap *keymap,
                                              gboolean       caps_lock_state,
                                              gboolean       num_lock_state);
-
-#endif /* CLUTTER_KEYMAP_PRIVATE_H */

@@ -12,14 +12,11 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  */
 
-#ifndef META_CONTEXT_H
-#define META_CONTEXT_H
+#pragma once
 
 #include <glib-object.h>
 
@@ -104,5 +101,3 @@ gboolean meta_context_raise_rlimit_nofile (MetaContext  *context,
 META_EXPORT
 gboolean meta_context_restore_rlimit_nofile (MetaContext  *context,
                                              GError      **error);
-
-#endif /* META_CONTEXT_H */

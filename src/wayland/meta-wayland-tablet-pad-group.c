@@ -14,9 +14,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Author: Carlos Garnacho <carlosg@gnome.org>
  */
@@ -95,20 +93,6 @@ meta_wayland_tablet_pad_group_create_new_resource (MetaWaylandTabletPadGroup *gr
                                   group, unbind_resource);
   wl_resource_set_user_data (resource, group);
   wl_list_insert (&group->resource_list, wl_resource_get_link (resource));
-
-  return resource;
-}
-
-struct wl_resource *
-meta_wayland_tablet_pad_group_lookup_resource (MetaWaylandTabletPadGroup *group,
-                                               struct wl_client          *client)
-{
-  struct wl_resource *resource;
-
-  resource = wl_resource_find_for_client (&group->resource_list, client);
-
-  if (!resource)
-    resource = wl_resource_find_for_client (&group->focus_resource_list, client);
 
   return resource;
 }
@@ -203,12 +187,17 @@ void
 meta_wayland_tablet_pad_group_update (MetaWaylandTabletPadGroup *group,
                                       const ClutterEvent        *event)
 {
-  switch (event->type)
+  switch (clutter_event_type (event))
     {
     case CLUTTER_PAD_BUTTON_PRESS:
     case CLUTTER_PAD_BUTTON_RELEASE:
-      if (meta_wayland_tablet_pad_group_is_mode_switch_button (group, event->pad_button.button))
-        group->current_mode = event->pad_button.mode;
+      if (meta_wayland_tablet_pad_group_is_mode_switch_button (group,
+                                                               clutter_event_get_button (event)))
+        {
+          clutter_event_get_pad_details (event, NULL,
+                                         &group->current_mode,
+                                         NULL, NULL);
+        }
       break;
     default:
       break;
@@ -220,11 +209,13 @@ handle_pad_ring_event (MetaWaylandTabletPadGroup *group,
                        const ClutterEvent        *event)
 {
   MetaWaylandTabletPadRing *ring;
+  uint32_t number;
 
-  if (event->type != CLUTTER_PAD_RING)
+  if (clutter_event_type (event) != CLUTTER_PAD_RING)
     return FALSE;
 
-  ring = g_list_nth_data (group->rings, event->pad_ring.ring_number);
+  clutter_event_get_pad_details (event, &number, NULL, NULL, NULL);
+  ring = g_list_nth_data (group->rings, number);
 
   if (!ring)
     return FALSE;
@@ -237,11 +228,13 @@ handle_pad_strip_event (MetaWaylandTabletPadGroup *group,
                         const ClutterEvent        *event)
 {
   MetaWaylandTabletPadStrip *strip;
+  uint32_t number;
 
-  if (event->type != CLUTTER_PAD_STRIP)
+  if (clutter_event_type (event) != CLUTTER_PAD_STRIP)
     return FALSE;
 
-  strip = g_list_nth_data (group->strips, event->pad_strip.strip_number);
+  clutter_event_get_pad_details (event, &number, NULL, NULL, NULL);
+  strip = g_list_nth_data (group->strips, number);
 
   if (!strip)
     return FALSE;
@@ -285,9 +278,10 @@ meta_wayland_tablet_pad_group_handle_event (MetaWaylandTabletPadGroup *group,
     {
     case CLUTTER_PAD_BUTTON_PRESS:
     case CLUTTER_PAD_BUTTON_RELEASE:
-      if (meta_wayland_tablet_pad_group_is_mode_switch_button (group, event->pad_button.button))
+      if (meta_wayland_tablet_pad_group_is_mode_switch_button (group,
+                                                               clutter_event_get_button (event)))
         {
-          if (event->type == CLUTTER_PAD_BUTTON_PRESS)
+          if (clutter_event_type (event) == CLUTTER_PAD_BUTTON_PRESS)
             broadcast_group_mode (group, clutter_event_get_time (event));
           return TRUE;
         }

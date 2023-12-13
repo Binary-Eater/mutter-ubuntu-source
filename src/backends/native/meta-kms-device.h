@@ -12,13 +12,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef META_KMS_DEVICE_H
-#define META_KMS_DEVICE_H
+#pragma once
 
 #include <glib-object.h>
 
@@ -44,6 +41,7 @@ const char * meta_kms_device_get_driver_description (MetaKmsDevice *device);
 
 MetaKmsDeviceFlag meta_kms_device_get_flags (MetaKmsDevice *device);
 
+META_EXPORT_TEST
 gboolean meta_kms_device_get_cursor_size (MetaKmsDevice *device,
                                           uint64_t      *out_cursor_width,
                                           uint64_t      *out_cursor_height);
@@ -79,11 +77,21 @@ MetaKmsFeedback * meta_kms_device_process_update_sync (MetaKmsDevice     *device
   G_GNUC_WARN_UNUSED_RESULT;
 
 META_EXPORT_TEST
+void meta_kms_device_post_update (MetaKmsDevice     *device,
+                                  MetaKmsUpdate     *update,
+                                  MetaKmsUpdateFlag  flags);
+
+META_EXPORT_TEST
+void meta_kms_device_await_flush (MetaKmsDevice *device,
+                                  MetaKmsCrtc   *crtc);
+
+gboolean meta_kms_device_handle_flush (MetaKmsDevice *device,
+                                       MetaKmsCrtc   *crtc);
+
+META_EXPORT_TEST
 void meta_kms_device_disable (MetaKmsDevice *device);
 
 MetaKmsDevice * meta_kms_device_new (MetaKms            *kms,
                                      const char         *path,
                                      MetaKmsDeviceFlag   flags,
                                      GError            **error);
-
-#endif /* META_KMS_DEVICE_H */

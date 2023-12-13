@@ -14,9 +14,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "config.h"
@@ -39,6 +37,7 @@
 #include "wayland/meta-wayland-dma-buf.h"
 #include "wayland/meta-wayland-egl-stream.h"
 #include "wayland/meta-wayland-filter-manager.h"
+#include "wayland/meta-wayland-idle-inhibit.h"
 #include "wayland/meta-wayland-inhibit-shortcuts-dialog.h"
 #include "wayland/meta-wayland-inhibit-shortcuts.h"
 #include "wayland/meta-wayland-legacy-xdg-foreign.h"
@@ -550,7 +549,7 @@ meta_wayland_compositor_get_committed_transactions (MetaWaylandCompositor *compo
   return &compositor->committed_transactions;
 }
 
-static void
+static gboolean
 set_gnome_env (const char *name,
 	       const char *value)
 {
@@ -585,16 +584,10 @@ set_gnome_env (const char *name,
 
       g_free (remote_error);
       g_error_free (error);
-    }
-}
 
-void
-meta_wayland_compositor_init_display (MetaWaylandCompositor *compositor,
-                                      MetaDisplay           *display)
-{
-#ifdef HAVE_XWAYLAND
-  meta_xwayland_init_display (&compositor->xwayland_manager, display);
-#endif
+      return FALSE;
+    }
+  return TRUE;
 }
 
 static void meta_wayland_log_func (const char *, va_list) G_GNUC_PRINTF (1, 0);
@@ -814,6 +807,7 @@ meta_wayland_compositor_new (MetaContext *context)
   meta_wayland_init_presentation_time (compositor);
   meta_wayland_activation_init (compositor);
   meta_wayland_transaction_init (compositor);
+  meta_wayland_idle_inhibit_init (compositor);
 
 #ifdef HAVE_WAYLAND_EGLSTREAM
   {
@@ -877,9 +871,16 @@ meta_wayland_compositor_new (MetaContext *context)
 #ifdef HAVE_XWAYLAND
   if (x11_display_policy != META_X11_DISPLAY_POLICY_DISABLED)
     {
-      set_gnome_env ("GNOME_SETUP_DISPLAY", compositor->xwayland_manager.private_connection.name);
-      set_gnome_env ("DISPLAY", compositor->xwayland_manager.public_connection.name);
-      set_gnome_env ("XAUTHORITY", compositor->xwayland_manager.auth_file);
+      gboolean status = TRUE;
+
+      status &=
+        set_gnome_env ("GNOME_SETUP_DISPLAY", compositor->xwayland_manager.private_connection.name);
+      status &=
+        set_gnome_env ("DISPLAY", compositor->xwayland_manager.public_connection.name);
+      status &=
+        set_gnome_env ("XAUTHORITY", compositor->xwayland_manager.auth_file);
+
+      meta_xwayland_set_should_enable_ei_portal (&compositor->xwayland_manager, status);
     }
 #endif
 
@@ -894,6 +895,7 @@ meta_wayland_get_wayland_display_name (MetaWaylandCompositor *compositor)
   return compositor->display_name;
 }
 
+#ifdef HAVE_XWAYLAND
 const char *
 meta_wayland_get_public_xwayland_display_name (MetaWaylandCompositor *compositor)
 {
@@ -905,6 +907,7 @@ meta_wayland_get_private_xwayland_display_name (MetaWaylandCompositor *composito
 {
   return compositor->xwayland_manager.private_connection.name;
 }
+#endif /* HAVE_XWAYLAND */
 
 void
 meta_wayland_compositor_restore_shortcuts (MetaWaylandCompositor *compositor,
@@ -1004,7 +1007,9 @@ meta_wayland_compositor_notify_surface_id (MetaWaylandCompositor *compositor,
                                 GINT_TO_POINTER (id));
   if (window)
     {
+#ifdef HAVE_XWAYLAND
       meta_xwayland_associate_window_with_surface (window, surface);
+#endif
       meta_wayland_compositor_remove_surface_association (compositor, id);
     }
 }
@@ -1039,6 +1044,12 @@ meta_wayland_compositor_is_grabbed (MetaWaylandCompositor *compositor)
   return meta_wayland_seat_is_grabbed (compositor->seat);
 }
 
+/**
+ * meta_wayland_compositor_get_wayland_display:
+ * @compositor: The #MetaWaylandCompositor
+ *
+ * Returns: (transfer none): the Wayland display object
+ */
 struct wl_display *
 meta_wayland_compositor_get_wayland_display (MetaWaylandCompositor *compositor)
 {
@@ -1052,4 +1063,10 @@ meta_wayland_compositor_get_filter_manager (MetaWaylandCompositor *compositor)
     meta_wayland_compositor_get_instance_private (compositor);
 
   return priv->filter_manager;
+}
+
+MetaWaylandTextInput *
+meta_wayland_compositor_get_text_input (MetaWaylandCompositor *compositor)
+{
+  return compositor->seat->text_input;
 }

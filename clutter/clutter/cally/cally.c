@@ -15,9 +15,7 @@
  * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /**
@@ -29,24 +27,24 @@
  *
  */
 
-#include "clutter-build-config.h"
+#include "clutter/clutter-build-config.h"
 
 #define CLUTTER_DISABLE_DEPRECATION_WARNINGS
 
-#include "cally.h"
+#include "cally/cally.h"
 
-#include "cally-actor.h"
-#include "cally-stage.h"
-#include "cally-text.h"
-#include "cally-clone.h"
+#include "cally/cally-actor.h"
+#include "cally/cally-stage.h"
+#include "cally/cally-text.h"
+#include "cally/cally-clone.h"
 
-#include "cally-factory.h"
-#include "cally-util.h"
+#include "cally/cally-factory.h"
+#include "cally/cally-util.h"
 
-#include "clutter.h"
+#include "clutter/clutter.h"
 
-#include "clutter-debug.h"
-#include "clutter-private.h"
+#include "clutter/clutter-debug.h"
+#include "clutter/clutter-private.h"
 
 /* factories initialization*/
 CALLY_ACCESSIBLE_FACTORY (CALLY_TYPE_ACTOR, cally_actor, cally_actor_new)

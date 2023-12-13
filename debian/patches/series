@@ -1,10 +1,9 @@
-x11-events-NULL-Check-input-event-when-getting-name.patch
 workspace-Don-t-crash-on-invalid-argument-to-meta_workspa.patch
 workarounds/tests-Mark-view-verification-tests-as-incomplete-in-big-e.patch
 debian/meson-Do-not-mark-CI-test-tools-as-required.patch
 debian/tests-Do-not-run-screencast-tests.patch
-workarounds/tests-skip-monitor-width-size-check-as-it-may-lead-to-une.patch
-workarounds/wayland-data-device-Allow-any-drag-timestamp-as-drag-star.patch
 debian/Support-Dynamic-triple-double-buffering.patch
-workarounds/tests-Disable-restore-size-test.patch
-build-Support-sysprof-6.patch
+workarounds/tests-skip-monitor-width-size-check-as-it-may-lead-to-une.patch
+workarounds/tests-Skip-thread-priority-test.patch
+workarounds/cogl-onscreen-glx-Forcefully-disable-cogl_onscreen_glx_ge.patch
+workarounds/Mark-several-additional-tests-as-flaky.patch

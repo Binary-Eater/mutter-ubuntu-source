@@ -12,9 +12,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "config.h"
@@ -173,25 +171,19 @@ meta_crtc_mode_class_init (MetaCrtcModeClass *klass)
   object_class->finalize = meta_crtc_mode_finalize;
 
   obj_props[PROP_ID] =
-    g_param_spec_uint64 ("id",
-                         "id",
-                         "CRTC mode id",
+    g_param_spec_uint64 ("id", NULL, NULL,
                          0, UINT64_MAX, 0,
                          G_PARAM_READWRITE |
                          G_PARAM_CONSTRUCT_ONLY |
                          G_PARAM_STATIC_STRINGS);
   obj_props[PROP_NAME] =
-    g_param_spec_string ("name",
-                         "name",
-                         "Name of CRTC mode",
+    g_param_spec_string ("name", NULL, NULL,
                          NULL,
                          G_PARAM_READWRITE |
                          G_PARAM_CONSTRUCT_ONLY |
                          G_PARAM_STATIC_STRINGS);
   obj_props[PROP_INFO] =
-    g_param_spec_boxed ("info",
-                        "info",
-                        "MetaOutputInfo",
+    g_param_spec_boxed ("info", NULL, NULL,
                         META_TYPE_CRTC_MODE_INFO,
                         G_PARAM_READWRITE |
                         G_PARAM_CONSTRUCT_ONLY |

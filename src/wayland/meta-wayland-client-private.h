@@ -12,13 +12,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef META_WAYLAND_CLIENT_PRIVATE_H
-#define META_WAYLAND_CLIENT_PRIVATE_H
+#pragma once
 
 #include <wayland-server-core.h>
 
@@ -42,5 +39,3 @@ void meta_wayland_client_assign_service_client_type (MetaWaylandClient     *clie
                                                      MetaServiceClientType  service_client_type);
 
 MetaServiceClientType  meta_wayland_client_get_service_client_type (MetaWaylandClient *client);
-
-#endif /* META_WAYLAND_CLIENT_PRIVATE_H */

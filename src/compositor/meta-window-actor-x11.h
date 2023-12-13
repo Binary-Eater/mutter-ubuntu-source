@@ -12,16 +12,13 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Written by:
  *     Georges Basile Stavracas Neto <gbsneto@gnome.org>
  */
 
-#ifndef META_WINDOW_ACTOR_X11_H
-#define META_WINDOW_ACTOR_X11_H
+#pragma once
 
 #include "compositor/meta-window-actor-private.h"
 
@@ -43,5 +40,3 @@ void meta_window_actor_x11_update_shape (MetaWindowActorX11 *actor_x11);
 
 void meta_window_actor_x11_process_damage (MetaWindowActorX11 *actor_x11,
                                            XDamageNotifyEvent *event);
-
-#endif /* META_WINDOW_ACTOR_X11_H */

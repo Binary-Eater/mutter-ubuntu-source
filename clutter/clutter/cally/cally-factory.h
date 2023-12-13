@@ -18,13 +18,10 @@
  * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _CALLY_FACTORY_H__
-#define _CALLY_FACTORY_H__
+#pragma once
 
 #include <glib-object.h>
 #include <atk/atkobject.h>
@@ -109,5 +106,3 @@ type_as_function ## _factory_get_type (void)					\
 	atk_registry_set_factory_type (atk_get_default_registry (),		\
 				       widget_type,				\
 				       type_as_function ## _factory_get_type ())
-
-#endif /* _CALLY_FACTORY_H__ */

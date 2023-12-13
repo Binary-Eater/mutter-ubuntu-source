@@ -14,16 +14,13 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Written by:
  *     Jasper St. Pierre <jstpierre@mecheye.net>
  */
 
-#ifndef META_CURSOR_RENDERER_X11_H
-#define META_CURSOR_RENDERER_X11_H
+#pragma once
 
 #include "backends/meta-cursor-renderer.h"
 
@@ -48,5 +45,3 @@ struct _MetaCursorRendererX11Class
 };
 
 GType meta_cursor_renderer_x11_get_type (void) G_GNUC_CONST;
-
-#endif /* META_CURSOR_RENDERER_X11_H */

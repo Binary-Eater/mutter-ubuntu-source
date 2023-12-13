@@ -12,13 +12,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef META_KMS_IMPL_TYPES_H
-#define META_KMS_IMPL_TYPES_H
+#pragma once
 
 #include <stdint.h>
 
@@ -42,6 +39,8 @@ typedef enum _MetaKmsPageFlipListenerFlag MetaKmsPageFlipListenerFlag;
 
 typedef struct _MetaKmsImpl MetaKmsImpl;
 typedef struct _MetaKmsImplDevice MetaKmsImplDevice;
+
+typedef struct _MetaKmsCursorManager MetaKmsCursorManager;
 
 /* 16:16 fixed point */
 typedef int32_t MetaFixed16;
@@ -80,6 +79,7 @@ typedef enum _MetaKmsUpdateFlag
 {
   META_KMS_UPDATE_FLAG_NONE = 0,
   META_KMS_UPDATE_FLAG_TEST_ONLY = 1 << 0,
+  META_KMS_UPDATE_FLAG_MODE_SET = 1 << 1,
 } MetaKmsUpdateFlag;
 
 typedef enum _MetaKmsPlaneType MetaKmsPlaneType;
@@ -96,5 +96,3 @@ typedef struct _MetaKmsRange
   uint64_t min_value;
   uint64_t max_value;
 } MetaKmsRange;
-
-#endif /* META_KMS_IMPL_TYPES_H */

@@ -13,13 +13,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef META_WAYLAND_SHELL_SURFACE_H
-#define META_WAYLAND_SHELL_SURFACE_H
+#pragma once
 
 #include "wayland/meta-wayland-actor-surface.h"
 
@@ -54,15 +51,13 @@ void meta_wayland_shell_surface_managed (MetaWaylandShellSurface *shell_surface,
                                          MetaWindow              *window);
 
 void meta_wayland_shell_surface_calculate_geometry (MetaWaylandShellSurface *shell_surface,
-                                                    MetaRectangle           *out_geometry);
+                                                    MtkRectangle            *out_geometry);
 
 void meta_wayland_shell_surface_determine_geometry (MetaWaylandShellSurface *shell_surface,
-                                                    MetaRectangle           *set_geometry,
-                                                    MetaRectangle           *out_geometry);
+                                                    MtkRectangle            *set_geometry,
+                                                    MtkRectangle            *out_geometry);
 
 void meta_wayland_shell_surface_set_window (MetaWaylandShellSurface *shell_surface,
                                             MetaWindow              *window);
 
 void meta_wayland_shell_surface_destroy_window (MetaWaylandShellSurface *shell_surface);
-
-#endif /* META_WAYLAND_SHELL_SURFACE_H */

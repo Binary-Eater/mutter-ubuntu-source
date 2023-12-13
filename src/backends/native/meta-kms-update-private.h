@@ -12,13 +12,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef META_KMS_UPDATE_PRIVATE_H
-#define META_KMS_UPDATE_PRIVATE_H
+#pragma once
 
 #include <glib.h>
 #include <stdint.h>
@@ -63,7 +60,7 @@ typedef struct _MetaKmsPlaneAssignment
   MetaKmsPlane *plane;
   MetaDrmBuffer *buffer;
   MetaFixed16Rectangle src_rect;
-  MetaRectangle dst_rect;
+  MtkRectangle dst_rect;
   MetaKmsAssignPlaneFlag flags;
   MetaKmsFbDamage *fb_damage;
   MetaKmsPlaneRotation rotation;
@@ -121,14 +118,17 @@ typedef struct _MetaKmsPageFlipListener
   MetaKmsCrtc *crtc;
   const MetaKmsPageFlipListenerVtable *vtable;
   MetaKmsPageFlipListenerFlag flags;
+  GMainContext *main_context;
   gpointer user_data;
   GDestroyNotify destroy_notify;
 } MetaKmsPageFlipListener;
 
 struct _MetaKmsResultListener
 {
-  MetaKmsResultListenerFunc func;
+  GMainContext *main_context;
+  const MetaKmsResultListenerVtable *vtable;
   gpointer user_data;
+  GDestroyNotify destroy_notify;
 
   MetaKmsFeedback *feedback;
 };
@@ -153,11 +153,6 @@ MetaKmsFeedback * meta_kms_feedback_new_passed (GList *failed_planes);
 
 MetaKmsFeedback * meta_kms_feedback_new_failed (GList  *failed_planes,
                                                 GError *error);
-
-void meta_kms_update_seal (MetaKmsUpdate *update);
-
-META_EXPORT_TEST
-gboolean meta_kms_update_is_sealed (MetaKmsUpdate *update);
 
 void meta_kms_plane_assignment_set_rotation (MetaKmsPlaneAssignment *plane_assignment,
                                              MetaKmsPlaneRotation    rotation);
@@ -187,10 +182,10 @@ GList * meta_kms_update_get_crtc_color_updates (MetaKmsUpdate *update);
 
 MetaKmsCustomPageFlip * meta_kms_update_take_custom_page_flip_func (MetaKmsUpdate *update);
 
-void meta_kms_update_drop_plane_assignment (MetaKmsUpdate *update,
-                                            MetaKmsPlane  *plane);
-
+META_EXPORT_TEST
 GList * meta_kms_update_take_result_listeners (MetaKmsUpdate *update);
+
+GMainContext * meta_kms_result_listener_get_main_context (MetaKmsResultListener *listener);
 
 void meta_kms_result_listener_set_feedback (MetaKmsResultListener *listener,
                                             MetaKmsFeedback       *feedback);
@@ -206,10 +201,14 @@ void meta_kms_update_realize (MetaKmsUpdate     *update,
 
 gboolean meta_kms_update_get_needs_modeset (MetaKmsUpdate *update);
 
+MetaKmsCrtc * meta_kms_update_get_latch_crtc (MetaKmsUpdate *update);
+
+void meta_kms_page_flip_listener_unref (MetaKmsPageFlipListener *listener);
+
+gboolean meta_kms_update_is_empty (MetaKmsUpdate *update);
+
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (MetaKmsPlaneFeedback,
                                meta_kms_plane_feedback_free)
 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (MetaKmsCustomPageFlip,
                                meta_kms_custom_page_flip_free)
-
-#endif /* META_KMS_UPDATE_PRIVATE_H */

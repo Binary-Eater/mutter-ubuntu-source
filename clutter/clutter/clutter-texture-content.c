@@ -24,13 +24,13 @@
  *   Robert Mader <robert.mader@posteo.de>
  */
 
-#include "clutter-build-config.h"
+#include "clutter/clutter-build-config.h"
 
-#include "clutter-texture-content.h"
+#include "clutter/clutter-texture-content.h"
 
-#include "clutter-actor-private.h"
-#include "clutter-content-private.h"
-#include "clutter-paint-node.h"
+#include "clutter/clutter-actor-private.h"
+#include "clutter/clutter-content-private.h"
+#include "clutter/clutter-paint-node.h"
 
 struct _ClutterTextureContent
 {
@@ -122,8 +122,8 @@ clutter_content_iface_init (ClutterContentInterface *iface)
  *   Use [method@GObject.Object.unref] when done.
  */
 ClutterContent *
-clutter_texture_content_new_from_texture (CoglTexture           *texture,
-                                          cairo_rectangle_int_t *clip)
+clutter_texture_content_new_from_texture (CoglTexture  *texture,
+                                          MtkRectangle *clip)
 {
   ClutterTextureContent *texture_content;
   CoglContext *cogl_context =

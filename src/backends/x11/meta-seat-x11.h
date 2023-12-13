@@ -16,8 +16,8 @@
  *
  * Author: Carlos Garnacho <carlosg@gnome.org>
  */
-#ifndef META_SEAT_X11_H
-#define META_SEAT_X11_H
+
+#pragma once
 
 #include "clutter/clutter.h"
 
@@ -33,16 +33,11 @@ MetaSeatX11 * meta_seat_x11_new (MetaBackend *backend,
 
 MetaBackend * meta_seat_x11_get_backend (MetaSeatX11 *seat_x11);
 
-gboolean meta_seat_x11_translate_event (MetaSeatX11  *seat,
-					XEvent       *xevent,
-					ClutterEvent *event);
-ClutterInputDevice * meta_seat_x11_lookup_device_id (MetaSeatX11 *seat_x11,
-                                                     int          device_id);
+ClutterEvent * meta_seat_x11_translate_event (MetaSeatX11  *seat,
+                                              XEvent       *xevent);
 void meta_seat_x11_select_stage_events (MetaSeatX11  *seat,
                                         ClutterStage *stage);
 void meta_seat_x11_notify_devices (MetaSeatX11  *seat_x11,
                                    ClutterStage *stage);
 
 G_END_DECLS
-
-#endif /* META_SEAT_X11_H */

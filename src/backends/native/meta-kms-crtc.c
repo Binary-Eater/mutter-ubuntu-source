@@ -12,9 +12,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "config.h"
@@ -28,6 +26,10 @@
 #include "backends/native/meta-kms-impl-device-simple.h"
 #include "backends/native/meta-kms-mode.h"
 #include "backends/native/meta-kms-update-private.h"
+#include "backends/native/meta-kms-utils.h"
+
+#define DEADLINE_EVASION_US 800
+#define DEADLINE_EVASION_WITH_KMS_TOPIC_US 1000
 
 typedef struct _MetaKmsCrtcPropTable
 {
@@ -221,7 +223,7 @@ meta_kms_crtc_state_changes (MetaKmsCrtcState *state,
   if (state->is_active != other_state->is_active)
     return META_KMS_RESOURCE_CHANGE_FULL;
 
-  if (!meta_rectangle_equal (&state->rect, &other_state->rect))
+  if (!mtk_rectangle_equal (&state->rect, &other_state->rect))
     return META_KMS_RESOURCE_CHANGE_FULL;
 
   if (state->is_drm_mode_valid != other_state->is_drm_mode_valid)
@@ -253,7 +255,7 @@ meta_kms_crtc_read_state (MetaKmsCrtc             *crtc,
                                           crtc->prop_table.props,
                                           META_KMS_CRTC_N_PROPS);
 
-  crtc_state.rect = (MetaRectangle) {
+  crtc_state.rect = (MtkRectangle) {
     .x = drm_crtc->x,
     .y = drm_crtc->y,
     .width = drm_crtc->width,
@@ -317,7 +319,7 @@ meta_kms_crtc_update_state_in_impl (MetaKmsCrtc *crtc)
   if (!drm_crtc || !drm_props)
     {
       crtc->current_state.is_active = FALSE;
-      crtc->current_state.rect = (MetaRectangle) { };
+      crtc->current_state.rect = (MtkRectangle) { };
       crtc->current_state.is_drm_mode_valid = FALSE;
       changes = META_KMS_RESOURCE_CHANGE_FULL;
       goto out;
@@ -336,7 +338,7 @@ void
 meta_kms_crtc_disable_in_impl (MetaKmsCrtc *crtc)
 {
   crtc->current_state.is_active = FALSE;
-  crtc->current_state.rect = (MetaRectangle) { 0 };
+  crtc->current_state.rect = (MtkRectangle) { 0 };
   crtc->current_state.is_drm_mode_valid = FALSE;
   crtc->current_state.drm_mode = (drmModeModeInfo) { 0 };
 }
@@ -375,7 +377,7 @@ meta_kms_crtc_predict_state_in_impl (MetaKmsCrtc   *crtc,
       else
         {
           crtc->current_state.is_active = FALSE;
-          crtc->current_state.rect = (MetaRectangle) { 0 };
+          crtc->current_state.rect = (MtkRectangle) { 0 };
           crtc->current_state.is_drm_mode_valid = FALSE;
           crtc->current_state.drm_mode = (drmModeModeInfo) { 0 };
         }
@@ -507,4 +509,93 @@ meta_kms_crtc_class_init (MetaKmsCrtcClass *klass)
 
   object_class->dispose = meta_kms_crtc_dispose;
   object_class->finalize = meta_kms_crtc_finalize;
+}
+
+static drmVBlankSeqType
+get_crtc_type_bitmask (MetaKmsCrtc *crtc)
+{
+  if (crtc->idx > 1)
+    {
+      return ((crtc->idx << DRM_VBLANK_HIGH_CRTC_SHIFT) &
+              DRM_VBLANK_HIGH_CRTC_MASK);
+    }
+  else if (crtc->idx > 0)
+    {
+      return DRM_VBLANK_SECONDARY;
+    }
+  else
+    {
+      return 0;
+    }
+}
+
+gboolean
+meta_kms_crtc_determine_deadline (MetaKmsCrtc  *crtc,
+                                  int64_t      *out_next_deadline_us,
+                                  int64_t      *out_next_presentation_us,
+                                  GError      **error)
+{
+  MetaKmsImplDevice *impl_device;
+  int fd;
+  drmVBlank vblank;
+  int ret;
+  int64_t next_presentation_us;
+  int64_t next_deadline_us;
+  drmModeModeInfo *drm_mode;
+  int64_t vblank_duration_us;
+  int64_t deadline_evasion_us;
+
+  if (!crtc->current_state.is_drm_mode_valid)
+    {
+      g_set_error (error, G_IO_ERROR, G_IO_ERROR_NOT_FOUND,
+                   "Mode invalid");
+      return FALSE;
+    }
+
+  impl_device = meta_kms_device_get_impl_device (crtc->device);
+  fd = meta_kms_impl_device_get_fd (impl_device);
+
+  vblank = (drmVBlank) {
+    .request.type = DRM_VBLANK_RELATIVE | get_crtc_type_bitmask (crtc),
+    .request.sequence = 0,
+    .request.signal = 0,
+  };
+
+  ret = drmWaitVBlank (fd, &vblank);
+  if (ret != 0)
+    {
+      g_set_error (error, G_IO_ERROR, g_io_error_from_errno (-ret),
+                   "drmWaitVBlank failed: %s", g_strerror (-ret));
+      return FALSE;
+    }
+
+  drm_mode = &crtc->current_state.drm_mode;
+  next_presentation_us =
+    s2us (vblank.reply.tval_sec) + vblank.reply.tval_usec + 0.5 +
+    G_USEC_PER_SEC / meta_calculate_drm_mode_refresh_rate (drm_mode);
+
+  /*
+   *                         1
+   * time per pixel = -----------------
+   *                   Pixel clock (Hz)
+   *
+   * number of pixels = vdisplay * htotal
+   *
+   * time spent scanning out = time per pixel * number of pixels
+   *
+   */
+
+  if (meta_is_topic_enabled (META_DEBUG_KMS))
+    deadline_evasion_us = DEADLINE_EVASION_WITH_KMS_TOPIC_US;
+  else
+    deadline_evasion_us = DEADLINE_EVASION_US;
+
+  vblank_duration_us = meta_calculate_drm_mode_vblank_duration_us (drm_mode);
+  next_deadline_us = next_presentation_us - (vblank_duration_us +
+                                             deadline_evasion_us);
+
+  *out_next_presentation_us = next_presentation_us;
+  *out_next_deadline_us = next_deadline_us;
+
+  return TRUE;
 }

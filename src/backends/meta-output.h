@@ -13,13 +13,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef META_OUTPUT_H
-#define META_OUTPUT_H
+#pragma once
 
 #include <glib-object.h>
 
@@ -165,6 +162,8 @@ gboolean
 meta_tile_info_equal (MetaTileInfo *a,
                       MetaTileInfo *b);
 
+const char * meta_output_colorspace_get_name (MetaOutputColorspace color_space);
+
 #define META_TYPE_OUTPUT_INFO (meta_output_info_get_type ())
 META_EXPORT_TEST
 GType meta_output_info_get_type (void);
@@ -184,8 +183,6 @@ void meta_output_info_parse_edid (MetaOutputInfo *output_info,
 
 gboolean meta_output_info_is_color_space_supported (const MetaOutputInfo *output_info,
                                                     MetaOutputColorspace  color_space);
-
-gboolean meta_output_is_laptop  (MetaOutput *output);
 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (MetaOutputInfo, meta_output_info_unref)
 
@@ -293,5 +290,3 @@ void meta_output_update_modes (MetaOutput    *output,
                                MetaCrtcMode  *preferred_mode,
                                MetaCrtcMode **modes,
                                int            n_modes);
-
-#endif /* META_OUTPUT_H */

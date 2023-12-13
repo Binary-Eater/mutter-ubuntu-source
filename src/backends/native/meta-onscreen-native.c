@@ -32,7 +32,6 @@
 #include <drm_fourcc.h>
 
 #include "backends/meta-egl-ext.h"
-#include "backends/native/meta-cogl-utils.h"
 #include "backends/native/meta-crtc-kms.h"
 #include "backends/native/meta-device-pool.h"
 #include "backends/native/meta-drm-buffer-dumb.h"
@@ -48,6 +47,7 @@
 #include "backends/native/meta-render-device.h"
 #include "backends/native/meta-renderer-native-gles3.h"
 #include "backends/native/meta-renderer-native-private.h"
+#include "common/meta-cogl-drm-formats.h"
 
 typedef enum _MetaSharedFramebufferImportStatus
 {
@@ -121,6 +121,8 @@ struct _MetaOnscreenNative
   gulong privacy_screen_changed_handler_id;
   gulong color_space_changed_handler_id;
   gulong hdr_metadata_changed_handler_id;
+
+  gboolean needs_flush;
 
   unsigned int swaps_pending;
 
@@ -218,13 +220,8 @@ notify_view_crtc_presented (MetaRendererView *view,
   maybe_update_frame_info (crtc, frame_info, time_us, flags, sequence);
 
   meta_onscreen_native_notify_frame_complete (onscreen);
+  meta_swap_chain_swap_buffers (meta_kms_crtc_get_swap_chain (kms_crtc));
   try_post_latest_swap (onscreen);
-}
-
-static int64_t
-timeval_to_microseconds (const struct timeval *tv)
-{
-  return ((int64_t) tv->tv_sec) * G_USEC_PER_SEC + tv->tv_usec;
 }
 
 static void
@@ -248,7 +245,7 @@ page_flip_feedback_flipped (MetaKmsCrtc  *kms_crtc,
   kms_device = meta_kms_crtc_get_device (kms_crtc);
   if (meta_kms_device_uses_monotonic_clock (kms_device))
     {
-      presentation_time_us = timeval_to_microseconds (&page_flip_time);
+      presentation_time_us = meta_timeval_to_microseconds (&page_flip_time);
       flags |= COGL_FRAME_INFO_FLAG_HW_CLOCK;
     }
   else
@@ -467,11 +464,6 @@ meta_onscreen_native_flip_crtc (CoglOnscreen                *onscreen,
           meta_kms_plane_assignment_set_fb_damage (plane_assignment,
                                                    rectangles, n_rectangles);
         }
-
-      g_object_set_data_full (G_OBJECT (buffer),
-                              "gbm_surface owner",
-                              g_object_ref (onscreen),
-                              (GDestroyNotify) g_object_unref);
       break;
     case META_RENDERER_NATIVE_MODE_SURFACELESS:
       g_assert_not_reached ();
@@ -489,6 +481,7 @@ meta_onscreen_native_flip_crtc (CoglOnscreen                *onscreen,
                                           kms_crtc,
                                           &page_flip_listener_vtable,
                                           flags,
+                                          NULL,
                                           g_object_ref (view),
                                           g_object_unref);
 }
@@ -616,6 +609,16 @@ import_shared_framebuffer (CoglOnscreen                        *onscreen,
   return imported_buffer;
 }
 
+static void
+reference_owning_gbm_surface (CoglOnscreen     *onscreen,
+                              MetaDrmBufferGbm *buffer_gbm)
+{
+  g_object_set_data_full (G_OBJECT (buffer_gbm),
+                          "gbm_surface owner",
+                          g_object_ref (onscreen),
+                          (GDestroyNotify) g_object_unref);
+}
+
 static MetaDrmBuffer *
 copy_shared_framebuffer_gpu (CoglOnscreen                        *onscreen,
                              MetaOnscreenNativeSecondaryGpuState *secondary_gpu_state,
@@ -701,6 +704,8 @@ copy_shared_framebuffer_gpu (CoglOnscreen                        *onscreen,
       return NULL;
     }
 
+  reference_owning_gbm_surface (onscreen, buffer_gbm);
+
   g_object_set_qdata_full (G_OBJECT (buffer_gbm),
                            blit_source_quark,
                            g_object_ref (primary_gpu_fb),
@@ -771,9 +776,7 @@ copy_shared_framebuffer_primary_gpu (CoglOnscreen                        *onscre
   g_assert (cogl_framebuffer_get_width (framebuffer) == width);
   g_assert (cogl_framebuffer_get_height (framebuffer) == height);
 
-  ret = meta_cogl_pixel_format_from_drm_format (drm_format,
-                                                &cogl_format,
-                                                NULL);
+  ret = meta_cogl_pixel_format_from_drm_format (drm_format, &cogl_format, NULL);
   g_assert (ret);
 
   dmabuf_fd = meta_drm_buffer_dumb_ensure_dmabuf_fd (buffer_dumb, &error);
@@ -875,9 +878,7 @@ copy_shared_framebuffer_cpu (CoglOnscreen                        *onscreen,
   g_assert (cogl_framebuffer_get_width (framebuffer) == width);
   g_assert (cogl_framebuffer_get_height (framebuffer) == height);
 
-  ret = meta_cogl_pixel_format_from_drm_format (drm_format,
-                                                &cogl_format,
-                                                NULL);
+  ret = meta_cogl_pixel_format_from_drm_format (drm_format, &cogl_format, NULL);
   g_assert (ret);
 
   dumb_bitmap = cogl_bitmap_new_for_data (cogl_context,
@@ -1036,8 +1037,8 @@ ensure_crtc_modes (CoglOnscreen  *onscreen,
 }
 
 static void
-on_swap_buffer_update_result (const MetaKmsFeedback *kms_feedback,
-                              gpointer               user_data)
+swap_buffer_result_feedback (const MetaKmsFeedback *kms_feedback,
+                             gpointer               user_data)
 {
   CoglOnscreen *onscreen = COGL_ONSCREEN (user_data);
   const GError *error;
@@ -1068,6 +1069,10 @@ on_swap_buffer_update_result (const MetaKmsFeedback *kms_feedback,
       meta_onscreen_native_notify_frame_complete (onscreen);
     }
 }
+
+static const MetaKmsResultListenerVtable swap_buffer_result_listener_vtable = {
+  .feedback = swap_buffer_result_feedback,
+};
 
 static void
 meta_onscreen_native_swap_buffers_with_damage (CoglOnscreen  *onscreen,
@@ -1148,6 +1153,7 @@ meta_onscreen_native_swap_buffers_with_damage (CoglOnscreen  *onscreen,
           return;
         }
 
+      reference_owning_gbm_surface (onscreen, buffer_gbm);
       primary_gpu_fb = META_DRM_BUFFER (g_steal_pointer (&buffer_gbm));
       break;
     case META_RENDERER_NATIVE_MODE_SURFACELESS:
@@ -1281,8 +1287,10 @@ try_post_latest_swap (CoglOnscreen *onscreen)
       kms_update = meta_frame_native_ensure_kms_update (frame_native,
                                                         kms_device);
       meta_kms_update_add_result_listener (kms_update,
-                                           on_swap_buffer_update_result,
-                                           onscreen_native);
+                                           &swap_buffer_result_listener_vtable,
+                                           NULL,
+                                           onscreen_native,
+                                           NULL);
 
       ensure_crtc_modes (onscreen, kms_update);
       meta_onscreen_native_flip_crtc (onscreen,
@@ -1356,9 +1364,8 @@ try_post_latest_swap (CoglOnscreen *onscreen)
               meta_kms_device_get_path (kms_device));
 
   kms_update = meta_frame_native_steal_kms_update (frame_native);
-  kms_feedback =
-    meta_kms_device_process_update_sync (kms_device, kms_update,
-                                         META_KMS_UPDATE_FLAG_NONE);
+  meta_kms_device_post_update (kms_device, kms_update,
+                               META_KMS_UPDATE_FLAG_NONE);
 }
 
 gboolean
@@ -1396,8 +1403,8 @@ meta_onscreen_native_is_buffer_scanout_compatible (CoglOnscreen  *onscreen,
 }
 
 static void
-on_scanout_update_result (const MetaKmsFeedback *kms_feedback,
-                          gpointer               user_data)
+scanout_result_feedback (const MetaKmsFeedback *kms_feedback,
+                         gpointer               user_data)
 {
   MetaOnscreenNative *onscreen_native = META_ONSCREEN_NATIVE (user_data);
   CoglOnscreen *onscreen = COGL_ONSCREEN (onscreen_native);
@@ -1428,6 +1435,10 @@ on_scanout_update_result (const MetaKmsFeedback *kms_feedback,
   meta_onscreen_native_notify_frame_complete (onscreen);
 }
 
+static const MetaKmsResultListenerVtable scanout_result_listener_vtable = {
+  .feedback = scanout_result_feedback,
+};
+
 static gboolean
 meta_onscreen_native_direct_scanout (CoglOnscreen   *onscreen,
                                      CoglScanout    *scanout,
@@ -1453,7 +1464,6 @@ meta_onscreen_native_direct_scanout (CoglOnscreen   *onscreen,
   MetaKmsCrtc *kms_crtc;
   MetaKmsDevice *kms_device;
   MetaKmsUpdate *kms_update;
-  g_autoptr (MetaKmsFeedback) kms_feedback = NULL;
 
   power_save_mode = meta_monitor_manager_get_power_save_mode (monitor_manager);
   if (power_save_mode != META_POWER_SAVE_ON)
@@ -1503,8 +1513,10 @@ meta_onscreen_native_direct_scanout (CoglOnscreen   *onscreen,
   g_set_object (&onscreen_native->gbm.direct_fb,
                 onscreen_native->gbm.next_fb);
   meta_kms_update_add_result_listener (kms_update,
-                                       on_scanout_update_result,
-                                       onscreen_native);
+                                       &scanout_result_listener_vtable,
+                                       NULL,
+                                       onscreen_native,
+                                       NULL);
 
   meta_onscreen_native_flip_crtc (onscreen,
                                   onscreen_native->view,
@@ -1520,9 +1532,8 @@ meta_onscreen_native_direct_scanout (CoglOnscreen   *onscreen,
               meta_kms_device_get_path (kms_device));
 
   kms_update = meta_frame_native_steal_kms_update (frame_native);
-  kms_feedback =
-    meta_kms_device_process_update_sync (kms_device, kms_update,
-                                         META_KMS_UPDATE_FLAG_NONE);
+  meta_kms_device_post_update (kms_device, kms_update,
+                               META_KMS_UPDATE_FLAG_NONE);
   clutter_frame_set_result (frame, CLUTTER_FRAME_RESULT_PENDING_PRESENTED);
 
   return TRUE;
@@ -1540,6 +1551,12 @@ add_onscreen_frame_info (MetaCrtc *crtc)
 
   meta_stage_impl_add_onscreen_frame_info (META_STAGE_IMPL (stage_window),
                                            CLUTTER_STAGE_VIEW (view));
+}
+
+void
+meta_onscreen_native_before_redraw (CoglOnscreen *onscreen,
+                                    ClutterFrame *frame)
+{
 }
 
 void
@@ -1614,8 +1631,8 @@ meta_onscreen_native_prepare_frame (CoglOnscreen *onscreen,
 }
 
 static void
-on_finish_frame_update_result (const MetaKmsFeedback *kms_feedback,
-                               gpointer               user_data)
+finish_frame_result_feedback (const MetaKmsFeedback *kms_feedback,
+                              gpointer               user_data)
 {
   CoglOnscreen *onscreen = COGL_ONSCREEN (user_data);
   const GError *error;
@@ -1627,7 +1644,10 @@ on_finish_frame_update_result (const MetaKmsFeedback *kms_feedback,
 
   if (!g_error_matches (error,
                         G_IO_ERROR,
-                        G_IO_ERROR_PERMISSION_DENIED))
+                        G_IO_ERROR_PERMISSION_DENIED) &&
+      !g_error_matches (error,
+                        META_KMS_ERROR,
+                        META_KMS_ERROR_EMPTY_UPDATE))
     g_warning ("Cursor update failed: %s", error->message);
 
   frame_info = cogl_onscreen_peek_head_frame_info (onscreen);
@@ -1642,6 +1662,10 @@ on_finish_frame_update_result (const MetaKmsFeedback *kms_feedback,
   meta_onscreen_native_notify_frame_complete (onscreen);
 }
 
+static const MetaKmsResultListenerVtable finish_frame_result_listener_vtable = {
+  .feedback = finish_frame_result_feedback,
+};
+
 void
 meta_onscreen_native_finish_frame (CoglOnscreen *onscreen,
                                    ClutterFrame *frame)
@@ -1652,15 +1676,27 @@ meta_onscreen_native_finish_frame (CoglOnscreen *onscreen,
   MetaKmsDevice *kms_device = meta_kms_crtc_get_device (kms_crtc);
   MetaFrameNative *frame_native = meta_frame_native_from_frame (frame);
   MetaKmsUpdate *kms_update;
+  unsigned int frames_pending = cogl_onscreen_count_pending_frames (onscreen);
+  unsigned int swaps_pending = onscreen_native->swaps_pending;
+  unsigned int posts_pending = frames_pending - swaps_pending;
 
-  if (meta_frame_native_has_kms_update (frame_native) &&
-      cogl_onscreen_count_pending_frames (onscreen) > 0 &&
-      onscreen_native->swaps_pending == 0)
+  onscreen_native->needs_flush |= meta_kms_device_handle_flush (kms_device,
+                                                                kms_crtc);
+
+  if (!meta_frame_native_has_kms_update (frame_native))
     {
-      /* Posts are busy AND we have no swaps pending so just retry the same
-       * frame later in try_post_latest_swap.
-       */
+      if (!onscreen_native->needs_flush || posts_pending)
+        {
+          clutter_frame_set_result (frame, CLUTTER_FRAME_RESULT_IDLE);
+          return;
+        }
+    }
+
+  if (posts_pending && !swaps_pending)
+    {
+      g_return_if_fail (meta_frame_native_has_kms_update (frame_native));
       g_warn_if_fail (onscreen_native->next_post.frame == NULL);
+
       g_clear_pointer (&onscreen_native->next_post.frame, clutter_frame_unref);
       onscreen_native->next_post.frame = clutter_frame_ref (frame);
       clutter_frame_set_result (frame, CLUTTER_FRAME_RESULT_PENDING_PRESENTED);
@@ -1668,21 +1704,13 @@ meta_onscreen_native_finish_frame (CoglOnscreen *onscreen,
     }
 
   kms_update = meta_frame_native_steal_kms_update (frame_native);
-  if (!kms_update)
-    {
-      clutter_frame_set_result (frame, CLUTTER_FRAME_RESULT_IDLE);
-      return;
-    }
 
-  if (cogl_onscreen_count_pending_frames (onscreen) > 0)
+  if (posts_pending && swaps_pending)
     {
-      /* Posts are busy AND we have swaps pending so best to merge our cursor
-       * update into the pending swap.
-       */
       MetaFrameNative *older_frame_native;
       MetaKmsUpdate *older_kms_update;
 
-      g_return_if_fail (onscreen_native->swaps_pending > 0);
+      g_return_if_fail (kms_update);
       g_return_if_fail (onscreen_native->next_post.frame != NULL);
 
       older_frame_native =
@@ -1691,9 +1719,20 @@ meta_onscreen_native_finish_frame (CoglOnscreen *onscreen,
         meta_frame_native_ensure_kms_update (older_frame_native, kms_device);
       meta_kms_update_merge_from (older_kms_update, kms_update);
       meta_kms_update_free (kms_update);
-
       clutter_frame_set_result (frame, CLUTTER_FRAME_RESULT_IDLE);
       return;
+    }
+
+  if (!kms_update)
+    {
+      kms_update = meta_kms_update_new (kms_device);
+      g_warn_if_fail (onscreen_native->needs_flush);
+    }
+
+  if (onscreen_native->needs_flush)
+    {
+      meta_kms_update_set_flushing (kms_update, kms_crtc);
+      onscreen_native->needs_flush = FALSE;
     }
 
   post_finish_frame (onscreen_native, kms_update);
@@ -1711,13 +1750,16 @@ post_finish_frame (MetaOnscreenNative *onscreen_native,
   g_autoptr (MetaKmsFeedback) kms_feedback = NULL;
 
   meta_kms_update_add_result_listener (kms_update,
-                                       on_finish_frame_update_result,
-                                       onscreen_native);
+                                       &finish_frame_result_listener_vtable,
+                                       NULL,
+                                       onscreen_native,
+                                       NULL);
 
   meta_kms_update_add_page_flip_listener (kms_update,
                                           kms_crtc,
                                           &page_flip_listener_vtable,
                                           META_KMS_PAGE_FLIP_LISTENER_FLAG_NONE,
+                                          NULL,
                                           g_object_ref (onscreen_native->view),
                                           g_object_unref);
   add_onscreen_frame_info (crtc);
@@ -1727,9 +1769,9 @@ post_finish_frame (MetaOnscreenNative *onscreen_native,
               meta_kms_crtc_get_id (kms_crtc),
               meta_kms_device_get_path (kms_device));
 
-  kms_feedback =
-    meta_kms_device_process_update_sync (kms_device, kms_update,
-                                         META_KMS_UPDATE_FLAG_NONE);
+  meta_kms_update_set_flushing (kms_update, kms_crtc);
+  meta_kms_device_post_update (kms_device, kms_update,
+                               META_KMS_UPDATE_FLAG_NONE);
 }
 
 void

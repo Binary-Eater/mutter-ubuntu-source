@@ -14,17 +14,14 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Written by:
  *     Jasper St. Pierre <jstpierre@mecheye.net>
  *     Jonas Ådahl <jadahl@gmail.com>
  */
 
-#ifndef META_BARRIER_PRIVATE_H
-#define META_BARRIER_PRIVATE_H
+#pragma once
 
 #include "core/meta-border.h"
 #include "meta/barrier.h"
@@ -58,6 +55,6 @@ MetaBackend * meta_barrier_get_backend (MetaBarrier *barrier);
 
 MetaBorder * meta_barrier_get_border (MetaBarrier *barrier);
 
-G_END_DECLS
+MetaBarrierFlags meta_barrier_get_flags (MetaBarrier *barrier);
 
-#endif /* META_BARRIER_PRIVATE_H */
+G_END_DECLS

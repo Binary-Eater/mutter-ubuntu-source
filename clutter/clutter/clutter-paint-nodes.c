@@ -23,21 +23,21 @@
  */
 
 
-#include "clutter-build-config.h"
+#include "clutter/clutter-build-config.h"
 
-#include "clutter-paint-node-private.h"
+#include "clutter/clutter-paint-node-private.h"
 
 #include <pango/pango.h>
-#include <cogl/cogl.h>
 
-#include "clutter-actor-private.h"
-#include "clutter-blur-private.h"
-#include "clutter-color.h"
-#include "clutter-debug.h"
-#include "clutter-private.h"
-#include "clutter-paint-context-private.h"
+#include "cogl/cogl.h"
+#include "clutter/clutter-actor-private.h"
+#include "clutter/clutter-blur-private.h"
+#include "clutter/clutter-color.h"
+#include "clutter/clutter-debug.h"
+#include "clutter/clutter-private.h"
+#include "clutter/clutter-paint-context-private.h"
 
-#include "clutter-paint-nodes.h"
+#include "clutter/clutter-paint-nodes.h"
 
 static CoglPipeline *default_color_pipeline   = NULL;
 static CoglPipeline *default_texture_pipeline = NULL;
@@ -1586,7 +1586,7 @@ clutter_layer_node_new (const graphene_matrix_t *projection,
  * @framebuffer. It will then use @pipeline to paint the stored
  * operations.
  *
- * When using this constructor, the caller is reponsible for setting
+ * When using this constructor, the caller is responsible for setting
  * up @framebuffer, including its modelview and projection matrices,
  * and the viewport, and the @pipeline as well.
  *

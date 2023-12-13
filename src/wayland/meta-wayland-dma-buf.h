@@ -15,22 +15,20 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Written by:
  *     Jonas Ådahl <jadahl@gmail.com>
  *     Daniel Stone <daniels@collabora.com>
  */
 
-#ifndef META_WAYLAND_DMA_BUF_H
-#define META_WAYLAND_DMA_BUF_H
+#pragma once
 
 #include <glib.h>
 #include <glib-object.h>
 
 #include "cogl/cogl.h"
+#include "meta/meta-multi-texture.h"
 #include "wayland/meta-wayland-types.h"
 
 #define META_TYPE_WAYLAND_DMA_BUF_BUFFER (meta_wayland_dma_buf_buffer_get_type ())
@@ -48,7 +46,7 @@ MetaWaylandDmaBufManager * meta_wayland_dma_buf_manager_new (MetaWaylandComposit
 
 gboolean
 meta_wayland_dma_buf_buffer_attach (MetaWaylandBuffer  *buffer,
-                                    CoglTexture       **texture,
+                                    MetaMultiTexture  **texture,
                                     GError            **error);
 
 MetaWaylandDmaBufBuffer *
@@ -68,5 +66,3 @@ meta_wayland_dma_buf_create_source (MetaWaylandBuffer               *buffer,
 CoglScanout *
 meta_wayland_dma_buf_try_acquire_scanout (MetaWaylandDmaBufBuffer *dma_buf,
                                           CoglOnscreen            *onscreen);
-
-#endif /* META_WAYLAND_DMA_BUF_H */

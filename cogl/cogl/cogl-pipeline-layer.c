@@ -33,17 +33,17 @@
 
 #include "cogl-config.h"
 
-#include "cogl-util.h"
-#include "cogl-context-private.h"
-#include "cogl-texture-private.h"
+#include "cogl/cogl-util.h"
+#include "cogl/cogl-context-private.h"
+#include "cogl/cogl-texture-private.h"
 
-#include "cogl-pipeline.h"
-#include "cogl-pipeline-layer-private.h"
-#include "cogl-pipeline-layer-state-private.h"
-#include "cogl-pipeline-layer-state.h"
-#include "cogl-node-private.h"
-#include "cogl-context-private.h"
-#include "cogl-texture-private.h"
+#include "cogl/cogl-pipeline.h"
+#include "cogl/cogl-pipeline-layer-private.h"
+#include "cogl/cogl-pipeline-layer-state-private.h"
+#include "cogl/cogl-pipeline-layer-state.h"
+#include "cogl/cogl-node-private.h"
+#include "cogl/cogl-context-private.h"
+#include "cogl/cogl-texture-private.h"
 
 #include <string.h>
 
@@ -513,7 +513,7 @@ _cogl_pipeline_layer_compare_differences (CoglPipelineLayer *layer0,
   /* Algorithm:
    *
    * 1) Walk the ancestors of each layer to the root node, adding a
-   *    pointer to each ancester node to two linked lists
+   *    pointer to each ancestor node to two linked lists
    *
    * 2) Compare the lists to find the nodes where they start to
    *    differ marking the common_ancestor node for each list.

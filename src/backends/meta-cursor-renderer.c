@@ -14,9 +14,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Written by:
  *     Jasper St. Pierre <jstpierre@mecheye.net>
@@ -37,6 +35,7 @@
 #include "core/boxes-private.h"
 #include "meta/meta-backend.h"
 #include "meta/util.h"
+#include "mtk/mtk.h"
 
 G_DEFINE_INTERFACE (MetaHwCursorInhibitor, meta_hw_cursor_inhibitor,
                     G_TYPE_OBJECT)
@@ -65,7 +64,7 @@ struct _MetaCursorRendererPrivate
   MetaCursorSprite *overlay_cursor;
 
   MetaOverlay *stage_overlay;
-  gboolean handled_by_backend;
+  gboolean needs_overlay;
   gulong after_paint_handler_id;
 
   GList *hw_cursor_inhibitors;
@@ -111,7 +110,7 @@ align_cursor_position (MetaCursorRenderer *renderer,
     meta_cursor_renderer_get_instance_private (renderer);
   ClutterActor *stage = meta_backend_get_stage (priv->backend);
   ClutterStageView *view;
-  cairo_rectangle_int_t view_layout;
+  MtkRectangle view_layout;
   float view_scale;
 
   view = clutter_stage_get_view_at (CLUTTER_STAGE (stage),
@@ -157,7 +156,7 @@ meta_cursor_renderer_update_stage_overlay (MetaCursorRenderer *renderer,
         meta_cursor_sprite_get_texture_transform (cursor_sprite);
     }
 
-  meta_overlay_set_visible (priv->stage_overlay, !priv->handled_by_backend);
+  meta_overlay_set_visible (priv->stage_overlay, priv->needs_overlay);
   meta_stage_update_cursor_overlay (META_STAGE (stage), priv->stage_overlay,
                                     texture, &rect, buffer_transform);
 }
@@ -171,16 +170,16 @@ meta_cursor_renderer_after_paint (ClutterStage       *stage,
   MetaCursorRendererPrivate *priv =
     meta_cursor_renderer_get_instance_private (renderer);
 
-  if (priv->displayed_cursor && !priv->handled_by_backend)
+  if (priv->displayed_cursor && priv->needs_overlay)
     {
       graphene_rect_t rect;
-      MetaRectangle view_layout;
+      MtkRectangle view_layout;
       graphene_rect_t view_rect;
 
       rect = meta_cursor_renderer_calculate_rect (renderer,
                                                   priv->displayed_cursor);
       clutter_stage_view_get_layout (stage_view, &view_layout);
-      view_rect = meta_rectangle_to_graphene_rect (&view_layout);
+      view_rect = mtk_rectangle_to_graphene_rect (&view_layout);
       if (graphene_rect_intersection (&rect, &view_rect, NULL))
         {
           meta_cursor_renderer_emit_painted (renderer,
@@ -197,7 +196,7 @@ meta_cursor_renderer_real_update_cursor (MetaCursorRenderer *renderer,
   if (cursor_sprite)
     meta_cursor_sprite_realize_texture (cursor_sprite);
 
-  return FALSE;
+  return TRUE;
 }
 
 static void
@@ -295,17 +294,13 @@ meta_cursor_renderer_class_init (MetaCursorRendererClass *klass)
   klass->update_cursor = meta_cursor_renderer_real_update_cursor;
 
   obj_props[PROP_BACKEND] =
-    g_param_spec_object ("backend",
-                         "backend",
-                         "MetaBackend",
+    g_param_spec_object ("backend", NULL, NULL,
                          META_TYPE_BACKEND,
                          G_PARAM_READWRITE |
                          G_PARAM_CONSTRUCT_ONLY |
                          G_PARAM_STATIC_STRINGS);
   obj_props[PROP_DEVICE] =
-    g_param_spec_object ("device",
-                         "device",
-                         "Input device",
+    g_param_spec_object ("device", NULL, NULL,
                          CLUTTER_TYPE_INPUT_DEVICE,
                          G_PARAM_READWRITE |
                          G_PARAM_CONSTRUCT_ONLY |
@@ -327,36 +322,52 @@ meta_cursor_renderer_init (MetaCursorRenderer *renderer)
 {
 }
 
-graphene_rect_t
-meta_cursor_renderer_calculate_rect (MetaCursorRenderer *renderer,
-                                     MetaCursorSprite   *cursor_sprite)
+static gboolean
+calculate_sprite_geometry (MetaCursorSprite *cursor_sprite,
+                           graphene_size_t  *size,
+                           graphene_point_t *hotspot)
 {
-  MetaCursorRendererPrivate *priv =
-    meta_cursor_renderer_get_instance_private (renderer);
   CoglTexture *texture;
   int hot_x, hot_y;
   int width, height;
   float texture_scale;
 
+  meta_cursor_sprite_realize_texture (cursor_sprite);
   texture = meta_cursor_sprite_get_cogl_texture (cursor_sprite);
   if (!texture)
-    return (graphene_rect_t) GRAPHENE_RECT_INIT_ZERO;
+    return FALSE;
 
   meta_cursor_sprite_get_hotspot (cursor_sprite, &hot_x, &hot_y);
   texture_scale = meta_cursor_sprite_get_texture_scale (cursor_sprite);
   width = cogl_texture_get_width (texture);
   height = cogl_texture_get_height (texture);
 
-  return (graphene_rect_t) {
-    .origin = {
-      .x = priv->current_x - (hot_x * texture_scale),
-      .y = priv->current_y - (hot_y * texture_scale)
-    },
-    .size = {
-      .width = width * texture_scale,
-      .height = height * texture_scale
-    }
+  *size = (graphene_size_t) {
+    .width = width * texture_scale,
+    .height = height * texture_scale
   };
+  *hotspot = (graphene_point_t) {
+    .x = hot_x * texture_scale,
+    .y = hot_y * texture_scale
+  };
+  return TRUE;
+}
+
+graphene_rect_t
+meta_cursor_renderer_calculate_rect (MetaCursorRenderer *renderer,
+                                     MetaCursorSprite   *cursor_sprite)
+{
+  MetaCursorRendererPrivate *priv =
+    meta_cursor_renderer_get_instance_private (renderer);
+  graphene_rect_t rect = GRAPHENE_RECT_INIT_ZERO;
+  graphene_point_t hotspot;
+
+  if (!calculate_sprite_geometry (cursor_sprite, &rect.size, &hotspot))
+    return GRAPHENE_RECT_INIT_ZERO;
+
+  rect.origin = (graphene_point_t) { .x = -hotspot.x, .y = -hotspot.y };
+  graphene_rect_offset (&rect, priv->current_x, priv->current_y);
+  return rect;
 }
 
 static float
@@ -381,7 +392,7 @@ find_highest_logical_monitor_scale (MetaBackend      *backend,
     {
       MetaLogicalMonitor *logical_monitor = l->data;
       graphene_rect_t logical_monitor_rect =
-        meta_rectangle_to_graphene_rect (&logical_monitor->rect);
+        mtk_rectangle_to_graphene_rect (&logical_monitor->rect);
 
       if (!graphene_rect_intersection (&cursor_rect,
                                        &logical_monitor_rect,
@@ -410,7 +421,7 @@ meta_cursor_renderer_update_cursor (MetaCursorRenderer *renderer,
                                      (int) priv->current_y);
     }
 
-  priv->handled_by_backend =
+  priv->needs_overlay =
     META_CURSOR_RENDERER_GET_CLASS (renderer)->update_cursor (renderer,
                                                               cursor_sprite);
 

@@ -32,15 +32,17 @@
  *  Robert Bragg   <robert@linux.intel.com>
  */
 
+
 #include "cogl-config.h"
 
-#include "cogl-context-private.h"
-#include "cogl-graphene.h"
-#include "cogl-primitives-private.h"
-#include "cogl-primitive-private.h"
-#include "driver/gl/cogl-util-gl-private.h"
-#include "driver/gl/cogl-pipeline-opengl-private.h"
-#include "driver/gl/cogl-clip-stack-gl-private.h"
+#include "cogl/cogl-context-private.h"
+#include "cogl/cogl-graphene.h"
+#include "cogl/cogl-primitives-private.h"
+#include "cogl/cogl-primitive-private.h"
+#include "cogl/driver/gl/cogl-util-gl-private.h"
+#include "cogl/driver/gl/cogl-pipeline-opengl-private.h"
+#include "cogl/driver/gl/cogl-clip-stack-gl-private.h"
+#include "mtk/mtk.h"
 
 static void
 add_stencil_clip_rectangle (CoglFramebuffer *framebuffer,
@@ -182,7 +184,7 @@ add_stencil_clip_region (CoglFramebuffer *framebuffer,
 
   for (i = 0; i < num_rectangles; i++)
     {
-      cairo_rectangle_int_t rect;
+      MtkRectangle rect;
       float x1, y1, z1, w1;
       float x2, y2, z2, w2;
       CoglVertexP2 *v = vertices + i * 6;
@@ -536,11 +538,6 @@ _cogl_clip_stack_gl_flush (CoglClipStack *stack,
                 }
               break;
             }
-        case COGL_CLIP_STACK_WINDOW_RECT:
-          break;
-          /* We don't need to do anything for window space rectangles because
-           * their functionality is entirely implemented by the entry bounding
-           * box */
         }
     }
 }

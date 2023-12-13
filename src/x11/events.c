@@ -519,6 +519,7 @@ get_extension_event_name (MetaX11Display *x11_display,
   return NULL;
 }
 
+#ifdef COGL_HAS_TRACING
 static const char *
 get_event_name (MetaX11Display *x11_display,
                 XEvent         *event)
@@ -543,6 +544,7 @@ get_event_name (MetaX11Display *x11_display,
 
   return "Unknown event";
 }
+#endif
 
 static void
 meta_spew_core_event (MetaX11Display *x11_display,
@@ -919,35 +921,6 @@ handle_window_focus_event (MetaX11Display *x11_display,
 }
 
 static gboolean
-crossing_serial_is_ignored (MetaX11Display *x11_display,
-                            unsigned long   serial)
-{
-  int i;
-
-  i = 0;
-  while (i < N_IGNORED_CROSSING_SERIALS)
-    {
-      if (x11_display->ignored_crossing_serials[i] == serial)
-        return TRUE;
-      ++i;
-    }
-  return FALSE;
-}
-
-static void
-reset_ignored_crossing_serials (MetaX11Display *x11_display)
-{
-  int i;
-
-  i = 0;
-  while (i < N_IGNORED_CROSSING_SERIALS)
-    {
-      x11_display->ignored_crossing_serials[i] = 0;
-      ++i;
-    }
-}
-
-static gboolean
 handle_input_xevent (MetaX11Display *x11_display,
                      XIEvent        *input_event,
                      unsigned long   serial)
@@ -989,23 +962,17 @@ handle_input_xevent (MetaX11Display *x11_display,
       /* Check if we've entered a window; do this even if window->has_focus to
        * avoid races.
        */
-      if (window && !crossing_serial_is_ignored (x11_display, serial) &&
+      if (window &&
           enter_event->mode != XINotifyGrab &&
           enter_event->mode != XINotifyUngrab &&
           enter_event->detail != XINotifyInferior &&
           !meta_is_wayland_compositor () &&
-          meta_x11_display_focus_sentinel_clear (x11_display))
+          enter_event->sourceid != enter_event->deviceid)
         {
           meta_window_handle_enter (window,
                                     enter_event->time,
                                     enter_event->root_x,
                                     enter_event->root_y);
-
-          if (window->type != META_WINDOW_DOCK)
-            {
-              /* stop ignoring stuff */
-              reset_ignored_crossing_serials (x11_display);
-            }
         }
       break;
     case XI_Leave:
@@ -1601,6 +1568,10 @@ handle_other_xevent (MetaX11Display *x11_display,
         {
           meta_window_x11_configure_request (window, event);
         }
+      else if (frame_was_receiver && window->frame)
+        {
+          meta_frame_handle_xevent (window->frame, event);
+        }
       break;
     case GravityNotify:
       break;
@@ -1634,16 +1605,6 @@ handle_other_xevent (MetaX11Display *x11_display,
             else if (event->xproperty.atom ==
                      x11_display->atom__NET_DESKTOP_NAMES)
               meta_x11_display_update_workspace_names (x11_display);
-
-            /* we just use this property as a sentinel to avoid
-             * certain race conditions.  See the comment for the
-             * sentinel_counter variable declaration in display.h
-             */
-            if (event->xproperty.atom ==
-                x11_display->atom__MUTTER_SENTINEL)
-              {
-                meta_x11_display_decrement_focus_sentinel (x11_display);
-              }
           }
       }
       break;
@@ -1922,7 +1883,7 @@ meta_x11_display_handle_xevent (MetaX11Display *x11_display,
   display->current_time = event_get_time (x11_display, event);
 
   if (META_IS_BACKEND_X11 (backend))
-    meta_backend_x11_handle_event (META_BACKEND_X11 (backend), event);
+    meta_backend_x11_reset_cached_logical_monitor (META_BACKEND_X11 (backend));
 
   if (x11_display->focused_by_us &&
       event->xany.serial > x11_display->focus_serial &&

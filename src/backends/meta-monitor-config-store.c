@@ -14,9 +14,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "config.h"
@@ -655,6 +653,7 @@ derive_logical_monitor_layout (MetaLogicalMonitorConfig    *logical_monitor_conf
   MetaMonitorConfig *monitor_config;
   int mode_width, mode_height;
   int width = 0, height = 0;
+  float scale;
   GList *l;
 
   monitor_config = logical_monitor_config->monitor_configs->data;
@@ -685,13 +684,21 @@ derive_logical_monitor_layout (MetaLogicalMonitorConfig    *logical_monitor_conf
       height = mode_height;
     }
 
+  scale = logical_monitor_config->scale;
+
   switch (layout_mode)
     {
     case META_LOGICAL_MONITOR_LAYOUT_MODE_LOGICAL:
-      width = roundf (width / logical_monitor_config->scale);
-      height = roundf (height / logical_monitor_config->scale);
+      width = roundf (width / scale);
+      height = roundf (height / scale);
       break;
     case META_LOGICAL_MONITOR_LAYOUT_MODE_PHYSICAL:
+      if (!G_APPROX_VALUE (scale, roundf (scale), FLT_EPSILON))
+        {
+          g_set_error (error, G_IO_ERROR, G_IO_ERROR_FAILED,
+                       "A fractional scale with physical layout mode not allowed");
+          return FALSE;
+        }
       break;
     }
 
@@ -1966,9 +1973,7 @@ meta_monitor_config_store_class_init (MetaMonitorConfigStoreClass *klass)
   object_class->set_property = meta_monitor_config_store_set_property;
 
   obj_props[PROP_MONITOR_MANAGER] =
-    g_param_spec_object ("monitor-manager",
-                         "MetaMonitorManager",
-                         "MetaMonitorManager",
+    g_param_spec_object ("monitor-manager", NULL, NULL,
                          META_TYPE_MONITOR_MANAGER,
                          G_PARAM_READWRITE |
                          G_PARAM_STATIC_STRINGS |

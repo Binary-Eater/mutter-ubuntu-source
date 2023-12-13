@@ -14,16 +14,13 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Written by:
  *     Carlos Garnacho <carlosg@gnome.org>
  */
 
-#ifndef META_POINTER_CONSTRAINT_NATIVE_H
-#define META_POINTER_CONSTRAINT_NATIVE_H
+#pragma once
 
 #include <glib-object.h>
 
@@ -43,5 +40,3 @@ MetaPointerConstraintImpl * meta_pointer_constraint_impl_native_new (MetaPointer
                                                                      double                 min_edge_distance);
 
 G_END_DECLS
-
-#endif /* META_POINTER_CONSTRAINT_NATIVE_H */

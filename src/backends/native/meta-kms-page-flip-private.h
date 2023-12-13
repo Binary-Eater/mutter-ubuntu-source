@@ -12,13 +12,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef META_KMS_PAGE_FLIP_H
-#define META_KMS_PAGE_FLIP_H
+#pragma once
 
 #include <glib.h>
 
@@ -38,6 +35,7 @@ void meta_kms_page_flip_data_unref (MetaKmsPageFlipData *page_flip_data);
 void meta_kms_page_flip_data_add_listener (MetaKmsPageFlipData                 *page_flip_data,
                                            const MetaKmsPageFlipListenerVtable *vtable,
                                            MetaKmsPageFlipListenerFlag          flags,
+                                           GMainContext                        *main_context,
                                            gpointer                             user_data,
                                            GDestroyNotify                       destroy_notify);
 
@@ -63,5 +61,3 @@ void meta_kms_page_flip_data_take_error (MetaKmsPageFlipData *page_flip_data,
 void meta_kms_page_flip_data_make_symbolic (MetaKmsPageFlipData *page_flip_data);
 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (MetaKmsPageFlipData, meta_kms_page_flip_data_unref)
-
-#endif /* META_KMS_PAGE_FLIP_H */

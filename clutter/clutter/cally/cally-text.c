@@ -23,9 +23,7 @@
  * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /**
@@ -37,14 +35,14 @@
  * [class@Clutter.Text], #AtkText and #AtkEditableText
  */
 
-#include "clutter-build-config.h"
+#include "clutter/clutter-build-config.h"
 
-#include "cally-text.h"
-#include "cally-actor-private.h"
+#include "cally/cally-text.h"
+#include "cally/cally-actor-private.h"
 
-#include "clutter-color.h"
-#include "clutter-main.h"
-#include "clutter-text.h"
+#include "clutter/clutter-color.h"
+#include "clutter/clutter-main.h"
+#include "clutter/clutter-text.h"
 
 static void cally_text_finalize   (GObject *obj);
 

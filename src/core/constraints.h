@@ -20,8 +20,7 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef META_CONSTRAINTS_H
-#define META_CONSTRAINTS_H
+#pragma once
 
 #include "core/frame.h"
 #include "core/window-private.h"
@@ -30,10 +29,8 @@
 void meta_window_constrain (MetaWindow          *window,
                             MetaMoveResizeFlags  flags,
                             MetaGravity          resize_gravity,
-                            const MetaRectangle *orig,
-                            MetaRectangle       *new,
-                            MetaRectangle       *intermediate,
+                            const MtkRectangle  *orig,
+                            MtkRectangle        *new,
+                            MtkRectangle        *intermediate,
                             int                 *rel_x,
                             int                 *rel_y);
-
-#endif /* META_CONSTRAINTS_H */

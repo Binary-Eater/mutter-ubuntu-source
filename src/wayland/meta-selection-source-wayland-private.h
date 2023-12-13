@@ -12,15 +12,12 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Author: Carlos Garnacho <carlosg@gnome.org>
  */
 
-#ifndef META_SELECTION_SOURCE_WAYLAND_H
-#define META_SELECTION_SOURCE_WAYLAND_H
+#pragma once
 
 #include <wayland-server.h>
 
@@ -36,4 +33,3 @@ G_DECLARE_FINAL_TYPE (MetaSelectionSourceWayland,
 
 MetaSelectionSource * meta_selection_source_wayland_new (MetaWaylandDataSource *source);
 
-#endif /* META_SELECTION_SOURCE_WAYLAND_H */

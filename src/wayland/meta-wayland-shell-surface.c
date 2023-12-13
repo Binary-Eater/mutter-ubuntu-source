@@ -13,9 +13,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  */
 
@@ -37,6 +35,7 @@ typedef struct _MetaWaylandShellSurfacePrivate
   MetaWindow *window;
 
   gulong unmanaging_handler_id;
+  gulong highest_scale_monitor_handler_id;
 } MetaWaylandShellSurfacePrivate;
 
 G_DEFINE_ABSTRACT_TYPE_WITH_PRIVATE (MetaWaylandShellSurface,
@@ -45,16 +44,16 @@ G_DEFINE_ABSTRACT_TYPE_WITH_PRIVATE (MetaWaylandShellSurface,
 
 void
 meta_wayland_shell_surface_calculate_geometry (MetaWaylandShellSurface *shell_surface,
-                                               MetaRectangle           *out_geometry)
+                                               MtkRectangle            *out_geometry)
 {
   MetaWaylandSurfaceRole *surface_role =
     META_WAYLAND_SURFACE_ROLE (shell_surface);
   MetaWaylandSurface *surface =
     meta_wayland_surface_role_get_surface (surface_role);
-  MetaRectangle geometry;
+  MtkRectangle geometry;
   MetaWaylandSurface *subsurface_surface;
 
-  geometry = (MetaRectangle) {
+  geometry = (MtkRectangle) {
     .width = meta_wayland_surface_get_width (surface),
     .height = meta_wayland_surface_get_height (surface),
   };
@@ -75,17 +74,17 @@ meta_wayland_shell_surface_calculate_geometry (MetaWaylandShellSurface *shell_su
 
 void
 meta_wayland_shell_surface_determine_geometry (MetaWaylandShellSurface *shell_surface,
-                                               MetaRectangle           *set_geometry,
-                                               MetaRectangle           *out_geometry)
+                                               MtkRectangle            *set_geometry,
+                                               MtkRectangle            *out_geometry)
 {
-  MetaRectangle bounding_geometry = { 0 };
-  MetaRectangle intersected_geometry = { 0 };
+  MtkRectangle bounding_geometry = { 0 };
+  MtkRectangle intersected_geometry = { 0 };
 
   meta_wayland_shell_surface_calculate_geometry (shell_surface,
                                                  &bounding_geometry);
 
-  meta_rectangle_intersect (set_geometry, &bounding_geometry,
-                            &intersected_geometry);
+  mtk_rectangle_intersect (set_geometry, &bounding_geometry,
+                           &intersected_geometry);
 
   *out_geometry = intersected_geometry;
 }
@@ -105,6 +104,8 @@ clear_window (MetaWaylandShellSurface *shell_surface)
     return;
 
   g_clear_signal_handler (&priv->unmanaging_handler_id,
+                          priv->window);
+  g_clear_signal_handler (&priv->highest_scale_monitor_handler_id,
                           priv->window);
   priv->window = NULL;
 
@@ -137,6 +138,12 @@ meta_wayland_shell_surface_set_window (MetaWaylandShellSurface *shell_surface,
   g_assert (!priv->window);
 
   priv->window = window;
+
+  priv->highest_scale_monitor_handler_id =
+    g_signal_connect_swapped (window, "highest-scale-monitor-changed",
+                              G_CALLBACK (meta_wayland_surface_notify_highest_scale_monitor),
+                              surface);
+  meta_wayland_surface_notify_highest_scale_monitor (surface);
 
   surface_actor = meta_wayland_surface_get_actor (surface);
   if (surface_actor)

@@ -1,7 +1,5 @@
-wayland_test_client_installed_tests_libexecdir = join_paths(
-  mutter_installed_tests_libexecdir,
-  'wayland-test-clients',
-)
+wayland_test_client_installed_tests_libexecdir = \
+  mutter_installed_tests_libexecdir / 'wayland-test-clients'
 
 wayland_test_client_sources = files([
   'wayland-test-client-utils.c',
@@ -57,6 +55,9 @@ wayland_test_clients = [
     'name': 'fullscreen',
   },
   {
+    'name': 'idle-inhibit',
+  },
+  {
     'name': 'kms-cursor-hotplug-helper',
     'extra_deps': [
       wayland_cursor_dep,
@@ -80,6 +81,8 @@ wayland_test_clients = [
   },
 ]
 
+test_client_executables = {}
+
 foreach test : wayland_test_clients
   test_name = test['name']
   deps = [
@@ -100,7 +103,7 @@ foreach test : wayland_test_clients
     test_client_sources += test['extra_sources']
   endif
 
-  executable(test_name,
+  test_executable = executable(test_name,
     sources: test_client_sources,
     include_directories: tests_includes,
     c_args: tests_c_args,
@@ -108,4 +111,6 @@ foreach test : wayland_test_clients
     install: have_installed_tests,
     install_dir: wayland_test_client_installed_tests_libexecdir,
   )
+
+  test_client_executables += { test['name']: test_executable }
 endforeach

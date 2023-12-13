@@ -14,14 +14,11 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  */
 
-#ifndef META_WAYLAND_PRESENTATION_TIME_PRIVATE_H
-#define META_WAYLAND_PRESENTATION_TIME_PRIVATE_H
+#pragma once
 
 #include <wayland-server.h>
 
@@ -65,5 +62,3 @@ struct wl_list * meta_wayland_presentation_time_ensure_feedbacks (MetaWaylandPre
 void meta_wayland_presentation_time_cursor_painted (MetaWaylandPresentationTime *presentation_time,
                                                     ClutterStageView            *stage_view,
                                                     MetaWaylandCursorSurface    *cursor_surface);
-
-#endif /* META_WAYLAND_PRESENTATION_TIME_PRIVATE_H */

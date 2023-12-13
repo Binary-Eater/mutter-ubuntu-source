@@ -14,16 +14,13 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Written by:
  *     Jason Francis <cycl0ps@tuta.io>
  */
 
-#ifndef META_WAYLAND_FOREIGN_PRIVATE_H
-#define META_WAYLAND_FOREIGN_PRIVATE_H
+#pragma once
 
 #include <glib.h>
 
@@ -57,5 +54,3 @@ void meta_wayland_xdg_imported_set_parent_of (MetaWaylandXdgImported *imported,
                                               struct wl_resource     *surface_resource);
 
 void meta_wayland_xdg_imported_destroy (MetaWaylandXdgImported *imported);
-
-#endif /* META_WAYLAND_FOREIGN_PRIVATE_H */

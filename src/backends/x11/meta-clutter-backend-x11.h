@@ -14,16 +14,13 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Written by:
  *     Jonas Ådahl <jadahl@gmail.com>
  */
 
-#ifndef META_CLUTTER_BACKEND_X11_H
-#define META_CLUTTER_BACKEND_X11_H
+#pragma once
 
 #include <glib-object.h>
 
@@ -59,33 +56,7 @@ G_DECLARE_FINAL_TYPE (MetaClutterBackendX11, meta_clutter_backend_x11,
                       META, CLUTTER_BACKEND_X11,
                       ClutterBackend)
 
-typedef enum
-{
-  META_X11_FILTER_CONTINUE,
-  META_X11_FILTER_TRANSLATE,
-  META_X11_FILTER_REMOVE
-} MetaX11FilterReturn;
-
-typedef MetaX11FilterReturn (*MetaX11FilterFunc) (XEvent        *xev,
-                                                  ClutterEvent  *cev,
-                                                  gpointer       data);
-
 MetaClutterBackendX11 * meta_clutter_backend_x11_new (MetaBackend *backend);
-
-void meta_clutter_x11_trap_x_errors (void);
-gint meta_clutter_x11_untrap_x_errors (void);
-
-Window meta_clutter_x11_get_root_window (void);
-
-void meta_clutter_backend_x11_add_filter (MetaClutterBackendX11 *clutter_backend_x11,
-                                          MetaX11FilterFunc      func,
-                                          gpointer               data);
-
-void meta_clutter_backend_x11_remove_filter (MetaClutterBackendX11 *clutter_backend_x11,
-                                             MetaX11FilterFunc      func,
-                                             gpointer               data);
 
 void meta_clutter_x11_set_use_stereo_stage (gboolean use_stereo);
 gboolean meta_clutter_x11_get_use_stereo_stage (void);
-
-#endif /* META_CLUTTER_BACKEND_X11_H */

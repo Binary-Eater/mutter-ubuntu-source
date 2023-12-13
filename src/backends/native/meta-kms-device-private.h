@@ -12,13 +12,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef META_KMS_DEVICE_PRIVATE_H
-#define META_KMS_DEVICE_PRIVATE_H
+#pragma once
 
 #include "backends/native/meta-kms-types.h"
 #include "backends/native/meta-kms-update-private.h"
@@ -40,4 +37,5 @@ MetaKmsCrtc * meta_kms_device_find_crtc_in_impl (MetaKmsDevice *device,
 MetaKmsConnector * meta_kms_device_find_connector_in_impl (MetaKmsDevice *device,
                                                            uint32_t       connector_id);
 
-#endif /* META_KMS_DEVICE_PRIVATE_H */
+void meta_kms_device_set_needs_flush (MetaKmsDevice *device,
+                                      MetaKmsCrtc   *crtc);

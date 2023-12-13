@@ -12,13 +12,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef META_CRTC_H
-#define META_CRTC_H
+#pragma once
 
 #include <glib-object.h>
 
@@ -114,4 +111,3 @@ gboolean meta_gamma_lut_equal (const MetaGammaLut *gamma,
 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (MetaGammaLut, meta_gamma_lut_free)
 
-#endif /* META_CRTC_H */

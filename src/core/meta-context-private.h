@@ -12,14 +12,11 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  */
 
-#ifndef META_CONTEXT_PRIVATE_H
-#define META_CONTEXT_PRIVATE_H
+#pragma once
 
 #include "core/meta-private-enums.h"
 #include "core/meta-service-channel.h"
@@ -27,6 +24,10 @@
 #include "meta/meta-backend.h"
 #include "meta/meta-context.h"
 #include "wayland/meta-wayland-types.h"
+
+#ifdef HAVE_PROFILER
+#include "core/meta-profiler.h"
+#endif
 
 struct _MetaContextClass
 {
@@ -66,9 +67,6 @@ void meta_context_set_unsafe_mode (MetaContext *context,
 
 #ifdef HAVE_WAYLAND
 META_EXPORT_TEST
-MetaWaylandCompositor * meta_context_get_wayland_compositor (MetaContext *context);
-
-META_EXPORT_TEST
 MetaServiceChannel * meta_context_get_service_channel (MetaContext *context);
 #endif
 
@@ -79,4 +77,10 @@ META_EXPORT_TEST
 gboolean meta_context_is_x11_sync (MetaContext *context);
 #endif
 
-#endif /* META_CONTEXT_PRIVATE_H */
+#ifdef HAVE_PROFILER
+MetaProfiler *
+meta_context_get_profiler (MetaContext *context);
+
+void meta_context_set_trace_file (MetaContext *context,
+                                  const char  *trace_file);
+#endif

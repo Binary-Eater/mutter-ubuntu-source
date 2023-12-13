@@ -25,9 +25,9 @@
  */
 
 /**
- * SECTION:meta-monitor-manager
- * @title: MetaMonitorManager
- * @short_description: A manager for multiple monitors
+ * MetaMonitorManager:
+ *
+ * A manager for multiple monitors
  *
  * #MetaMonitorManager is an abstract class which contains methods to handle
  * multiple monitors (both #MetaMonitor and #MetaLogicalMonitor) and GPU's
@@ -59,6 +59,7 @@
 #include "clutter/clutter.h"
 #include "core/util-private.h"
 #include "meta/main.h"
+#include "meta/meta-enum-types.h"
 #include "meta/meta-x11-errors.h"
 
 #include "meta-dbus-display-config.h"
@@ -169,7 +170,7 @@ is_main_tiled_monitor_output (MetaOutput *output)
 static MetaLogicalMonitor *
 logical_monitor_from_layout (MetaMonitorManager *manager,
                              GList              *logical_monitors,
-                             MetaRectangle      *layout)
+                             MtkRectangle       *layout)
 {
   GList *l;
 
@@ -177,7 +178,7 @@ logical_monitor_from_layout (MetaMonitorManager *manager,
     {
       MetaLogicalMonitor *logical_monitor = l->data;
 
-      if (meta_rectangle_equal (layout, &logical_monitor->rect))
+      if (mtk_rectangle_equal (layout, &logical_monitor->rect))
         return logical_monitor;
     }
 
@@ -318,7 +319,7 @@ derive_calculated_global_scale (MetaMonitorManager *manager)
 static float
 derive_scale_from_config (MetaMonitorManager *manager,
                           MetaMonitorsConfig *config,
-                          MetaRectangle      *layout)
+                          MtkRectangle       *layout)
 {
   GList *l;
 
@@ -326,7 +327,7 @@ derive_scale_from_config (MetaMonitorManager *manager,
     {
       MetaLogicalMonitorConfig *logical_monitor_config = l->data;
 
-      if (meta_rectangle_equal (layout, &logical_monitor_config->layout))
+      if (mtk_rectangle_equal (layout, &logical_monitor_config->layout))
         return logical_monitor_config->scale;
     }
 
@@ -364,7 +365,7 @@ meta_monitor_manager_rebuild_logical_monitors_derived (MetaMonitorManager *manag
     {
       MetaMonitor *monitor = l->data;
       MetaLogicalMonitor *logical_monitor;
-      MetaRectangle layout;
+      MtkRectangle layout;
 
       if (!meta_monitor_is_active (monitor))
         continue;
@@ -416,8 +417,9 @@ meta_monitor_manager_rebuild_logical_monitors_derived (MetaMonitorManager *manag
 }
 
 void
-meta_monitor_manager_power_save_mode_changed (MetaMonitorManager *manager,
-                                              MetaPowerSave       mode)
+meta_monitor_manager_power_save_mode_changed (MetaMonitorManager        *manager,
+                                              MetaPowerSave              mode,
+                                              MetaPowerSaveChangeReason  reason)
 {
   MetaMonitorManagerPrivate *priv =
     meta_monitor_manager_get_instance_private (manager);
@@ -426,7 +428,7 @@ meta_monitor_manager_power_save_mode_changed (MetaMonitorManager *manager,
     return;
 
   priv->power_save_mode = mode;
-  g_signal_emit (manager, signals[POWER_SAVE_MODE_CHANGED], 0);
+  g_signal_emit (manager, signals[POWER_SAVE_MODE_CHANGED], 0, reason);
 }
 
 static void
@@ -438,6 +440,7 @@ power_save_mode_changed (MetaMonitorManager *manager,
     meta_monitor_manager_get_instance_private (manager);
   MetaMonitorManagerClass *klass;
   int mode = meta_dbus_display_config_get_power_save_mode (manager->display_config);
+  MetaPowerSaveChangeReason reason;
 
   if (mode == META_POWER_SAVE_UNSUPPORTED)
     return;
@@ -453,7 +456,8 @@ power_save_mode_changed (MetaMonitorManager *manager,
   if (klass->set_power_save_mode)
     klass->set_power_save_mode (manager, mode);
 
-  meta_monitor_manager_power_save_mode_changed (manager, mode);
+  reason = META_POWER_SAVE_CHANGE_REASON_MODE_CHANGE;
+  meta_monitor_manager_power_save_mode_changed (manager, mode, reason);
 }
 
 void
@@ -497,6 +501,10 @@ ensure_hdr_settings (MetaMonitorManager *manager)
         .active = TRUE,
         .eotf = META_OUTPUT_HDR_METADATA_EOTF_PQ,
       };
+
+      meta_topic (META_DEBUG_COLOR,
+                  "MonitorManager: Trying to enabling HDR mode "
+                  "(Colorimetry: bt.2020, TF: PQ, HDR Metadata: Minimal):");
     }
   else
     {
@@ -504,6 +512,10 @@ ensure_hdr_settings (MetaMonitorManager *manager)
       hdr_metadata = (MetaOutputHdrMetadata) {
         .active = FALSE,
       };
+
+      meta_topic (META_DEBUG_COLOR,
+                  "MonitorManager: Trying to enable default mode "
+                  "(Colorimetry: default, TF: default, HDR Metadata: None):");
     }
 
   for (l = manager->monitors; l; l = l->next)
@@ -513,27 +525,6 @@ ensure_hdr_settings (MetaMonitorManager *manager)
 
       if (!meta_monitor_set_color_space (monitor, color_space, &error))
         {
-          if (g_error_matches (error, G_IO_ERROR, G_IO_ERROR_NOT_SUPPORTED))
-            continue;
-
-          g_warning ("Failed to set color space on monitor %s: %s",
-                     meta_monitor_get_display_name (monitor), error->message);
-
-          meta_monitor_set_color_space (monitor,
-                                        META_OUTPUT_COLORSPACE_DEFAULT,
-                                        NULL);
-
-          continue;
-        }
-
-      if (!meta_monitor_set_hdr_metadata (monitor, &hdr_metadata, &error))
-        {
-          if (g_error_matches (error, G_IO_ERROR, G_IO_ERROR_NOT_SUPPORTED))
-            continue;
-
-          g_warning ("Failed to set HDR metadata on monitor %s: %s",
-                     meta_monitor_get_display_name (monitor), error->message);
-
           meta_monitor_set_color_space (monitor,
                                         META_OUTPUT_COLORSPACE_DEFAULT,
                                         NULL);
@@ -541,8 +532,51 @@ ensure_hdr_settings (MetaMonitorManager *manager)
                                            .active = FALSE,
                                          }, NULL);
 
+          if (g_error_matches (error, G_IO_ERROR, G_IO_ERROR_NOT_SUPPORTED))
+            {
+              meta_topic (META_DEBUG_COLOR,
+                          "MonitorManager: Colorimetry not supported "
+                          "on monitor %s",
+                          meta_monitor_get_display_name (monitor));
+            }
+          else
+            {
+              g_warning ("Failed to set color space on monitor %s: %s",
+                         meta_monitor_get_display_name (monitor), error->message);
+            }
+
           continue;
         }
+
+      if (!meta_monitor_set_hdr_metadata (monitor, &hdr_metadata, &error))
+        {
+          meta_monitor_set_color_space (monitor,
+                                        META_OUTPUT_COLORSPACE_DEFAULT,
+                                        NULL);
+          meta_monitor_set_hdr_metadata (monitor, &(MetaOutputHdrMetadata) {
+                                           .active = FALSE,
+                                         }, NULL);
+
+          if (g_error_matches (error, G_IO_ERROR, G_IO_ERROR_NOT_SUPPORTED))
+            {
+              meta_topic (META_DEBUG_COLOR,
+                          "MonitorManager: HDR Metadata not supported "
+                          "on monitor %s",
+                          meta_monitor_get_display_name (monitor));
+            }
+          else
+            {
+              g_warning ("Failed to set HDR metadata on monitor %s: %s",
+                         meta_monitor_get_display_name (monitor),
+                         error->message);
+            }
+
+          continue;
+        }
+
+        meta_topic (META_DEBUG_COLOR,
+                    "MonitorManager: successfully set on monitor %s",
+                    meta_monitor_get_display_name (monitor));
     }
 }
 
@@ -551,7 +585,7 @@ ensure_hdr_settings (MetaMonitorManager *manager)
  * @manager: A #MetaMonitorManager object
  *
  * Returns whether the monitor manager is headless, i.e. without
- * any #MetaLogicalMonitor<!-- -->s attached to it.
+ * any `MetaLogicalMonitor`s attached to it.
  *
  * Returns: %TRUE if no monitors are attached, %FALSE otherwise.
  */
@@ -691,7 +725,7 @@ meta_monitor_manager_ensure_initial_config (MetaMonitorManager *manager)
   META_MONITOR_MANAGER_GET_CLASS (manager)->ensure_initial_config (manager);
 }
 
-static gboolean
+gboolean
 meta_monitor_manager_apply_monitors_config (MetaMonitorManager      *manager,
                                             MetaMonitorsConfig      *config,
                                             MetaMonitorsConfigMethod method,
@@ -1474,7 +1508,8 @@ meta_monitor_manager_class_init (MetaMonitorManagerClass *klass)
                   G_SIGNAL_RUN_LAST,
                   0,
                   NULL, NULL, NULL,
-                  G_TYPE_NONE, 0);
+                  G_TYPE_NONE, 1,
+                  META_TYPE_POWER_SAVE_CHANGE_REASON);
 
   signals[CONFIRM_DISPLAY_CHANGE] =
     g_signal_new ("confirm-display-change",
@@ -1500,45 +1535,35 @@ meta_monitor_manager_class_init (MetaMonitorManagerClass *klass)
                   G_TYPE_NONE, 2, META_TYPE_LOGICAL_MONITOR, G_TYPE_BOOLEAN);
 
   obj_props[PROP_BACKEND] =
-    g_param_spec_object ("backend",
-                         "backend",
-                         "MetaBackend",
+    g_param_spec_object ("backend", NULL, NULL,
                          META_TYPE_BACKEND,
                          G_PARAM_READWRITE |
                          G_PARAM_CONSTRUCT_ONLY |
                          G_PARAM_STATIC_STRINGS);
 
   obj_props[PROP_PANEL_ORIENTATION_MANAGED] =
-    g_param_spec_boolean ("panel-orientation-managed",
-                          "Panel orientation managed",
-                          "Panel orientation is managed",
+    g_param_spec_boolean ("panel-orientation-managed", NULL, NULL,
                           FALSE,
                           G_PARAM_READABLE |
                           G_PARAM_EXPLICIT_NOTIFY |
                           G_PARAM_STATIC_STRINGS);
 
   obj_props[PROP_HAS_BUILTIN_PANEL] =
-    g_param_spec_boolean ("has-builtin-panel",
-                          "Has builtin panel",
-                          "The system has a built in panel",
+    g_param_spec_boolean ("has-builtin-panel", NULL, NULL,
                           FALSE,
                           G_PARAM_READABLE |
                           G_PARAM_EXPLICIT_NOTIFY |
                           G_PARAM_STATIC_STRINGS);
 
   obj_props[PROP_NIGHT_LIGHT_SUPPORTED] =
-    g_param_spec_boolean ("night-light-supported",
-                          "Night light supported",
-                          "Night light is supported",
+    g_param_spec_boolean ("night-light-supported", NULL, NULL,
                           FALSE,
                           G_PARAM_READABLE |
                           G_PARAM_EXPLICIT_NOTIFY |
                           G_PARAM_STATIC_STRINGS);
 
   obj_props[PROP_EXPERIMENTAL_HDR] =
-    g_param_spec_string ("experimental-hdr",
-                         "Experimental HDR",
-                         "Experimental HDR settings string",
+    g_param_spec_string ("experimental-hdr", NULL, NULL,
                          NULL,
                          G_PARAM_READWRITE |
                          G_PARAM_STATIC_STRINGS);
@@ -3188,10 +3213,10 @@ initialize_dbus_interface (MetaMonitorManager *manager)
  * meta_monitor_manager_get_num_logical_monitors:
  * @manager: A #MetaMonitorManager object
  *
- * Returns the number of #MetaLogicalMonitor<!-- -->s (can be 0 in case of a
+ * Returns the number of `MetaLogicalMonitor`s (can be 0 in case of a
  * headless setup).
  *
- * Returns: the total number of #MetaLogicalMonitor<!-- -->s.
+ * Returns: the total number of `MetaLogicalMonitor`s.
  */
 int
 meta_monitor_manager_get_num_logical_monitors (MetaMonitorManager *manager)
@@ -3203,7 +3228,7 @@ meta_monitor_manager_get_num_logical_monitors (MetaMonitorManager *manager)
  * meta_monitor_manager_get_logical_monitors:
  * @manager: A #MetaMonitorManager object
  *
- * Returns the list of #MetaLogicalMonitor<!-- -->s that is handled. See also
+ * Returns the list of `MetaLogicalMonitor`s that is handled. See also
  * meta_monitor_manager_get_num_logical_monitors() if you only need the size of
  * the list.
  *
@@ -3359,7 +3384,7 @@ meta_monitor_manager_get_logical_monitor_at (MetaMonitorManager *manager,
  */
 MetaLogicalMonitor *
 meta_monitor_manager_get_logical_monitor_from_rect (MetaMonitorManager *manager,
-                                                    MetaRectangle      *rect)
+                                                    MtkRectangle       *rect)
 {
   MetaLogicalMonitor *best_logical_monitor;
   int best_logical_monitor_area;
@@ -3373,18 +3398,18 @@ meta_monitor_manager_get_logical_monitor_from_rect (MetaMonitorManager *manager,
   for (l = manager->logical_monitors; l; l = l->next)
     {
       MetaLogicalMonitor *logical_monitor = l->data;
-      MetaRectangle intersection;
+      MtkRectangle intersection;
       int intersection_area;
 
       if (META_POINT_IN_RECT (center_x, center_y, logical_monitor->rect))
         return logical_monitor;
 
-      if (!meta_rectangle_intersect (&logical_monitor->rect,
-                                     rect,
-                                     &intersection))
+      if (!mtk_rectangle_intersect (&logical_monitor->rect,
+                                    rect,
+                                    &intersection))
         continue;
 
-      intersection_area = meta_rectangle_area (&intersection);
+      intersection_area = mtk_rectangle_area (&intersection);
 
       if (intersection_area > best_logical_monitor_area)
         {
@@ -3395,6 +3420,47 @@ meta_monitor_manager_get_logical_monitor_from_rect (MetaMonitorManager *manager,
 
   if (!best_logical_monitor)
     best_logical_monitor = manager->primary_logical_monitor;
+
+  return best_logical_monitor;
+}
+
+/**
+ * meta_monitor_manager_get_highest_scale_from_rect:
+ * @manager: A #MetaMonitorManager object
+ * @rect: The rectangle
+ *
+ * Finds the #MetaLogicalMonitor with the highest scale intersecting @rect.
+ *
+ * Returns: (transfer none) (nullable): the #MetaLogicalMonitor with the
+ *          highest scale intersecting with @rect, or %NULL if none.
+ */
+MetaLogicalMonitor *
+meta_monitor_manager_get_highest_scale_monitor_from_rect (MetaMonitorManager *manager,
+                                                          MtkRectangle       *rect)
+{
+  MetaLogicalMonitor *best_logical_monitor = NULL;
+  GList *l;
+  float best_scale = 0.0;
+
+  for (l = manager->logical_monitors; l; l = l->next)
+    {
+      MetaLogicalMonitor *logical_monitor = l->data;
+      MtkRectangle intersection;
+      float scale;
+
+      if (!mtk_rectangle_intersect (&logical_monitor->rect,
+                                    rect,
+                                    &intersection))
+        continue;
+
+      scale = meta_logical_monitor_get_scale (logical_monitor);
+
+      if (scale > best_scale)
+        {
+          best_scale = scale;
+          best_logical_monitor = logical_monitor;
+        }
+    }
 
   return best_logical_monitor;
 }
@@ -3421,11 +3487,11 @@ meta_monitor_manager_get_logical_monitor_neighbor (MetaMonitorManager  *manager,
  * meta_monitor_manager_get_monitors:
  * @manager: A #MetaMonitorManager object
  *
- * Returns the list of #MetaMonitor<!-- -->s. See also
+ * Returns the list of [class@Meta.Monitor]s. See also
  * meta_monitor_manager_get_logical_monitors() for a list of
- * #MetaLogicalMonitor<!-- -->s.
+ * `MetaLogicalMonitor`s.
  *
- * Returns: (transfer none) (nullable): the list of #MetaMonitor<!-- -->s.
+ * Returns: (transfer none) (nullable): the list of [class@Meta.Monitor]s.
  */
 GList *
 meta_monitor_manager_get_monitors (MetaMonitorManager *manager)
@@ -3988,7 +4054,7 @@ meta_monitor_manager_get_viewports (MetaMonitorManager *manager)
   GArray *views, *scales;
   GList *logical_monitors, *l;
 
-  views = g_array_new (FALSE, FALSE, sizeof (cairo_rectangle_int_t));
+  views = g_array_new (FALSE, FALSE, sizeof (MtkRectangle));
   scales = g_array_new (FALSE, FALSE, sizeof (float));
 
   logical_monitors = meta_monitor_manager_get_logical_monitors (manager);
@@ -3996,7 +4062,7 @@ meta_monitor_manager_get_viewports (MetaMonitorManager *manager)
   for (l = logical_monitors; l; l = l->next)
     {
       MetaLogicalMonitor *logical_monitor = l->data;
-      cairo_rectangle_int_t rect;
+      MtkRectangle rect;
       float scale;
 
       rect = logical_monitor->rect;
@@ -4006,7 +4072,7 @@ meta_monitor_manager_get_viewports (MetaMonitorManager *manager)
       g_array_append_val (scales, scale);
     }
 
-  info = meta_viewport_info_new ((cairo_rectangle_int_t *) views->data,
+  info = meta_viewport_info_new ((MtkRectangle *) views->data,
                                  (float *) scales->data,
                                  views->len,
                                  meta_backend_is_stage_views_scaled (backend));

@@ -12,13 +12,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef META_WAYLAND_TRANSACTION_H
-#define META_WAYLAND_TRANSACTION_H
+#pragma once
 
 #include "wayland/meta-wayland-types.h"
 #include "wayland/meta-wayland-subsurface.h"
@@ -55,5 +52,3 @@ void meta_wayland_transaction_free (MetaWaylandTransaction *transaction);
 void meta_wayland_transaction_finalize (MetaWaylandCompositor *compositor);
 
 void meta_wayland_transaction_init (MetaWaylandCompositor *compositor);
-
-#endif

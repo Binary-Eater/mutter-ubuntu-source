@@ -1,9 +1,9 @@
 /* -*- mode: C; c-file-style: "gnu"; indent-tabs-mode: nil; -*- */
 
 /**
- * SECTION:compositor
- * @Title: MetaCompositor
- * @Short_Description: Compositor API
+ * MetaCompositor:
+ *
+ * Compositor API
  *
  * At a high-level, a window is not-visible or visible. When a
  * window is added (with meta_compositor_add_window()) it is not visible.
@@ -54,15 +54,10 @@
 
 #include "compositor/compositor-private.h"
 
-#include <X11/extensions/Xcomposite.h>
-
-#include "backends/x11/meta-backend-x11.h"
-#include "backends/x11/meta-event-x11.h"
-#include "backends/x11/meta-stage-x11.h"
 #include "clutter/clutter-mutter.h"
 #include "cogl/cogl.h"
+#include "compositor/meta-cullable.h"
 #include "compositor/meta-later-private.h"
-#include "compositor/meta-window-actor-x11.h"
 #include "compositor/meta-window-actor-private.h"
 #include "compositor/meta-window-group-private.h"
 #include "core/frame.h"
@@ -75,14 +70,25 @@
 #include "meta/meta-background-group.h"
 #include "meta/meta-context.h"
 #include "meta/meta-shadow-factory.h"
-#include "meta/meta-x11-errors.h"
 #include "meta/prefs.h"
 #include "meta/window.h"
-#include "x11/meta-x11-display-private.h"
 
 #ifdef HAVE_WAYLAND
 #include "compositor/meta-window-actor-wayland.h"
 #include "wayland/meta-wayland-private.h"
+#endif
+
+#ifdef HAVE_X11_CLIENT
+#include <X11/extensions/Xcomposite.h>
+
+#include "backends/x11/meta-backend-x11.h"
+#include "backends/x11/meta-event-x11.h"
+#include "backends/x11/meta-stage-x11.h"
+
+#include "compositor/meta-window-actor-x11.h"
+
+#include "meta/meta-x11-errors.h"
+#include "x11/meta-x11-display-private.h"
 #endif
 
 enum
@@ -328,6 +334,7 @@ void
 meta_focus_stage_window (MetaDisplay *display,
                          guint32      timestamp)
 {
+#ifdef HAVE_X11_CLIENT
   ClutterStage *stage;
   Window window;
 
@@ -343,18 +350,19 @@ meta_focus_stage_window (MetaDisplay *display,
   meta_x11_display_set_input_focus_xwindow (display->x11_display,
                                             window,
                                             timestamp);
+#endif
 }
 
 gboolean
 meta_stage_is_focused (MetaDisplay *display)
 {
-  ClutterStage *stage;
-  Window window;
-
   if (meta_is_wayland_compositor ())
     return TRUE;
 
-  stage = CLUTTER_STAGE (meta_get_stage_for_display (display));
+#ifdef HAVE_X11_CLIENT
+  ClutterStage *stage = CLUTTER_STAGE (meta_get_stage_for_display (display));
+  Window window;
+
   if (!stage)
     return FALSE;
 
@@ -364,6 +372,9 @@ meta_stage_is_focused (MetaDisplay *display)
     return FALSE;
 
   return (display->x11_display->focus_xwindow == window);
+#else
+  return FALSE;
+#endif
 }
 
 void
@@ -378,62 +389,6 @@ meta_compositor_grab_end (MetaCompositor *compositor)
   META_COMPOSITOR_GET_CLASS (compositor)->grab_end (compositor);
 }
 
-static void
-redirect_windows (MetaCompositor *compositor,
-                  MetaX11Display *x11_display)
-{
-  MetaDisplay *display = meta_compositor_get_display (compositor);
-  MetaContext *context = meta_display_get_context (display);
-  Display *xdisplay = meta_x11_display_get_xdisplay (x11_display);
-  Window xroot = meta_x11_display_get_xroot (x11_display);
-  int screen_number = meta_x11_display_get_screen_number (x11_display);
-  guint n_retries;
-  guint max_retries;
-
-  if (meta_context_is_replacing (context))
-    max_retries = 5;
-  else
-    max_retries = 1;
-
-  n_retries = 0;
-
-  /* Some compositors (like old versions of Mutter) might not properly unredirect
-   * subwindows before destroying the WM selection window; so we wait a while
-   * for such a compositor to exit before giving up.
-   */
-  while (TRUE)
-    {
-      meta_x11_error_trap_push (x11_display);
-      XCompositeRedirectSubwindows (xdisplay, xroot, CompositeRedirectManual);
-      XSync (xdisplay, FALSE);
-
-      if (!meta_x11_error_trap_pop_with_return (x11_display))
-        break;
-
-      if (n_retries == max_retries)
-        {
-          /* This probably means that a non-WM compositor like xcompmgr is running;
-           * we have no way to get it to exit */
-          meta_fatal (_("Another compositing manager is already running on screen %i on display “%s”."),
-                      screen_number, x11_display->name);
-        }
-
-      n_retries++;
-      g_usleep (G_USEC_PER_SEC);
-    }
-}
-
-void
-meta_compositor_redirect_x11_windows (MetaCompositor *compositor)
-{
-  MetaCompositorPrivate *priv =
-    meta_compositor_get_instance_private (compositor);
-  MetaDisplay *display = priv->display;
-
-  if (display->x11_display)
-    redirect_windows (compositor, display->x11_display);
-}
-
 static MetaCompositorView *
 meta_compositor_create_view (MetaCompositor   *compositor,
                              ClutterStageView *stage_view)
@@ -443,8 +398,8 @@ meta_compositor_create_view (MetaCompositor   *compositor,
 }
 
 gboolean
-meta_compositor_do_manage (MetaCompositor  *compositor,
-                           GError         **error)
+meta_compositor_manage (MetaCompositor  *compositor,
+                        GError         **error)
 {
   MetaCompositorPrivate *priv =
     meta_compositor_get_instance_private (compositor);
@@ -472,15 +427,6 @@ meta_compositor_do_manage (MetaCompositor  *compositor,
   meta_plugin_manager_start (priv->plugin_mgr);
 
   return TRUE;
-}
-
-void
-meta_compositor_manage (MetaCompositor *compositor)
-{
-  GError *error = NULL;
-
-  if (!meta_compositor_do_manage (compositor, &error))
-    g_error ("Compositor failed to manage display: %s", error->message);
 }
 
 static void
@@ -515,9 +461,11 @@ meta_compositor_add_window (MetaCompositor    *compositor,
 
   switch (window->client_type)
     {
+#ifdef HAVE_X11_CLIENT
     case META_WINDOW_CLIENT_TYPE_X11:
       window_actor_type = META_TYPE_WINDOW_ACTOR_X11;
       break;
+#endif
 
 #ifdef HAVE_WAYLAND
     case META_WINDOW_CLIENT_TYPE_WAYLAND:
@@ -603,7 +551,9 @@ meta_compositor_window_shape_changed (MetaCompositor *compositor,
   if (!window_actor)
     return;
 
+#ifdef HAVE_X11_CLIENT
   meta_window_actor_x11_update_shape (META_WINDOW_ACTOR_X11 (window_actor));
+#endif
 }
 
 void
@@ -670,11 +620,11 @@ meta_compositor_hide_window (MetaCompositor *compositor,
 }
 
 void
-meta_compositor_size_change_window (MetaCompositor    *compositor,
-                                    MetaWindow        *window,
-                                    MetaSizeChange     which_change,
-                                    MetaRectangle     *old_frame_rect,
-                                    MetaRectangle     *old_buffer_rect)
+meta_compositor_size_change_window (MetaCompositor *compositor,
+                                    MetaWindow     *window,
+                                    MetaSizeChange  which_change,
+                                    MtkRectangle   *old_frame_rect,
+                                    MtkRectangle   *old_buffer_rect)
 {
   MetaWindowActor *window_actor = meta_window_actor_from_window (window);
 
@@ -706,7 +656,7 @@ meta_compositor_switch_workspace (MetaCompositor     *compositor,
       /* We have to explicitly call this to fix up stacking order of the
        * actors; this is because the abs stacking position of actors does not
        * necessarily change during the window hiding/unhiding, only their
-       * relative position toward the destkop window.
+       * relative position toward the desktop window.
        */
       meta_finish_workspace_switch (compositor);
     }
@@ -819,8 +769,8 @@ update_top_window_actor (MetaCompositor *compositor)
     {
       MetaWindowActor *window_actor = l->data;
       MetaWindow *window = meta_window_actor_get_meta_window (window_actor);
-      MetaRectangle buffer_rect;
-      MetaRectangle display_rect = { 0 };
+      MtkRectangle buffer_rect;
+      MtkRectangle display_rect = { 0 };
 
       if (!window->visible_to_compositor)
         continue;
@@ -829,7 +779,7 @@ update_top_window_actor (MetaCompositor *compositor)
       meta_display_get_size (priv->display,
                              &display_rect.width, &display_rect.height);
 
-      if (meta_rectangle_overlap (&display_rect, &buffer_rect))
+      if (mtk_rectangle_overlap (&display_rect, &buffer_rect))
         {
           top_window_actor = window_actor;
           break;
@@ -1071,8 +1021,29 @@ meta_compositor_real_before_paint (MetaCompositor     *compositor,
 {
   MetaCompositorPrivate *priv =
     meta_compositor_get_instance_private (compositor);
+  ClutterActor *stage = meta_backend_get_stage (priv->backend);
   ClutterStageView *stage_view;
+  MtkRectangle stage_rect;
+  cairo_region_t *unobscured_region;
   GList *l;
+
+  stage_rect = (MtkRectangle) {
+    0, 0,
+    clutter_actor_get_width (stage),
+    clutter_actor_get_height (stage),
+  };
+
+  unobscured_region = cairo_region_create_rectangle (&stage_rect);
+  meta_cullable_cull_unobscured (META_CULLABLE (priv->window_group), unobscured_region);
+  cairo_region_destroy (unobscured_region);
+
+  unobscured_region = cairo_region_create_rectangle (&stage_rect);
+  meta_cullable_cull_unobscured (META_CULLABLE (priv->top_window_group), unobscured_region);
+  cairo_region_destroy (unobscured_region);
+
+  unobscured_region = cairo_region_create_rectangle (&stage_rect);
+  meta_cullable_cull_unobscured (META_CULLABLE (priv->feedback_group), unobscured_region);
+  cairo_region_destroy (unobscured_region);
 
   stage_view = meta_compositor_view_get_stage_view (compositor_view);
 
@@ -1358,17 +1329,13 @@ meta_compositor_class_init (MetaCompositorClass *klass)
   klass->after_paint = meta_compositor_real_after_paint;
 
   obj_props[PROP_DISPLAY] =
-    g_param_spec_object ("display",
-                         "display",
-                         "MetaDisplay",
+    g_param_spec_object ("display", NULL, NULL,
                          META_TYPE_DISPLAY,
                          G_PARAM_READWRITE |
                          G_PARAM_CONSTRUCT_ONLY |
                          G_PARAM_STATIC_STRINGS);
   obj_props[PROP_BACKEND] =
-    g_param_spec_object ("backend",
-                         "backend",
-                         "MetaBackend",
+    g_param_spec_object ("backend", NULL, NULL,
                          META_TYPE_BACKEND,
                          G_PARAM_READWRITE |
                          G_PARAM_CONSTRUCT_ONLY |
@@ -1548,7 +1515,7 @@ meta_compositor_monotonic_to_high_res_xserver_time (MetaCompositor *compositor,
 void
 meta_compositor_show_tile_preview (MetaCompositor *compositor,
                                    MetaWindow     *window,
-                                   MetaRectangle  *tile_rect,
+                                   MtkRectangle   *tile_rect,
                                    int             tile_monitor_number)
 {
   MetaCompositorPrivate *priv =
@@ -1578,18 +1545,6 @@ meta_compositor_show_window_menu (MetaCompositor     *compositor,
     meta_compositor_get_instance_private (compositor);
 
   meta_plugin_manager_show_window_menu (priv->plugin_mgr, window, menu, x, y);
-}
-
-void
-meta_compositor_show_window_menu_for_rect (MetaCompositor     *compositor,
-                                           MetaWindow         *window,
-                                           MetaWindowMenuType  menu,
-                                           MetaRectangle      *rect)
-{
-  MetaCompositorPrivate *priv =
-    meta_compositor_get_instance_private (compositor);
-
-  meta_plugin_manager_show_window_menu_for_rect (priv->plugin_mgr, window, menu, rect);
 }
 
 MetaCloseDialog *

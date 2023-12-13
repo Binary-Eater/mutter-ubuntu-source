@@ -32,30 +32,31 @@
 
 #include "cogl-config.h"
 
-#include "cogl-i18n-private.h"
-#include "cogl-util.h"
-#include "cogl-feature-private.h"
-#include "cogl-context-private.h"
-#include "cogl-framebuffer.h"
-#include "cogl-swap-chain-private.h"
-#include "cogl-renderer-private.h"
-#include "cogl-glx-renderer-private.h"
-#include "cogl-onscreen-template-private.h"
-#include "cogl-glx-display-private.h"
-#include "cogl-private.h"
-#include "cogl-texture-2d-private.h"
-#include "cogl-frame-info-private.h"
-#include "cogl-framebuffer-private.h"
-#include "cogl-onscreen-private.h"
-#include "cogl-swap-chain-private.h"
-#include "cogl-xlib-renderer.h"
-#include "cogl-util.h"
-#include "cogl-poll-private.h"
-#include "cogl-glx.h"
-#include "driver/gl/cogl-pipeline-opengl-private.h"
-#include "winsys/cogl-onscreen-glx.h"
-#include "winsys/cogl-winsys-private.h"
-#include "winsys/cogl-winsys-glx-private.h"
+#include "cogl/cogl-i18n-private.h"
+#include "cogl/cogl-util.h"
+#include "cogl/cogl-feature-private.h"
+#include "cogl/cogl-context-private.h"
+#include "cogl/cogl-framebuffer.h"
+#include "cogl/cogl-swap-chain-private.h"
+#include "cogl/cogl-renderer-private.h"
+#include "cogl/cogl-onscreen-template-private.h"
+#include "cogl/cogl-private.h"
+#include "cogl/cogl-texture-2d-private.h"
+#include "cogl/cogl-frame-info-private.h"
+#include "cogl/cogl-framebuffer-private.h"
+#include "cogl/cogl-onscreen-private.h"
+#include "cogl/cogl-swap-chain-private.h"
+#include "cogl/cogl-xlib-renderer.h"
+#include "cogl/cogl-util.h"
+#include "cogl/cogl-poll-private.h"
+#include "cogl/driver/gl/cogl-pipeline-opengl-private.h"
+#include "cogl/winsys/cogl-glx.h"
+#include "cogl/winsys/cogl-glx-renderer-private.h"
+#include "cogl/winsys/cogl-glx-display-private.h"
+#include "cogl/winsys/cogl-onscreen-glx.h"
+#include "cogl/winsys/cogl-winsys-private.h"
+#include "cogl/winsys/cogl-winsys-glx-private.h"
+#include "mtk/mtk-x11.h"
 
 #include <stdlib.h>
 #include <sys/types.h>
@@ -115,7 +116,7 @@ typedef struct _CoglTexturePixmapGLX
 #define COGL_WINSYS_FEATURE_END()               \
   { NULL, 0 },                                  \
     };
-#include "winsys/cogl-winsys-glx-feature-functions.h"
+#include "cogl/winsys/cogl-winsys-glx-feature-functions.h"
 
 /* Define an array of features */
 #undef COGL_WINSYS_FEATURE_BEGIN
@@ -135,7 +136,7 @@ typedef struct _CoglTexturePixmapGLX
 
 static const CoglFeatureData winsys_feature_data[] =
   {
-#include "winsys/cogl-winsys-glx-feature-functions.h"
+#include "cogl/winsys/cogl-winsys-glx-feature-functions.h"
   };
 
 static GCallback
@@ -642,16 +643,15 @@ create_gl3_context (CoglDisplay *display,
                                                       DefaultScreen (xlib_renderer->xdpy)),
               "GLX_NV_robustness_video_memory_purge"))
     {
-      CoglXlibTrapState old_state;
       GLXContext ctx;
 
-      _cogl_xlib_renderer_trap_errors (display->renderer, &old_state);
+      mtk_x11_error_trap_push (xlib_renderer->xdpy);
       ctx = glx_renderer->glXCreateContextAttribs (xlib_renderer->xdpy,
                                                    fb_config,
                                                    NULL /* share_context */,
                                                    True, /* direct */
                                                    attrib_list_reset_on_purge);
-      if (!_cogl_xlib_renderer_untrap_errors (display->renderer, &old_state) && ctx)
+      if (!mtk_x11_error_trap_pop_with_return (xlib_renderer->xdpy) && ctx)
         return ctx;
     }
 
@@ -674,7 +674,6 @@ create_context (CoglDisplay *display, GError **error)
   XSetWindowAttributes attrs;
   XVisualInfo *xvisinfo;
   GLXDrawable dummy_drawable;
-  CoglXlibTrapState old_state;
 
   g_return_val_if_fail (glx_display->glx_context == NULL, TRUE);
 
@@ -698,7 +697,7 @@ create_context (CoglDisplay *display, GError **error)
   COGL_NOTE (WINSYS, "Creating GLX Context (display: %p)",
              xlib_renderer->xdpy);
 
-  _cogl_xlib_renderer_trap_errors (display->renderer, &old_state);
+  mtk_x11_error_trap_push (xlib_renderer->xdpy);
 
   if (display->renderer->driver == COGL_DRIVER_GL3)
     glx_display->glx_context = create_gl3_context (display, config);
@@ -710,7 +709,7 @@ create_context (CoglDisplay *display, GError **error)
                                          NULL,
                                          True);
 
-  if (_cogl_xlib_renderer_untrap_errors (display->renderer, &old_state) ||
+  if (mtk_x11_error_trap_pop_with_return (xlib_renderer->xdpy) ||
       glx_display->glx_context == NULL)
     {
       g_set_error_literal (error, COGL_WINSYS_ERROR,
@@ -742,7 +741,7 @@ create_context (CoglDisplay *display, GError **error)
       return FALSE;
     }
 
-  _cogl_xlib_renderer_trap_errors (display->renderer, &old_state);
+  mtk_x11_error_trap_push (xlib_renderer->xdpy);
 
   attrs.override_redirect = True;
   attrs.colormap = XCreateColormap (xlib_renderer->xdpy,
@@ -789,7 +788,7 @@ create_context (CoglDisplay *display, GError **error)
 
   xlib_renderer->xvisinfo = xvisinfo;
 
-  if (_cogl_xlib_renderer_untrap_errors (display->renderer, &old_state))
+  if (mtk_x11_error_trap_pop_with_return (xlib_renderer->xdpy))
     {
       g_set_error_literal (error, COGL_WINSYS_ERROR,
                            COGL_WINSYS_ERROR_CREATE_CONTEXT,
@@ -1052,7 +1051,6 @@ try_create_glx_pixmap (CoglContext *context,
   GLXFBConfig fb_config = (GLXFBConfig)0;
   int attribs[7];
   int i = 0;
-  CoglXlibTrapState trap_state;
 
   unsigned int depth = tex_pixmap->depth;
   Visual* visual = tex_pixmap->visual;
@@ -1101,7 +1099,7 @@ try_create_glx_pixmap (CoglContext *context,
    * upset if you try to create two GLXPixmaps for the same drawable.
    */
 
-  _cogl_xlib_renderer_trap_errors (renderer, &trap_state);
+  mtk_x11_error_trap_push (xlib_renderer->xdpy);
 
   glx_tex_pixmap->glx_pixmap =
     glx_renderer->glXCreatePixmap (dpy,
@@ -1112,13 +1110,13 @@ try_create_glx_pixmap (CoglContext *context,
 
   XSync (dpy, False);
 
-  if (_cogl_xlib_renderer_untrap_errors (renderer, &trap_state))
+  if (mtk_x11_error_trap_pop_with_return (xlib_renderer->xdpy))
     {
       COGL_NOTE (TEXTURE_PIXMAP, "Failed to create pixmap for %p", tex_pixmap);
-      _cogl_xlib_renderer_trap_errors (renderer, &trap_state);
+      mtk_x11_error_trap_push (xlib_renderer->xdpy);
       glx_renderer->glXDestroyPixmap (dpy, glx_tex_pixmap->glx_pixmap);
       XSync (dpy, False);
-      _cogl_xlib_renderer_untrap_errors (renderer, &trap_state);
+      mtk_x11_error_trap_pop (xlib_renderer->xdpy);
 
       glx_tex_pixmap->glx_pixmap = None;
       return FALSE;
@@ -1169,7 +1167,6 @@ static void
 free_glx_pixmap (CoglContext *context,
                  CoglTexturePixmapGLX *glx_tex_pixmap)
 {
-  CoglXlibTrapState trap_state;
   CoglRenderer *renderer;
   CoglXlibRenderer *xlib_renderer;
   CoglGLXRenderer *glx_renderer;
@@ -1203,11 +1200,11 @@ free_glx_pixmap (CoglContext *context,
    * for reference, see:
    *   http://bugzilla.clutter-project.org/show_bug.cgi?id=2324
    */
-  _cogl_xlib_renderer_trap_errors (renderer, &trap_state);
+  mtk_x11_error_trap_push (xlib_renderer->xdpy);
   glx_renderer->glXDestroyPixmap (xlib_renderer->xdpy,
                                   glx_tex_pixmap->glx_pixmap);
   XSync (xlib_renderer->xdpy, False);
-  _cogl_xlib_renderer_untrap_errors (renderer, &trap_state);
+  mtk_x11_error_trap_pop (xlib_renderer->xdpy);
 
   glx_tex_pixmap->glx_pixmap = None;
   glx_tex_pixmap->left.pixmap_bound = FALSE;

@@ -14,9 +14,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "config.h"
@@ -61,16 +59,17 @@ update_cursor_sprite_texture (MetaWaylandCursorSurface *cursor_surface)
   MetaWaylandSurface *surface =
     meta_wayland_surface_role_get_surface (META_WAYLAND_SURFACE_ROLE (cursor_surface));
   MetaCursorSprite *cursor_sprite = META_CURSOR_SPRITE (priv->cursor_sprite);
-  CoglTexture *texture;
+  MetaMultiTexture *texture;
 
   if (!priv->cursor_renderer)
     return;
 
   texture = meta_wayland_surface_get_texture (surface);
-  if (texture)
+
+  if (texture && meta_multi_texture_is_simple (texture))
     {
       meta_cursor_sprite_set_texture (cursor_sprite,
-                                      texture,
+                                      meta_multi_texture_get_plane (texture, 0),
                                       priv->hot_x * surface->scale,
                                       priv->hot_y * surface->scale);
     }
@@ -92,8 +91,7 @@ cursor_sprite_prepare_at (MetaCursorSprite         *cursor_sprite,
   MetaWaylandSurfaceRole *role = META_WAYLAND_SURFACE_ROLE (cursor_surface);
   MetaWaylandSurface *surface = meta_wayland_surface_role_get_surface (role);
 
-#ifdef HAVE_XWAYLAND
-  if (!meta_xwayland_is_xwayland_surface (surface))
+  if (!meta_wayland_surface_is_xwayland (surface))
     {
       MetaWaylandSurfaceRole *surface_role =
         META_WAYLAND_SURFACE_ROLE (cursor_surface);
@@ -123,7 +121,6 @@ cursor_sprite_prepare_at (MetaCursorSprite         *cursor_sprite,
                                                     surface->buffer_transform);
         }
     }
-#endif
 
   meta_wayland_surface_update_outputs (surface);
 }
@@ -203,7 +200,7 @@ meta_wayland_cursor_surface_is_on_logical_monitor (MetaWaylandSurfaceRole *role,
     return FALSE;
 
   logical_monitor_rect =
-    meta_rectangle_to_graphene_rect (&logical_monitor->rect);
+    mtk_rectangle_to_graphene_rect (&logical_monitor->rect);
 
   device = meta_cursor_renderer_get_input_device (priv->cursor_renderer);
   clutter_seat_query_state (clutter_input_device_get_seat (device),

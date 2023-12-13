@@ -12,15 +12,12 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Author: Carlos Garnacho <carlosg@gnome.org>
  */
 
-#ifndef __CLUTTER_INPUT_METHOD_H__
-#define __CLUTTER_INPUT_METHOD_H__
+#pragma once
 
 #include <clutter/clutter.h>
 
@@ -95,5 +92,3 @@ void clutter_input_method_forward_key (ClutterInputMethod *im,
                                        uint32_t            state,
                                        uint64_t            time_,
                                        gboolean            press);
-
-#endif /* __CLUTTER_INPUT_METHOD_H__ */

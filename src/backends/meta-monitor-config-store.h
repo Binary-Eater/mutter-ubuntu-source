@@ -14,13 +14,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef META_MONITOR_CONFIG_STORE_H
-#define META_MONITOR_CONFIG_STORE_H
+#pragma once
 
 #include <glib-object.h>
 
@@ -77,5 +74,3 @@ void meta_monitor_config_store_reset (MetaMonitorConfigStore *config_store);
 
 META_EXPORT_TEST
 const MetaMonitorConfigPolicy * meta_monitor_config_store_get_policy (MetaMonitorConfigStore *config_store);
-
-#endif /* META_MONITOR_CONFIG_STORE_H */

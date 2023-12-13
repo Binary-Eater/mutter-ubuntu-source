@@ -12,9 +12,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  */
 
@@ -108,7 +106,7 @@ single_pixel_buffer_manager_bind (struct wl_client *client,
 
 gboolean
 meta_wayland_single_pixel_buffer_attach (MetaWaylandBuffer  *buffer,
-                                         CoglTexture       **texture,
+                                         MetaMultiTexture  **texture,
                                          GError            **error)
 {
   MetaContext *context =
@@ -144,10 +142,11 @@ meta_wayland_single_pixel_buffer_attach (MetaWaylandBuffer  *buffer,
   if (!tex_2d)
     return FALSE;
 
-  buffer->single_pixel.texture = COGL_TEXTURE (tex_2d);
+  buffer->single_pixel.texture =
+    meta_multi_texture_new_simple (COGL_TEXTURE (tex_2d));
 
-  cogl_clear_object (texture);
-  *texture = cogl_object_ref (buffer->single_pixel.texture);
+  g_clear_object (texture);
+  *texture = g_object_ref (buffer->single_pixel.texture);
   return TRUE;
 }
 

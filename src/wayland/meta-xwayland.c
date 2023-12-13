@@ -16,9 +16,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "config.h"
@@ -144,16 +142,6 @@ meta_xwayland_handle_wl_surface_id (MetaWindow *window,
       meta_wayland_compositor_schedule_surface_association (compositor,
                                                             surface_id, window);
     }
-}
-
-gboolean
-meta_xwayland_is_xwayland_surface (MetaWaylandSurface *surface)
-{
-  MetaWaylandCompositor *compositor = surface->compositor;
-  MetaXWaylandManager *manager = &compositor->xwayland_manager;
-
-  return surface->resource != NULL &&
-         wl_resource_get_client (surface->resource) == manager->client;
 }
 
 static gboolean
@@ -922,6 +910,13 @@ meta_xwayland_start_xserver (MetaXWaylandManager *manager,
       g_warning ("autoclose-xwayland disabled, not supported");
     }
 #endif
+#ifdef HAVE_XWAYLAND_ENABLE_EI_PORTAL
+    if (manager->should_enable_ei_portal)
+      {
+        /* Enable portal support */
+        args[i++] = "-enable-ei-portal";
+      }
+#endif
   for (j = 0; j <  G_N_ELEMENTS (x11_extension_names); j++)
     {
       /* Make sure we don't go past the array size - We need room for
@@ -1238,7 +1233,7 @@ meta_xwayland_set_primary_output (MetaX11Display *x11_display)
       RROutput output_id = resources->outputs[i];
       XRROutputInfo *xrandr_output;
       XRRCrtcInfo *crtc_info = NULL;
-      MetaRectangle crtc_geometry;
+      MtkRectangle crtc_geometry;
 
       xrandr_output = XRRGetOutputInfo (xdisplay, resources, output_id);
       if (!xrandr_output)
@@ -1259,7 +1254,7 @@ meta_xwayland_set_primary_output (MetaX11Display *x11_display)
 
       XRRFreeCrtcInfo (crtc_info);
 
-      if (meta_rectangle_equal (&crtc_geometry, &primary_monitor->rect))
+      if (mtk_rectangle_equal (&crtc_geometry, &primary_monitor->rect))
         {
           XRRSetOutputPrimary (xdisplay, DefaultRootWindow (xdisplay),
                                output_id);
@@ -1306,4 +1301,11 @@ meta_xwayland_signal (MetaXWaylandManager  *manager,
 
   g_subprocess_send_signal (manager->proc, signum);
   return TRUE;
+}
+
+void
+meta_xwayland_set_should_enable_ei_portal (MetaXWaylandManager  *manager,
+                                           gboolean              should_enable_ei_portal)
+{
+  manager->should_enable_ei_portal = should_enable_ei_portal;
 }

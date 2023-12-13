@@ -15,13 +15,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef META_OUTPUT_XRANDR_H
-#define META_OUTPUT_XRANDR_H
+#pragma once
 
 #include <X11/extensions/Xrandr.h>
 
@@ -48,5 +45,3 @@ MetaOutputXrandr * meta_output_xrandr_new (MetaGpuXrandr *gpu_xrandr,
                                            XRROutputInfo *xrandr_output,
                                            RROutput       output_id,
                                            RROutput       primary_output);
-
-#endif /* META_OUTPUT_XRANDR_H */

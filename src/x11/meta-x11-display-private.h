@@ -22,8 +22,7 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef META_X11_DISPLAY_PRIVATE_H
-#define META_X11_DISPLAY_PRIVATE_H
+#pragma once
 
 #include <glib.h>
 #include <X11/Xlib.h>
@@ -37,15 +36,6 @@
 #include "meta-startup-notification-x11.h"
 #include "meta-x11-stack-private.h"
 #include "x11/meta-sync-counter.h"
-
-/* This is basically a bogus number, just has to be large enough
- * to handle the expected case of the alt+tab operation, where
- * we want to ignore serials from UnmapNotify on the tab popup,
- * and the LeaveNotify/EnterNotify from the pointer ungrab. It
- * also has to be big enough to hold ignored serials from the point
- * where we reshape the stage to the point where we get events back.
- */
-#define N_IGNORED_CROSSING_SERIALS  10
 
 typedef struct _MetaGroupPropHooks  MetaGroupPropHooks;
 typedef struct _MetaWindowPropHooks MetaWindowPropHooks;
@@ -142,7 +132,6 @@ struct _MetaX11Display
   GSubprocess *frames_client;
   GCancellable *frames_client_cancellable;
 
-  GList *error_traps;
   GSource *event_source;
 
   struct {
@@ -166,17 +155,6 @@ struct _MetaX11Display
   guint keys_grabbed : 1;
 
   guint closing : 1;
-
-  /* serials of leave/unmap events that may
-   * correspond to an enter event we should
-   * ignore
-   */
-  unsigned long ignored_crossing_serials[N_IGNORED_CROSSING_SERIALS];
-
-  /* we use property updates as sentinels for certain window focus events
-   * to avoid some race conditions on EnterNotify events
-   */
-  int sentinel_counter;
 
   int composite_event_base;
   int composite_error_base;
@@ -252,9 +230,6 @@ void meta_x11_display_remove_alarm_filter (MetaX11Display     *x11_display,
 
 void meta_x11_display_create_guard_window (MetaX11Display *x11_display);
 
-/* make a request to ensure the event serial has changed */
-void meta_x11_display_increment_event_serial    (MetaX11Display *x11_display);
-
 guint32 meta_x11_display_get_current_time_roundtrip (MetaX11Display *x11_display);
 
 void meta_x11_display_set_input_focus_xwindow (MetaX11Display *x11_display,
@@ -269,10 +244,6 @@ MetaLogicalMonitor *meta_x11_display_xinerama_index_to_logical_monitor (MetaX11D
 
 void meta_x11_display_update_workspace_layout (MetaX11Display *x11_display);
 void meta_x11_display_update_workspace_names  (MetaX11Display *x11_display);
-
-void meta_x11_display_increment_focus_sentinel (MetaX11Display *x11_display);
-void meta_x11_display_decrement_focus_sentinel (MetaX11Display *x11_display);
-gboolean meta_x11_display_focus_sentinel_clear (MetaX11Display *x11_display);
 
 void meta_x11_display_update_focus_window (MetaX11Display *x11_display,
                                            Window          xwindow,
@@ -292,9 +263,6 @@ int meta_x11_display_get_screen_number (MetaX11Display *x11_display);
 
 int meta_x11_display_get_damage_event_base (MetaX11Display *x11_display);
 
-void meta_x11_display_set_cm_selection (MetaX11Display *x11_display,
-                                        uint32_t        timestamp);
-
 gboolean meta_x11_display_xwindow_is_a_no_focus_window (MetaX11Display *x11_display,
                                                         Window xwindow);
 
@@ -302,4 +270,4 @@ void meta_x11_display_clear_stage_input_region (MetaX11Display *x11_display);
 
 void meta_x11_display_init_error_traps (MetaX11Display *x11_display);
 
-#endif /* META_X11_DISPLAY_PRIVATE_H */
+void meta_x11_display_destroy_error_traps (MetaX11Display *x11_display);

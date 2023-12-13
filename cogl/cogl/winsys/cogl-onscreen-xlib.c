@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2011,2013 Intel Corporation.
- * Copyrigth (C) 2020 Red Hat
+ * Copyright (C) 2020 Red Hat
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -26,14 +26,15 @@
 
 #include "cogl-config.h"
 
-#include "winsys/cogl-onscreen-xlib.h"
+#include "cogl/winsys/cogl-onscreen-xlib.h"
 
-#include "cogl-context-private.h"
-#include "cogl-renderer-private.h"
-#include "cogl-x11-onscreen.h"
-#include "cogl-xlib-renderer-private.h"
-#include "winsys/cogl-onscreen-egl.h"
-#include "winsys/cogl-winsys-egl-x11-private.h"
+#include "cogl/cogl-context-private.h"
+#include "cogl/cogl-renderer-private.h"
+#include "cogl/cogl-x11-onscreen.h"
+#include "cogl/cogl-xlib-renderer-private.h"
+#include "cogl/winsys/cogl-onscreen-egl.h"
+#include "cogl/winsys/cogl-winsys-egl-x11-private.h"
+#include "mtk/mtk-x11.h"
 
 struct _CoglOnscreenXlib
 {
@@ -68,7 +69,6 @@ create_xwindow (CoglOnscreenXlib  *onscreen_xlib,
   Window xwin;
   int width;
   int height;
-  CoglXlibTrapState state;
   XVisualInfo *xvisinfo;
   XSetWindowAttributes xattr;
   unsigned long mask;
@@ -77,7 +77,7 @@ create_xwindow (CoglOnscreenXlib  *onscreen_xlib,
   width = cogl_framebuffer_get_width (framebuffer);
   height = cogl_framebuffer_get_height (framebuffer);
 
-  _cogl_xlib_renderer_trap_errors (display->renderer, &state);
+  mtk_x11_error_trap_push (xlib_renderer->xdpy);
 
   xvisinfo = cogl_display_xlib_get_visual_info (display, egl_config);
   if (xvisinfo == NULL)
@@ -86,6 +86,7 @@ create_xwindow (CoglOnscreenXlib  *onscreen_xlib,
                    COGL_WINSYS_ERROR_CREATE_ONSCREEN,
                    "Unable to retrieve the X11 visual of context's "
                    "fbconfig");
+      mtk_x11_error_trap_pop (xlib_renderer->xdpy);
       return None;
     }
 
@@ -117,8 +118,7 @@ create_xwindow (CoglOnscreenXlib  *onscreen_xlib,
   XFree (xvisinfo);
 
   XSync (xlib_renderer->xdpy, False);
-  xerror =
-    _cogl_xlib_renderer_untrap_errors (display->renderer, &state);
+  xerror = mtk_x11_error_trap_pop_with_return (xlib_renderer->xdpy);
   if (xerror)
     {
       char message[1000];
@@ -184,16 +184,14 @@ cogl_onscreen_xlib_dispose (GObject *object)
       CoglRenderer *renderer = context->display->renderer;
       CoglXlibRenderer *xlib_renderer =
         _cogl_xlib_renderer_get_data (renderer);
-      CoglXlibTrapState old_state;
 
-      _cogl_xlib_renderer_trap_errors (renderer, &old_state);
+      mtk_x11_error_trap_push (xlib_renderer->xdpy);
 
       XDestroyWindow (xlib_renderer->xdpy, onscreen_xlib->xwin);
       onscreen_xlib->xwin = None;
       XSync (xlib_renderer->xdpy, False);
 
-      if (_cogl_xlib_renderer_untrap_errors (renderer,
-                                             &old_state) != Success)
+      if (mtk_x11_error_trap_pop_with_return (xlib_renderer->xdpy))
         g_warning ("X Error while destroying X window");
 
       onscreen_xlib->xwin = None;

@@ -14,9 +14,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  */
 
@@ -73,6 +71,7 @@ typedef struct _MetaContextMainOptions
 #ifdef HAVE_NATIVE_BACKEND
   GList *virtual_monitor_infos;
 #endif
+  char *trace_file;
 } MetaContextMainOptions;
 
 struct _MetaContextMain
@@ -298,6 +297,10 @@ meta_context_main_configure (MetaContext   *context,
         context_main->options.sm.client_id = g_strdup (desktop_autostart_id);
     }
 
+#ifdef HAVE_PROFILER
+  meta_context_set_trace_file (context, context_main->options.trace_file);
+#endif
+
   g_unsetenv ("DESKTOP_AUTOSTART_ID");
 
   return TRUE;
@@ -317,7 +320,7 @@ meta_context_main_get_x11_display_policy (MetaContext *context)
   MetaCompositorType compositor_type;
 #ifdef HAVE_WAYLAND
   MetaContextMain *context_main = META_CONTEXT_MAIN (context);
-  char *unit;
+  g_autofree char *unit = NULL;
 #endif
 
   compositor_type = meta_context_get_compositor_type (context);
@@ -662,6 +665,12 @@ meta_context_main_add_option_entries (MetaContextMain *context_main)
       N_("Run with X11 backend")
     },
 #endif
+    {
+      "profile", 0, 0, G_OPTION_ARG_FILENAME,
+      &context_main->options.trace_file,
+      N_("Profile performance using trace instrumentation"),
+      "FILE"
+    },
     { NULL }
   };
 

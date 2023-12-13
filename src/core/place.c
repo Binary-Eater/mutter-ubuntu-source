@@ -45,12 +45,13 @@ typedef enum
 } MetaWindowDirection;
 
 static gint
-northwestcmp (gconstpointer a, gconstpointer b)
+northwest_cmp (gconstpointer a,
+               gconstpointer b)
 {
   MetaWindow *aw = (gpointer) a;
   MetaWindow *bw = (gpointer) b;
-  MetaRectangle a_frame;
-  MetaRectangle b_frame;
+  MtkRectangle a_frame;
+  MtkRectangle b_frame;
   int from_origin_a;
   int from_origin_b;
   int ax, ay, bx, by;
@@ -60,6 +61,39 @@ northwestcmp (gconstpointer a, gconstpointer b)
   ax = a_frame.x;
   ay = a_frame.y;
   bx = b_frame.x;
+  by = b_frame.y;
+
+  /* probably there's a fast good-enough-guess we could use here. */
+  from_origin_a = sqrt (ax * ax + ay * ay);
+  from_origin_b = sqrt (bx * bx + by * by);
+
+  if (from_origin_a < from_origin_b)
+    return -1;
+  else if (from_origin_a > from_origin_b)
+    return 1;
+  else
+    return 0;
+}
+
+static gint
+northeast_cmp (gconstpointer a,
+               gconstpointer b,
+               gpointer      user_data)
+{
+  MetaWindow *aw = (gpointer) a;
+  MetaWindow *bw = (gpointer) b;
+  MtkRectangle *area = user_data;
+  MtkRectangle a_frame;
+  MtkRectangle b_frame;
+  int from_origin_a;
+  int from_origin_b;
+  int ax, ay, bx, by;
+
+  meta_window_get_frame_rect (aw, &a_frame);
+  meta_window_get_frame_rect (bw, &b_frame);
+  ax = (area->x + area->width) - (a_frame.x + a_frame.width);
+  ay = a_frame.y;
+  bx = (area->x + area->width) - (b_frame.x + b_frame.width);
   by = b_frame.y;
 
   /* probably there's a fast good-enough-guess we could use here. */
@@ -88,17 +122,15 @@ find_next_cascade (MetaWindow *window,
   MetaBackend *backend = meta_context_get_backend (context);
   GList *tmp;
   GList *sorted;
-  int cascade_x, cascade_y;
-  MetaRectangle titlebar_rect;
+  int cascade_origin_x, cascade_x, cascade_y;
+  MtkRectangle titlebar_rect;
   int x_threshold, y_threshold;
-  MetaRectangle frame_rect;
+  MtkRectangle frame_rect;
   int window_width, window_height;
   int cascade_stage;
-  MetaRectangle work_area;
+  MtkRectangle work_area;
   MetaLogicalMonitor *current;
-
-  sorted = g_list_copy (windows);
-  sorted = g_list_sort (sorted, northwestcmp);
+  gboolean ltr = meta_get_locale_direction () == META_LOCALE_DIRECTION_LTR;
 
   /* This is a "fuzzy" cascade algorithm.
    * For each window in the list, we find where we'd cascade a
@@ -122,57 +154,81 @@ find_next_cascade (MetaWindow *window,
   current = meta_backend_get_current_logical_monitor (backend);
   meta_window_get_work_area_for_logical_monitor (window, current, &work_area);
 
-  cascade_x = MAX (0, work_area.x);
-  cascade_y = MAX (0, work_area.y);
-
-  /* Find first cascade position that's not used. */
+  sorted = g_list_copy (windows);
+  if (ltr)
+    sorted = g_list_sort (sorted, northwest_cmp);
+  else
+    sorted = g_list_sort_with_data (sorted, northeast_cmp, &work_area);
 
   meta_window_get_frame_rect (window, &frame_rect);
   window_width = frame_rect.width;
   window_height = frame_rect.height;
+
+  cascade_origin_x = ltr
+    ? MAX (0, work_area.x)
+    : work_area.x + work_area.width - window_width;
+  cascade_x = cascade_origin_x;
+  cascade_y = MAX (0, work_area.y);
+
+  /* Find first cascade position that's not used. */
 
   cascade_stage = 0;
   tmp = sorted;
   while (tmp != NULL)
     {
       MetaWindow *w;
-      MetaRectangle w_frame_rect;
-      int wx, wy;
+      MtkRectangle w_frame_rect;
+      int wx, ww, wy;
+      gboolean nearby;
 
       w = tmp->data;
 
       /* we want frame position, not window position */
       meta_window_get_frame_rect (w, &w_frame_rect);
       wx = w_frame_rect.x;
+      ww = w_frame_rect.width;
       wy = w_frame_rect.y;
 
-      if (ABS (wx - cascade_x) < x_threshold &&
-          ABS (wy - cascade_y) < y_threshold)
+      if (ltr)
+        nearby = ABS (wx - cascade_x) < x_threshold &&
+                 ABS (wy - cascade_y) < y_threshold;
+      else
+        nearby = ABS ((wx + ww) - (cascade_x + window_width)) < x_threshold &&
+                 ABS (wy - cascade_y) < y_threshold;
+
+      if (nearby)
         {
           meta_window_get_titlebar_rect (w, &titlebar_rect);
 
           /* Cascade the window evenly by the titlebar height; this isn't a typo. */
-          cascade_x = wx + titlebar_rect.height;
+          cascade_x = ltr
+            ? wx + titlebar_rect.height
+            : wx + ww - titlebar_rect.height - window_width;
           cascade_y = wy + titlebar_rect.height;
 
           /* If we go off the screen, start over with a new cascade */
-	  if (((cascade_x + window_width) >
+          if (((cascade_x + window_width) >
                (work_area.x + work_area.width)) ||
+              (cascade_x < work_area.x) ||
               ((cascade_y + window_height) >
-	       (work_area.y + work_area.height)))
-	    {
-	      cascade_x = MAX (0, work_area.x);
-	      cascade_y = MAX (0, work_area.y);
+               (work_area.y + work_area.height)))
+            {
+              cascade_x = cascade_origin_x;
+              cascade_y = MAX (0, work_area.y);
 
 #define CASCADE_INTERVAL 50 /* space between top-left corners of cascades */
               cascade_stage += 1;
-	      cascade_x += CASCADE_INTERVAL * cascade_stage;
+              if (ltr)
+                cascade_x += CASCADE_INTERVAL * cascade_stage;
+              else
+                cascade_x -= CASCADE_INTERVAL * cascade_stage;
 
-	      /* start over with a new cascade translated to the right, unless
-               * we are out of space
+              /* start over with a new cascade translated to the right
+               * (or to the left in RTL environment), unless we are out of space
                */
-              if ((cascade_x + window_width) <
-                  (work_area.x + work_area.width))
+              if (((cascade_x + window_width) <
+                   (work_area.x + work_area.width)) &&
+                  (cascade_x >= work_area.x))
                 {
                   tmp = sorted;
                   continue;
@@ -180,10 +236,10 @@ find_next_cascade (MetaWindow *window,
               else
                 {
                   /* All out of space, this cascade_x won't work */
-                  cascade_x = MAX (0, work_area.x);
+                  cascade_x = cascade_origin_x;
                   break;
                 }
-	    }
+            }
         }
       else
         {
@@ -216,9 +272,9 @@ find_most_freespace (MetaWindow *window,
   int max_area;
   int max_width, max_height, left, right, top, bottom;
   int left_space, right_space, top_space, bottom_space;
-  MetaRectangle work_area;
-  MetaRectangle avoid;
-  MetaRectangle frame_rect;
+  MtkRectangle work_area;
+  MtkRectangle avoid;
+  MtkRectangle frame_rect;
 
   meta_window_get_work_area_current_monitor (focus_window, &work_area);
   meta_window_get_frame_rect (focus_window, &avoid);
@@ -300,7 +356,7 @@ static gboolean
 window_overlaps_focus_window (MetaWindow *window)
 {
   MetaWindow *focus_window;
-  MetaRectangle window_frame, focus_frame, overlap;
+  MtkRectangle window_frame, focus_frame, overlap;
 
   focus_window = window->display->focus_window;
   if (focus_window == NULL)
@@ -309,9 +365,9 @@ window_overlaps_focus_window (MetaWindow *window)
   meta_window_get_frame_rect (window, &window_frame);
   meta_window_get_frame_rect (focus_window, &focus_frame);
 
-  return meta_rectangle_intersect (&window_frame,
-                                   &focus_frame,
-                                   &overlap);
+  return mtk_rectangle_intersect (&window_frame,
+                                  &focus_frame,
+                                  &overlap);
 }
 
 static gboolean
@@ -367,17 +423,17 @@ avoid_being_obscured_as_second_modal_dialog (MetaWindow *window,
 }
 
 static gboolean
-rectangle_overlaps_some_window (MetaRectangle *rect,
-                                GList         *windows)
+rectangle_overlaps_some_window (MtkRectangle *rect,
+                                GList        *windows)
 {
   GList *tmp;
-  MetaRectangle dest;
+  MtkRectangle dest;
 
   tmp = windows;
   while (tmp != NULL)
     {
       MetaWindow *other = tmp->data;
-      MetaRectangle other_rect;
+      MtkRectangle other_rect;
 
       switch (other->type)
         {
@@ -402,7 +458,7 @@ rectangle_overlaps_some_window (MetaRectangle *rect,
         case META_WINDOW_MENU:
           meta_window_get_frame_rect (other, &other_rect);
 
-          if (meta_rectangle_intersect (rect, &other_rect, &dest))
+          if (mtk_rectangle_intersect (rect, &other_rect, &dest))
             return TRUE;
           break;
         }
@@ -418,8 +474,8 @@ leftmost_cmp (gconstpointer a, gconstpointer b)
 {
   MetaWindow *aw = (gpointer) a;
   MetaWindow *bw = (gpointer) b;
-  MetaRectangle a_frame;
-  MetaRectangle b_frame;
+  MtkRectangle a_frame;
+  MtkRectangle b_frame;
   int ax, bx;
 
   meta_window_get_frame_rect (aw, &a_frame);
@@ -436,12 +492,19 @@ leftmost_cmp (gconstpointer a, gconstpointer b)
 }
 
 static gint
+rightmost_cmp (gconstpointer a,
+               gconstpointer b)
+{
+  return -leftmost_cmp (a, b);
+}
+
+static gint
 topmost_cmp (gconstpointer a, gconstpointer b)
 {
   MetaWindow *aw = (gpointer) a;
   MetaWindow *bw = (gpointer) b;
-  MetaRectangle a_frame;
-  MetaRectangle b_frame;
+  MtkRectangle a_frame;
+  MtkRectangle b_frame;
   int ay, by;
 
   meta_window_get_frame_rect (aw, &a_frame);
@@ -458,8 +521,8 @@ topmost_cmp (gconstpointer a, gconstpointer b)
 }
 
 static void
-center_tile_rect_in_area (MetaRectangle *rect,
-                          MetaRectangle *work_area)
+center_tile_rect_in_area (MtkRectangle *rect,
+                          MtkRectangle *work_area)
 {
   int fluff;
 
@@ -469,9 +532,12 @@ center_tile_rect_in_area (MetaRectangle *rect,
    * as a group)
    */
 
-  fluff = (work_area->width % (rect->width+1)) / 2;
-  rect->x = work_area->x + fluff;
-  fluff = (work_area->height % (rect->height+1)) / 3;
+  fluff = (work_area->width % (rect->width + 1)) / 2;
+  if (meta_get_locale_direction () == META_LOCALE_DIRECTION_LTR)
+    rect->x = work_area->x + fluff;
+  else
+    rect->x = work_area->x + work_area->width - rect->width - fluff;
+  fluff = (work_area->height % (rect->height + 1)) / 3;
   rect->y = work_area->y + fluff;
 }
 
@@ -502,22 +568,23 @@ find_first_fit (MetaWindow         *window,
    */
   int retval;
   GList *below_sorted;
-  GList *right_sorted;
+  GList *end_sorted;
   GList *tmp;
-  MetaRectangle rect;
-  MetaRectangle work_area;
+  MtkRectangle rect;
+  MtkRectangle work_area;
+  gboolean ltr = meta_get_locale_direction () == META_LOCALE_DIRECTION_LTR;
 
   retval = FALSE;
 
   /* Below each window */
   below_sorted = g_list_copy (windows);
-  below_sorted = g_list_sort (below_sorted, leftmost_cmp);
+  below_sorted = g_list_sort (below_sorted, ltr ? leftmost_cmp : rightmost_cmp);
   below_sorted = g_list_sort (below_sorted, topmost_cmp);
 
   /* To the right of each window */
-  right_sorted = g_list_copy (windows);
-  right_sorted = g_list_sort (right_sorted, topmost_cmp);
-  right_sorted = g_list_sort (right_sorted, leftmost_cmp);
+  end_sorted = g_list_copy (windows);
+  end_sorted = g_list_sort (end_sorted, topmost_cmp);
+  end_sorted = g_list_sort (end_sorted, ltr ? leftmost_cmp : rightmost_cmp);
 
   meta_window_get_frame_rect (window, &rect);
 
@@ -539,7 +606,7 @@ find_first_fit (MetaWindow         *window,
 
   center_tile_rect_in_area (&rect, &work_area);
 
-  if (meta_rectangle_contains_rect (&work_area, &rect) &&
+  if (mtk_rectangle_contains_rect (&work_area, &rect) &&
       !rectangle_overlaps_some_window (&rect, windows))
     {
       *new_x = rect.x;
@@ -555,14 +622,14 @@ find_first_fit (MetaWindow         *window,
   while (tmp != NULL)
     {
       MetaWindow *w = tmp->data;
-      MetaRectangle frame_rect;
+      MtkRectangle frame_rect;
 
       meta_window_get_frame_rect (w, &frame_rect);
 
       rect.x = frame_rect.x;
       rect.y = frame_rect.y + frame_rect.height;
 
-      if (meta_rectangle_contains_rect (&work_area, &rect) &&
+      if (mtk_rectangle_contains_rect (&work_area, &rect) &&
           !rectangle_overlaps_some_window (&rect, below_sorted))
         {
           *new_x = rect.x;
@@ -576,20 +643,23 @@ find_first_fit (MetaWindow         *window,
       tmp = tmp->next;
     }
 
-  /* try to the right of each window */
-  tmp = right_sorted;
+  /* try to the right (or left in RTL environment) of each window */
+  tmp = end_sorted;
   while (tmp != NULL)
     {
       MetaWindow *w = tmp->data;
-      MetaRectangle frame_rect;
+      MtkRectangle frame_rect;
 
       meta_window_get_frame_rect (w, &frame_rect);
 
-      rect.x = frame_rect.x + frame_rect.width;
+      if (ltr)
+        rect.x = frame_rect.x + frame_rect.width;
+      else
+        rect.x = frame_rect.x - rect.width;
       rect.y = frame_rect.y;
 
-      if (meta_rectangle_contains_rect (&work_area, &rect) &&
-          !rectangle_overlaps_some_window (&rect, right_sorted))
+      if (mtk_rectangle_contains_rect (&work_area, &rect) &&
+          !rectangle_overlaps_some_window (&rect, end_sorted))
         {
           *new_x = rect.x;
           *new_y = rect.y;
@@ -602,9 +672,9 @@ find_first_fit (MetaWindow         *window,
       tmp = tmp->next;
     }
 
- out:
+out:
   g_list_free (below_sorted);
-  g_list_free (right_sorted);
+  g_list_free (end_sorted);
   return retval;
 }
 
@@ -614,7 +684,7 @@ meta_window_process_placement (MetaWindow        *window,
                                int               *rel_x,
                                int               *rel_y)
 {
-  MetaRectangle anchor_rect;
+  MtkRectangle anchor_rect;
   int window_width, window_height;
   int x, y;
 
@@ -773,7 +843,7 @@ meta_window_place (MetaWindow        *window,
 
       if (parent)
         {
-          MetaRectangle frame_rect, parent_frame_rect;
+          MtkRectangle frame_rect, parent_frame_rect;
 
           meta_window_get_frame_rect (window, &frame_rect);
           meta_window_get_frame_rect (parent, &parent_frame_rect);
@@ -807,8 +877,8 @@ meta_window_place (MetaWindow        *window,
   if (window_place_centered (window))
     {
       /* Center on current monitor */
-      MetaRectangle work_area;
-      MetaRectangle frame_rect;
+      MtkRectangle work_area;
+      MtkRectangle frame_rect;
 
       /* Warning, this function is a round trip! */
       logical_monitor = meta_backend_get_current_logical_monitor (backend);
@@ -863,8 +933,8 @@ meta_window_place (MetaWindow        *window,
   if (window->has_maximize_func && window->decorated &&
       !window->fullscreen)
     {
-      MetaRectangle workarea;
-      MetaRectangle frame_rect;
+      MtkRectangle workarea;
+      MtkRectangle frame_rect;
 
       meta_window_get_work_area_for_logical_monitor (window,
                                                      logical_monitor,

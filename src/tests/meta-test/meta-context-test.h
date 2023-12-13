@@ -12,14 +12,11 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  */
 
-#ifndef META_CONTEXT_TEST_H
-#define META_CONTEXT_TEST_H
+#pragma once
 
 #include <meta/common.h>
 #include <meta/meta-context.h>
@@ -60,5 +57,3 @@ int meta_context_test_run_tests (MetaContextTest  *context_test,
 
 META_EXPORT
 void meta_context_test_wait_for_x11_display (MetaContextTest *context_test);
-
-#endif /* META_CONTEXT_TEST_H */

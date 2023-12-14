@@ -1,0 +1,13 @@
+  * Team upload
+  [ Chris Hofstaedtler ]
+  * Honor udev.pc's udevdir when installing udev rules (Closes: #1057319)
+  [ Simon McVittie ]
+  * Merge with version 44.7-1 from unstable
+  * d/control, d/rules: Stop generating d/control from d/control.in
+  * d/patches: Mark several additional tests as flaky.
+    Most of these have never been reliable on Debian buildds, especially
+    on ARM, so having them fail is not a regression. They usually succeed
+    after a few retries, but that's time-consuming and unsuitable to be a
+    QA gate.
+    The restore-size test was previously not run at all: now it is run, but
+    marked as flaky (so its result is ignored).

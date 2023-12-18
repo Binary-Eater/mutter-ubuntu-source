@@ -815,7 +815,7 @@ meta_monitor_manager_ensure_initial_config (MetaMonitorManager *manager)
   META_MONITOR_MANAGER_GET_CLASS (manager)->ensure_initial_config (manager);
 }
 
-gboolean
+static gboolean
 meta_monitor_manager_apply_monitors_config (MetaMonitorManager      *manager,
                                             MetaMonitorsConfig      *config,
                                             MetaMonitorsConfigMethod method,

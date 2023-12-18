@@ -1890,8 +1890,7 @@ clutter_event_button_new (ClutterEventType        type,
 
   g_set_object (&event->button.source_device, source_device);
 
-  if (clutter_input_device_get_device_mode (source_device) ==
-      CLUTTER_INPUT_MODE_FLOATING)
+  if (tool)
     {
       g_set_object (&event->button.device, source_device);
     }
@@ -1941,8 +1940,7 @@ clutter_event_motion_new (ClutterEventFlags       flags,
 
   g_set_object (&event->motion.source_device, source_device);
 
-  if (clutter_input_device_get_device_mode (source_device) ==
-      CLUTTER_INPUT_MODE_FLOATING)
+  if (tool)
     {
       g_set_object (&event->motion.device, source_device);
     }
@@ -1989,8 +1987,7 @@ clutter_event_scroll_smooth_new (ClutterEventFlags         flags,
 
   g_set_object (&event->scroll.source_device, source_device);
 
-  if (clutter_input_device_get_device_mode (source_device) ==
-      CLUTTER_INPUT_MODE_FLOATING)
+  if (tool)
     {
       g_set_object (&event->scroll.device, source_device);
     }
@@ -2031,8 +2028,7 @@ clutter_event_scroll_discrete_new (ClutterEventFlags       flags,
 
   g_set_object (&event->scroll.source_device, source_device);
 
-  if (clutter_input_device_get_device_mode (source_device) ==
-      CLUTTER_INPUT_MODE_FLOATING)
+  if (tool)
     {
       g_set_object (&event->scroll.device, source_device);
     }
@@ -2064,8 +2060,8 @@ clutter_event_crossing_new (ClutterEventType      type,
                         type == CLUTTER_LEAVE, NULL);
   g_return_val_if_fail (CLUTTER_IS_INPUT_DEVICE (source_device), NULL);
 
-  if (clutter_input_device_get_device_mode (source_device) ==
-      CLUTTER_INPUT_MODE_FLOATING)
+  if (!!(clutter_input_device_get_capabilities (source_device) &
+         CLUTTER_INPUT_CAPABILITY_TABLET_TOOL))
     {
       device = source_device;
     }

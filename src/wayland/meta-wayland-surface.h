@@ -301,6 +301,9 @@ gboolean            meta_wayland_surface_assign_role (MetaWaylandSurface *surfac
 
 MetaWaylandBuffer  *meta_wayland_surface_get_buffer (MetaWaylandSurface *surface);
 
+void                meta_wayland_surface_set_window (MetaWaylandSurface *surface,
+                                                     MetaWindow         *window);
+
 void                meta_wayland_surface_configure_notify (MetaWaylandSurface             *surface,
                                                            MetaWaylandWindowConfiguration *configuration);
 

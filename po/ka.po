@@ -9,8 +9,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: mutter\n"
 "Report-Msgid-Bugs-To: https://gitlab.gnome.org/GNOME/mutter/issues\n"
-"POT-Creation-Date: 2023-11-11 07:06+0000\n"
-"PO-Revision-Date: 2023-11-12 06:33+0100\n"
+"POT-Creation-Date: 2023-07-15 01:02+0000\n"
+"PO-Revision-Date: 2023-07-28 07:23+0200\n"
 "Last-Translator: Ekaterine Papava <papava.e@gtu.ge>\n"
 "Language-Team: Georgian <(nothing)>\n"
 "Language: ka\n"
@@ -267,9 +267,6 @@ msgid ""
 "key” on PC hardware. It’s expected that this binding either the default or "
 "set to the empty string."
 msgstr ""
-"ეს გასაღები გაუშვებს \"განლაგებას\", რაც ფანჯრების გადახედვისა და აპლიკაციის "
-"გაშვების სისტემის კომბინაციაა. ნაგულისხმევად, PC-ზე, \"Windows\"-ის ღილაკი "
-"გამოიყენება. ითვლება, რომ ამ ღილაკზე მბმა ცარიელი ან ნაგულისხმევია."
 
 #: data/org.gnome.mutter.gschema.xml.in:28
 msgid "Attach modal dialogs"
@@ -281,13 +278,10 @@ msgid ""
 "attached to the titlebar of the parent window and are moved together with "
 "the parent window."
 msgstr ""
-"როცა ჩართულია, დამოუკიდებელი სათაურის ზოლების მაგიერ მოდალურ დიალოგები "
-"მშობელი ფანჯრის სათაურის ზოლთან მიმაგრებული დაიხატება და მშობელ ფანჯარასთან "
-"ერთად გადაადგილდება."
 
 #: data/org.gnome.mutter.gschema.xml.in:38
 msgid "Enable edge tiling when dropping windows on screen edges"
-msgstr "წიბოს გადაფარვა, როცა ფანჯრებს ეკრანის წიბოებზე დააგდებთ"
+msgstr ""
 
 #: data/org.gnome.mutter.gschema.xml.in:39
 msgid ""
@@ -295,9 +289,6 @@ msgid ""
 "vertically and resizes them horizontally to cover half of the available "
 "area. Dropping windows on the top screen edge maximizes them completely."
 msgstr ""
-"თუ ჩართულია, ფანჯრების დაყრა ვერტიკალური ეკრანის წიბოზე მათ მაქსიმალურად "
-"გაშლის ვერტიკალურად და ზომას შეუცვლის ჰორიზონტალურად, რათა, მათ, ზუსტად "
-"ნახევარი ეკრანი დაიკავონ. ფანჯრის ზედა წიბოზე დაყრა მათ სრულად გაადიდებს."
 
 #: data/org.gnome.mutter.gschema.xml.in:48
 msgid "Workspaces are managed dynamically"
@@ -309,9 +300,6 @@ msgid ""
 "static number of workspaces (determined by the num-workspaces key in org."
 "gnome.desktop.wm.preferences)."
 msgstr ""
-"განსაზღვრავს, იმართება თუ არა სამუშაო სივრცე დინამიკურად, თუ არსებობს მათი "
-"სტატიკური რაოდენობა (განისაზღვრება org.gnome.desktop.wm.preferences-ში num-"
-"workspaces-ით მნიშვნელობით)."
 
 #: data/org.gnome.mutter.gschema.xml.in:58
 msgid "Workspaces only on primary"
@@ -322,9 +310,6 @@ msgid ""
 "Determines whether workspace switching should happen for windows on all "
 "monitors or only for windows on the primary monitor."
 msgstr ""
-"განსაზღვრავს, მოხდება თუ არა სამუშაო სივრცეების გადართვა ფანჯრებისთვის, "
-"რომლებიც ყველა მონიტორზე ჩანს, თუ მხოლოდ ძირითად ეკრანზე მდებარე "
-"ფანჯრებისთვის."
 
 #: data/org.gnome.mutter.gschema.xml.in:67
 msgid "Delay focus changes until the pointer stops moving"
@@ -336,9 +321,6 @@ msgid ""
 "focus will not be changed immediately when entering a window, but only after "
 "the pointer stops moving."
 msgstr ""
-"თუ ჩართულია და ფოკუსის რეჟიმი \"სველზე\" ან \"თაგუნაზეა\" დაყენებული, მაშინ "
-"ფოკუსი ფანჯარაზე გადასვლისას დაუყოვნებლივ კი არ შეიცვლება, არამედ მაშინ, "
-"როცა თაგუნას კურსორი მოძრაობას შეწყვეტს."
 
 #: data/org.gnome.mutter.gschema.xml.in:78
 msgid "Draggable border width"
@@ -349,8 +331,6 @@ msgid ""
 "The amount of total draggable borders. If the theme’s visible borders are "
 "not enough, invisible borders will be added to meet this value."
 msgstr ""
-"გადათრევადი საზღრების ჯამური რაოდენობა. თუ თემის ხილული საზღვრები საკმარისი "
-"არაა, ამ მნიშვნელობამდე მისაღწევად უჩინარი საზღვრები დაემატება."
 
 #: data/org.gnome.mutter.gschema.xml.in:88
 msgid "Auto maximize nearly monitor sized windows"
@@ -361,8 +341,6 @@ msgid ""
 "If enabled, new windows that are initially the size of the monitor "
 "automatically get maximized."
 msgstr ""
-"თუ ჩართულია, ახალი ფანჯრები, რომლებსაც თავიდანვე ეკრანის ზომა აქვთ, მთელ "
-"ეკრანზე გაიშლებიან."
 
 #: data/org.gnome.mutter.gschema.xml.in:97
 msgid "Place new windows in the center"
@@ -373,8 +351,6 @@ msgid ""
 "When true, the new windows will always be put in the center of the active "
 "screen of the monitor."
 msgstr ""
-"თუ ჩართულია, ახალი ფანჯრები, ყოველთვის, მონიტორის აქტიური ეკრანის შუაში "
-"გამოჩნდება."
 
 #: data/org.gnome.mutter.gschema.xml.in:107
 msgid "Enable experimental features"
@@ -396,21 +372,6 @@ msgid ""
 "xwayland” — automatically terminates Xwayland if all relevant X11 clients "
 "are gone. Requires a restart."
 msgstr ""
-"ექსპერიმენტული ფუნქციების ჩასართავად დაამატეთ ფუნქციის საკვანძო სიტყვა სიას. "
-"მოითხოვს თუ არა ფუნქცია კომპოზიტორის გადატვირთვას, დამოკიდებულია მოცემულ "
-"ფუნქციაზე. ნებისმიერი ექსპერიმენტული ფუნქცია არ არის საჭირო, რომ კვლავ "
-"ხელმისაწვდომი იყოს ან კონფიგურირებადი იყოს. ნუ ელით, რომ ამ პარამეტრში "
-"რაიმეს დამატება იქნება სამომავლო მტკიცებულება. ამჟამად შესაძლო საკვანძო "
-"სიტყვები: • „scale-monitor-framebuffer“ — ხდის mutter-ის ნაგულისხმევად "
-"განლაგებას ლოგიკური მონიტორების განლაგებისთვის ლოგიკურ პიქსელის კოორდინატთა "
-"სივრცეში, ხოლო მონიტორის ჩარჩო ბუფერების მასშტაბირება ფანჯრის შინაარსის "
-"ნაცვლად, HiDPI მონიტორების სამართავად. არ საჭიროებს გადატვირთვას. • „kms-"
-"modifiers“ — ხდის mutter-ს ყოველთვის გამოყოს სკანაუტური ბუფერები აშკარა "
-"მოდიფიკატორებით, თუ მხარდაჭერილია დრაივერის მიერ. საჭიროებს გადატვირთვას. • "
-"„rt-scheduler“ — ხდის mutter მოთხოვნას რეალურ დროში დაბალ პრიორიტეტულ "
-"განრიგად. საჭიროებს გადატვირთვას. • „autoclose-xwayland“ — ავტომატურად "
-"წყვეტს Xwayland-ს, თუ ყველა შესაბამისი X11 კლიენტი გაქრება. საჭიროებს "
-"გადატვირთვას."
 
 #: data/org.gnome.mutter.gschema.xml.in:141
 msgid "Modifier to use to locate the pointer"
@@ -429,8 +390,6 @@ msgid ""
 "Number of milliseconds a client has to respond to a ping request in order to "
 "not be detected as frozen. Using 0 will disable the alive check completely."
 msgstr ""
-"მილიწამების რაოდენობა, რომელიც კლიენტს აქვს, რომ პინგს პასუხი გასცეს, სანამ "
-"ის დაკიდებულად გამოცხადდება. მნიშვნელობა 0 ამ შემოწმებას სრულად გამორთავს."
 
 #: data/org.gnome.mutter.gschema.xml.in:174
 msgid "Switch monitor configurations"
@@ -442,7 +401,7 @@ msgstr "ეკრანის ჩაშენებული კონფიგ�
 
 #: data/org.gnome.mutter.gschema.xml.in:184
 msgid "Cancel any active input capture session"
-msgstr "ყველა არსებული ეკრანის ჩაჭერის სესიის გაუქმება"
+msgstr ""
 
 #: data/org.gnome.mutter.wayland.gschema.xml.in:12
 msgid "Switch to VT 1"
@@ -499,8 +458,6 @@ msgstr "მალსახმობების თავიდან ჩარ�
 #: data/org.gnome.mutter.wayland.gschema.xml.in:70
 msgid "Allow X11 grabs to lock keyboard focus with Xwayland"
 msgstr ""
-"X11 ჩაჭერებისთვის Xwaylad-თან ერთად კლავიატურის ფოკუსის დაბლოკვის უფლების "
-"მიცემა"
 
 #: data/org.gnome.mutter.wayland.gschema.xml.in:71
 msgid ""
@@ -514,22 +471,10 @@ msgid ""
 "specific X11 ClientMessage to the root window or be among the applications "
 "allowed in key “xwayland-grab-access-rules”."
 msgstr ""
-"ნება ყველა კლავიატურის მოვლენების გადამისამართება X11\" override "
-"გადამისამართება \" windows ერთად grab როდესაც გაშვებული Xwayland. ეს "
-"ვარიანტი არის x11 კლიენტების მხარდაჭერა, რომლებიც ასახავენ "
-"\"გადამისამართების გადამისამართების\" ფანჯარას (რომლებიც არ იღებენ "
-"კლავიატურის ფოკუსირებას) და კლავიატურის დაჭერას, რათა ყველა კლავიატურის "
-"მოვლენა აიძულონ ამ ფანჯარაში. ეს ვარიანტი იშვიათად გამოიყენება და არ "
-"მოქმედებს ჩვეულებრივ X11 ფანჯრებზე, რომლებსაც შეუძლიათ მიიღონ კლავიატურის "
-"ფოკუსირება ნორმალურ პირობებში. იმისათვის, რომ X11-ის დაჭერა გათვალისწინებული "
-"იყოს Wayland-ის ფარგლებში, კლიენტმა ასევე უნდა გამოაგზავნოს კონკრეტული X11 "
-"ClientMessage root ფანჯარაში ან იყოს იმ პროგრამებს შორის, რომლებიც "
-"დაშვებულია საკვანძო \"xwayland-grab-access-rules\" - ში."
 
 #: data/org.gnome.mutter.wayland.gschema.xml.in:90
 msgid "Xwayland applications allowed to issue keyboard grabs"
 msgstr ""
-"Xwayland-ის აპლიკაციები, რომლებსაც კლავიატურის ჩაჭერის გამოცემა შეუძლიათ"
 
 #: data/org.gnome.mutter.wayland.gschema.xml.in:91
 msgid ""
@@ -544,17 +489,6 @@ msgid ""
 "using the specific keyboard shortcut defined by the keybinding key “restore-"
 "shortcuts”."
 msgstr ""
-"ჩამოთვალეთ x11 windows-ის რესურსების სახელები ან რესურსების კლასი, რომლებიც "
-"ნებადართულია ან არ არის ნებადართული x11 კლავიატურის დაჭერის გამოცემა "
-"Xwayland-ის ქვეშ. მოცემული x11 ფანჯრის რესურსის სახელი ან რესურსების კლასი "
-"შეგიძლიათ მიიღოთ ბრძანების \"xprop WM_CLASS\"გამოყენებით. ველური ბარათები \" "
-"* \"და ჯოკერები\"?\"ღირებულებებში მხარდაჭერილია. ღირებულებები იწყება \"!"
-"\"უარყოფილია, რომელსაც უპირატესობა აქვს დაშვებული მნიშვნელობების "
-"ჩამონათვალზე, გააუქმოს პროგრამები ნაგულისხმევი სისტემის სიიდან. სისტემის "
-"ნაგულისხმევი სია მოიცავს შემდეგ პროგრამებს:\" "
-"@XWAYLAND_GRAB_DEFAULT_ACCESS_RULES@ \"მომხმარებლებს შეუძლიათ დაარღვიონ "
-"არსებული დაჭერა კლავიატურის სპეციფიკური მალსახმობის გამოყენებით, რომელიც "
-"განსაზღვრულია კლავიშთა ღილაკით\"აღდგენა-მალსახმობები\"."
 
 #: data/org.gnome.mutter.wayland.gschema.xml.in:116
 msgid "Disable selected X extensions in Xwayland"
@@ -567,15 +501,10 @@ msgid ""
 "Xwayland was built without support for the selected extensions. Xwayland "
 "needs to be restarted for this setting to take effect."
 msgstr ""
-"ეს პარამეტრი Xwayland-ში არჩეულ გაფართოებებს გამორთავს, თუ Xwayland ამ X "
-"გაფართოებების მხარდაჭერითაა აგებული. ამ პარამეტრს გავლენა არ აქვს, თუ "
-"Xwayland მონიშნული გაფართოებების მხარდაჭერის გარეშეა აგებული. ცვლილებების "
-"ძალაში შესასვლელად, Xwayland-ის გადატვირთვა დაგჭირდებათ."
 
 #: data/org.gnome.mutter.wayland.gschema.xml.in:130
 msgid "Allow X11 clients with a different endianness to connect to Xwayland"
 msgstr ""
-"სხვა ბაიტის ბოლოს მქონე X11 კლიენტებისთვის Xwayland-ზე მიერთების დაშვება"
 
 #: data/org.gnome.mutter.wayland.gschema.xml.in:131
 msgid ""
@@ -589,36 +518,27 @@ msgid ""
 "control that setting. Xwayland needs to be restarted for this setting to "
 "take effect."
 msgstr ""
-"ნება კავშირები კლიენტებს ერთად endianness განსხვავდება, რომ Xwayland. X "
-"სერვერის ბაიტების გაცვლის კოდი არის უზარმაზარი თავდასხმის ზედაპირი, ამ კოდის "
-"დიდი ნაწილი Xwayland-ში მიდრეკილია უსაფრთხოების საკითხებისკენ. ბაიტების "
-"გაცვლილი კლიენტების გამოყენების შემთხვევა ძალიან ნიშა და გამორთულია xwayland-"
-"ში. ჩართეთ ეს ვარიანტი დაავალოს Xwayland მიიღოს კავშირები X11 კლიენტებს "
-"სხვადასხვა endianness. ამ ვარიანტს არანაირი ეფექტი არ აქვს, თუ Xwayland "
-"მხარს არ უჭერს ბრძანების ხაზის ვარიანტს +byteswappedclients/ - "
-"byteswappedclients ამ პარამეტრის გასაკონტროლებლად. Xwayland უნდა განახლდეს, "
-"რომ ეს პარამეტრი ამოქმედდეს."
 
-#: src/backends/meta-monitor.c:251
+#: src/backends/meta-monitor.c:253
 msgid "Built-in display"
 msgstr "ჩაშენებული ეკრანი"
 
-#: src/backends/meta-monitor.c:278
+#: src/backends/meta-monitor.c:280
 msgid "Unknown"
 msgstr "უცნობია"
 
-#: src/backends/meta-monitor.c:280
+#: src/backends/meta-monitor.c:282
 msgid "Unknown Display"
 msgstr "უცნობი ეკრანი"
 
-#: src/backends/meta-monitor.c:288
+#: src/backends/meta-monitor.c:290
 #, c-format
 msgctxt ""
 "This is a monitor vendor name, followed by a size in inches, like 'Dell 15\"'"
 msgid "%s %s"
 msgstr "%s %s"
 
-#: src/backends/meta-monitor.c:296
+#: src/backends/meta-monitor.c:298
 #, c-format
 msgctxt ""
 "This is a monitor vendor name followed by product/model name where size in "
@@ -630,78 +550,78 @@ msgstr "%s %s"
 msgid "Bell event"
 msgstr "მოვლენის ზარი"
 
-#: src/core/display.c:723
+#: src/core/display.c:718
 msgid "Privacy Screen Enabled"
 msgstr "კონფიდენციალური ეკრანი ჩართულია"
 
-#: src/core/display.c:724
+#: src/core/display.c:719
 msgid "Privacy Screen Disabled"
 msgstr "კონფიდენციალური ეკრანი გამორთულია"
 
-#: src/core/meta-context-main.c:579
+#: src/core/meta-context-main.c:581
 msgid "Replace the running window manager"
 msgstr "ფანჯრების გაშვებული მმართველის შეცვლა"
 
-#: src/core/meta-context-main.c:585
+#: src/core/meta-context-main.c:587
 msgid "X Display to use"
 msgstr "გამოყენებადი X"
 
-#: src/core/meta-context-main.c:591
+#: src/core/meta-context-main.c:593
 msgid "Disable connection to session manager"
 msgstr "სესიების მმართველთან კავშირის გაუქმება"
 
-#: src/core/meta-context-main.c:597
+#: src/core/meta-context-main.c:599
 msgid "Specify session management ID"
 msgstr "სესიის მართვის ID-ის მითითება"
 
-#: src/core/meta-context-main.c:603
+#: src/core/meta-context-main.c:605
 msgid "Initialize session from savefile"
 msgstr "სესიის დამახსოვრებული ფაილიდან ჩატვირთვა"
 
-#: src/core/meta-context-main.c:609
+#: src/core/meta-context-main.c:611
 msgid "Make X calls synchronous"
 msgstr "X-ის ფუნქციების სინქრონულად გამოძახება"
 
-#: src/core/meta-context-main.c:617
+#: src/core/meta-context-main.c:619
 msgid "Run as a wayland compositor"
 msgstr "Wayland-ის კომპოზიტორად გაშვება"
 
-#: src/core/meta-context-main.c:623
+#: src/core/meta-context-main.c:625
 msgid "Run as a nested compositor"
 msgstr "ჩადგმულ კომპოზიტორად გაშვება"
 
-#: src/core/meta-context-main.c:629
+#: src/core/meta-context-main.c:631
 msgid "Run wayland compositor without starting Xwayland"
 msgstr "Wayland კომპოზიტორის Xwayland-ის შესრულებს გარეშე გაშვება"
 
-#: src/core/meta-context-main.c:635
+#: src/core/meta-context-main.c:637
 msgid "Specify Wayland display name to use"
 msgstr "მიუთითეთ Wayland-ის ეკრანის სახელი"
 
-#: src/core/meta-context-main.c:643
+#: src/core/meta-context-main.c:645
 msgid "Run as a full display server, rather than nested"
 msgstr "ჩადგმულის მაგიერ ეკრანის სრულ სერვერად გაშვება"
 
-#: src/core/meta-context-main.c:648
+#: src/core/meta-context-main.c:650
 msgid "Run as a headless display server"
 msgstr "უთავო ეკრანის სერვერად გაშვება"
 
-#: src/core/meta-context-main.c:653
+#: src/core/meta-context-main.c:655
 msgid "Add persistent virtual monitor (WxH or WxH@R)"
 msgstr "მუდმინი ვირტუალური ეკრანის დამატება (WxH or WxH@R)"
 
-#: src/core/meta-context-main.c:665
+#: src/core/meta-context-main.c:667
 msgid "Run with X11 backend"
 msgstr "X11 უკანაბოლოთი გაშვება"
 
-#: src/core/meta-context-main.c:671
+#: src/core/meta-context-main.c:673
 msgid "Profile performance using trace instrumentation"
-msgstr "წარმადობის პროფილირება ტრეისის ინსტრუმენტებით"
+msgstr ""
 
 #. TRANSLATORS: This string refers to a button that switches between
 #. * different modes.
 #.
-#: src/core/meta-pad-action-mapper.c:805
+#: src/core/meta-pad-action-mapper.c:861
 #, c-format
 msgid "Mode Switch (Group %d)"
 msgstr "რეჟიმის შეცვლა (ჯგუფი %d)"
@@ -709,16 +629,16 @@ msgstr "რეჟიმის შეცვლა (ჯგუფი %d)"
 #. TRANSLATORS: This string refers to an action, cycles drawing tablets'
 #. * mapping through the available outputs.
 #.
-#: src/core/meta-pad-action-mapper.c:827
+#: src/core/meta-pad-action-mapper.c:884
 msgid "Switch monitor"
 msgstr "ეკრანის შეცვლა"
 
-#: src/core/meta-pad-action-mapper.c:829
+#: src/core/meta-pad-action-mapper.c:886
 msgid "Show on-screen help"
 msgstr "ეკრანზე ნაჩვენები დახმარება"
 
 #. Translators: this string will appear in Sysprof
-#: src/core/meta-profiler.c:109 src/core/meta-profiler.c:299
+#: src/core/meta-profiler.c:111 src/core/meta-profiler.c:301
 msgid "Compositor"
 msgstr "კომპოზიტორი"
 
@@ -739,42 +659,39 @@ msgstr "სამუშაო სივრცე %d"
 msgid "Mutter was compiled without support for verbose mode"
 msgstr "Mutter დამატებითი შეტყობინების მხარდაჭერის გარეშეა აგებული"
 
-#: src/core/workspace.c:512
+#: src/core/workspace.c:541
 msgid "Workspace switched"
 msgstr "სამუშაო სივრცე გადაირთო"
 
-#: src/wayland/meta-wayland-tablet-pad.c:532
+#: src/wayland/meta-wayland-tablet-pad.c:530
 #, c-format
 msgid "Mode Switch: Mode %d"
 msgstr "რეჟიმის შეცვლა რეჟიმი %d"
 
-#: src/x11/meta-x11-display.c:717
+#: src/x11/meta-x11-display.c:708
 #, c-format
 msgid ""
 "Display “%s” already has a window manager; try using the --replace option to "
 "replace the current window manager."
 msgstr ""
-"ეკრანს \"%s\" ფანჯრების მმართველი უკვე გააჩნია. მის ჩასანაცვლებლად, სცადეთ, "
-"--replace პარამეტრი გამოიყენოთ."
 
-#: src/x11/meta-x11-display.c:1082
+#: src/x11/meta-x11-display.c:1073
 #, c-format
 msgid "Failed to open X Window System display “%s”"
 msgstr "ფანჯრების X სისტემის ეკრანის (%s) გახსნის შეცდომა"
 
-#: src/x11/meta-x11-display.c:1209
+#: src/x11/meta-x11-display.c:1219
 #, c-format
 msgid "Screen %d on display “%s” is invalid"
 msgstr "ასლი \"%d\" ეკრანზე \"%s\" არასწორია"
 
 #. This probably means that a non-WM compositor like xcompmgr is running;
 #. * we have no way to get it to exit
-#: src/x11/meta-x11-display.c:2460
+#: src/x11/meta-x11-display.c:2550
 #, c-format
 msgid ""
 "Another compositing manager is already running on screen %i on display “%s”."
 msgstr ""
-"მონიტორიზე %i ეკრანზე \"%s' სხვა კომპოზიტორი მმართველი უკვე გაშვებულია."
 
 #: src/x11/meta-x11-selection-input-stream.c:475
 #, c-format

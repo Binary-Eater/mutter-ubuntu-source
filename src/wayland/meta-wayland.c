@@ -549,7 +549,7 @@ meta_wayland_compositor_get_committed_transactions (MetaWaylandCompositor *compo
   return &compositor->committed_transactions;
 }
 
-static gboolean
+static void
 set_gnome_env (const char *name,
 	       const char *value)
 {
@@ -584,10 +584,7 @@ set_gnome_env (const char *name,
 
       g_free (remote_error);
       g_error_free (error);
-
-      return FALSE;
     }
-  return TRUE;
 }
 
 static void meta_wayland_log_func (const char *, va_list) G_GNUC_PRINTF (1, 0);
@@ -871,16 +868,9 @@ meta_wayland_compositor_new (MetaContext *context)
 #ifdef HAVE_XWAYLAND
   if (x11_display_policy != META_X11_DISPLAY_POLICY_DISABLED)
     {
-      gboolean status = TRUE;
-
-      status &=
-        set_gnome_env ("GNOME_SETUP_DISPLAY", compositor->xwayland_manager.private_connection.name);
-      status &=
-        set_gnome_env ("DISPLAY", compositor->xwayland_manager.public_connection.name);
-      status &=
-        set_gnome_env ("XAUTHORITY", compositor->xwayland_manager.auth_file);
-
-      meta_xwayland_set_should_enable_ei_portal (&compositor->xwayland_manager, status);
+      set_gnome_env ("GNOME_SETUP_DISPLAY", compositor->xwayland_manager.private_connection.name);
+      set_gnome_env ("DISPLAY", compositor->xwayland_manager.public_connection.name);
+      set_gnome_env ("XAUTHORITY", compositor->xwayland_manager.auth_file);
     }
 #endif
 

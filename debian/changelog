@@ -1,4 +1,4 @@
-mutter (45.2-0ubuntu2~really45.0) UNRELEASED; urgency=medium
+mutter (45.2-0ubuntu2~really45.0) mantic; urgency=medium
 
   * Roll back to address regression LP: #2046360.
     - Full revert to mutter 45.0-3ubuntu3.1, with revert implemented under
@@ -10,7 +10,7 @@ mutter (45.2-0ubuntu2~really45.0) UNRELEASED; urgency=medium
       dependency on the library package; so a straight revert of the symbols
       file is possible without the need to add any additional Breaks.
 
- -- Steve Langasek <steve.langasek@ubuntu.com>  Sun, 17 Dec 2023 19:39:36 -0800
+ -- Steve Langasek <steve.langasek@ubuntu.com>  Sun, 17 Dec 2023 19:44:15 -0800
 
 mutter (45.2-0ubuntu1) mantic; urgency=medium
 

@@ -1,0 +1,3 @@
+  * New upstream release
+  * debian/libmutter-13-0.symbols: Add new symbol
+  * Drop overrides for non-Linux since we build for Linux only

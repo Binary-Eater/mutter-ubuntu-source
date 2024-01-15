@@ -14,9 +14,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  */
 
@@ -31,7 +29,7 @@
 #include "backends/x11/meta-clutter-backend-x11.h"
 #include "backends/x11/meta-seat-x11.h"
 #include "core/display-private.h"
-#include "meta/meta-x11-errors.h"
+#include "mtk/mtk-x11.h"
 
 #define DEFAULT_XKB_SET_CONTROLS_MASK XkbSlowKeysMask         | \
                                       XkbBounceKeysMask       | \
@@ -42,8 +40,6 @@
                                       XkbAccessXTimeoutMask   | \
                                       XkbAccessXFeedbackMask  | \
                                       XkbControlsEnabledMask
-
-static int _xkb_event_base;
 
 static Display *
 xdisplay_from_seat (ClutterSeat *seat)
@@ -60,14 +56,14 @@ get_xkb_desc_rec (Display *xdisplay)
   XkbDescRec *desc;
   Status      status = Success;
 
-  meta_clutter_x11_trap_x_errors ();
+  mtk_x11_error_trap_push (xdisplay);
   desc = XkbGetMap (xdisplay, XkbAllMapComponentsMask, XkbUseCoreKbd);
   if (desc != NULL)
     {
       desc->ctrls = NULL;
       status = XkbGetControls (xdisplay, XkbAllControlsMask, desc);
     }
-  meta_clutter_x11_untrap_x_errors ();
+  mtk_x11_error_trap_pop (xdisplay);
 
   g_return_val_if_fail (desc != NULL, NULL);
   g_return_val_if_fail (desc->ctrls != NULL, NULL);
@@ -80,14 +76,14 @@ static void
 set_xkb_desc_rec (Display    *xdisplay,
                   XkbDescRec *desc)
 {
-  meta_clutter_x11_trap_x_errors ();
+  mtk_x11_error_trap_push (xdisplay);
   XkbSetControls (xdisplay, DEFAULT_XKB_SET_CONTROLS_MASK, desc);
   XSync (xdisplay, FALSE);
-  meta_clutter_x11_untrap_x_errors ();
+  mtk_x11_error_trap_pop (xdisplay);
 }
 
-static void
-check_settings_changed (ClutterSeat *seat)
+void
+meta_seat_x11_check_xkb_a11y_settings_changed (ClutterSeat *seat)
 {
   MetaSeatX11 *seat_x11 = META_SEAT_X11 (seat);
   MetaBackend *backend = meta_seat_x11_get_backend (META_SEAT_X11 (seat_x11));
@@ -145,36 +141,10 @@ check_settings_changed (ClutterSeat *seat)
   XkbFreeKeyboard (desc, XkbAllComponentsMask, TRUE);
 }
 
-static MetaX11FilterReturn
-xkb_a11y_event_filter (XEvent       *xevent,
-                       ClutterEvent *clutter_event,
-                       gpointer      data)
-{
-  ClutterSeat *seat = CLUTTER_SEAT (data);
-  XkbEvent *xkbev = (XkbEvent *) xevent;
-
-  /* 'event_type' is set to zero on notifying us of updates in
-   * response to client requests (including our own) and non-zero
-   * to notify us of key/mouse events causing changes (like
-   * pressing shift 5 times to enable sticky keys).
-   *
-   * We only want to update out settings when it's in response to an
-   * explicit user input event, so require a non-zero event_type.
-   */
-  if (xevent->xany.type == (_xkb_event_base + XkbEventCode) &&
-      xkbev->any.xkb_type == XkbControlsNotify && xkbev->ctrls.event_type != 0)
-    check_settings_changed (seat);
-
-  return META_X11_FILTER_CONTINUE;
-}
-
 static gboolean
 is_xkb_available (Display *xdisplay)
 {
   int opcode, error_base, event_base, major, minor;
-
-  if (_xkb_event_base)
-    return TRUE;
 
   if (!XkbQueryExtension (xdisplay,
                           &opcode,
@@ -186,8 +156,6 @@ is_xkb_available (Display *xdisplay)
 
   if (!XkbUseExtension (xdisplay, &major, &minor))
     return FALSE;
-
-  _xkb_event_base = event_base;
 
   return TRUE;
 }
@@ -337,11 +305,6 @@ meta_seat_x11_apply_kbd_a11y_settings (ClutterSeat         *seat,
 gboolean
 meta_seat_x11_a11y_init (ClutterSeat *seat)
 {
-  MetaSeatX11 *seat_x11 = META_SEAT_X11 (seat);
-  MetaBackend *backend = meta_seat_x11_get_backend (META_SEAT_X11 (seat_x11));
-  ClutterBackend *clutter_backend = meta_backend_get_clutter_backend (backend);
-  MetaClutterBackendX11 *clutter_backend_x11 =
-    META_CLUTTER_BACKEND_X11 (clutter_backend);
   Display *xdisplay = xdisplay_from_seat (seat);
   guint event_mask;
 
@@ -351,10 +314,6 @@ meta_seat_x11_a11y_init (ClutterSeat *seat)
   event_mask = XkbControlsNotifyMask | XkbAccessXNotifyMask;
 
   XkbSelectEvents (xdisplay, XkbUseCoreKbd, event_mask, event_mask);
-
-  meta_clutter_backend_x11_add_filter (clutter_backend_x11,
-                                       xkb_a11y_event_filter,
-                                       seat);
 
   return TRUE;
 }

@@ -21,13 +21,13 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __META_SHAPED_TEXTURE_H__
-#define __META_SHAPED_TEXTURE_H__
+#pragma once
 
 #include <X11/Xlib.h>
 
 #include "clutter/clutter.h"
 #include <meta/common.h>
+#include <meta/meta-multi-texture.h>
 
 G_BEGIN_DECLS
 
@@ -45,16 +45,14 @@ void meta_shaped_texture_set_create_mipmaps (MetaShapedTexture *stex,
 					     gboolean           create_mipmaps);
 
 META_EXPORT
-CoglTexture * meta_shaped_texture_get_texture (MetaShapedTexture *stex);
+MetaMultiTexture * meta_shaped_texture_get_texture (MetaShapedTexture *stex);
 
 META_EXPORT
 void meta_shaped_texture_set_mask_texture (MetaShapedTexture *stex,
                                            CoglTexture       *mask_texture);
 
 META_EXPORT
-cairo_surface_t * meta_shaped_texture_get_image (MetaShapedTexture     *stex,
-                                                 cairo_rectangle_int_t *clip);
+cairo_surface_t * meta_shaped_texture_get_image (MetaShapedTexture *stex,
+                                                 MtkRectangle      *clip);
 
 G_END_DECLS
-
-#endif /* __META_SHAPED_TEXTURE_H__ */

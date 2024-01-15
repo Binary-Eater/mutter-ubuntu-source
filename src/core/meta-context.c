@@ -12,9 +12,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  */
 
@@ -98,6 +96,7 @@ typedef struct _MetaContextPrivate
 #endif
 
 #ifdef HAVE_PROFILER
+  char *trace_file;
   MetaProfiler *profiler;
 #endif
 
@@ -241,6 +240,16 @@ meta_context_get_display (MetaContext *context)
 }
 
 #ifdef HAVE_WAYLAND
+/**
+ * meta_context_get_wayland_compositor:
+ * @context: The #MetaContext
+ *
+ * Get the #MetaWaylandCompositor associated with the MetaContext. The might be
+ * none currently associated if the context hasn't been started or if the
+ * requested compositor type is not %META_COMPOSITOR_TYPE_WAYLAND.
+ *
+ * Returns: (transfer none) (nullable): the #MetaWaylandCompositor
+ */
 MetaWaylandCompositor *
 meta_context_get_wayland_compositor (MetaContext *context)
 {
@@ -284,6 +293,25 @@ meta_context_is_x11_sync (MetaContext *context)
 }
 #endif
 
+#ifdef HAVE_PROFILER
+MetaProfiler *
+meta_context_get_profiler (MetaContext *context)
+{
+  MetaContextPrivate *priv = meta_context_get_instance_private (context);
+
+  return priv->profiler;
+}
+
+void
+meta_context_set_trace_file (MetaContext *context,
+                             const char  *trace_file)
+{
+  MetaContextPrivate *priv = meta_context_get_instance_private (context);
+
+  priv->trace_file = g_strdup (trace_file);
+}
+#endif
+
 static gboolean
 meta_context_real_configure (MetaContext   *context,
                              int           *argc,
@@ -314,7 +342,7 @@ meta_context_real_configure (MetaContext   *context,
  * @error: a return location for errors
  *
  * Returns: %TRUE if the commandline arguments (if any) were valid and if the
- * configuration has been successfull, %FALSE otherwise
+ * configuration has been successful, %FALSE otherwise
  */
 gboolean
 meta_context_configure (MetaContext   *context,
@@ -332,6 +360,10 @@ meta_context_configure (MetaContext   *context,
       priv->state = META_CONTEXT_STATE_TERMINATED;
       return FALSE;
     }
+
+#ifdef HAVE_PROFILER
+  priv->profiler = meta_profiler_new (priv->trace_file);
+#endif
 
   compositor_type = meta_context_get_compositor_type (context);
   switch (compositor_type)
@@ -729,6 +761,7 @@ meta_context_finalize (GObject *object)
 
 #ifdef HAVE_PROFILER
   g_clear_object (&priv->profiler);
+  g_clear_pointer (&priv->trace_file, g_free);
 #endif
 
   g_clear_pointer (&priv->gnome_wm_keybindings, g_free);
@@ -752,17 +785,13 @@ meta_context_class_init (MetaContextClass *klass)
   klass->setup = meta_context_real_setup;
 
   obj_props[PROP_NAME] =
-    g_param_spec_string ("name",
-                         "name",
-                         "Human readable name",
+    g_param_spec_string ("name", NULL, NULL,
                          NULL,
                          G_PARAM_READWRITE |
                          G_PARAM_CONSTRUCT_ONLY |
                          G_PARAM_STATIC_STRINGS);
   obj_props[PROP_UNSAFE_MODE] =
-    g_param_spec_boolean ("unsafe-mode",
-                          "unsafe mode",
-                          "Unsafe mode",
+    g_param_spec_boolean ("unsafe-mode", NULL, NULL,
                           FALSE,
                           G_PARAM_READWRITE |
                           G_PARAM_EXPLICIT_NOTIFY |
@@ -790,10 +819,6 @@ meta_context_init (MetaContext *context)
 {
   MetaContextPrivate *priv = meta_context_get_instance_private (context);
   g_autoptr (GError) error = NULL;
-
-#ifdef HAVE_PROFILER
-  priv->profiler = meta_profiler_new ();
-#endif
 
   priv->plugin_gtype = G_TYPE_NONE;
   priv->gnome_wm_keybindings = g_strdup ("Mutter");

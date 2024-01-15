@@ -14,16 +14,13 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Written by:
  *     Jonas Ådahl <jadahl@gmail.com>
  */
 
-#ifndef META_CLUTTER_BACKEND_NATIVE_H
-#define META_CLUTTER_BACKEND_NATIVE_H
+#pragma once
 
 #include <glib-object.h>
 
@@ -37,5 +34,3 @@ G_DECLARE_FINAL_TYPE (MetaClutterBackendNative, meta_clutter_backend_native,
                       ClutterBackend)
 
 MetaClutterBackendNative * meta_clutter_backend_native_new (MetaBackend *backend);
-
-#endif /* META_CLUTTER_BACKEND_NATIVE_H */

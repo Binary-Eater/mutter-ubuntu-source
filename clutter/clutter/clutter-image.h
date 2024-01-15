@@ -22,15 +22,15 @@
  *   Emmanuele Bassi <ebassi@linux.intel.com>
  */
 
-#ifndef __CLUTTER_IMAGE_H__
-#define __CLUTTER_IMAGE_H__
+#pragma once
 
 #if !defined(__CLUTTER_H_INSIDE__) && !defined(CLUTTER_COMPILATION)
 #error "Only <clutter/clutter.h> can be included directly."
 #endif
 
-#include <cogl/cogl.h>
-#include <clutter/clutter-types.h>
+#include "cogl/cogl.h"
+#include "clutter/clutter-types.h"
+#include "mtk/mtk.h"
 
 G_BEGIN_DECLS
 
@@ -49,8 +49,6 @@ struct _ClutterImageClass
 {
   /*< private >*/
   GObjectClass parent_class;
-
-  gpointer _padding[16];
 };
 
 CLUTTER_EXPORT
@@ -64,12 +62,12 @@ gboolean                clutter_image_set_data          (ClutterImage           
                                                          guint                         row_stride,
                                                          GError                      **error);
 CLUTTER_EXPORT
-gboolean                clutter_image_set_area          (ClutterImage                 *image,
-                                                         const guint8                 *data,
-                                                         CoglPixelFormat               pixel_format,
-                                                         const cairo_rectangle_int_t  *rect,
-                                                         guint                         row_stride,
-                                                         GError                      **error);
+gboolean                clutter_image_set_area          (ClutterImage        *image,
+                                                         const guint8        *data,
+                                                         CoglPixelFormat      pixel_format,
+                                                         const MtkRectangle  *rect,
+                                                         guint                row_stride,
+                                                         GError             **error);
 CLUTTER_EXPORT
 gboolean                clutter_image_set_bytes         (ClutterImage                 *image,
                                                          GBytes                       *data,
@@ -83,5 +81,3 @@ CLUTTER_EXPORT
 CoglTexture *           clutter_image_get_texture       (ClutterImage                 *image);
 
 G_END_DECLS
-
-#endif /* __CLUTTER_IMAGE_H__ */

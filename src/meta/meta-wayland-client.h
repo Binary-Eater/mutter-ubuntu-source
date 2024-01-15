@@ -14,13 +14,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef META_WAYLAND_CLIENT_H
-#define META_WAYLAND_CLIENT_H
+#pragma once
 
 #include <glib-object.h>
 #include <gio/gio.h>
@@ -63,6 +60,9 @@ META_EXPORT
 void meta_wayland_client_show_in_window_list (MetaWaylandClient *client,
                                               MetaWindow        *window);
 
+META_EXPORT
+void meta_wayland_client_make_desktop (MetaWaylandClient *client,
+                                       MetaWindow        *window);
+
 G_END_DECLS
 
-#endif /* META_WAYLAND_CLIENT_H */

@@ -549,9 +549,7 @@ meta_keymap_x11_class_init (MetaKeymapX11Class *klass)
   ClutterKeymapClass *keymap_class = CLUTTER_KEYMAP_CLASS (klass);
 
   obj_props[PROP_BACKEND] =
-    g_param_spec_object ("backend",
-                         "Backend",
-                         "The backend",
+    g_param_spec_object ("backend", NULL, NULL,
                          META_TYPE_BACKEND,
                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY);
 
@@ -618,13 +616,6 @@ meta_keymap_x11_handle_event (MetaKeymapX11 *keymap_x11,
     }
 
   return retval;
-}
-
-int
-meta_keymap_x11_get_key_group (MetaKeymapX11       *keymap,
-                               ClutterModifierType  state)
-{
-  return XkbGroupForCoreState (state);
 }
 
 G_GNUC_BEGIN_IGNORE_DEPRECATIONS

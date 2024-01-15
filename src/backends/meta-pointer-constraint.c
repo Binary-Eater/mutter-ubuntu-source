@@ -14,18 +14,16 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Written by:
  *     Jonas Ådahl <jadahl@gmail.com>
  */
 
 /**
- * SECTION:meta-pointer-constraint
- * @title: MetaPointerConstraint
- * @short_description: Pointer client constraints.
+ * MetaPointerConstraint:
+ *
+ * Pointer client constraints.
  *
  * A MetaPointerConstraint can be used to implement any kind of pointer
  * constraint as requested by a client, such as cursor lock.

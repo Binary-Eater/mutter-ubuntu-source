@@ -12,13 +12,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef META_KMS_CONNECTOR_H
-#define META_KMS_CONNECTOR_H
+#pragma once
 
 #include <glib-object.h>
 #include <stdint.h>
@@ -102,5 +99,3 @@ gboolean meta_kms_connector_is_color_space_supported (MetaKmsConnector     *conn
                                                       MetaOutputColorspace  color_space);
 
 gboolean meta_kms_connector_is_hdr_metadata_supported (MetaKmsConnector *connector);
-
-#endif /* META_KMS_CONNECTOR_H */

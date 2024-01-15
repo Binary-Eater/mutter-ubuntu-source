@@ -14,16 +14,13 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Written by:
  *     Dor Askayo <dor.askayo@gmail.com>
  */
 
-#ifndef META_COMPOSITOR_VIEW_NATIVE_H
-#define META_COMPOSITOR_VIEW_NATIVE_H
+#pragma once
 
 #include "clutter/clutter-mutter.h"
 #include "compositor/meta-compositor-view.h"
@@ -39,5 +36,3 @@ MetaCompositorViewNative *meta_compositor_view_native_new (ClutterStageView *sta
 void meta_compositor_view_native_maybe_assign_scanout (MetaCompositorViewNative *view_native,
                                                        MetaCompositor           *compositor);
 #endif /* HAVE_WAYLAND */
-
-#endif /* META_COMPOSITOR_VIEW_NATIVE_H */

@@ -12,13 +12,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef META_CRTC_MODE_KMS_H
-#define META_CRTC_MODE_KMS_H
+#pragma once
 
 #include <xf86drm.h>
 #include <xf86drmMode.h>
@@ -35,5 +32,3 @@ MetaKmsMode * meta_crtc_mode_kms_get_kms_mode (MetaCrtcModeKms *mode_kms);
 
 MetaCrtcModeKms * meta_crtc_mode_kms_new (MetaKmsMode *kms_mode,
                                           uint64_t     id);
-
-#endif /* META_CRTC_MODE_KMS_H */

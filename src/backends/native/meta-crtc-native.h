@@ -12,13 +12,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef META_CRTC_NATIVE_H
-#define META_CRTC_NATIVE_H
+#pragma once
 
 #include "backends/meta-crtc.h"
 
@@ -40,5 +37,3 @@ gboolean meta_crtc_native_is_transform_handled (MetaCrtcNative       *crtc_nativ
                                                 MetaMonitorTransform  transform);
 
 gboolean meta_crtc_native_is_hw_cursor_supported (MetaCrtcNative *crtc_native);
-
-#endif /* META_CRTC_NATIVE_H */

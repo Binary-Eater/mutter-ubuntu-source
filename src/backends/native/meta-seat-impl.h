@@ -20,8 +20,7 @@
  * Author: Jonas Ådahl <jadahl@gmail.com>
  */
 
-#ifndef META_SEAT_IMPL_H
-#define META_SEAT_IMPL_H
+#pragma once
 
 #ifndef META_INPUT_THREAD_H_INSIDE
 #error "This header cannot be included directly. Use "backends/native/meta-input-thread.h""
@@ -68,7 +67,7 @@ struct _MetaSeatImpl
   MetaSeatNative *seat_native;
   char *seat_id;
   MetaSeatNativeFlag flags;
-  MetaEventSource *event_source;
+  GSource *libinput_source;
   struct libinput *libinput;
   GRWLock state_lock;
 
@@ -131,6 +130,8 @@ MetaSeatImpl * meta_seat_impl_new (MetaSeatNative     *seat_native,
                                    const char         *seat_id,
                                    MetaSeatNativeFlag  flags);
 
+void meta_seat_impl_start (MetaSeatImpl *seat_impl);
+
 void meta_seat_impl_destroy (MetaSeatImpl *seat_impl);
 
 META_EXPORT_TEST
@@ -151,7 +152,8 @@ void meta_seat_impl_notify_relative_motion_in_impl (MetaSeatImpl       *seat_imp
                                                     float               dx,
                                                     float               dy,
                                                     float               dx_unaccel,
-                                                    float               dy_unaccel);
+                                                    float               dy_unaccel,
+                                                    double             *axes);
 
 void meta_seat_impl_notify_absolute_motion_in_impl (MetaSeatImpl       *seat_impl,
                                                     ClutterInputDevice *input_device,
@@ -226,6 +228,9 @@ void meta_seat_impl_set_viewports (MetaSeatImpl     *seat_impl,
 void meta_seat_impl_warp_pointer (MetaSeatImpl *seat_impl,
                                   int           x,
                                   int           y);
+void meta_seat_impl_init_pointer_position (MetaSeatImpl *seat_impl,
+                                           float         x,
+                                           float         y);
 gboolean meta_seat_impl_query_state (MetaSeatImpl         *seat_impl,
                                      ClutterInputDevice   *device,
                                      ClutterEventSequence *sequence,
@@ -233,7 +238,6 @@ gboolean meta_seat_impl_query_state (MetaSeatImpl         *seat_impl,
                                      ClutterModifierType  *modifiers);
 ClutterInputDevice * meta_seat_impl_get_pointer (MetaSeatImpl *seat_impl);
 ClutterInputDevice * meta_seat_impl_get_keyboard (MetaSeatImpl *seat_impl);
-GSList * meta_seat_impl_get_devices_in_impl (MetaSeatImpl *seat_impl);
 
 MetaKeymapNative * meta_seat_impl_get_keymap (MetaSeatImpl *seat_impl);
 
@@ -253,5 +257,3 @@ void meta_seat_impl_queue_main_thread_idle (MetaSeatImpl   *seat_impl,
                                             GDestroyNotify  destroy_notify);
 
 MetaBackend * meta_seat_impl_get_backend (MetaSeatImpl *seat_impl);
-
-#endif /* META_SEAT_IMPL_H */

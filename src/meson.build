@@ -1,5 +1,5 @@
-mutter_includesubdir = join_paths(pkgname, 'meta')
-mutter_includedir = join_paths(includedir, mutter_includesubdir)
+mutter_includesubdir = pkgname / 'meta'
+mutter_includedir = includedir / mutter_includesubdir
 
 mutter_includes = [
   include_directories('.'),
@@ -27,11 +27,18 @@ mutter_pkg_private_deps = [
   gnome_settings_daemon_dep,
   json_glib_dep,
   xkbcommon_dep,
+  libeis_dep,
 ]
 
 if have_gnome_desktop
   mutter_pkg_private_deps += [
     gnome_desktop_dep,
+  ]
+endif
+
+if have_libdisplay_info
+  mutter_pkg_private_deps += [
+    libdisplay_info_dep,
   ]
 endif
 
@@ -81,6 +88,7 @@ endif
 if have_remote_desktop
   mutter_pkg_private_deps += [
     libpipewire_dep,
+    libeis_dep,
   ]
 endif
 
@@ -137,13 +145,18 @@ endif
 
 if have_native_backend
   mutter_pkg_private_deps += [
-    libdrm_dep,
     libinput_dep,
     gudev_dep,
     libgbm_dep,
     logind_provider_dep,
     libudev_dep,
     xkbcommon_dep,
+  ]
+endif
+
+if have_wayland or have_native_backend
+  mutter_pkg_private_deps += [
+    libdrm_dep,
   ]
 endif
 
@@ -214,12 +227,18 @@ mutter_sources = [
   'backends/meta-dbus-session-watcher.h',
   'backends/meta-display-config-shared.h',
   'backends/meta-dnd-private.h',
+  'backends/meta-fd-source.c',
+  'backends/meta-fd-source.h',
   'backends/meta-gpu.c',
   'backends/meta-gpu.h',
   'backends/meta-idle-monitor.c',
   'backends/meta-idle-manager.c',
   'backends/meta-idle-manager.h',
   'backends/meta-idle-monitor-private.h',
+  'backends/meta-input-capture.c',
+  'backends/meta-input-capture.h',
+  'backends/meta-input-capture-session.c',
+  'backends/meta-input-capture-session.h',
   'backends/meta-input-device.c',
   'backends/meta-input-mapper.c',
   'backends/meta-input-mapper-private.h',
@@ -301,6 +320,9 @@ mutter_sources = [
   'compositor/meta-later.c',
   'compositor/meta-module.c',
   'compositor/meta-module.h',
+  'compositor/meta-multi-texture.c',
+  'compositor/meta-multi-texture-format.c',
+  'compositor/meta-multi-texture-format-private.h',
   'compositor/meta-plugin.c',
   'compositor/meta-plugin-manager.c',
   'compositor/meta-plugin-manager.h',
@@ -518,6 +540,12 @@ endif
 
 if have_remote_desktop
   mutter_sources += [
+    'backends/meta-eis.c',
+    'backends/meta-eis.h',
+    'backends/meta-eis-client.c',
+    'backends/meta-eis-client.h',
+    'backends/meta-eis-viewport.c',
+    'backends/meta-eis-viewport.h',
     'backends/meta-remote-desktop.c',
     'backends/meta-remote-desktop.h',
     'backends/meta-remote-desktop-session.c',
@@ -601,6 +629,8 @@ if have_wayland
     'wayland/meta-wayland-gtk-shell.c',
     'wayland/meta-wayland-gtk-shell.h',
     'wayland/meta-wayland.h',
+    'wayland/meta-wayland-idle-inhibit.c',
+    'wayland/meta-wayland-idle-inhibit.h',
     'wayland/meta-wayland-inhibit-shortcuts.c',
     'wayland/meta-wayland-inhibit-shortcuts-dialog.c',
     'wayland/meta-wayland-inhibit-shortcuts-dialog.h',
@@ -712,8 +742,6 @@ if have_native_backend
     'backends/native/meta-barrier-native.h',
     'backends/native/meta-clutter-backend-native.c',
     'backends/native/meta-clutter-backend-native.h',
-    'backends/native/meta-cogl-utils.c',
-    'backends/native/meta-cogl-utils.h',
     'backends/native/meta-crtc-kms.c',
     'backends/native/meta-crtc-kms.h',
     'backends/native/meta-crtc-native.c',
@@ -766,6 +794,8 @@ if have_native_backend
     'backends/native/meta-kms-crtc-private.h',
     'backends/native/meta-kms-crtc.c',
     'backends/native/meta-kms-crtc.h',
+    'backends/native/meta-kms-cursor-manager.c',
+    'backends/native/meta-kms-cursor-manager.h',
     'backends/native/meta-kms-device-private.h',
     'backends/native/meta-kms-device.c',
     'backends/native/meta-kms-device.h',
@@ -820,6 +850,12 @@ if have_native_backend
     'backends/native/meta-seat-native.h',
     'backends/native/meta-stage-native.c',
     'backends/native/meta-stage-native.h',
+    'backends/native/meta-thread-impl.c',
+    'backends/native/meta-thread-impl.h',
+    'backends/native/meta-thread-private.h',
+    'backends/native/meta-thread.c',
+    'backends/native/meta-thread.h',
+    'backends/native/meta-thread-private.h',
     'backends/native/meta-udev.c',
     'backends/native/meta-udev.h',
     'backends/native/meta-virtual-input-device-native.c',
@@ -835,6 +871,13 @@ if have_native_backend
   ]
 endif
 
+if have_wayland or have_native_backend
+  mutter_sources += [
+    'common/meta-cogl-drm-formats.c',
+    'common/meta-cogl-drm-formats.h',
+  ]
+endif
+
 if have_wayland_eglstream
   mutter_sources += [
     'wayland/meta-wayland-egl-stream.c',
@@ -842,7 +885,9 @@ if have_wayland_eglstream
   ]
 endif
 
-mutter_private_enum_sources = []
+mutter_private_enum_sources = [
+  'core/window-private.h',
+]
 
 if have_remote_desktop
   mutter_private_enum_sources += [
@@ -856,6 +901,7 @@ if have_native_backend
     'backends/native/meta-backend-native-types.h',
     'backends/native/meta-drm-buffer.h',
     'backends/native/meta-kms-types.h',
+    'backends/native/meta-thread.h',
   ]
 endif
 
@@ -974,7 +1020,7 @@ foreach dbus_interface: dbus_interfaces
   else
     directory = dbus_interfaces_dir
   endif
-  interface_file = join_paths(directory, interface)
+  interface_file = directory / interface
 
   prefix = dbus_interface['prefix']
 
@@ -995,6 +1041,13 @@ foreach dbus_interface: dbus_interfaces
   mutter_built_sources += dbus_sources
 endforeach
 
+dbus_input_capture_built_sources = gnome.gdbus_codegen('meta-dbus-input-capture',
+    dbus_interfaces_dir / 'org.gnome.Mutter.InputCapture.xml',
+    interface_prefix: 'org.gnome.Mutter',
+    namespace: 'MetaDBus',
+)
+mutter_built_sources += dbus_input_capture_built_sources
+
 wayland_protocol_server_headers = []
 wayland_protocol_client_headers = []
 wayland_protocol_sources = []
@@ -1009,6 +1062,7 @@ if have_wayland
   wayland_protocols = [
     ['fractional-scale', 'staging', 'v1', ],
     ['gtk-shell', 'private', ],
+    ['idle-inhibit', 'unstable', 'v1', ],
     ['keyboard-shortcuts-inhibit', 'unstable', 'v1', ],
     ['linux-dmabuf', 'unstable', 'v1', ],
     ['pointer-constraints', 'unstable', 'v1', ],
@@ -1049,33 +1103,24 @@ if have_wayland
 
     if protocol_type == 'stable'
       output_base = protocol_name
-      input = join_paths(protocols_dir,
-                         '@0@/@1@/@2@.xml'.format(protocol_type,
-                         protocol_name,
-                         output_base))
+      input = protocols_dir / protocol_type / protocol_name / '@0@.xml'.format(output_base)
     elif protocol_type == 'staging'
       protocol_version = p.get(2)
       output_base = '@0@-@1@'.format(protocol_name, protocol_version)
-      input = join_paths(protocols_dir,
-                         '@0@/@1@/@2@.xml'.format(protocol_type,
-                         protocol_name,
-                         output_base))
+      input = protocols_dir / protocol_type / protocol_name / '@0@.xml'.format(output_base)
     elif protocol_type == 'private'
       output_base = protocol_name
       input = 'wayland/protocol/@0@.xml'.format(protocol_name)
     elif protocol_type == 'third-party'
       output_base = protocol_name
       protocol_dir = p.get(2)
-      input = join_paths(protocol_dir, '@0@.xml'.format(protocol_name))
+      input = protocol_dir / '@0@.xml'.format(protocol_name)
     else
       protocol_version = p.get(2)
       output_base = '@0@-@1@-@2@'.format(protocol_name,
                                          protocol_type,
                                          protocol_version)
-      input = join_paths(protocols_dir,
-                         '@0@/@1@/@2@.xml'.format(protocol_type,
-                                                  protocol_name,
-                                                  output_base))
+      input = protocols_dir / protocol_type / protocol_name / '@0@.xml'.format(output_base)
     endif
 
     server_header = custom_target('@0@ server header'.format(output_base),
@@ -1130,7 +1175,7 @@ mutter_built_sources += mutter_enum_types
 mutter_built_headers = []
 foreach built_source : mutter_built_sources
   if built_source.full_path().endswith('.h')
-    built_headers += [built_source]
+    mutter_built_headers += [built_source]
   endif
 endforeach
 
@@ -1225,11 +1270,13 @@ if have_introspection
       libmutter_cogl_gir[0],
       libmutter_cogl_pango_gir[0],
       libmutter_clutter_gir[0],
+      libmutter_mtk_gir[0],
     ],
     dependencies: [
       libmutter_dep,
       mutter_deps,
     ],
+    export_packages: 'libmutter-@0@'.format(libmutter_api_version),
     extra_args: mutter_c_args + introspection_args,
     install_dir_gir: pkglibdir,
     install_dir_typelib: pkglibdir,

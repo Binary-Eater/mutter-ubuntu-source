@@ -12,9 +12,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  */
 
@@ -169,7 +167,7 @@ meta_remote_access_controller_inhibit_remote_access (MetaRemoteAccessController 
  * @controller: a #MetaRemoteAccessController
  *
  * Uninhibits remote access sessions from being created and running. If this was
- * the last inhibitation that was inhibited, new remote access sessions can now
+ * the last inhibition that was inhibited, new remote access sessions can now
  * be created.
  */
 void
@@ -263,9 +261,7 @@ meta_remote_access_handle_class_init (MetaRemoteAccessHandleClass *klass)
                   G_TYPE_NONE, 0);
 
   obj_props[PROP_IS_RECORDING] =
-    g_param_spec_boolean ("is-recording",
-                          "is-recording",
-                          "Is a screen recording",
+    g_param_spec_boolean ("is-recording", NULL, NULL,
                           FALSE,
                           G_PARAM_READWRITE |
                           G_PARAM_CONSTRUCT_ONLY |

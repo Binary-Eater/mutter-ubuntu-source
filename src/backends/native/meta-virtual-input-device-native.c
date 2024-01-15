@@ -22,6 +22,7 @@
 #include <glib-object.h>
 #include <linux/input.h>
 
+#include "backends/meta-backend-private.h"
 #include "backends/native/meta-input-thread.h"
 #include "backends/native/meta-seat-native.h"
 #include "backends/native/meta-virtual-input-device-native.h"
@@ -158,19 +159,19 @@ static gboolean
 release_device_in_impl (GTask *task)
 {
   ImplState *impl_state = g_task_get_task_data (task);
-  MetaInputDeviceNative *device_native;
+  ClutterSeat *seat;
   MetaSeatImpl *seat_impl;
   int code;
   uint64_t time_us;
   ClutterEvent *device_event;
 
-  device_native = META_INPUT_DEVICE_NATIVE (impl_state->device);
-  seat_impl = meta_input_device_native_get_seat_impl (device_native);
+  seat = clutter_input_device_get_seat (impl_state->device);
+  seat_impl = META_SEAT_NATIVE (seat)->impl;
   time_us = g_get_monotonic_time ();
 
   meta_topic (META_DEBUG_INPUT,
               "Releasing pressed buttons while destroying virtual input device "
-              "(device %p)", device_native);
+              "(device %p)", impl_state->device);
 
   for (code = 0; code < G_N_ELEMENTS (impl_state->button_count); code++)
     {
@@ -199,13 +200,14 @@ release_device_in_impl (GTask *task)
         }
     }
 
-  device_event = clutter_event_new (CLUTTER_DEVICE_REMOVED);
-  clutter_event_set_device (device_event, impl_state->device);
+  device_event = clutter_event_device_notify_new (CLUTTER_DEVICE_REMOVED,
+                                                  CLUTTER_EVENT_NONE,
+                                                  time_us,
+                                                  impl_state->device);
   _clutter_event_push (device_event, FALSE);
 
   g_clear_object (&impl_state->device);
   g_task_return_boolean (task, TRUE);
-
   return G_SOURCE_REMOVE;
 }
 
@@ -224,7 +226,8 @@ notify_relative_motion_in_impl (GTask *task)
 						 virtual_evdev->impl_state->device,
 						 event->time_us,
 						 event->x, event->y,
-						 event->x, event->y);
+						 event->x, event->y,
+						 NULL);
   g_task_return_boolean (task, TRUE);
   return G_SOURCE_REMOVE;
 }
@@ -299,26 +302,6 @@ meta_virtual_input_device_native_notify_absolute_motion (ClutterVirtualInputDevi
   g_object_unref (task);
 }
 
-static int
-translate_to_evdev_button (int clutter_button)
-{
-  switch (clutter_button)
-    {
-    case CLUTTER_BUTTON_PRIMARY:
-      return BTN_LEFT;
-    case CLUTTER_BUTTON_SECONDARY:
-      return BTN_RIGHT;
-    case CLUTTER_BUTTON_MIDDLE:
-      return BTN_MIDDLE;
-    default:
-      /*
-       * For compatibility reasons, all additional buttons go after the old
-       * 4-7 scroll ones.
-       */
-      return clutter_button + (BTN_LEFT - 1) - 4;
-    }
-}
-
 static gboolean
 notify_button_in_impl (GTask *task)
 {
@@ -332,7 +315,7 @@ notify_button_in_impl (GTask *task)
   if (event->time_us == CLUTTER_CURRENT_TIME)
     event->time_us = g_get_monotonic_time ();
 
-  evdev_button = translate_to_evdev_button (event->button);
+  evdev_button = meta_clutter_button_to_evdev (event->button);
 
   if (get_button_type (evdev_button) != EVDEV_BUTTON_TYPE_BUTTON)
     {
@@ -1035,12 +1018,15 @@ meta_virtual_input_device_native_constructed (GObject *object)
 
   virtual_evdev->impl_state = g_new0 (ImplState, 1);
   virtual_evdev->impl_state->device =
-    meta_input_device_native_new_virtual (virtual_evdev->seat->impl,
+    meta_input_device_native_new_virtual (CLUTTER_SEAT (virtual_evdev->seat),
                                           device_type,
                                           CLUTTER_INPUT_MODE_PHYSICAL);
 
-  device_event = clutter_event_new (CLUTTER_DEVICE_ADDED);
-  clutter_event_set_device (device_event, virtual_evdev->impl_state->device);
+  device_event =
+    clutter_event_device_notify_new (CLUTTER_DEVICE_ADDED,
+                                     CLUTTER_EVENT_NONE,
+                                     CLUTTER_CURRENT_TIME,
+                                     virtual_evdev->impl_state->device);
   _clutter_event_push (device_event, FALSE);
 }
 
@@ -1109,14 +1095,10 @@ meta_virtual_input_device_native_class_init (MetaVirtualInputDeviceNativeClass *
   virtual_input_device_class->notify_touch_motion = meta_virtual_input_device_native_notify_touch_motion;
   virtual_input_device_class->notify_touch_up = meta_virtual_input_device_native_notify_touch_up;
 
-  obj_props[PROP_SEAT] = g_param_spec_pointer ("seat",
-                                               "Seat",
-                                               "Seat",
+  obj_props[PROP_SEAT] = g_param_spec_pointer ("seat", NULL, NULL,
                                                CLUTTER_PARAM_READWRITE |
                                                G_PARAM_CONSTRUCT_ONLY);
-  obj_props[PROP_SLOT_BASE] = g_param_spec_uint ("slot-base",
-                                                 "Slot base",
-                                                 "Base for touch slots",
+  obj_props[PROP_SLOT_BASE] = g_param_spec_uint ("slot-base", NULL, NULL,
                                                  0, G_MAXUINT, 0,
                                                  CLUTTER_PARAM_READWRITE |
                                                  G_PARAM_CONSTRUCT_ONLY);

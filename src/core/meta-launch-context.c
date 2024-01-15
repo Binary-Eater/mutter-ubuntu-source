@@ -12,9 +12,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Author: Carlos Garnacho <carlosg@gnome.org>
  */
@@ -98,12 +96,6 @@ meta_launch_context_get_property (GObject    *object,
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
     }
-}
-
-static void
-meta_launch_context_finalize (GObject *object)
-{
-  G_OBJECT_CLASS (meta_launch_context_parent_class)->finalize (object);
 }
 
 static void
@@ -215,7 +207,6 @@ meta_launch_context_class_init (MetaLaunchContextClass *klass)
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
   GAppLaunchContextClass *ctx_class = G_APP_LAUNCH_CONTEXT_CLASS (klass);
 
-  object_class->finalize = meta_launch_context_finalize;
   object_class->constructed = meta_launch_context_constructed;
   object_class->set_property = meta_launch_context_set_property;
   object_class->get_property = meta_launch_context_get_property;
@@ -224,21 +215,15 @@ meta_launch_context_class_init (MetaLaunchContextClass *klass)
   ctx_class->launch_failed = meta_launch_context_launch_failed;
 
   props[PROP_DISPLAY] =
-    g_param_spec_object ("display",
-                         "display",
-                         "Display",
+    g_param_spec_object ("display", NULL, NULL,
                          META_TYPE_DISPLAY,
                          G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY);
   props[PROP_WORKSPACE] =
-    g_param_spec_object ("workspace",
-                         "workspace",
-                         "Workspace",
+    g_param_spec_object ("workspace", NULL, NULL,
                          META_TYPE_WORKSPACE,
                          G_PARAM_READWRITE);
   props[PROP_TIMESTAMP] =
-    g_param_spec_uint ("timestamp",
-                       "timestamp",
-                       "Timestamp",
+    g_param_spec_uint ("timestamp", NULL, NULL,
                        0, G_MAXUINT32, 0,
                        G_PARAM_READWRITE);
 

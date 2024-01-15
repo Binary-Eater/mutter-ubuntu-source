@@ -25,9 +25,9 @@
  */
 
 /**
- * SECTION:meta-monitor-manager-xrandr
- * @title: MetaMonitorManagerXrandr
- * @short_description: A subclass of #MetaMonitorManager using XRadR
+ * MetaMonitorManagerXrandr:
+ *
+ * A subclass of #MetaMonitorManager using XRadR
  *
  * #MetaMonitorManagerXrandr is a subclass of #MetaMonitorManager which
  * implements its functionality using the RandR X protocol.
@@ -58,7 +58,7 @@
 #include "backends/x11/meta-output-xrandr.h"
 #include "clutter/clutter.h"
 #include "meta/main.h"
-#include "meta/meta-x11-errors.h"
+#include "mtk/mtk-x11.h"
 
 /* Look for DPI_FALLBACK in:
  * http://git.gnome.org/browse/gnome-settings-daemon/tree/plugins/xsettings/gsd-xsettings-manager.c
@@ -141,6 +141,7 @@ meta_monitor_manager_xrandr_read_current_state (MetaMonitorManager *manager)
   BOOL dpms_capable, dpms_enabled;
   CARD16 dpms_state;
   MetaPowerSave power_save_mode;
+  MetaPowerSaveChangeReason reason;
 
   dpms_capable = DPMSCapable (xdisplay);
 
@@ -151,7 +152,11 @@ meta_monitor_manager_xrandr_read_current_state (MetaMonitorManager *manager)
   else
     power_save_mode = META_POWER_SAVE_UNSUPPORTED;
 
-  meta_monitor_manager_power_save_mode_changed (manager, power_save_mode);
+
+  reason = META_POWER_SAVE_CHANGE_REASON_HOTPLUG;
+  meta_monitor_manager_power_save_mode_changed (manager,
+                                                power_save_mode,
+                                                reason);
 
   parent_class->read_current_state (manager);
 }
@@ -180,11 +185,10 @@ meta_monitor_manager_xrandr_set_power_save_mode (MetaMonitorManager *manager,
     return;
   }
 
-  meta_clutter_x11_trap_x_errors ();
+  mtk_x11_error_trap_push (manager_xrandr->xdisplay);
   DPMSForceLevel (manager_xrandr->xdisplay, state);
   DPMSSetTimeouts (manager_xrandr->xdisplay, 0, 0, 0);
-  XSync (manager_xrandr->xdisplay, False);
-  meta_clutter_x11_untrap_x_errors ();
+  mtk_x11_error_trap_pop (manager_xrandr->xdisplay);
 }
 
 static xcb_randr_rotation_t
@@ -766,9 +770,11 @@ meta_monitor_manager_xrandr_tiled_monitor_added (MetaMonitorManager *manager,
       xrandr_monitor_info->outputs[i] = meta_output_get_id (output);
     }
 
+  mtk_x11_error_trap_push (manager_xrandr->xdisplay);
   XRRSetMonitor (manager_xrandr->xdisplay,
                  DefaultRootWindow (manager_xrandr->xdisplay),
                  xrandr_monitor_info);
+  mtk_x11_error_trap_pop (manager_xrandr->xdisplay);
   XRRFreeMonitors (xrandr_monitor_info);
 }
 

@@ -12,14 +12,11 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  */
 
-#ifndef COGL_TEST_UTILS_H
-#define COGL_TEST_UTILS_H
+#pragma once
 
 #include "meta-test/meta-context-test.h"
 
@@ -298,5 +295,3 @@ test_utils_is_pot (unsigned int number)
   /* Make sure there is only one bit set */
   return (number & (number - 1)) == 0;
 }
-
-#endif /* COGL_TEST_UTILS_H */

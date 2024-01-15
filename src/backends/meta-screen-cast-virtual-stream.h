@@ -12,14 +12,11 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  */
 
-#ifndef META_SCREEN_CAST_VIRTUAL_STREAM_H
-#define META_SCREEN_CAST_VIRTUAL_STREAM_H
+#pragma once
 
 #include "backends/meta-screen-cast-stream.h"
 
@@ -36,5 +33,3 @@ MetaScreenCastVirtualStream * meta_screen_cast_virtual_stream_new (MetaScreenCas
                                                                    GError                   **error);
 
 MetaVirtualMonitor * meta_screen_cast_virtual_stream_get_virtual_monitor (MetaScreenCastVirtualStream *virtual_stream);
-
-#endif /* META_SCREEN_CAST_VIRTUAL_STREAM_H */

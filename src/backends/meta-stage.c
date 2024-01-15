@@ -12,9 +12,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Written by:
  *     Jasper St. Pierre <jstpierre@mecheye.net>
@@ -32,15 +30,6 @@
 #include "meta/util.h"
 
 #define N_WATCH_MODES 4
-
-enum
-{
-  ACTORS_PAINTED,
-
-  N_SIGNALS
-};
-
-static guint signals[N_SIGNALS];
 
 struct _MetaStageWatch
 {
@@ -186,11 +175,11 @@ meta_stage_finalize (GObject *object)
 }
 
 static void
-notify_watchers_for_mode (MetaStage           *stage,
-                          ClutterStageView    *view,
-                          ClutterPaintContext *paint_context,
-                          ClutterFrame        *frame,
-                          MetaStageWatchPhase  watch_phase)
+notify_watchers_for_mode (MetaStage            *stage,
+                          ClutterStageView     *view,
+                          const cairo_region_t *redraw_clip,
+                          ClutterFrame         *frame,
+                          MetaStageWatchPhase   watch_phase)
 {
   GPtrArray *watchers;
   int i;
@@ -204,7 +193,7 @@ notify_watchers_for_mode (MetaStage           *stage,
       if (watch->view && view != watch->view)
         continue;
 
-      watch->callback (stage, view, paint_context, frame, watch->user_data);
+      watch->callback (stage, view, redraw_clip, frame, watch->user_data);
     }
 }
 
@@ -226,18 +215,18 @@ meta_stage_paint (ClutterActor        *actor,
   MetaStage *stage = META_STAGE (actor);
   ClutterStageView *view;
   ClutterFrame *frame;
+  const cairo_region_t *redraw_clip;
 
   CLUTTER_ACTOR_CLASS (meta_stage_parent_class)->paint (actor, paint_context);
 
   frame = clutter_paint_context_get_frame (paint_context);
   view = clutter_paint_context_get_stage_view (paint_context);
+  redraw_clip = clutter_paint_context_get_redraw_clip (paint_context);
   if (view)
     {
-      notify_watchers_for_mode (stage, view, paint_context, frame,
+      notify_watchers_for_mode (stage, view, redraw_clip, frame,
                                 META_STAGE_WATCH_AFTER_ACTOR_PAINT);
     }
-
-  g_signal_emit (stage, signals[ACTORS_PAINTED], 0);
 
   if ((clutter_paint_context_get_paint_flags (paint_context) &
        CLUTTER_PAINT_FLAG_FORCE_CURSORS))
@@ -263,7 +252,7 @@ meta_stage_paint (ClutterActor        *actor,
 
   if (view)
     {
-      notify_watchers_for_mode (stage, view, paint_context, frame,
+      notify_watchers_for_mode (stage, view, redraw_clip, frame,
                                 META_STAGE_WATCH_AFTER_OVERLAY_PAINT);
     }
 }
@@ -280,7 +269,7 @@ meta_stage_paint_view (ClutterStage         *stage,
                                                              redraw_clip,
                                                              frame);
 
-  notify_watchers_for_mode (meta_stage, view, NULL, frame,
+  notify_watchers_for_mode (meta_stage, view, redraw_clip, frame,
                             META_STAGE_WATCH_AFTER_PAINT);
 }
 
@@ -305,8 +294,9 @@ meta_stage_deactivate (ClutterStage *actor)
 }
 
 static void
-on_power_save_changed (MetaMonitorManager *monitor_manager,
-                       MetaStage          *stage)
+on_power_save_changed (MetaMonitorManager        *monitor_manager,
+                       MetaPowerSaveChangeReason  reason,
+                       MetaStage                 *stage)
 {
   if (meta_monitor_manager_get_power_save_mode (monitor_manager) ==
       META_POWER_SAVE_ON)
@@ -328,13 +318,6 @@ meta_stage_class_init (MetaStageClass *klass)
   stage_class->deactivate = meta_stage_deactivate;
   stage_class->before_paint = meta_stage_before_paint;
   stage_class->paint_view = meta_stage_paint_view;
-
-  signals[ACTORS_PAINTED] = g_signal_new ("actors-painted",
-                                          G_TYPE_FROM_CLASS (klass),
-                                          G_SIGNAL_RUN_LAST,
-                                          0,
-                                          NULL, NULL, NULL,
-                                          G_TYPE_NONE, 0);
 }
 
 static void
@@ -391,19 +374,39 @@ queue_redraw_clutter_rect (MetaStage       *stage,
                            MetaOverlay     *overlay,
                            graphene_rect_t *rect)
 {
-  cairo_rectangle_int_t clip = {
+  MtkRectangle clip = {
     .x = floorf (rect->origin.x),
     .y = floorf (rect->origin.y),
     .width = ceilf (rect->size.width),
     .height = ceilf (rect->size.height)
   };
+  GList *l;
 
   /* Since we're flooring the coordinates, we need to enlarge the clip by the
    * difference between the actual coordinate and the floored value */
   clip.width += ceilf (rect->origin.x - clip.x) * 2;
   clip.height += ceilf (rect->origin.y - clip.y) * 2;
 
-  clutter_actor_queue_redraw_with_clip (CLUTTER_ACTOR (stage), &clip);
+  for (l = clutter_stage_peek_stage_views (CLUTTER_STAGE (stage));
+       l;
+       l = l->next)
+    {
+      ClutterStageView *view = l->data;
+      MtkRectangle view_layout;
+      MtkRectangle view_clip;
+
+      if (clutter_stage_view_get_default_paint_flags (view) &
+          CLUTTER_PAINT_FLAG_NO_CURSORS)
+        continue;
+
+      clutter_stage_view_get_layout (view, &view_layout);
+
+      if (mtk_rectangle_intersect (&clip, &view_layout, &view_clip))
+        {
+          clutter_stage_view_add_redraw_clip (view, &view_clip);
+          clutter_stage_view_schedule_update (view);
+        }
+    }
 }
 
 static void

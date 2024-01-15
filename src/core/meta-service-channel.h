@@ -12,13 +12,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef META_SERVICE_CHANNEL_H
-#define META_SERVICE_CHANNEL_H
+#pragma once
 
 #ifdef HAVE_WAYLAND
 
@@ -47,5 +44,3 @@ MetaWaylandClient * meta_service_channel_get_service_client (MetaServiceChannel 
                                                              MetaServiceClientType  service_client_type);
 
 #endif /* HAVE_WAYLAND */
-
-#endif /* META_SERVICE_CHANNEL_H */

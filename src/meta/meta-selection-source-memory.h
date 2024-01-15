@@ -12,15 +12,12 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Author: Carlos Garnacho <carlosg@gnome.org>
  */
 
-#ifndef META_MEMORY_SELECTION_SOURCE_H
-#define META_MEMORY_SELECTION_SOURCE_H
+#pragma once
 
 #include "meta/meta-selection-source.h"
 
@@ -35,5 +32,3 @@ G_DECLARE_FINAL_TYPE (MetaSelectionSourceMemory,
 META_EXPORT
 MetaSelectionSource * meta_selection_source_memory_new (const char *mimetype,
                                                         GBytes     *content);
-
-#endif /* META_SELECTION_SOURCE_MEMORY_H */

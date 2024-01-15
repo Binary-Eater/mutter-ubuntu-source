@@ -88,20 +88,6 @@ meta_workspace_manager_get_property (GObject    *object,
 }
 
 static void
-meta_workspace_manager_set_property (GObject      *object,
-                                     guint         prop_id,
-                                     const GValue *value,
-                                     GParamSpec   *pspec)
-{
-  switch (prop_id)
-    {
-    default:
-      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
-      break;
-    }
-}
-
-static void
 meta_workspace_manager_finalize (GObject *object)
 {
   MetaWorkspaceManager *workspace_manager = META_WORKSPACE_MANAGER (object);
@@ -117,7 +103,6 @@ meta_workspace_manager_class_init (MetaWorkspaceManagerClass *klass)
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
   object_class->get_property = meta_workspace_manager_get_property;
-  object_class->set_property = meta_workspace_manager_set_property;
 
   object_class->finalize = meta_workspace_manager_finalize;
 
@@ -180,25 +165,19 @@ meta_workspace_manager_class_init (MetaWorkspaceManagerClass *klass)
 
   g_object_class_install_property (object_class,
                                    PROP_LAYOUT_COLUMNS,
-                                   g_param_spec_int ("layout-columns",
-                                                     "Layout columns",
-                                                     "Number of columns in layout",
+                                   g_param_spec_int ("layout-columns", NULL, NULL,
                                                      -1, G_MAXINT, 1,
                                                      G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (object_class,
                                    PROP_LAYOUT_ROWS,
-                                   g_param_spec_int ("layout-rows",
-                                                     "Layout rows",
-                                                     "Number of rows in layout",
+                                   g_param_spec_int ("layout-rows", NULL, NULL,
                                                      -1, G_MAXINT, -1,
                                                      G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (object_class,
                                    PROP_N_WORKSPACES,
-                                   g_param_spec_int ("n-workspaces",
-                                                     "N Workspaces",
-                                                     "Number of workspaces",
+                                   g_param_spec_int ("n-workspaces", NULL, NULL,
                                                      1, G_MAXINT, 1,
                                                      G_PARAM_READABLE));
 }

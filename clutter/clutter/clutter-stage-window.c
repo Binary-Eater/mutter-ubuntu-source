@@ -1,11 +1,11 @@
-#include "clutter-build-config.h"
+#include "clutter/clutter-build-config.h"
 
 #include <glib-object.h>
 
-#include "clutter-actor.h"
-#include "clutter-frame.h"
-#include "clutter-stage-window.h"
-#include "clutter-private.h"
+#include "clutter/clutter-actor.h"
+#include "clutter/clutter-frame.h"
+#include "clutter/clutter-stage-window.h"
+#include "clutter/clutter-private.h"
 
 /**
  * ClutterStageWindow:
@@ -79,8 +79,8 @@ _clutter_stage_window_resize (ClutterStageWindow *window,
 }
 
 void
-_clutter_stage_window_get_geometry (ClutterStageWindow    *window,
-                                    cairo_rectangle_int_t *geometry)
+_clutter_stage_window_get_geometry (ClutterStageWindow *window,
+                                    MtkRectangle       *geometry)
 {
   CLUTTER_STAGE_WINDOW_GET_IFACE (window)->get_geometry (window, geometry);
 }

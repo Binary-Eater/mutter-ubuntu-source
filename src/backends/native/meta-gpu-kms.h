@@ -15,13 +15,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef META_GPU_KMS_H
-#define META_GPU_KMS_H
+#pragma once
 
 #include <glib-object.h>
 #include <xf86drm.h>
@@ -66,5 +63,3 @@ MetaGpuKmsFlipClosureContainer * meta_gpu_kms_wrap_flip_closure (MetaGpuKms *gpu
                                                                  GClosure   *flip_closure);
 
 void meta_gpu_kms_flip_closure_container_free (MetaGpuKmsFlipClosureContainer *closure_container);
-
-#endif /* META_GPU_KMS_H */

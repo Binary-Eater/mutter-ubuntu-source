@@ -19,8 +19,7 @@
  * Author: Carlos Garnacho <carlosg@gnome.org>
  */
 
-#ifndef META_INPUT_SETTINGS_PRIVATE_H
-#define META_INPUT_SETTINGS_PRIVATE_H
+#pragma once
 
 #include <gdesktop-enums.h>
 
@@ -130,6 +129,12 @@ struct _MetaInputSettingsClass
   void (* set_trackball_accel_profile) (MetaInputSettings          *settings,
                                         ClutterInputDevice         *device,
                                         GDesktopPointerAccelProfile profile);
+  void (* set_pointing_stick_accel_profile) (MetaInputSettings           *settings,
+                                             ClutterInputDevice          *device,
+                                             GDesktopPointerAccelProfile  profile);
+  void (* set_pointing_stick_scroll_method) (MetaInputSettings                 *settings,
+                                             ClutterInputDevice                *device,
+                                             GDesktopPointingStickScrollMethod  profile);
 
   void (* set_stylus_pressure) (MetaInputSettings            *settings,
                                 ClutterInputDevice           *device,
@@ -154,6 +159,8 @@ struct _MetaInputSettingsClass
 
   gboolean (* has_two_finger_scroll) (MetaInputSettings  *settings,
                                       ClutterInputDevice *device);
+  gboolean (* is_pointing_stick_device) (MetaInputSettings  *settings,
+                                         ClutterInputDevice *device);
 };
 
 void meta_input_settings_maybe_save_numlock_state (MetaInputSettings *input_settings,
@@ -185,5 +192,3 @@ void meta_input_settings_notify_kbd_a11y_change (MetaInputSettings     *input_se
                                                  MetaKeyboardA11yFlags  what_changed);
 
 MetaBackend * meta_input_settings_get_backend (MetaInputSettings *input_settings);
-
-#endif /* META_INPUT_SETTINGS_PRIVATE_H */

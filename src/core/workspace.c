@@ -20,9 +20,9 @@
  */
 
 /**
- * SECTION:workspace
- * @title:MetaWorkspace
- * @short_description:Workspaces
+ * MetaWorkspace:
+ *
+ * Workspaces
  *
  * A workspace is a set of windows which all live on the same
  * screen.  (You may also see the name "desktop" around the place,
@@ -84,7 +84,7 @@ static guint signals[LAST_SIGNAL] = { 0 };
 typedef struct _MetaWorkspaceLogicalMonitorData
 {
   GList *logical_monitor_region;
-  MetaRectangle logical_monitor_work_area;
+  MtkRectangle logical_monitor_work_area;
 } MetaWorkspaceLogicalMonitorData;
 
 typedef struct _MetaWorkspaceFocusableAncestorData
@@ -142,27 +142,6 @@ meta_workspace_clear_logical_monitor_data (MetaWorkspace *workspace)
 }
 
 static void
-meta_workspace_finalize (GObject *object)
-{
-  /* Actual freeing done in meta_workspace_remove() for now */
-  G_OBJECT_CLASS (meta_workspace_parent_class)->finalize (object);
-}
-
-static void
-meta_workspace_set_property (GObject      *object,
-                             guint         prop_id,
-                             const GValue *value,
-                             GParamSpec   *pspec)
-{
-  switch (prop_id)
-    {
-    default:
-      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
-      break;
-    }
-}
-
-static void
 meta_workspace_get_property (GObject      *object,
                              guint         prop_id,
                              GValue       *value,
@@ -195,9 +174,7 @@ static void
 meta_workspace_class_init (MetaWorkspaceClass *klass)
 {
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
-  object_class->finalize     = meta_workspace_finalize;
   object_class->get_property = meta_workspace_get_property;
-  object_class->set_property = meta_workspace_set_property;
 
   signals[WINDOW_ADDED] = g_signal_new ("window-added",
                                         G_TYPE_FROM_CLASS (klass),
@@ -214,19 +191,13 @@ meta_workspace_class_init (MetaWorkspaceClass *klass)
                                           G_TYPE_NONE, 1,
                                           META_TYPE_WINDOW);
 
-  obj_props[PROP_N_WINDOWS] = g_param_spec_uint ("n-windows",
-                                                 "N Windows",
-                                                 "Number of windows",
+  obj_props[PROP_N_WINDOWS] = g_param_spec_uint ("n-windows", NULL, NULL,
                                                  0, G_MAXUINT, 0,
                                                  G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
-  obj_props[PROP_WORKSPACE_INDEX] = g_param_spec_uint ("workspace-index",
-                                                       "Workspace index",
-                                                       "The workspace's index",
+  obj_props[PROP_WORKSPACE_INDEX] = g_param_spec_uint ("workspace-index", NULL, NULL,
                                                        0, G_MAXUINT, 0,
                                                        G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
-  obj_props[PROP_ACTIVE] = g_param_spec_boolean ("active",
-                                                 "Active",
-                                                 "Whether the workspace is currently active",
+  obj_props[PROP_ACTIVE] = g_param_spec_boolean ("active", NULL, NULL,
                                                  FALSE,
                                                  G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
 
@@ -867,8 +838,8 @@ ensure_work_areas_validated (MetaWorkspace *workspace)
   GList *windows;
   GList *tmp;
   GList *logical_monitors, *l;
-  MetaRectangle display_rect = { 0 };
-  MetaRectangle work_area;
+  MtkRectangle display_rect = { 0 };
+  MtkRectangle work_area;
 
   if (!workspace->work_areas_invalid)
     return;
@@ -932,7 +903,7 @@ ensure_work_areas_validated (MetaWorkspace *workspace)
    */
   work_area = display_rect;  /* start with the screen */
   if (workspace->screen_region == NULL)
-    work_area = meta_rect (0, 0, -1, -1);
+    work_area = MTK_RECTANGLE_INIT (0, 0, -1, -1);
   else
     meta_rectangle_clip_to_region (workspace->screen_region,
                                    FIXED_DIRECTION_NONE,
@@ -999,7 +970,7 @@ ensure_work_areas_validated (MetaWorkspace *workspace)
         /* FIXME: constraints.c untested with this, but it might be nice for
          * a screen reader or magnifier.
          */
-        work_area = meta_rect (work_area.x, work_area.y, -1, -1);
+        work_area = MTK_RECTANGLE_INIT (work_area.x, work_area.y, -1, -1);
       else
         meta_rectangle_clip_to_region (data->logical_monitor_region,
                                        FIXED_DIRECTION_NONE,
@@ -1023,8 +994,8 @@ ensure_work_areas_validated (MetaWorkspace *workspace)
    */
   if (workspace->screen_region == NULL)
     {
-      MetaRectangle *nonempty_region;
-      nonempty_region = g_new (MetaRectangle, 1);
+      MtkRectangle *nonempty_region;
+      nonempty_region = g_new (MtkRectangle, 1);
       *nonempty_region = workspace->work_area_screen;
       workspace->screen_region = g_list_prepend (NULL, nonempty_region);
     }
@@ -1061,7 +1032,7 @@ strut_lists_equal (GSList *l,
       MetaStrut *b = m->data;
 
       if (a->side != b->side ||
-          !meta_rectangle_equal (&a->rect, &b->rect))
+          !mtk_rectangle_equal (&a->rect, &b->rect))
         return FALSE;
     }
 
@@ -1086,7 +1057,7 @@ meta_workspace_set_builtin_struts (MetaWorkspace *workspace,
   MetaMonitorManager *monitor_manager =
     meta_backend_get_monitor_manager (backend);
   MetaDisplay *display = workspace->display;
-  MetaRectangle display_rect = { 0 };
+  MtkRectangle display_rect = { 0 };
   GSList *l;
 
   meta_display_get_size (display, &display_rect.width, &display_rect.height);
@@ -1154,7 +1125,7 @@ meta_workspace_set_builtin_struts (MetaWorkspace *workspace,
 void
 meta_workspace_get_work_area_for_logical_monitor (MetaWorkspace      *workspace,
                                                   MetaLogicalMonitor *logical_monitor,
-                                                  MetaRectangle      *area)
+                                                  MtkRectangle       *area)
 {
   meta_workspace_get_work_area_for_monitor (workspace,
                                             logical_monitor->number,
@@ -1173,7 +1144,7 @@ meta_workspace_get_work_area_for_logical_monitor (MetaWorkspace      *workspace,
 void
 meta_workspace_get_work_area_for_monitor (MetaWorkspace *workspace,
                                           int            which_monitor,
-                                          MetaRectangle *area)
+                                          MtkRectangle  *area)
 {
   MetaContext *context = meta_display_get_context (workspace->display);
   MetaBackend *backend = meta_context_get_backend (context);
@@ -1204,7 +1175,7 @@ meta_workspace_get_work_area_for_monitor (MetaWorkspace *workspace,
  */
 void
 meta_workspace_get_work_area_all_monitors (MetaWorkspace *workspace,
-                                           MetaRectangle *area)
+                                           MtkRectangle  *area)
 {
   ensure_work_areas_validated (workspace);
 
@@ -1455,7 +1426,7 @@ window_contains_point (MetaWindow *window,
                        int         root_x,
                        int         root_y)
 {
-  MetaRectangle rect;
+  MtkRectangle rect;
 
   meta_window_get_frame_rect (window, &rect);
 

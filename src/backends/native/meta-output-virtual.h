@@ -12,13 +12,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef META_OUTPUT_VIRTUAL_H
-#define META_OUTPUT_VIRTUAL_H
+#pragma once
 
 #include "backends/native/meta-backend-native-types.h"
 #include "backends/native/meta-output-native.h"
@@ -32,5 +29,3 @@ MetaOutputVirtual * meta_output_virtual_new (uint64_t                      id,
                                              const MetaVirtualMonitorInfo *info,
                                              MetaCrtcVirtual              *crtc_virtual,
                                              MetaCrtcModeVirtual          *crtc_mode_virtual);
-
-#endif /* META_OUTPUT_VIRTUAL_H */

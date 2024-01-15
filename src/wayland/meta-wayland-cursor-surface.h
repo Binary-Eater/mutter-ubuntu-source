@@ -14,13 +14,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef META_WAYLAND_CURSOR_SURFACE_H
-#define META_WAYLAND_CURSOR_SURFACE_H
+#pragma once
 
 #include "backends/meta-cursor-renderer.h"
 #include "wayland/meta-wayland-surface.h"
@@ -47,6 +44,3 @@ void                 meta_wayland_cursor_surface_get_hotspot  (MetaWaylandCursor
 void                 meta_wayland_cursor_surface_set_renderer (MetaWaylandCursorSurface *cursor_surface,
                                                                MetaCursorRenderer       *renderer);
 MetaCursorRenderer * meta_wayland_cursor_surface_get_renderer (MetaWaylandCursorSurface *cursor_surface);
-
-
-#endif /* META_WAYLAND_CURSOR_SURFACE_H */

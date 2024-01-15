@@ -11,9 +11,7 @@
  * more details.
  *
  * You should have received a copy of the GNU Lesser General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
- * Boston, MA 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  */
 #include <stdlib.h>
@@ -59,6 +57,7 @@ draw_touch (ClutterEvent *event,
 {
   ClutterEventSequence *sequence = clutter_event_get_event_sequence (event);
   const ClutterColor *color;
+  float x, y;
 
   color = g_hash_table_lookup (sequence_to_color, sequence);
   if (color == NULL)
@@ -71,7 +70,8 @@ draw_touch (ClutterEvent *event,
                              color->green / 255,
                              color->blue / 255,
                              color->alpha / 255);
-  cairo_arc (cr, event->touch.x, event->touch.y, 5, 0, 2 * G_PI);
+  clutter_event_get_coords (event, &x, &y);
+  cairo_arc (cr, x, y, 5, 0, 2 * G_PI);
   cairo_fill (cr);
 }
 
@@ -94,7 +94,7 @@ event_cb (ClutterActor *actor, ClutterEvent *event, ClutterActor *canvas)
 {
   ClutterEvent *copy;
 
-  if (event->type != CLUTTER_TOUCH_UPDATE)
+  if (clutter_event_type (event) != CLUTTER_TOUCH_UPDATE)
     return FALSE;
 
   copy = clutter_event_copy (event);
@@ -110,7 +110,7 @@ rect_event_cb (ClutterActor *actor, ClutterEvent *event, gpointer data)
 {
   ClutterColor color;
 
-  if (event->type != CLUTTER_TOUCH_BEGIN)
+  if (clutter_event_type (event) != CLUTTER_TOUCH_BEGIN)
     return FALSE;
 
   color = static_colors[g_random_int_range (0, NUM_COLORS)];

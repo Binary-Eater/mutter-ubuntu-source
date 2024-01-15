@@ -14,9 +14,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  */
 
@@ -208,27 +206,21 @@ meta_dbus_session_default_init (MetaDbusSessionInterface *iface)
 {
   g_object_interface_install_property (
     iface,
-    g_param_spec_object ("session-manager",
-                         "session manager",
-                         "D-Bus session manager",
+    g_param_spec_object ("session-manager", NULL, NULL,
                          META_TYPE_DBUS_SESSION_MANAGER,
                          G_PARAM_READWRITE |
                          G_PARAM_CONSTRUCT_ONLY |
                          G_PARAM_STATIC_STRINGS));
   g_object_interface_install_property (
     iface,
-    g_param_spec_string ("peer-name",
-                         "peer name",
-                         "D-Bus peer name",
+    g_param_spec_string ("peer-name", NULL, NULL,
                          NULL,
                          G_PARAM_READWRITE |
                          G_PARAM_CONSTRUCT_ONLY |
                          G_PARAM_STATIC_STRINGS));
   g_object_interface_install_property (
     iface,
-    g_param_spec_string ("id",
-                         "session id",
-                         "Unique ID of the session",
+    g_param_spec_string ("id", NULL, NULL,
                          NULL,
                          G_PARAM_READWRITE |
                          G_PARAM_CONSTRUCT_ONLY |

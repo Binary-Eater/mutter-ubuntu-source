@@ -21,9 +21,9 @@
  */
 
 /**
- * SECTION:display
- * @title: MetaDisplay
- * @short_description: Mutter display representation
+ * MetaDisplay:
+ *
+ * Mutter display representation
  *
  * The display is represented as a #MetaDisplay struct.
  */
@@ -37,16 +37,11 @@
 #include "backends/meta-backend-private.h"
 #include "backends/meta-cursor-sprite-xcursor.h"
 #include "backends/meta-cursor-tracker-private.h"
+#include "backends/meta-input-capture.h"
 #include "backends/meta-input-device-private.h"
 #include "backends/meta-input-mapper-private.h"
 #include "backends/meta-stage-private.h"
-#include "backends/x11/meta-backend-x11.h"
-#include "backends/x11/meta-clutter-backend-x11.h"
-#include "backends/x11/meta-event-x11.h"
-#include "backends/x11/cm/meta-backend-x11-cm.h"
-#include "backends/x11/nested/meta-backend-x11-nested.h"
 #include "compositor/compositor-private.h"
-#include "compositor/meta-compositor-x11.h"
 #include "cogl/cogl.h"
 #include "core/bell.h"
 #include "core/boxes-private.h"
@@ -65,12 +60,21 @@
 #include "meta/meta-backend.h"
 #include "meta/meta-enum-types.h"
 #include "meta/meta-sound-player.h"
-#include "meta/meta-x11-errors.h"
 #include "meta/prefs.h"
+
+#ifdef HAVE_X11_CLIENT
+#include "backends/x11/meta-backend-x11.h"
+#include "backends/x11/meta-clutter-backend-x11.h"
+#include "backends/x11/meta-event-x11.h"
+#include "backends/x11/cm/meta-backend-x11-cm.h"
+#include "backends/x11/nested/meta-backend-x11-nested.h"
+#include "compositor/meta-compositor-x11.h"
+#include "meta/meta-x11-errors.h"
 #include "x11/meta-startup-notification-x11.h"
 #include "x11/meta-x11-display-private.h"
 #include "x11/window-x11.h"
 #include "x11/xprops.h"
+#endif
 
 #ifdef HAVE_WAYLAND
 #include "compositor/meta-compositor-native.h"
@@ -135,6 +139,8 @@ typedef struct _MetaDisplayPrivate
 
   guint queue_later_ids[META_N_QUEUE_TYPES];
   GList *queue_windows[META_N_QUEUE_TYPES];
+
+  gboolean enable_input_capture;
 
   struct {
     MetaWindow *window;
@@ -392,12 +398,13 @@ meta_display_class_init (MetaDisplayClass *klass)
    * @message: (allow-none): The message to display, or %NULL
    *  to clear a previous restart message.
    *
-   * The ::show-restart-message signal will be emitted to indicate
-   * that the compositor should show a message during restart. This is
-   * emitted when meta_restart() is called, either by Mutter
-   * internally or by the embedding compositor.  The message should be
+   * The signal will be emitted to indicate that the compositor 
+   * should show a message during restart.
+   *
+   * This is emitted when [func@Meta.restart] is called, either by Mutter
+   * internally or by the embedding compositor. The message should be
    * immediately added to the Clutter stage in its final form -
-   * ::restart will be emitted to exit the application and leave the
+   * [signal@Meta.Display::restart] will be emitted to exit the application and leave the
    * stage contents frozen as soon as the the stage is painted again.
    *
    * On case of failure to restart, this signal will be emitted again
@@ -420,11 +427,13 @@ meta_display_class_init (MetaDisplayClass *klass)
    * MetaDisplay::restart:
    * @display: the #MetaDisplay instance
    *
-   * The ::restart signal is emitted to indicate that compositor
-   * should reexec the process. This is
-   * emitted when meta_restart() is called, either by Mutter
-   * internally or by the embedding compositor. See also
-   * ::show-restart-message.
+   * The signal is emitted to indicate that compositor
+   * should reexec the process.
+   *
+   * This is emitted when [func@Meta.restart] is called,
+   * either by Mutter internally or by the embedding compositor.
+   *
+   * See also [signal@Meta.Display::show-restart-message].
    *
    * Returns: %FALSE to indicate that the compositor could not
    *  be restarted. When the compositor is restarted, the signal
@@ -447,7 +456,7 @@ meta_display_class_init (MetaDisplayClass *klass)
                   g_signal_accumulator_true_handled,
                   NULL, NULL,
                   G_TYPE_BOOLEAN, 4,
-                  G_TYPE_BOOLEAN, META_TYPE_RECTANGLE, G_TYPE_INT, G_TYPE_INT);
+                  G_TYPE_BOOLEAN, MTK_TYPE_RECTANGLE, G_TYPE_INT, G_TYPE_INT);
 
   display_signals[GL_VIDEO_MEMORY_PURGED] =
     g_signal_new ("gl-video-memory-purged",
@@ -566,18 +575,14 @@ meta_display_class_init (MetaDisplayClass *klass)
 
   g_object_class_install_property (object_class,
                                    PROP_COMPOSITOR_MODIFIERS,
-                                   g_param_spec_flags ("compositor-modifiers",
-                                                       "Compositor modifiers",
-                                                       "Modifiers reserved for compositor actions",
+                                   g_param_spec_flags ("compositor-modifiers", NULL, NULL,
                                                        CLUTTER_TYPE_MODIFIER_TYPE,
                                                        0,
                                                        G_PARAM_READABLE));
 
   g_object_class_install_property (object_class,
                                    PROP_FOCUS_WINDOW,
-                                   g_param_spec_object ("focus-window",
-                                                        "Focus window",
-                                                        "Currently focused window",
+                                   g_param_spec_object ("focus-window", NULL, NULL,
                                                         META_TYPE_WINDOW,
                                                         G_PARAM_READABLE));
 
@@ -640,14 +645,20 @@ create_compositor (MetaDisplay *display)
   if (META_IS_BACKEND_NATIVE (backend))
     return META_COMPOSITOR (meta_compositor_native_new (display, backend));
 #endif
+#ifdef HAVE_XWAYLAND
   if (META_IS_BACKEND_X11_NESTED (backend))
     return META_COMPOSITOR (meta_compositor_server_new (display, backend));
 #endif
+#endif/* HAVE_WAYLAND */
+#ifdef HAVE_X11
   return META_COMPOSITOR (meta_compositor_x11_new (display, backend));
+#else
+  g_assert_not_reached ();
+#endif
 }
 
 static void
-meta_display_init (MetaDisplay *disp)
+meta_display_init (MetaDisplay *display)
 {
   /* Some stuff could go in here that's currently in _open,
    * but it doesn't really matter. */
@@ -713,6 +724,65 @@ on_monitor_privacy_screen_changed (MetaDisplay        *display,
                                  : _("Privacy Screen Disabled"));
 }
 
+gboolean
+meta_display_process_captured_input (MetaDisplay        *display,
+                                     const ClutterEvent *event)
+{
+  MetaDisplayPrivate *priv = meta_display_get_instance_private (display);
+  MetaContext *context = priv->context;
+  MetaBackend *backend = meta_context_get_backend (context);
+  MetaInputCapture *input_capture = meta_backend_get_input_capture (backend);
+
+  if (!priv->enable_input_capture)
+    return FALSE;
+
+  /* Check for the cancel key combo, but let the event flow through, so
+   * that meta_input_capture_process_event() can account for all press
+   * and release events, even the one from the key combo itself.
+   */
+  meta_display_process_keybinding_event (display,
+                                         "cancel-input-capture",
+                                         event);
+
+  return meta_input_capture_process_event (input_capture, event);
+}
+
+void
+meta_display_cancel_input_capture (MetaDisplay *display)
+{
+  MetaDisplayPrivate *priv = meta_display_get_instance_private (display);
+  MetaContext *context = priv->context;
+  MetaBackend *backend = meta_context_get_backend (context);
+  MetaInputCapture *input_capture = meta_backend_get_input_capture (backend);
+
+  meta_input_capture_notify_cancelled (input_capture);
+}
+
+static void
+enable_input_capture (MetaInputCapture *input_capture,
+                      gpointer          user_data)
+{
+  MetaDisplay *display = META_DISPLAY (user_data);
+  MetaDisplayPrivate *priv = meta_display_get_instance_private (display);
+
+  g_return_if_fail (!priv->enable_input_capture);
+
+  priv->enable_input_capture = TRUE;
+}
+
+static void
+disable_input_capture (MetaInputCapture *input_capture,
+                       gpointer          user_data)
+{
+  MetaDisplay *display = META_DISPLAY (user_data);
+  MetaDisplayPrivate *priv = meta_display_get_instance_private (display);
+
+  g_return_if_fail (priv->enable_input_capture);
+
+  priv->enable_input_capture = FALSE;
+}
+
+#ifdef HAVE_X11_CLIENT
 static gboolean
 meta_display_init_x11_display (MetaDisplay  *display,
                                GError      **error)
@@ -729,16 +799,13 @@ meta_display_init_x11_display (MetaDisplay  *display,
   meta_x11_display_create_guard_window (x11_display);
 
   if (!display->display_opening)
-    {
-      g_signal_emit (display, display_signals[X11_DISPLAY_OPENED], 0);
-      meta_display_manage_all_xwindows (display);
-      meta_compositor_redirect_x11_windows (display->compositor);
-    }
+    g_signal_emit (display, display_signals[X11_DISPLAY_OPENED], 0);
 
   return TRUE;
 }
+#endif
 
-#ifdef HAVE_WAYLAND
+#ifdef HAVE_XWAYLAND
 gboolean
 meta_display_init_x11_finish (MetaDisplay   *display,
                               GAsyncResult  *result,
@@ -769,11 +836,7 @@ meta_display_init_x11_finish (MetaDisplay   *display,
   meta_x11_display_create_guard_window (x11_display);
 
   if (!display->display_opening)
-    {
-      g_signal_emit (display, display_signals[X11_DISPLAY_OPENED], 0);
-      meta_display_manage_all_xwindows (display);
-      meta_compositor_redirect_x11_windows (display->compositor);
-    }
+    g_signal_emit (display, display_signals[X11_DISPLAY_OPENED], 0);
 
   return TRUE;
 }
@@ -843,7 +906,7 @@ on_x11_initialized (MetaDisplay  *display,
   if (!meta_display_init_x11_finish (display, result, &error))
     g_critical ("Failed to init X11 display: %s", error->message);
 }
-#endif
+#endif /* HAVE_XWAYLAND */
 
 void
 meta_display_shutdown_x11 (MetaDisplay *display)
@@ -867,9 +930,12 @@ meta_display_new (MetaContext  *context,
   MetaDisplay *display;
   MetaDisplayPrivate *priv;
   guint32 timestamp;
+#ifdef HAVE_X11_CLIENT
   Window old_active_xwindow = None;
+#endif
   MetaMonitorManager *monitor_manager;
   MetaSettings *settings;
+  MetaInputCapture *input_capture;
 
   display = g_object_new (META_TYPE_DISPLAY, NULL);
 
@@ -891,8 +957,6 @@ meta_display_new (MetaContext  *context,
   display->work_area_later = 0;
 
   display->mouse_mode = TRUE; /* Only relevant for mouse or sloppy focus */
-  display->allow_terminal_deactivation = TRUE; /* Only relevant for when a
-                                                  terminal has the focus */
 
   display->current_time = META_CURRENT_TIME;
 
@@ -915,6 +979,12 @@ meta_display_new (MetaContext  *context,
                            display, G_CONNECT_SWAPPED);
 
   display->pad_action_mapper = meta_pad_action_mapper_new (monitor_manager);
+
+  input_capture = meta_backend_get_input_capture (backend);
+  meta_input_capture_set_event_router (input_capture,
+                                       enable_input_capture,
+                                       disable_input_capture,
+                                       display);
 
   settings = meta_backend_get_settings (backend);
   g_signal_connect (settings, "ui-scaling-factor-changed",
@@ -939,11 +1009,13 @@ meta_display_new (MetaContext  *context,
 #ifdef HAVE_WAYLAND
   if (meta_is_wayland_compositor ())
     {
+#ifdef HAVE_XWAYLAND
       MetaWaylandCompositor *wayland_compositor =
         wayland_compositor_from_display (display);
       MetaX11DisplayPolicy x11_display_policy;
 
-      meta_wayland_compositor_init_display (wayland_compositor, display);
+      meta_xwayland_init_display (&wayland_compositor->xwayland_manager,
+                                  display);
 
       x11_display_policy = meta_context_get_x11_display_policy (context);
       if (x11_display_policy == META_X11_DISPLAY_POLICY_MANDATORY)
@@ -952,11 +1024,12 @@ meta_display_new (MetaContext  *context,
                                  (GAsyncReadyCallback) on_x11_initialized,
                                  NULL);
         }
-
+#endif /* HAVE_XWAYLAND */
       timestamp = meta_display_get_current_time_roundtrip (display);
     }
   else
-#endif
+#endif /* HAVE_WAYLAND */
+#ifdef HAVE_X11
     {
       if (!meta_display_init_x11_display (display, error))
         {
@@ -966,28 +1039,37 @@ meta_display_new (MetaContext  *context,
 
       timestamp = display->x11_display->timestamp;
     }
+#else
+    {
+      g_assert_not_reached ();
+    }
+#endif
 
   display->last_focus_time = timestamp;
   display->last_user_time = timestamp;
 
+#ifdef HAVE_X11
   if (!meta_is_wayland_compositor ())
     meta_prop_get_window (display->x11_display,
                           display->x11_display->xroot,
                           display->x11_display->atom__NET_ACTIVE_WINDOW,
                           &old_active_xwindow);
+#endif
 
-  if (!meta_compositor_do_manage (display->compositor, error))
+  if (!meta_compositor_manage (display->compositor, error))
     {
       g_object_unref (display);
       return NULL;
     }
 
+#ifdef HAVE_X11_CLIENT
   if (display->x11_display)
     {
       g_signal_emit (display, display_signals[X11_DISPLAY_OPENED], 0);
       meta_x11_display_restore_active_workspace (display->x11_display);
       meta_x11_display_create_guard_window (display->x11_display);
     }
+#endif
 
   /* Set up touch support */
   display->gesture_tracker = meta_gesture_tracker_new ();
@@ -997,6 +1079,7 @@ meta_display_new (MetaContext  *context,
   /* We know that if mutter is running as a Wayland compositor,
    * we start out with no windows.
    */
+#ifdef HAVE_X11_CLIENT
   if (!meta_is_wayland_compositor ())
     meta_display_manage_all_xwindows (display);
 
@@ -1014,6 +1097,9 @@ meta_display_new (MetaContext  *context,
     {
       meta_display_unset_input_focus (display, timestamp);
     }
+#else
+  meta_display_unset_input_focus (display, timestamp);
+#endif
 
   g_signal_connect (stage, "notify::is-grabbed",
                     G_CALLBACK (on_is_grabbed_changed), display);
@@ -1060,6 +1146,7 @@ meta_display_list_windows (MetaDisplay          *display,
 
   winlist = NULL;
 
+#ifdef HAVE_X11_CLIENT
   if (display->x11_display)
     {
       g_hash_table_iter_init (&iter, display->x11_display->xids);
@@ -1075,6 +1162,7 @@ meta_display_list_windows (MetaDisplay          *display,
             winlist = g_slist_prepend (winlist, window);
         }
     }
+#endif
 
   g_hash_table_iter_init (&iter, display->wayland_windows);
   while (g_hash_table_iter_next (&iter, &key, &value))
@@ -1135,6 +1223,8 @@ void
 meta_display_close (MetaDisplay *display,
                     guint32      timestamp)
 {
+  MetaBackend *backend = backend_from_display (display);
+  ClutterActor *stage = meta_backend_get_stage (backend);
   MetaCompositor *compositor;
   MetaLaters *laters;
 
@@ -1183,6 +1273,8 @@ meta_display_close (MetaDisplay *display,
   g_hash_table_destroy (display->stamps);
 
   meta_display_shutdown_keys (display);
+
+  g_signal_handlers_disconnect_by_func (stage, on_is_grabbed_changed, display);
 
   g_clear_object (&display->bell);
   g_clear_object (&display->startup_notification);
@@ -1335,7 +1427,11 @@ meta_display_get_current_time_roundtrip (MetaDisplay *display)
     /* Xwayland uses monotonic clock, so lets use it here as well */
     return (guint32) (g_get_monotonic_time () / 1000);
   else
+#ifdef HAVE_X11_CLIENT
     return meta_x11_display_get_current_time_roundtrip (display->x11_display);
+#else
+    g_assert_not_reached ();
+#endif
 }
 
 static gboolean
@@ -1388,15 +1484,13 @@ meta_display_sync_wayland_input_focus (MetaDisplay *display)
 #ifdef HAVE_WAYLAND
   MetaWaylandCompositor *compositor = wayland_compositor_from_display (display);
   MetaWindow *focus_window = NULL;
-  MetaBackend *backend = backend_from_display (display);
-  ClutterBackend *clutter_backend = meta_backend_get_clutter_backend (backend);
-  ClutterSeat *seat = clutter_backend_get_default_seat (clutter_backend);
-  MetaStage *stage = META_STAGE (meta_backend_get_stage (backend));
   gboolean is_no_focus_xwindow = FALSE;
 
+#ifdef HAVE_X11_CLIENT
   if (display->x11_display)
     is_no_focus_xwindow = meta_x11_display_xwindow_is_a_no_focus_window (display->x11_display,
                                                                          display->x11_display->focus_xwindow);
+#endif
 
   if (!meta_display_windows_are_interactable (display))
     focus_window = NULL;
@@ -1409,9 +1503,6 @@ meta_display_sync_wayland_input_focus (MetaDisplay *display)
     meta_topic (META_DEBUG_FOCUS, "Focus change has no effect, because there is no matching wayland surface");
 
   meta_wayland_compositor_set_input_focus (compositor, focus_window);
-
-  clutter_stage_repick_device (CLUTTER_STAGE (stage),
-                               clutter_seat_get_pointer (seat));
 #endif
 }
 
@@ -1528,11 +1619,13 @@ meta_display_set_input_focus (MetaDisplay *display,
   if (meta_display_timestamp_too_old (display, &timestamp))
     return;
 
+#ifdef HAVE_X11_CLIENT
   if (display->x11_display)
     {
       meta_x11_display_set_input_focus (display->x11_display, window,
                                         focus_frame, timestamp);
     }
+#endif
 
   meta_display_update_focus_window (display, window);
 
@@ -1593,6 +1686,7 @@ MetaWindow*
 meta_display_lookup_stack_id (MetaDisplay *display,
                               guint64      stack_id)
 {
+#ifdef HAVE_X11_CLIENT
   if (META_STACK_ID_IS_X11 (stack_id))
     {
       if (!display->x11_display)
@@ -1600,10 +1694,8 @@ meta_display_lookup_stack_id (MetaDisplay *display,
       return meta_x11_display_lookup_x_window (display->x11_display,
                                                (Window)stack_id);
     }
-  else
-    {
-      return meta_display_lookup_stamp (display, stack_id);
-    }
+#endif
+  return meta_display_lookup_stamp (display, stack_id);
 }
 
 /* We return a pointer into a ring of static buffers. This is to make
@@ -2259,6 +2351,7 @@ meta_resize_gravity_from_grab_op (MetaGrabOp op)
   return gravity;
 }
 
+#ifdef HAVE_X11_CLIENT
 void
 meta_display_manage_all_xwindows (MetaDisplay *display)
 {
@@ -2283,6 +2376,7 @@ meta_display_manage_all_xwindows (MetaDisplay *display)
   g_free (children);
   meta_stack_thaw (display->stack);
 }
+#endif
 
 void
 meta_display_unmanage_windows (MetaDisplay *display,
@@ -2433,14 +2527,14 @@ meta_display_overlay_key_activate (MetaDisplay *display)
 }
 
 void
-meta_display_accelerator_activate (MetaDisplay     *display,
-                                   guint            action,
-                                   ClutterKeyEvent *event)
+meta_display_accelerator_activate (MetaDisplay           *display,
+                                   guint                  action,
+                                   const ClutterKeyEvent *event)
 {
   g_signal_emit (display, display_signals[ACCELERATOR_ACTIVATED], 0,
                  action,
-                 clutter_event_get_source_device ((ClutterEvent *) event),
-                 event->time);
+                 clutter_event_get_source_device ((const ClutterEvent *) event),
+                 clutter_event_get_time ((const ClutterEvent *) event));
 }
 
 gboolean
@@ -2605,11 +2699,11 @@ meta_display_request_restart (MetaDisplay *display)
 }
 
 gboolean
-meta_display_show_resize_popup (MetaDisplay *display,
-                                gboolean show,
-                                MetaRectangle *rect,
-                                int display_w,
-                                int display_h)
+meta_display_show_resize_popup (MetaDisplay  *display,
+                                gboolean      show,
+                                MtkRectangle *rect,
+                                int           display_w,
+                                int           display_h)
 {
   gboolean result = FALSE;
 
@@ -2693,18 +2787,16 @@ meta_display_request_pad_osd (MetaDisplay        *display,
     }
 }
 
-gchar *
-meta_display_get_pad_action_label (MetaDisplay        *display,
+char *
+meta_display_get_pad_button_label (MetaDisplay        *display,
                                    ClutterInputDevice *pad,
-                                   MetaPadActionType   action_type,
-                                   guint               action_number)
+                                   int                 button)
 {
-  gchar *label;
+  char *label;
 
   /* First, lookup the action, as imposed by settings */
-  label = meta_pad_action_mapper_get_action_label (display->pad_action_mapper,
-                                                   pad, action_type,
-                                                   action_number);
+  label = meta_pad_action_mapper_get_button_label (display->pad_action_mapper,
+                                                   pad, button);
   if (label)
     return label;
 
@@ -2724,8 +2816,54 @@ meta_display_get_pad_action_label (MetaDisplay        *display,
 
       if (tablet_pad)
         {
-          label = meta_wayland_tablet_pad_get_label (tablet_pad, action_type,
-                                                     action_number);
+          label = meta_wayland_tablet_pad_get_button_label (tablet_pad,
+                                                            button);
+        }
+
+      if (label)
+        return label;
+    }
+#endif
+
+  return NULL;
+}
+
+char *
+meta_display_get_pad_feature_label (MetaDisplay        *display,
+                                    ClutterInputDevice *pad,
+                                    MetaPadFeatureType  feature,
+                                    MetaPadDirection    direction,
+                                    int                 feature_number)
+{
+  char *label;
+
+  /* First, lookup the action, as imposed by settings */
+  label = meta_pad_action_mapper_get_feature_label (display->pad_action_mapper,
+                                                    pad, feature,
+                                                    direction,
+                                                    feature_number);
+  if (label)
+    return label;
+
+#ifdef HAVE_WAYLAND
+  /* Second, if this wayland, lookup the actions set by the clients */
+  if (meta_is_wayland_compositor ())
+    {
+      MetaWaylandCompositor *compositor;
+      MetaWaylandTabletSeat *tablet_seat;
+      MetaWaylandTabletPad *tablet_pad = NULL;
+
+      compositor = wayland_compositor_from_display (display);
+      tablet_seat = meta_wayland_tablet_manager_ensure_seat (compositor->tablet_manager,
+                                                             compositor->seat);
+      if (tablet_seat)
+        tablet_pad = meta_wayland_tablet_seat_lookup_pad (tablet_seat, pad);
+
+      if (tablet_pad)
+        {
+          label = meta_wayland_tablet_pad_get_feature_label (tablet_pad,
+                                                             feature,
+                                                             feature_number);
         }
 
       if (label)
@@ -3092,7 +3230,7 @@ check_fullscreen_func (gpointer data)
 
       if (covers_monitors)
         {
-          MetaRectangle window_rect;
+          MtkRectangle window_rect;
 
           meta_window_get_frame_rect (window, &window_rect);
 
@@ -3100,8 +3238,8 @@ check_fullscreen_func (gpointer data)
             {
               MetaLogicalMonitor *logical_monitor = l->data;
 
-              if (meta_rectangle_overlap (&window_rect,
-                                          &logical_monitor->rect) &&
+              if (mtk_rectangle_overlap (&window_rect,
+                                         &logical_monitor->rect) &&
                   !g_slist_find (fullscreen_monitors, logical_monitor) &&
                   !g_slist_find (obscured_monitors, logical_monitor))
                 fullscreen_monitors = g_slist_prepend (fullscreen_monitors,
@@ -3158,8 +3296,8 @@ meta_display_queue_check_fullscreen (MetaDisplay *display)
 }
 
 int
-meta_display_get_monitor_index_for_rect (MetaDisplay   *display,
-                                         MetaRectangle *rect)
+meta_display_get_monitor_index_for_rect (MetaDisplay  *display,
+                                         MtkRectangle *rect)
 {
   MetaBackend *backend = backend_from_display (display);
   MetaMonitorManager *monitor_manager =
@@ -3272,9 +3410,9 @@ meta_display_get_primary_monitor (MetaDisplay *display)
  * Stores the location and size of the indicated @monitor in @geometry.
  */
 void
-meta_display_get_monitor_geometry (MetaDisplay   *display,
-                                   int            monitor,
-                                   MetaRectangle *geometry)
+meta_display_get_monitor_geometry (MetaDisplay  *display,
+                                   int           monitor,
+                                   MtkRectangle *geometry)
 {
   MetaBackend *backend = backend_from_display (display);
   MetaMonitorManager *monitor_manager =

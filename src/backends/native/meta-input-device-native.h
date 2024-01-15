@@ -23,8 +23,7 @@
  * Author: Jonas Ådahl <jadahl@gmail.com>
  */
 
-#ifndef META_INPUT_DEVICE_NATIVE_H
-#define META_INPUT_DEVICE_NATIVE_H
+#pragma once
 
 #ifndef META_INPUT_THREAD_H_INSIDE
 #error "This header cannot be included directly. Use "backends/native/meta-input-thread.h""
@@ -79,7 +78,7 @@ struct _MetaInputDeviceNative
   GArray *modes;
   intptr_t group;
 
-  cairo_matrix_t device_matrix;
+  graphene_matrix_t device_matrix;
   int width;
   int height;
   double device_aspect_ratio; /* w:h */
@@ -136,11 +135,9 @@ GType                     meta_input_device_native_get_type        (void) G_GNUC
 ClutterInputDevice *      meta_input_device_native_new_in_impl     (MetaSeatImpl            *seat_impl,
                                                                     struct libinput_device  *libinput_device);
 
-ClutterInputDevice *      meta_input_device_native_new_virtual (MetaSeatImpl            *seat_impl,
-                                                                ClutterInputDeviceType   type,
-                                                                ClutterInputMode         mode);
-
-MetaSeatImpl *            meta_input_device_native_get_seat_impl (MetaInputDeviceNative   *device);
+ClutterInputDevice *      meta_input_device_native_new_virtual (ClutterSeat            *seat,
+                                                                ClutterInputDeviceType  type,
+                                                                ClutterInputMode        mode);
 
 void                      meta_input_device_native_update_leds_in_impl (MetaInputDeviceNative   *device,
                                                                         enum libinput_led        leds);
@@ -173,5 +170,3 @@ void                     meta_input_device_native_get_coords_in_impl (MetaInputD
 gboolean                 meta_input_device_native_process_kbd_a11y_event_in_impl (ClutterInputDevice *device,
                                                                                   ClutterEvent       *event);
 void                     meta_input_device_native_detach_libinput_in_impl (MetaInputDeviceNative *device_native);
-
-#endif /* META_INPUT_DEVICE_NATIVE_H */

@@ -39,6 +39,7 @@
 #include "tests/meta-test-utils.h"
 #include "tests/orientation-manager-unit-tests.h"
 #include "tests/hdr-metadata-unit-tests.h"
+#include "tests/button-transform-tests.h"
 
 MetaContext *test_context;
 
@@ -202,8 +203,8 @@ meta_test_util_later_schedule_from_later (void)
 static void
 meta_test_adjacent_to (void)
 {
-  MetaRectangle base = { .x = 10, .y = 10, .width = 10, .height = 10 };
-  MetaRectangle adjacent[] = {
+  MtkRectangle base = { .x = 10, .y = 10, .width = 10, .height = 10 };
+  MtkRectangle adjacent[] = {
     { .x = 20, .y = 10, .width = 10, .height = 10 },
     { .x = 0, .y = 10, .width = 10, .height = 10 },
     { .x = 0, .y = 1, .width = 10, .height = 10 },
@@ -211,7 +212,7 @@ meta_test_adjacent_to (void)
     { .x = 10, .y = 20, .width = 10, .height = 10 },
     { .x = 10, .y = 0, .width = 10, .height = 10 },
   };
-  MetaRectangle not_adjacent[] = {
+  MtkRectangle not_adjacent[] = {
     { .x = 0, .y = 0, .width = 10, .height = 10 },
     { .x = 20, .y = 20, .width = 10, .height = 10 },
     { .x = 21, .y = 10, .width = 10, .height = 10 },
@@ -244,6 +245,7 @@ init_tests (void)
   init_monitor_transform_tests ();
   init_orientation_manager_tests ();
   init_hdr_metadata_tests ();
+  init_button_transform_tests ();
 }
 
 int

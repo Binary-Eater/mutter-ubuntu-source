@@ -14,9 +14,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "config.h"
@@ -352,9 +350,7 @@ meta_orientation_manager_class_init (MetaOrientationManagerClass *klass)
                   G_TYPE_NONE, 0);
 
   props[PROP_HAS_ACCELEROMETER] =
-    g_param_spec_boolean ("has-accelerometer",
-                          "Has accelerometer",
-                          "Has accelerometer",
+    g_param_spec_boolean ("has-accelerometer", NULL, NULL,
                           FALSE,
                           G_PARAM_READABLE |
                           G_PARAM_EXPLICIT_NOTIFY |

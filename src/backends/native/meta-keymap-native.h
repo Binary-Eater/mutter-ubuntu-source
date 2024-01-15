@@ -12,14 +12,12 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Author: Carlos Garnacho <carlosg@gnome.org>
  */
-#ifndef META_KEYMAP_NATIVE_H
-#define META_KEYMAP_NATIVE_H
+
+#pragma once
 
 #ifndef META_INPUT_THREAD_H_INSIDE
 #error "This header cannot be included directly. Use "backends/native/meta-input-thread.h""
@@ -40,4 +38,3 @@ void meta_keymap_native_update_in_impl (MetaKeymapNative *keymap,
                                         MetaSeatImpl     *seat_impl,
                                         struct xkb_state *xkb_state);
 
-#endif /* META_KEYMAP_NATIVE_H */

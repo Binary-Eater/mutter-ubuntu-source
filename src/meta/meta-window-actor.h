@@ -20,8 +20,7 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef META_WINDOW_ACTOR_H_
-#define META_WINDOW_ACTOR_H_
+#pragma once
 
 #include "clutter/clutter.h"
 #include "meta/compositor.h"
@@ -48,12 +47,12 @@ META_EXPORT
 gboolean       meta_window_actor_is_destroyed (MetaWindowActor *self);
 
 META_EXPORT
-cairo_surface_t * meta_window_actor_get_image (MetaWindowActor       *self,
-                                               cairo_rectangle_int_t *clip);
+cairo_surface_t * meta_window_actor_get_image (MetaWindowActor *self,
+                                               MtkRectangle    *clip);
 
 META_EXPORT
 ClutterContent * meta_window_actor_paint_to_content (MetaWindowActor  *self,
-                                                     MetaRectangle    *clip,
+                                                     MtkRectangle     *clip,
                                                      GError          **error);
 
 META_EXPORT
@@ -68,5 +67,3 @@ typedef enum
   META_SHADOW_MODE_FORCED_OFF,
   META_SHADOW_MODE_FORCED_ON,
 } MetaShadowMode;
-
-#endif /* META_WINDOW_ACTOR_H */

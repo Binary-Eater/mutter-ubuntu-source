@@ -10,16 +10,42 @@ QA gate.
 Signed-off-by: Simon McVittie <smcv@debian.org>
 Forwarded: no
 ---
- src/tests/meson.build | 30 +++++++++++++++++++++++++++---
- 1 file changed, 27 insertions(+), 3 deletions(-)
+ src/tests/clutter/conform/grab.c |  6 ++++++
+ src/tests/meson.build            | 31 ++++++++++++++++++++++++++++---
+ 2 files changed, 34 insertions(+), 3 deletions(-)
 
+diff --git a/src/tests/clutter/conform/grab.c b/src/tests/clutter/conform/grab.c
+index ce4fdeb..5f9e0f16 100644
+--- a/src/tests/clutter/conform/grab.c
++++ b/src/tests/clutter/conform/grab.c
+@@ -621,6 +621,12 @@ grab_input_only (void)
+   ClutterSeat *seat;
+   g_autoptr (ClutterVirtualInputDevice) pointer = NULL;
+ 
++  if (g_getenv ("DEB_ALLOW_FLAKY_TESTS") == NULL)
++    {
++      g_test_skip ("https://gitlab.gnome.org/GNOME/mutter/-/issues/3205");
++      return;
++    }
++
+   seat = clutter_backend_get_default_seat (clutter_get_default_backend ());
+   pointer = clutter_seat_create_virtual_device (seat, CLUTTER_POINTER_DEVICE);
+ 
 diff --git a/src/tests/meson.build b/src/tests/meson.build
-index 8be1657..1ce9155 100644
+index adc3733..c4136f8 100644
 --- a/src/tests/meson.build
 +++ b/src/tests/meson.build
-@@ -531,8 +531,14 @@ if have_native_tests
-       install_rpath: pkglibdir,
-     )
+@@ -375,6 +375,7 @@ if have_native_tests
+       'name': 'input-capture',
+       'suite': 'backends/native',
+       'sources': [ 'input-capture-tests.c' ],
++      'flaky': true,
+     },
+     {
+       'name': 'thread',
+@@ -655,8 +656,14 @@ if have_native_tests
+ 
+     test_depends = [ default_plugin ] + test_case.get('depends', [])
  
 +    extra_suites = []
 +
@@ -31,9 +57,9 @@ index 8be1657..1ce9155 100644
 -      suite: ['core', 'mutter/' + test_case['suite']],
 +      suite: ['core', 'mutter/' + test_case['suite']] + extra_suites,
        env: test_env,
-       depends: test_case.get('depends', []),
+       depends: test_depends,
        is_parallel: false,
-@@ -581,8 +587,26 @@ stacking_tests = [
+@@ -707,8 +714,26 @@ stacking_tests = [
  ]
  
  foreach stacking_test: stacking_tests
@@ -60,8 +86,8 @@ index 8be1657..1ce9155 100644
 +    suite: ['core', 'mutter/stacking'] + extra_suites,
      env: test_env,
      args: [
-       files(join_paths('stacking', stacking_test + '.metatest')),
-@@ -591,7 +615,7 @@ foreach stacking_test: stacking_tests
+       files('stacking' / stacking_test + '.metatest'),
+@@ -717,7 +742,7 @@ foreach stacking_test: stacking_tests
      timeout: 60,
    )
  

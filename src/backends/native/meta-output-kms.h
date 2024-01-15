@@ -15,13 +15,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef META_OUTPUT_KMS_H
-#define META_OUTPUT_KMS_H
+#pragma once
 
 #include "backends/meta-output.h"
 #include "backends/native/meta-gpu-kms.h"
@@ -59,5 +56,3 @@ MetaOutputKms * meta_output_kms_new (MetaGpuKms        *gpu_kms,
                                      MetaKmsConnector  *kms_connector,
                                      MetaOutput        *old_output,
                                      GError           **error);
-
-#endif /* META_OUTPUT_KMS_H */

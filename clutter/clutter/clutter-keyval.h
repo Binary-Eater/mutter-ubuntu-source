@@ -12,22 +12,20 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Author: Bilal Elmoussaoui <belmous@redhat.com>
  * 
  * The code is a modified version of the GDK implementation
  */
-#ifndef __CLUTTER_KEYVAL_H__
-#define __CLUTTER_KEYVAL_H__
+
+#pragma once
 
 #if !defined(__CLUTTER_H_INSIDE__) && !defined(CLUTTER_COMPILATION)
 #error "Only <clutter/keyval.h> can be included directly."
 #endif
 
-#include <clutter/clutter-types.h>
+#include "clutter/clutter-types.h"
 
 G_BEGIN_DECLS
 
@@ -40,5 +38,3 @@ CLUTTER_EXPORT
 char * clutter_keyval_name       (unsigned int keyval);
 
 G_END_DECLS
-
-#endif /* __CLUTTER_KEYVAL_H__ */

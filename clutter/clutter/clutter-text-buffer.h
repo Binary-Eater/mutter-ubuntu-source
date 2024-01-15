@@ -12,21 +12,18 @@
  * Library General Public License for more details.
  *
  * You should have received a copy of the GNU Library General Public
- * License along with this library; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  *
  * Author: Stef Walter <stefw@collabora.co.uk>
  */
 
-#ifndef __CLUTTER_TEXT_BUFFER_H__
-#define __CLUTTER_TEXT_BUFFER_H__
+#pragma once
 
 #if !defined(__CLUTTER_H_INSIDE__) && !defined(CLUTTER_COMPILATION)
 #error "Only <clutter/clutter.h> can be included directly."
 #endif
 
-#include <clutter/clutter-types.h>
+#include "clutter/clutter-types.h"
 
 G_BEGIN_DECLS
 
@@ -98,17 +95,6 @@ struct _ClutterTextBufferClass
   guint        (*delete_text)            (ClutterTextBuffer *buffer,
                                           guint              position,
                                           guint              n_chars);
-
-  /*< private >*/
-  /* Padding for future expansion */
-  void (*_clutter_reserved1) (void);
-  void (*_clutter_reserved2) (void);
-  void (*_clutter_reserved3) (void);
-  void (*_clutter_reserved4) (void);
-  void (*_clutter_reserved5) (void);
-  void (*_clutter_reserved6) (void);
-  void (*_clutter_reserved7) (void);
-  void (*_clutter_reserved8) (void);
 };
 
 CLUTTER_EXPORT
@@ -156,5 +142,3 @@ void                clutter_text_buffer_emit_deleted_text   (ClutterTextBuffer *
                                                              guint              n_chars);
 
 G_END_DECLS
-
-#endif /* __CLUTTER_TEXT_BUFFER_H__ */

@@ -14,16 +14,13 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Written by:
  *     Jonas Ådahl <jadahl@gmail.com>
  */
 
-#ifndef META_RENDERER_NATIVE_H
-#define META_RENDERER_NATIVE_H
+#pragma once
 
 #include <gbm.h>
 #include <glib-object.h>
@@ -61,16 +58,20 @@ void meta_renderer_native_prepare_frame (MetaRendererNative *renderer_native,
                                          MetaRendererView   *view,
                                          ClutterFrame       *frame);
 
+void meta_renderer_native_before_redraw (MetaRendererNative *renderer_native,
+                                         MetaRendererView   *view,
+                                         ClutterFrame       *frame);
+
 void meta_renderer_native_finish_frame (MetaRendererNative *renderer_native,
                                         MetaRendererView   *view,
                                         ClutterFrame       *frame);
 
-void meta_renderer_native_reset_modes (MetaRendererNative *renderer_native);
+void meta_renderer_native_unset_modes (MetaRendererNative *renderer_native);
 
 gboolean meta_renderer_native_send_modifiers (MetaRendererNative *renderer_native);
 
 gboolean meta_renderer_native_use_modifiers (MetaRendererNative *renderer_native);
 
-MetaRendererNativeMode meta_renderer_native_get_mode (MetaRendererNative *renderer_native);
+gboolean meta_renderer_native_has_addfb2 (MetaRendererNative *renderer_native);
 
-#endif /* META_RENDERER_NATIVE_H */
+MetaRendererNativeMode meta_renderer_native_get_mode (MetaRendererNative *renderer_native);

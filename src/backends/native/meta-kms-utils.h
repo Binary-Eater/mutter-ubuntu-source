@@ -12,13 +12,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef META_KMS_UTILS_H
-#define META_KMS_UTILS_H
+#pragma once
 
 #include <stddef.h>
 #include <stdint.h>
@@ -39,5 +36,3 @@ int64_t meta_calculate_drm_mode_vblank_duration_us (const drmModeModeInfo *drm_m
 
 const char * meta_drm_format_to_string (MetaDrmFormatBuf *tmp,
                                         uint32_t          drm_format);
-
-#endif /* META_KMS_UTILS_H */

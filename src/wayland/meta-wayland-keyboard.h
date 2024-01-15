@@ -14,9 +14,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -42,8 +40,7 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef META_WAYLAND_KEYBOARD_H
-#define META_WAYLAND_KEYBOARD_H
+#pragma once
 
 #include <wayland-server.h>
 #include <xkbcommon/xkbcommon.h>
@@ -143,5 +140,3 @@ void meta_wayland_keyboard_start_grab (MetaWaylandKeyboard     *keyboard,
 void meta_wayland_keyboard_end_grab   (MetaWaylandKeyboard     *keyboard);
 
 gboolean meta_wayland_keyboard_is_grabbed (MetaWaylandKeyboard *keyboard);
-
-#endif /* META_WAYLAND_KEYBOARD_H */

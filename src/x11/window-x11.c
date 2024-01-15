@@ -288,10 +288,10 @@ send_configure_notify (MetaWindow *window)
 }
 
 static void
-adjust_for_gravity (MetaWindow        *window,
-                    gboolean           coords_assume_border,
-                    MetaGravity        gravity,
-                    MetaRectangle     *rect)
+adjust_for_gravity (MetaWindow   *window,
+                    gboolean      coords_assume_border,
+                    MetaGravity   gravity,
+                    MtkRectangle *rect)
 {
   MetaWindowX11 *window_x11 = META_WINDOW_X11 (window);
   MetaWindowX11Private *priv = meta_window_x11_get_instance_private (window_x11);
@@ -512,7 +512,7 @@ meta_window_apply_session_info (MetaWindow *window,
 
   if (info->geometry_set)
     {
-      MetaRectangle rect;
+      MtkRectangle rect;
       MetaMoveResizeFlags flags;
       MetaGravity gravity;
 
@@ -599,7 +599,7 @@ meta_window_x11_initialize_state (MetaWindow *window)
 
   if (!window->override_redirect)
     {
-      MetaRectangle rect;
+      MtkRectangle rect;
       MetaMoveResizeFlags flags;
       MetaGravity gravity = window->size_hints.win_gravity;
 
@@ -1048,8 +1048,8 @@ meta_window_x11_focus (MetaWindow *window,
 }
 
 static void
-meta_window_get_client_root_coords (MetaWindow    *window,
-                                    MetaRectangle *rect)
+meta_window_get_client_root_coords (MetaWindow   *window,
+                                    MtkRectangle *rect)
 {
   MetaWindowX11 *window_x11 = META_WINDOW_X11 (window);
   MetaWindowX11Private *priv = meta_window_x11_get_instance_private (window_x11);
@@ -1071,7 +1071,7 @@ meta_window_refresh_resize_popup (MetaWindow *window)
 
   if (priv->showing_resize_popup)
     {
-      MetaRectangle rect;
+      MtkRectangle rect;
       int display_w, display_h;
 
       meta_window_get_client_root_coords (window, &rect);
@@ -1288,9 +1288,9 @@ meta_window_x11_can_freeze_commits (MetaWindow *window)
 static void
 meta_window_x11_move_resize_internal (MetaWindow                *window,
                                       MetaGravity                gravity,
-                                      MetaRectangle              unconstrained_rect,
-                                      MetaRectangle              constrained_rect,
-                                      MetaRectangle              intermediate_rect,
+                                      MtkRectangle               unconstrained_rect,
+                                      MtkRectangle               constrained_rect,
+                                      MtkRectangle               intermediate_rect,
                                       int                        rel_x,
                                       int                        rel_y,
                                       MetaMoveResizeFlags        flags,
@@ -1299,7 +1299,7 @@ meta_window_x11_move_resize_internal (MetaWindow                *window,
   MetaWindowX11 *window_x11 = META_WINDOW_X11 (window);
   MetaWindowX11Private *priv = meta_window_x11_get_instance_private (window_x11);
   MetaFrameBorders borders;
-  MetaRectangle client_rect;
+  MtkRectangle client_rect;
   int size_dx, size_dy;
   XWindowChanges values;
   unsigned int mask;
@@ -1694,7 +1694,7 @@ meta_window_x11_update_struts (MetaWindow *window)
       MetaStrut *new_strut = (MetaStrut*) new_iter->data;
 
       if (old_strut->side != new_strut->side ||
-          !meta_rectangle_equal (&old_strut->rect, &new_strut->rect))
+          !mtk_rectangle_equal (&old_strut->rect, &new_strut->rect))
         break;
 
       old_iter = old_iter->next;
@@ -1920,10 +1920,6 @@ get_standalone_layer (MetaWindow *window)
 
   switch (window->type)
     {
-    case META_WINDOW_DESKTOP:
-      layer = META_LAYER_DESKTOP;
-      break;
-
     case META_WINDOW_DOCK:
       if (window->wm_state_below ||
           (window->monitor && window->monitor->in_fullscreen))
@@ -2232,9 +2228,7 @@ meta_window_x11_class_init (MetaWindowX11Class *klass)
   klass->process_property_notify = meta_window_x11_impl_process_property_notify;
 
   obj_props[PROP_ATTRIBUTES] =
-    g_param_spec_pointer ("attributes",
-                          "Attributes",
-                          "The corresponding attributes",
+    g_param_spec_pointer ("attributes", NULL, NULL,
                           G_PARAM_CONSTRUCT_ONLY | G_PARAM_READWRITE);
 
   g_object_class_install_properties (object_class, PROP_LAST, obj_props);
@@ -2376,7 +2370,7 @@ region_create_from_x_rectangles (const XRectangle *rects,
                                  int n_rects)
 {
   int i;
-  cairo_rectangle_int_t *cairo_rects = g_newa (cairo_rectangle_int_t, n_rects);
+  MtkRectangle *cairo_rects = g_newa (MtkRectangle, n_rects);
 
   for (i = 0; i < n_rects; i ++)
     {
@@ -2416,7 +2410,7 @@ print_region (cairo_region_t *region)
   g_print ("[");
   for (i = 0; i < n_rects; i++)
     {
-      cairo_rectangle_int_t rect;
+      MtkRectangle rect;
       cairo_region_get_rectangle (region, i, &rect);
       g_print ("+%d+%dx%dx%d ",
                rect.x, rect.y, rect.width, rect.height);
@@ -2508,7 +2502,7 @@ meta_window_x11_update_input_region (MetaWindow *window)
 
   if (region != NULL)
     {
-      cairo_rectangle_int_t client_area;
+      MtkRectangle client_area;
 
       client_area.x = 0;
       client_area.y = 0;
@@ -2589,7 +2583,7 @@ meta_window_x11_update_shape_region (MetaWindow *window)
 
   if (region != NULL)
     {
-      cairo_rectangle_int_t client_area;
+      MtkRectangle client_area;
 
       client_area.x = 0;
       client_area.y = 0;
@@ -2646,7 +2640,7 @@ meta_window_move_resize_request (MetaWindow  *window,
   gboolean allow_position_change;
   gboolean in_grab_op;
   MetaMoveResizeFlags flags;
-  MetaRectangle buffer_rect;
+  MtkRectangle buffer_rect;
   MetaWindowDrag *window_drag;
 
   /* We ignore configure requests while the user is moving/resizing
@@ -2775,7 +2769,7 @@ meta_window_move_resize_request (MetaWindow  *window,
 
   if (flags & (META_MOVE_RESIZE_MOVE_ACTION | META_MOVE_RESIZE_RESIZE_ACTION))
     {
-      MetaRectangle rect;
+      MtkRectangle rect;
 
       rect.x = x;
       rect.y = y;
@@ -2784,7 +2778,7 @@ meta_window_move_resize_request (MetaWindow  *window,
 
       if (window->monitor)
         {
-          MetaRectangle monitor_rect;
+          MtkRectangle monitor_rect;
 
           meta_display_get_monitor_geometry (window->display,
                                              window->monitor->number,
@@ -2799,7 +2793,7 @@ meta_window_move_resize_request (MetaWindow  *window,
            */
           if (meta_prefs_get_force_fullscreen() &&
               (window->decorated || !meta_window_is_client_decorated (window)) &&
-              meta_rectangle_equal (&rect, &monitor_rect) &&
+              mtk_rectangle_equal (&rect, &monitor_rect) &&
               window->has_fullscreen_func &&
               !window->fullscreen)
             {
@@ -4298,9 +4292,9 @@ meta_window_x11_always_update_shape (MetaWindow *window)
 }
 
 void
-meta_window_x11_surface_rect_to_frame_rect (MetaWindow    *window,
-                                            MetaRectangle *surface_rect,
-                                            MetaRectangle *frame_rect)
+meta_window_x11_surface_rect_to_frame_rect (MetaWindow   *window,
+                                            MtkRectangle *surface_rect,
+                                            MtkRectangle *frame_rect)
 
 {
   MetaFrameBorders borders;
@@ -4317,9 +4311,9 @@ meta_window_x11_surface_rect_to_frame_rect (MetaWindow    *window,
 }
 
 void
-meta_window_x11_surface_rect_to_client_rect (MetaWindow    *window,
-                                             MetaRectangle *surface_rect,
-                                             MetaRectangle *client_rect)
+meta_window_x11_surface_rect_to_client_rect (MetaWindow   *window,
+                                             MtkRectangle *surface_rect,
+                                             MtkRectangle *client_rect)
 {
   MetaFrameBorders borders;
 
@@ -4332,7 +4326,7 @@ meta_window_x11_surface_rect_to_client_rect (MetaWindow    *window,
   client_rect->height -= borders.total.top + borders.total.bottom;
 }
 
-MetaRectangle
+MtkRectangle
 meta_window_x11_get_client_rect (MetaWindowX11 *window_x11)
 {
   MetaWindowX11Private *priv = meta_window_x11_get_instance_private (window_x11);
@@ -4373,15 +4367,15 @@ meta_window_x11_can_unredirect (MetaWindowX11 *window_x11)
 
   if (window->override_redirect)
     {
-      MetaRectangle window_rect;
-      MetaRectangle logical_monitor_layout;
+      MtkRectangle window_rect;
+      MtkRectangle logical_monitor_layout;
       MetaLogicalMonitor *logical_monitor = window->monitor;
 
       meta_window_get_frame_rect (window, &window_rect);
       logical_monitor_layout =
         meta_logical_monitor_get_layout (logical_monitor);
 
-      if (meta_rectangle_equal (&window_rect, &logical_monitor_layout))
+      if (mtk_rectangle_equal (&window_rect, &logical_monitor_layout))
         return TRUE;
     }
 
@@ -4395,19 +4389,6 @@ meta_window_x11_get_sync_counter (MetaWindow *window)
   MetaWindowX11Private *priv = meta_window_x11_get_instance_private (window_x11);
 
   return &priv->sync_counter;
-}
-
-gboolean
-meta_window_x11_has_active_sync_alarms (MetaWindow *window)
-{
-  MetaWindowX11 *window_x11 = META_WINDOW_X11 (window);
-  MetaWindowX11Private *priv = meta_window_x11_get_instance_private (window_x11);
-
-  if (window->frame &&
-      meta_sync_counter_has_sync_alarm (meta_frame_get_sync_counter (window->frame)))
-    return TRUE;
-
-  return meta_sync_counter_has_sync_alarm (&priv->sync_counter);
 }
 
 gboolean

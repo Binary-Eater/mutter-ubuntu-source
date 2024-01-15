@@ -14,18 +14,16 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Written by:
  *     Jasper St. Pierre <jstpierre@mecheye.net>
  */
 
 /**
- * SECTION:meta-backend-x11
- * @title: MetaBackendX11
- * @short_description: A X11 MetaBackend
+ * MetaBackendX11:
+ *
+ * A X11 MetaBackend
  *
  * MetaBackendX11 is an implementation of #MetaBackend using X and X
  * extensions, like XInput and XKB.
@@ -59,6 +57,7 @@
 #include "core/display-private.h"
 #include "meta/meta-cursor-tracker.h"
 #include "meta/util.h"
+#include "mtk/mtk-x11-errors.h"
 
 struct _MetaBackendX11Private
 {
@@ -346,6 +345,8 @@ handle_host_xevent (MetaBackend *backend,
 {
   MetaBackendX11 *x11 = META_BACKEND_X11 (backend);
   MetaBackendX11Private *priv = meta_backend_x11_get_instance_private (x11);
+  ClutterBackend *clutter_backend = meta_backend_get_clutter_backend (backend);
+  ClutterSeat *seat = clutter_backend_get_default_seat (clutter_backend);
   MetaContext *context = meta_backend_get_context (backend);
   gboolean bypass_clutter = FALSE;
   MetaDisplay *display;
@@ -408,6 +409,17 @@ handle_host_xevent (MetaBackend *backend,
                                                                      layout_group);
                 }
               break;
+            case XkbControlsNotify:
+              /* 'event_type' is set to zero on notifying us of updates in
+               * response to client requests (including our own) and non-zero
+               * to notify us of key/mouse events causing changes (like
+               * pressing shift 5 times to enable sticky keys).
+               *
+               * We only want to update our settings when it's in response to an
+               * explicit user input event, so require a non-zero event_type.
+               */
+              if (xkb_ev->ctrls.event_type != 0)
+                meta_seat_x11_check_xkb_a11y_settings_changed (seat);
             default:
               break;
             }
@@ -419,7 +431,7 @@ handle_host_xevent (MetaBackend *backend,
       if (handle_input_event (x11, event))
         goto done;
 
-      meta_x11_handle_event (backend, event);
+      meta_backend_x11_handle_event (backend, event);
     }
 
 done:
@@ -510,9 +522,8 @@ on_monitors_changed (MetaMonitorManager *manager,
                      MetaBackend        *backend)
 {
   MetaBackendX11 *x11 = META_BACKEND_X11 (backend);
-  MetaBackendX11Private *priv = meta_backend_x11_get_instance_private (x11);
 
-  priv->cached_current_logical_monitor = NULL;
+  meta_backend_x11_reset_cached_logical_monitor (x11);
 }
 
 static void
@@ -709,16 +720,12 @@ meta_backend_x11_finish_touch_sequence (MetaBackend          *backend,
   else
     g_return_if_reached ();
 
-  meta_clutter_x11_trap_x_errors ();
+  mtk_x11_error_trap_push (priv->xdisplay);
   XIAllowTouchEvents (priv->xdisplay,
                       META_VIRTUAL_CORE_POINTER_ID,
                       clutter_event_sequence_get_slot (sequence),
                       DefaultRootWindow (priv->xdisplay), event_mode);
-  /* We need to XSync so meta_clutter_x11_untrap_x_errors doesn't miss errors
-   * from XIAllowTouchEvents.
-   */
-  XSync (priv->xdisplay, False);
-  err = meta_clutter_x11_untrap_x_errors ();
+  err = mtk_x11_error_trap_pop_with_return (priv->xdisplay);
   if (err)
     {
       g_debug ("XIAllowTouchEvents failed event_mode %d with error %d",
@@ -800,10 +807,10 @@ meta_backend_x11_get_keymap_layout_group (MetaBackend *backend)
 }
 
 void
-meta_backend_x11_handle_event (MetaBackendX11 *x11,
-                               XEvent      *xevent)
+meta_backend_x11_reset_cached_logical_monitor (MetaBackendX11 *backend_x11)
 {
-  MetaBackendX11Private *priv = meta_backend_x11_get_instance_private (x11);
+  MetaBackendX11Private *priv =
+    meta_backend_x11_get_instance_private (backend_x11);
 
   priv->cached_current_logical_monitor = NULL;
 }
@@ -954,6 +961,9 @@ meta_backend_x11_dispose (GObject *object)
     }
 
   G_OBJECT_CLASS (meta_backend_x11_parent_class)->dispose (object);
+
+  g_clear_pointer (&priv->barriers, meta_x11_barriers_free);
+  g_clear_pointer (&priv->xdisplay, XCloseDisplay);
 }
 
 static void
@@ -963,6 +973,8 @@ meta_backend_x11_finalize (GObject *object)
   MetaBackendX11Private *priv = meta_backend_x11_get_instance_private (x11);
 
   g_clear_pointer (&priv->keymap, xkb_keymap_unref);
+
+  mtk_x11_errors_deinit ();
 
   G_OBJECT_CLASS (meta_backend_x11_parent_class)->finalize (object);
 }
@@ -991,6 +1003,7 @@ static void
 meta_backend_x11_init (MetaBackendX11 *x11)
 {
   XInitThreads ();
+  mtk_x11_errors_init ();
 }
 
 Display *
@@ -1042,19 +1055,22 @@ meta_backend_x11_sync_pointer (MetaBackendX11 *backend_x11)
   ClutterBackend *clutter_backend = meta_backend_get_clutter_backend (backend);
   ClutterSeat *seat = clutter_backend_get_default_seat (clutter_backend);
   ClutterInputDevice *pointer = clutter_seat_get_pointer (seat);
-  ClutterStage *stage = CLUTTER_STAGE (meta_backend_get_stage (backend));
   ClutterModifierType modifiers;
   ClutterEvent *event;
   graphene_point_t pos;
 
-  event = clutter_event_new (CLUTTER_MOTION);
   clutter_seat_query_state (seat, pointer, NULL, &pos, &modifiers);
-  clutter_event_set_flags (event, CLUTTER_EVENT_FLAG_SYNTHETIC);
-  clutter_event_set_coords (event, pos.x, pos.y);
-  clutter_event_set_device (event, pointer);
-  clutter_event_set_state (event, modifiers);
-  clutter_event_set_source_device (event, NULL);
-  clutter_event_set_stage (event, stage);
+
+  event = clutter_event_motion_new (CLUTTER_EVENT_FLAG_SYNTHETIC,
+                                    CLUTTER_CURRENT_TIME,
+                                    pointer,
+                                    NULL,
+                                    modifiers,
+                                    pos,
+                                    GRAPHENE_POINT_INIT (0, 0),
+                                    GRAPHENE_POINT_INIT (0, 0),
+                                    GRAPHENE_POINT_INIT (0, 0),
+                                    NULL);
 
   clutter_event_put (event);
   clutter_event_free (event);

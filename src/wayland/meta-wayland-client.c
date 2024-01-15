@@ -15,9 +15,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /**
@@ -474,6 +472,27 @@ meta_wayland_client_show_in_window_list (MetaWaylandClient *client,
       window->skip_from_window_list = FALSE;
       meta_window_recalc_features (window);
     }
+}
+
+/**
+ * meta_wayland_client_make_desktop
+ * @client: a #MetaWaylandClient
+ * @window: (not nullable): a MetaWindow
+ *
+ * Mark window as DESKTOP window
+ */
+void
+meta_wayland_client_make_desktop (MetaWaylandClient *client,
+                                  MetaWindow        *window)
+{
+  g_return_if_fail (META_IS_WAYLAND_CLIENT (client));
+  g_return_if_fail (META_IS_WINDOW (window));
+  g_return_if_fail (window->type == META_WINDOW_NORMAL);
+
+  if (!meta_wayland_client_owns_window (client, window))
+    return;
+
+  meta_window_set_type (window, META_WINDOW_DESKTOP);
 }
 
 gboolean

@@ -1,0 +1,4 @@
+  * Team upload
+  * d/control, d/rules: Stop generating d/control from d/control.in
+  * d/control: Build-depend on systemd-dev instead of udev
+    (Closes: #1060619)

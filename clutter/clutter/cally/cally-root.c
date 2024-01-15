@@ -15,9 +15,7 @@
  * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /**
@@ -35,13 +33,13 @@
  * [class@Clutter.StageManager]).
  */
 
-#include "clutter-build-config.h"
+#include "clutter/clutter-build-config.h"
 
-#include "cally-root.h"
+#include "cally/cally-root.h"
 
-#include "clutter-actor.h"
-#include "clutter-stage-private.h"
-#include "clutter-stage-manager.h"
+#include "clutter/clutter-actor.h"
+#include "clutter/clutter-stage-private.h"
+#include "clutter/clutter-stage-manager.h"
 
 
 /* GObject */

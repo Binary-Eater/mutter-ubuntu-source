@@ -12,15 +12,12 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Author: Carlos Garnacho <carlosg@gnome.org>
  */
 
-#ifndef META_X11_SELECTION_H
-#define META_X11_SELECTION_H
+#pragma once
 
 #include "meta/meta-selection.h"
 #include "x11/meta-x11-display-private.h"
@@ -30,5 +27,3 @@ gboolean meta_x11_selection_handle_event (MetaX11Display *display,
 
 void     meta_x11_selection_init     (MetaX11Display *x11_display);
 void     meta_x11_selection_shutdown (MetaX11Display *x11_display);
-
-#endif /* META_X11_SELECTION_H */

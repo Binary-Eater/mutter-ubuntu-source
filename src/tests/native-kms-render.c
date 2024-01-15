@@ -12,9 +12,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  */
 
@@ -268,8 +266,8 @@ meta_test_kms_render_client_scanout (void)
   gulong paint_view_handler_id;
   gulong presented_handler_id;
   MetaWindow *window;
-  MetaRectangle view_rect;
-  MetaRectangle buffer_rect;
+  MtkRectangle view_rect;
+  MtkRectangle buffer_rect;
 
   test_driver = meta_wayland_test_driver_new (wayland_compositor);
   meta_wayland_test_driver_set_property (test_driver,
@@ -380,8 +378,8 @@ needs_repainted_guard (gpointer user_data)
 }
 
 static void
-on_scanout_fallback_result (const MetaKmsFeedback *kms_feedback,
-                            gpointer               user_data)
+scanout_fallback_result_feedback (const MetaKmsFeedback *kms_feedback,
+                                  gpointer               user_data)
 {
   KmsRenderingTest *test = user_data;
 
@@ -391,6 +389,10 @@ on_scanout_fallback_result (const MetaKmsFeedback *kms_feedback,
   test->scanout_fallback.repaint_guard_id =
     g_idle_add_full (G_PRIORITY_LOW, needs_repainted_guard, test, NULL);
 }
+
+static const MetaKmsResultListenerVtable scanout_fallback_result_listener_vtable = {
+  .feedback = scanout_fallback_result_feedback,
+};
 
 static void
 on_scanout_fallback_before_paint (ClutterStage     *stage,
@@ -435,7 +437,10 @@ on_scanout_fallback_before_paint (ClutterStage     *stage,
 
   kms_update = meta_frame_native_ensure_kms_update (frame_native, kms_device);
   meta_kms_update_add_result_listener (kms_update,
-                                       on_scanout_fallback_result, test);
+                                       &scanout_fallback_result_listener_vtable,
+                                       NULL,
+                                       test,
+                                       NULL);
 
   test->scanout_fallback.scanout_failed_view = stage_view;
 }
@@ -537,6 +542,34 @@ meta_test_kms_render_client_scanout_fallback (void)
 }
 
 static void
+meta_test_kms_render_empty_config (void)
+{
+  MetaBackend *backend = meta_context_get_backend (test_context);
+  MetaMonitorManager *monitor_manager = meta_backend_get_monitor_manager (backend);
+  GList *logical_monitors;
+  GError *error = NULL;
+
+  logical_monitors = meta_monitor_manager_get_logical_monitors (monitor_manager);
+  g_assert_cmpuint (g_list_length (logical_monitors), ==, 1);
+
+  meta_monitor_manager_read_current_state (monitor_manager);
+  meta_monitor_manager_apply_monitors_config (monitor_manager,
+                                              NULL,
+                                              META_MONITORS_CONFIG_METHOD_TEMPORARY,
+                                              &error);
+  g_assert_no_error (error);
+
+  logical_monitors = meta_monitor_manager_get_logical_monitors (monitor_manager);
+  g_assert_cmpuint (g_list_length (logical_monitors), ==, 0);
+
+  meta_monitor_manager_read_current_state (monitor_manager);
+  meta_monitor_manager_ensure_configured (monitor_manager);
+
+  logical_monitors = meta_monitor_manager_get_logical_monitors (monitor_manager);
+  g_assert_cmpuint (g_list_length (logical_monitors), ==, 1);
+}
+
+static void
 init_tests (void)
 {
   g_test_add_func ("/backends/native/kms/render/basic",
@@ -545,6 +578,8 @@ init_tests (void)
                    meta_test_kms_render_client_scanout);
   g_test_add_func ("/backends/native/kms/render/client-scanout-fallabck",
                    meta_test_kms_render_client_scanout_fallback);
+  g_test_add_func ("/backends/native/kms/render/empty-config",
+                   meta_test_kms_render_empty_config);
 }
 
 int

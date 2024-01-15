@@ -14,13 +14,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef META_MONITOR_H
-#define META_MONITOR_H
+#pragma once
 
 #include <glib-object.h>
 
@@ -73,8 +70,8 @@ struct _MetaMonitorClass
   GObjectClass parent_class;
 
   MetaOutput * (* get_main_output) (MetaMonitor *monitor);
-  void (* derive_layout) (MetaMonitor   *monitor,
-                          MetaRectangle *layout);
+  void (* derive_layout) (MetaMonitor  *monitor,
+                          MtkRectangle *layout);
   void (* calculate_crtc_pos) (MetaMonitor          *monitor,
                                MetaMonitorMode      *monitor_mode,
                                MetaOutput           *output,
@@ -138,8 +135,8 @@ void meta_monitor_get_current_resolution (MetaMonitor *monitor,
                                           int           *width,
                                           int           *height);
 
-void meta_monitor_derive_layout (MetaMonitor   *monitor,
-                                 MetaRectangle *layout);
+void meta_monitor_derive_layout (MetaMonitor  *monitor,
+                                 MtkRectangle *layout);
 
 META_EXPORT_TEST
 void meta_monitor_get_physical_dimensions (MetaMonitor *monitor,
@@ -270,10 +267,6 @@ gboolean meta_monitor_mode_foreach_output (MetaMonitor          *monitor,
                                            gpointer              user_data,
                                            GError              **error);
 
-MetaMonitorCrtcMode * meta_monitor_get_crtc_mode_for_output (MetaMonitor     *monitor,
-                                                             MetaMonitorMode *mode,
-                                                             MetaOutput      *output);
-
 META_EXPORT_TEST
 gboolean meta_monitor_mode_should_be_advertised (MetaMonitorMode *monitor_mode);
 
@@ -324,5 +317,3 @@ gboolean meta_parse_monitor_mode (const char *string,
                                   int        *out_height,
                                   float      *out_refresh_rate,
                                   float       fallback_refresh_rate);
-
-#endif /* META_MONITOR_H */

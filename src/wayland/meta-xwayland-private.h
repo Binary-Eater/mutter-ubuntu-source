@@ -12,13 +12,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef META_XWAYLAND_PRIVATE_H
-#define META_XWAYLAND_PRIVATE_H
+#pragma once
 
 #include <glib.h>
 
@@ -61,4 +58,5 @@ gboolean meta_xwayland_start_xserver_finish (MetaXWaylandManager  *manager,
 gboolean meta_xwayland_manager_handle_xevent (MetaXWaylandManager *manager,
                                               XEvent              *xevent);
 
-#endif /* META_XWAYLAND_PRIVATE_H */
+void meta_xwayland_set_should_enable_ei_portal (MetaXWaylandManager  *manager,
+                                                gboolean              should_enable_ei_portal);

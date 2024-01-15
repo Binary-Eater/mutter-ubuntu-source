@@ -23,22 +23,20 @@
  *
  */
 
-#ifndef __CLUTTER_PRIVATE_H__
-#define __CLUTTER_PRIVATE_H__
+#pragma once
 
 #include <string.h>
 #include <glib.h>
 
-#include <cogl-pango/cogl-pango.h>
+#include "cogl-pango/cogl-pango.h"
 
-#include "clutter-backend.h"
-#include "clutter-effect.h"
-#include "clutter-event.h"
-#include "clutter-id-pool.h"
-#include "clutter-layout-manager.h"
-#include "clutter-settings.h"
-#include "clutter-stage-manager.h"
-#include "clutter-stage.h"
+#include "clutter/clutter-backend.h"
+#include "clutter/clutter-effect.h"
+#include "clutter/clutter-event.h"
+#include "clutter/clutter-layout-manager.h"
+#include "clutter/clutter-settings.h"
+#include "clutter/clutter-stage-manager.h"
+#include "clutter/clutter-stage.h"
 
 G_BEGIN_DECLS
 
@@ -203,30 +201,6 @@ void  _clutter_util_fully_transform_vertices (const graphene_matrix_t  *modelvie
                                               int                       n_vertices);
 
 CLUTTER_EXPORT
-void _clutter_util_rect_from_rectangle (const cairo_rectangle_int_t *src,
-                                        graphene_rect_t             *dest);
-
-CLUTTER_EXPORT
-void _clutter_util_rectangle_int_extents (const graphene_rect_t *src,
-                                          cairo_rectangle_int_t *dest);
-
-void _clutter_util_rectangle_offset (const cairo_rectangle_int_t *src,
-                                     int                          x,
-                                     int                          y,
-                                     cairo_rectangle_int_t       *dest);
-
-void _clutter_util_rectangle_union (const cairo_rectangle_int_t *src1,
-                                    const cairo_rectangle_int_t *src2,
-                                    cairo_rectangle_int_t       *dest);
-
-gboolean _clutter_util_rectangle_intersection (const cairo_rectangle_int_t *src1,
-                                               const cairo_rectangle_int_t *src2,
-                                               cairo_rectangle_int_t       *dest);
-
-gboolean clutter_util_rectangle_equal (const cairo_rectangle_int_t *src1,
-                                       const cairo_rectangle_int_t *src2);
-
-CLUTTER_EXPORT
 PangoDirection _clutter_pango_unichar_direction (gunichar ch);
 
 PangoDirection _clutter_pango_find_base_dir     (const gchar *text,
@@ -321,5 +295,3 @@ s2ms (int64_t s)
 }
 
 G_END_DECLS
-
-#endif /* __CLUTTER_PRIVATE_H__ */

@@ -14,9 +14,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Written by:
  *     Jonas Ådahl <jadahl@gmail.com>
@@ -193,7 +191,7 @@ surface_constraint_data_new (MetaWaylandSurface *surface)
       connect_window (data, window);
     }
 #ifdef HAVE_XWAYLAND
-  else if (meta_xwayland_is_xwayland_surface (surface))
+  else if (meta_wayland_surface_is_xwayland (surface))
     {
       data->window_associated_handler_id =
         g_signal_connect (surface->role, "window-associated",
@@ -474,8 +472,10 @@ should_constraint_be_enabled (MetaWaylandPointerConstraint *constraint)
        * associate the X11 Window with the wl_surface.
        * For subsurfaces the window of the ancestor might be gone already.
        */
-      g_warn_if_fail (meta_xwayland_is_xwayland_surface (constraint->surface) ||
+#ifdef HAVE_XWAYLAND
+      g_warn_if_fail (meta_wayland_surface_is_xwayland (constraint->surface) ||
                       META_IS_WAYLAND_SUBSURFACE (constraint->surface->role));
+#endif
       return FALSE;
     }
 #endif
@@ -486,8 +486,7 @@ should_constraint_be_enabled (MetaWaylandPointerConstraint *constraint)
   if (constraint->seat->pointer->focus_surface != constraint->surface)
     return FALSE;
 
-#ifdef HAVE_XWAYLAND
-  if (meta_xwayland_is_xwayland_surface (constraint->surface))
+  if (meta_wayland_surface_is_xwayland (constraint->surface))
     {
       MetaDisplay *display = meta_window_get_display (window);
 
@@ -509,7 +508,6 @@ should_constraint_be_enabled (MetaWaylandPointerConstraint *constraint)
           display->focus_window->client_type != META_WINDOW_CLIENT_TYPE_X11)
         return FALSE;
     }
-#endif
 
   if (!meta_window_appears_focused (window))
     return FALSE;
@@ -608,12 +606,6 @@ meta_wayland_pointer_constraint_maybe_enable_for_window (MetaWindow *window)
     }
 }
 
-MetaWaylandSeat *
-meta_wayland_pointer_constraint_get_seat (MetaWaylandPointerConstraint *constraint)
-{
-  return constraint->seat;
-}
-
 cairo_region_t *
 meta_wayland_pointer_constraint_calculate_effective_region (MetaWaylandPointerConstraint *constraint)
 {
@@ -630,9 +622,7 @@ meta_wayland_pointer_constraint_calculate_effective_region (MetaWaylandPointerCo
       MetaFrame *frame = window->frame;
       int actual_width, actual_height;
 
-#ifdef HAVE_XWAYLAND
-      g_assert (meta_xwayland_is_xwayland_surface (constraint->surface));
-#endif
+      g_assert (meta_wayland_surface_is_xwayland (constraint->surface));
 
       actual_width = window->buffer_rect.width - (frame->child_x +
                                                   frame->right_width);
@@ -640,7 +630,7 @@ meta_wayland_pointer_constraint_calculate_effective_region (MetaWaylandPointerCo
                                                     frame->bottom_height);
       if (actual_width > 0 && actual_height > 0)
         {
-          cairo_region_intersect_rectangle (region, &(cairo_rectangle_int_t) {
+          cairo_region_intersect_rectangle (region, &(MtkRectangle) {
                                               .x = frame->child_x,
                                               .y = frame->child_y,
                                               .width = actual_width,

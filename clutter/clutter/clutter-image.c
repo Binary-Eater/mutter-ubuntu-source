@@ -34,17 +34,17 @@
  * for an example of how to use #ClutterImage..
  */
 
-#include "clutter-build-config.h"
+#include "clutter/clutter-build-config.h"
 
-#include "clutter-image.h"
+#include "clutter/clutter-image.h"
 
-#include "clutter-actor-private.h"
-#include "clutter-color.h"
-#include "clutter-content-private.h"
-#include "clutter-debug.h"
-#include "clutter-paint-node.h"
-#include "clutter-paint-nodes.h"
-#include "clutter-private.h"
+#include "clutter/clutter-actor-private.h"
+#include "clutter/clutter-color.h"
+#include "clutter/clutter-content-private.h"
+#include "clutter/clutter-debug.h"
+#include "clutter/clutter-paint-node.h"
+#include "clutter/clutter-paint-nodes.h"
+#include "clutter/clutter-private.h"
 
 typedef struct
 {
@@ -356,12 +356,12 @@ clutter_image_set_bytes (ClutterImage     *image,
  *   and %FALSE otherwise.
  */
 gboolean
-clutter_image_set_area (ClutterImage                 *image,
-                        const guint8                 *data,
-                        CoglPixelFormat               pixel_format,
-                        const cairo_rectangle_int_t  *area,
-                        guint                         row_stride,
-                        GError                      **error)
+clutter_image_set_area (ClutterImage        *image,
+                        const guint8        *data,
+                        CoglPixelFormat      pixel_format,
+                        const MtkRectangle  *area,
+                        guint                row_stride,
+                        GError             **error)
 {
   ClutterImagePrivate *priv;
 

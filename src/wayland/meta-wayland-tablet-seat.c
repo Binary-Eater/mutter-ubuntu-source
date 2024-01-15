@@ -14,9 +14,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Author: Carlos Garnacho <carlosg@gnome.org>
  */
@@ -383,7 +381,7 @@ meta_wayland_tablet_seat_update (MetaWaylandTabletSeat *tablet_seat,
 
   device = clutter_event_get_source_device (event);
 
-  switch (event->type)
+  switch (clutter_event_type (event))
     {
     case CLUTTER_PROXIMITY_IN:
     case CLUTTER_PROXIMITY_OUT:
@@ -422,7 +420,7 @@ meta_wayland_tablet_seat_handle_event (MetaWaylandTabletSeat *tablet_seat,
   MetaWaylandTabletTool *tool = NULL;
   MetaWaylandTabletPad *pad = NULL;
 
-  switch (event->type)
+  switch (clutter_event_type (event))
     {
     case CLUTTER_PROXIMITY_IN:
     case CLUTTER_PROXIMITY_OUT:

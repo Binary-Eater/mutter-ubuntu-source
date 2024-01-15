@@ -17,8 +17,7 @@
  * Author: Emmanuele Bassi <ebassi@linux.intel.com>
  */
 
-#ifndef META_KEYMAP_X11_H
-#define META_KEYMAP_X11_H
+#pragma once
 
 #include <glib-object.h>
 #include <pango/pango.h>
@@ -31,8 +30,6 @@ G_BEGIN_DECLS
 G_DECLARE_FINAL_TYPE (MetaKeymapX11, meta_keymap_x11,
                       META, KEYMAP_X11, ClutterKeymap)
 
-int      meta_keymap_x11_get_key_group       (MetaKeymapX11       *keymap,
-                                              ClutterModifierType  state);
 int      meta_keymap_x11_translate_key_state (MetaKeymapX11       *keymap,
                                               guint                hardware_keycode,
                                               ClutterModifierType *modifier_state_p,
@@ -57,5 +54,3 @@ gboolean meta_keymap_x11_handle_event        (MetaKeymapX11 *keymap_x11,
                                               XEvent        *xevent);
 
 G_END_DECLS
-
-#endif /* META_KEYMAP_X11_H */

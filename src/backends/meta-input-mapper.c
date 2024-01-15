@@ -21,10 +21,10 @@
 #include "config.h"
 
 #include "backends/meta-input-device-private.h"
-#include "meta-input-mapper-private.h"
-#include "meta-monitor-manager-private.h"
-#include "meta-logical-monitor.h"
-#include "meta-backend-private.h"
+#include "backends/meta-input-mapper-private.h"
+#include "backends/meta-monitor-manager-private.h"
+#include "backends/meta-logical-monitor.h"
+#include "backends/meta-backend-private.h"
 
 #include "meta-dbus-input-mapping.h"
 
@@ -656,8 +656,9 @@ input_mapper_monitors_changed_cb (MetaMonitorManager *monitor_manager,
 }
 
 static void
-input_mapper_power_save_mode_changed_cb (MetaMonitorManager *monitor_manager,
-                                         MetaInputMapper    *mapper)
+input_mapper_power_save_mode_changed_cb (MetaMonitorManager        *monitor_manager,
+                                         MetaPowerSaveChangeReason  reason,
+                                         MetaInputMapper           *mapper)
 {
   ClutterInputDevice *device;
   MetaLogicalMonitor *logical_monitor;
@@ -785,9 +786,7 @@ meta_input_mapper_class_init (MetaInputMapperClass *klass)
   object_class->get_property = meta_input_mapper_get_property;
 
   obj_props[PROP_BACKEND] =
-    g_param_spec_object ("backend",
-                         "backend",
-                         "MetaBackend",
+    g_param_spec_object ("backend", NULL, NULL,
                          META_TYPE_BACKEND,
                          G_PARAM_READWRITE |
                          G_PARAM_CONSTRUCT_ONLY |
@@ -914,7 +913,7 @@ handle_get_device_mapping (MetaDBusInputMapping  *skeleton,
 
   if (logical_monitor)
     {
-      MetaRectangle rect;
+      MtkRectangle rect;
 
       rect = meta_logical_monitor_get_layout (logical_monitor);
       g_dbus_method_invocation_return_value (invocation,

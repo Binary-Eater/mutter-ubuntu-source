@@ -14,9 +14,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Author: Carlos Garnacho <carlosg@gnome.org>
  */
@@ -549,14 +547,20 @@ static void
 meta_wayland_tablet_tool_account_button (MetaWaylandTabletTool *tool,
                                          const ClutterEvent    *event)
 {
-  if (event->type == CLUTTER_BUTTON_PRESS)
+  ClutterEventType event_type;
+  int button;
+
+  event_type = clutter_event_type (event);
+  button = clutter_event_get_button (event);
+
+  if (event_type == CLUTTER_BUTTON_PRESS)
     {
-      tool->pressed_buttons |= 1 << (event->button.button - 1);
+      tool->pressed_buttons |= 1 << (button - 1);
       tool->button_count++;
     }
-  else if (event->type == CLUTTER_BUTTON_RELEASE)
+  else if (event_type == CLUTTER_BUTTON_RELEASE)
     {
-      tool->pressed_buttons &= ~(1 << (event->button.button - 1));
+      tool->pressed_buttons &= ~(1 << (button - 1));
       tool->button_count--;
     }
 }
@@ -581,9 +585,11 @@ static void
 repick_for_event (MetaWaylandTabletTool *tool,
                   const ClutterEvent    *for_event)
 {
+  MetaBackend *backend = backend_from_tool (tool);
+  ClutterStage *stage = CLUTTER_STAGE (meta_backend_get_stage (backend));
   ClutterActor *actor;
 
-  actor = clutter_stage_get_device_actor (clutter_event_get_stage (for_event),
+  actor = clutter_stage_get_device_actor (stage,
                                           clutter_event_get_device (for_event),
                                           clutter_event_get_event_sequence (for_event));
 
@@ -668,7 +674,7 @@ broadcast_button (MetaWaylandTabletTool *tool,
   wl_resource_for_each (resource, &tool->focus_resource_list)
     {
       zwp_tablet_tool_v2_send_button (resource, tool->button_serial, button,
-                                      event->type == CLUTTER_BUTTON_PRESS ?
+                                      clutter_event_type (event) == CLUTTER_BUTTON_PRESS ?
                                       ZWP_TABLET_TOOL_V2_BUTTON_STATE_PRESSED :
                                       ZWP_TABLET_TOOL_V2_BUTTON_STATE_RELEASED);
     }
@@ -681,9 +687,10 @@ broadcast_axis (MetaWaylandTabletTool *tool,
 {
   struct wl_resource *resource;
   uint32_t value;
-  double val;
+  double *axes, val;
 
-  val = event->motion.axes[axis];
+  axes = clutter_event_get_axes (event, NULL);
+  val = axes[axis];
   value = val * TABLET_AXIS_MAX;
 
   wl_resource_for_each (resource, &tool->focus_resource_list)
@@ -710,10 +717,11 @@ broadcast_tilt (MetaWaylandTabletTool *tool,
                 const ClutterEvent    *event)
 {
   struct wl_resource *resource;
-  gdouble xtilt, ytilt;
+  double *axes, xtilt, ytilt;
 
-  xtilt = event->motion.axes[CLUTTER_INPUT_AXIS_XTILT];
-  ytilt = event->motion.axes[CLUTTER_INPUT_AXIS_YTILT];
+  axes = clutter_event_get_axes (event, NULL);
+  xtilt = axes[CLUTTER_INPUT_AXIS_XTILT];
+  ytilt = axes[CLUTTER_INPUT_AXIS_YTILT];
 
   wl_resource_for_each (resource, &tool->focus_resource_list)
     {
@@ -728,9 +736,10 @@ broadcast_rotation (MetaWaylandTabletTool *tool,
                     const ClutterEvent    *event)
 {
   struct wl_resource *resource;
-  gdouble rotation;
+  double *axes, rotation;
 
-  rotation = event->motion.axes[CLUTTER_INPUT_AXIS_ROTATION];
+  axes = clutter_event_get_axes (event, NULL);
+  rotation = axes[CLUTTER_INPUT_AXIS_ROTATION];
 
   wl_resource_for_each (resource, &tool->focus_resource_list)
     {
@@ -744,10 +753,11 @@ broadcast_wheel (MetaWaylandTabletTool *tool,
                  const ClutterEvent    *event)
 {
   struct wl_resource *resource;
-  gdouble angle;
+  double *axes, angle;
   gint32 clicks = 0;
 
-  angle = event->motion.axes[CLUTTER_INPUT_AXIS_WHEEL];
+  axes = clutter_event_get_axes (event, NULL);
+  angle = axes[CLUTTER_INPUT_AXIS_WHEEL];
 
   /* FIXME: Perform proper angle-to-clicks accumulation elsewhere */
   if (angle > 0.01)
@@ -803,15 +813,21 @@ static void
 handle_button_event (MetaWaylandTabletTool *tool,
                      const ClutterEvent    *event)
 {
+  ClutterEventType event_type;
+  int button;
+
   if (!tool->focus_surface)
     return;
 
-  if (event->type == CLUTTER_BUTTON_PRESS && tool->button_count == 1)
+  event_type = clutter_event_type (event);
+  button = clutter_event_get_button (event);
+
+  if (event_type == CLUTTER_BUTTON_PRESS && tool->button_count == 1)
     clutter_event_get_coords (event, &tool->grab_x, &tool->grab_y);
 
-  if (event->type == CLUTTER_BUTTON_PRESS && event->button.button == 1)
+  if (event_type == CLUTTER_BUTTON_PRESS && button == 1)
     broadcast_down (tool, event);
-  else if (event->type == CLUTTER_BUTTON_RELEASE && event->button.button == 1)
+  else if (event_type == CLUTTER_BUTTON_RELEASE && button == 1)
     broadcast_up (tool, event);
   else
     broadcast_button (tool, event);
@@ -823,7 +839,7 @@ void
 meta_wayland_tablet_tool_update (MetaWaylandTabletTool *tool,
                                  const ClutterEvent    *event)
 {
-  switch (event->type)
+  switch (clutter_event_type (event))
     {
     case CLUTTER_BUTTON_PRESS:
     case CLUTTER_BUTTON_RELEASE:
@@ -862,7 +878,7 @@ gboolean
 meta_wayland_tablet_tool_handle_event (MetaWaylandTabletTool *tool,
                                        const ClutterEvent    *event)
 {
-  switch (event->type)
+  switch (clutter_event_type (event))
     {
     case CLUTTER_PROXIMITY_IN:
       /* We don't have much info here to make anything useful out of it,

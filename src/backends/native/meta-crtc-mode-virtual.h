@@ -12,13 +12,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef META_CRTC_MODE_VIRTUAL_H
-#define META_CRTC_MODE_VIRTUAL_H
+#pragma once
 
 #include "backends/meta-backend-types.h"
 #include "backends/meta-crtc-mode.h"
@@ -30,5 +27,3 @@ G_DECLARE_FINAL_TYPE (MetaCrtcModeVirtual, meta_crtc_mode_virtual,
 
 MetaCrtcModeVirtual * meta_crtc_mode_virtual_new (uint64_t                   id,
                                                   const MetaVirtualModeInfo *info);
-
-#endif /* META_CRTC_MODE_VIRTUAL_H */

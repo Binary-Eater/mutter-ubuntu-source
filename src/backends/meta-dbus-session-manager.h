@@ -12,14 +12,11 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  */
 
-#ifndef META_DBUS_SERVICE_MANAGER_H
-#define META_DBUS_SERVICE_MANAGER_H
+#pragma once
 
 #include <gio/gio.h>
 #include <glib-object.h>
@@ -54,5 +51,3 @@ MetaBackend * meta_dbus_session_manager_get_backend (MetaDbusSessionManager *ses
 GDBusConnection * meta_dbus_session_manager_get_connection (MetaDbusSessionManager *session_manager);
 
 GDBusInterfaceSkeleton * meta_dbus_session_manager_get_interface_skeleton (MetaDbusSessionManager *session_manager);
-
-#endif /* META_DBUS_SERVICE_MANAGER_H */

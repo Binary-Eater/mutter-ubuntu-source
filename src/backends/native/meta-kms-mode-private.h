@@ -12,13 +12,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef META_KMS_MODE_PRIVATE_H
-#define META_KMS_MODE_PRIVATE_H
+#pragma once
 
 #include "backends/native/meta-kms-mode.h"
 
@@ -34,5 +31,3 @@ void meta_kms_mode_free (MetaKmsMode *mode);
 MetaKmsMode * meta_kms_mode_new (MetaKmsImplDevice     *impl_device,
                                  const drmModeModeInfo *drm_mode,
                                  MetaKmsModeFlag        flags);
-
-#endif /* META_KMS_MODE_PRIVATE_H */

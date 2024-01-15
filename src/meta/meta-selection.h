@@ -12,15 +12,12 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Author: Carlos Garnacho <carlosg@gnome.org>
  */
 
-#ifndef META_SELECTION_H
-#define META_SELECTION_H
+#pragma once
 
 #include <gio/gio.h>
 
@@ -66,5 +63,3 @@ META_EXPORT
 gboolean meta_selection_transfer_finish      (MetaSelection        *selection,
                                               GAsyncResult         *result,
                                               GError              **error);
-
-#endif /* META_SELECTION_H */

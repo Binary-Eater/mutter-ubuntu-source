@@ -30,19 +30,19 @@
 
 #include "cogl-config.h"
 
-#include "cogl-debug.h"
-#include "cogl-context-private.h"
-#include "cogl-graphene.h"
-#include "cogl-journal-private.h"
-#include "cogl-texture-private.h"
-#include "cogl-texture-2d-private.h"
-#include "cogl-pipeline-private.h"
-#include "cogl-framebuffer-private.h"
-#include "cogl-profile.h"
-#include "cogl-attribute-private.h"
-#include "cogl-point-in-poly-private.h"
-#include "cogl-private.h"
-#include "cogl1-context.h"
+#include "cogl/cogl-debug.h"
+#include "cogl/cogl-context-private.h"
+#include "cogl/cogl-graphene.h"
+#include "cogl/cogl-journal-private.h"
+#include "cogl/cogl-texture-private.h"
+#include "cogl/cogl-texture-2d-private.h"
+#include "cogl/cogl-pipeline-private.h"
+#include "cogl/cogl-framebuffer-private.h"
+#include "cogl/cogl-profile.h"
+#include "cogl/cogl-attribute-private.h"
+#include "cogl/cogl-point-in-poly-private.h"
+#include "cogl/cogl-private.h"
+#include "cogl/cogl1-context.h"
 
 #include <string.h>
 #include <gmodule.h>
@@ -86,10 +86,10 @@
 #define N_POS_COMPONENTS  POS_STRIDE
 #define COLOR_STRIDE      1 /* number of 32bit words */
 #define TEX_STRIDE        2 /* number of 32bit words */
-#define MIN_LAYER_PADING  2
+#define MIN_LAYER_PADDING  2
 #define GET_JOURNAL_VB_STRIDE_FOR_N_LAYERS(N_LAYERS) \
   (POS_STRIDE + COLOR_STRIDE + \
-   TEX_STRIDE * (N_LAYERS < MIN_LAYER_PADING ? MIN_LAYER_PADING : N_LAYERS))
+   TEX_STRIDE * (N_LAYERS < MIN_LAYER_PADDING ? MIN_LAYER_PADDING : N_LAYERS))
 
 /* If a batch is longer than this threshold then we'll assume it's not
    worth doing software clipping and it's cheaper to program the GPU
@@ -664,8 +664,8 @@ compare_entry_strides (CoglJournalEntry *entry0, CoglJournalEntry *entry1)
   /* TODO: We should be padding the n_layers == 1 case as if it were
    * n_layers == 2 so we can reduce the need to split batches. */
   if (entry0->n_layers == entry1->n_layers ||
-      (entry0->n_layers <= MIN_LAYER_PADING &&
-       entry1->n_layers <= MIN_LAYER_PADING))
+      (entry0->n_layers <= MIN_LAYER_PADDING &&
+       entry1->n_layers <= MIN_LAYER_PADDING))
     return TRUE;
   else
     return FALSE;
@@ -1733,7 +1733,6 @@ try_checking_point_hits_entry_after_clipping (CoglFramebuffer *framebuffer,
                                               float y,
                                               gboolean *hit)
 {
-  gboolean can_software_clip = TRUE;
   gboolean needs_software_clip = FALSE;
   CoglClipStack *clip_entry;
 
@@ -1754,15 +1753,7 @@ try_checking_point_hits_entry_after_clipping (CoglFramebuffer *framebuffer,
           return TRUE;
         }
 
-      if (clip_entry->type == COGL_CLIP_STACK_WINDOW_RECT)
-        {
-          /* XXX: technically we could still run the software clip in
-           * this case because for our purposes we know this clip
-           * can be ignored now, but [can_]sofware_clip_entry() doesn't
-           * know this and will bail out. */
-          can_software_clip = FALSE;
-        }
-      else if (clip_entry->type == COGL_CLIP_STACK_RECT)
+      if (clip_entry->type == COGL_CLIP_STACK_RECT)
         {
           CoglClipStackRect *rect_entry = (CoglClipStackRect *)entry;
 
@@ -1780,9 +1771,6 @@ try_checking_point_hits_entry_after_clipping (CoglFramebuffer *framebuffer,
     {
       ClipBounds clip_bounds;
       float poly[16];
-
-      if (!can_software_clip)
-        return FALSE;
 
       if (!can_software_clip_entry (entry, NULL,
                                     entry->clip_stack, &clip_bounds))

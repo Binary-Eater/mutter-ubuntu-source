@@ -14,13 +14,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef META_WAYLAND_TABLET_CURSOR_SURFACE_H
-#define META_WAYLAND_TABLET_CURSOR_SURFACE_H
+#pragma once
 
 #include "wayland/meta-wayland-cursor-surface.h"
 
@@ -29,5 +26,3 @@ G_DECLARE_FINAL_TYPE (MetaWaylandTabletCursorSurface,
                       meta_wayland_tablet_cursor_surface,
                       META, WAYLAND_TABLET_CURSOR_SURFACE,
                       MetaWaylandCursorSurface)
-
-#endif /* META_WAYLAND_TABLET_CURSOR_SURFACE_H */

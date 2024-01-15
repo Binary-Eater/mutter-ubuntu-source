@@ -14,9 +14,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Written by:
  *     Jasper St. Pierre <jstpierre@mecheye.net>
@@ -24,9 +22,9 @@
  */
 
 /**
- * SECTION:barrier-x11
- * @Title: MetaBarrierImplX11
- * @Short_Description: Pointer barriers implementation for X11
+ * MetaBarrierImplX11:
+ *
+ * Pointer barriers implementation for X11
  */
 
 #include "config.h"
@@ -74,6 +72,12 @@ meta_barrier_impl_x11_release (MetaBarrierImpl  *impl,
   MetaBackend *backend = meta_barrier_get_backend (self->barrier);
   MetaBackendX11 *backend_x11 = META_BACKEND_X11 (backend);
   Display *xdisplay = meta_backend_x11_get_xdisplay (backend_x11);
+
+  if (!event)
+    {
+      g_warning ("X11 barriers always need barrier events to release");
+      return;
+    }
 
   XIBarrierReleasePointer (xdisplay,
                            META_VIRTUAL_CORE_POINTER_ID,

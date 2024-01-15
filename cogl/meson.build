@@ -1,13 +1,12 @@
-cogl_includesubdir = join_paths(pkgname, 'cogl')
-cogl_includedir = join_paths(includedir, cogl_includesubdir)
+cogl_includesubdir = pkgname / 'cogl'
+cogl_includedir = includedir / cogl_includesubdir
 cogl_srcdir = meson.current_source_dir()
 
-cogl_includepath = include_directories('.', 'cogl')
+cogl_includepath = [mtk_includepath, include_directories('.', 'cogl')]
 
 cdata = configuration_data()
 cdata.set('HAVE_COGL_GL', have_gl)
 cdata.set('HAVE_COGL_GLES2', have_gles2)
-cdata.set('HAVE_TRACING', have_profiler)
 cdata.set('ENABLE_UNIT_TESTS', have_cogl_tests)
 
 cogl_config_h = configure_file(
@@ -26,6 +25,7 @@ cogl_pkg_private_deps = [
   cairo_dep,
   gmodule_no_export_dep,
   gdk_pixbuf_dep,
+  libmutter_mtk_dep,
   #uprof_dep,
 ]
 

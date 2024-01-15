@@ -14,18 +14,16 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Written by:
  *     Jasper St. Pierre <jstpierre@mecheye.net>
  */
 
 /**
- * SECTION:meta-backend
- * @title: MetaBackend
- * @short_description: Handles monitor config, modesetting, cursor sprites, ...
+ * MetaBackend:
+ *
+ * Handles monitor config, modesetting, cursor sprites, ...
  *
  * MetaBackend is the abstraction that deals with several things like:
  * - Modesetting (depending on the backend, this can be done either by X or KMS)
@@ -59,6 +57,7 @@
 #include "backends/meta-dbus-session-watcher.h"
 #include "backends/meta-idle-manager.h"
 #include "backends/meta-idle-monitor-private.h"
+#include "backends/meta-input-capture.h"
 #include "backends/meta-input-mapper-private.h"
 #include "backends/meta-input-settings-private.h"
 #include "backends/meta-logical-monitor.h"
@@ -78,6 +77,8 @@
 #include "meta/util.h"
 
 #ifdef HAVE_REMOTE_DESKTOP
+#include "backends/meta-dbus-session-watcher.h"
+#include "backends/meta-remote-access-controller-private.h"
 #include "backends/meta-remote-desktop.h"
 #include "backends/meta-screen-cast.h"
 #endif
@@ -118,6 +119,12 @@ static guint signals[N_SIGNALS];
 
 #define HIDDEN_POINTER_TIMEOUT 300 /* ms */
 
+#ifndef BTN_LEFT
+#define BTN_LEFT 0x110
+#define BTN_RIGHT 0x111
+#define BTN_MIDDLE 0x112
+#endif
+
 struct _MetaBackendPrivate
 {
   MetaContext *context;
@@ -139,6 +146,7 @@ struct _MetaBackendPrivate
   MetaScreenCast *screen_cast;
   MetaRemoteDesktop *remote_desktop;
 #endif
+  MetaInputCapture *input_capture;
 
 #ifdef HAVE_LIBWACOM
   WacomDeviceDatabase *wacom_db;
@@ -154,7 +162,7 @@ struct _MetaBackendPrivate
   GList *gpus;
   GList *hw_cursor_inhibitors;
 
-  gboolean is_pointer_position_initialized;
+  gboolean in_init;
 
   guint device_update_idle_id;
 
@@ -207,6 +215,7 @@ meta_backend_dispose (GObject *object)
   g_clear_object (&priv->remote_desktop);
   g_clear_object (&priv->screen_cast);
 #endif
+  g_clear_object (&priv->input_capture);
   g_clear_object (&priv->dbus_session_watcher);
   g_clear_object (&priv->remote_access_controller);
 
@@ -267,10 +276,11 @@ meta_backend_sync_screen_size (MetaBackend *backend)
 }
 
 static void
-reset_pointer_position (MetaBackend *backend)
+init_pointer_position (MetaBackend *backend)
 {
   MetaBackendPrivate *priv = meta_backend_get_instance_private (backend);
   MetaMonitorManager *monitor_manager = priv->monitor_manager;
+  MetaCursorRenderer *cursor_renderer;
   ClutterSeat *seat = priv->default_seat;
   MetaLogicalMonitor *primary;
 
@@ -279,9 +289,12 @@ reset_pointer_position (MetaBackend *backend)
 
   /* Move the pointer out of the way to avoid hovering over reactive
    * elements (e.g. users list at login) causing undesired behaviour. */
-  clutter_seat_warp_pointer (seat,
-                             primary->rect.x + primary->rect.width * 0.9,
-                             primary->rect.y + primary->rect.height * 0.9);
+  clutter_seat_init_pointer_position (seat,
+                                      primary->rect.x + primary->rect.width * 0.9,
+                                      primary->rect.y + primary->rect.height * 0.9);
+
+  cursor_renderer = meta_backend_get_cursor_renderer (backend);
+  meta_cursor_renderer_update_position (cursor_renderer);
 }
 
 static gboolean
@@ -424,8 +437,9 @@ on_device_added (ClutterSeat        *seat,
 
   device_type = clutter_input_device_get_device_type (device);
 
-  if (device_type == CLUTTER_TOUCHSCREEN_DEVICE ||
-      device_type == CLUTTER_POINTER_DEVICE)
+  if (!priv->in_init &&
+      (device_type == CLUTTER_TOUCHSCREEN_DEVICE ||
+       device_type == CLUTTER_POINTER_DEVICE))
     {
       meta_cursor_tracker_set_pointer_visible (priv->cursor_tracker,
                                                determine_hotplug_pointer_visibility (seat));
@@ -447,6 +461,8 @@ on_device_removed (ClutterSeat        *seat,
 {
   MetaBackend *backend = META_BACKEND (user_data);
   MetaBackendPrivate *priv = meta_backend_get_instance_private (backend);
+
+  g_warn_if_fail (!priv->in_init);
 
   if (clutter_input_device_get_device_mode (device) ==
       CLUTTER_INPUT_MODE_LOGICAL)
@@ -573,11 +589,13 @@ meta_backend_real_post_init (MetaBackend *backend)
     META_DBUS_SESSION_MANAGER (priv->remote_desktop));
 #endif /* HAVE_REMOTE_DESKTOP */
 
+  priv->input_capture = meta_input_capture_new (backend);
+  meta_remote_access_controller_add (
+    priv->remote_access_controller,
+    META_DBUS_SESSION_MANAGER (priv->input_capture));
+
   if (!meta_monitor_manager_is_headless (priv->monitor_manager))
-    {
-      reset_pointer_position (backend);
-      priv->is_pointer_position_initialized = TRUE;
-    }
+    init_pointer_position (backend);
 
   meta_monitor_manager_post_init (priv->monitor_manager);
 
@@ -787,6 +805,8 @@ meta_backend_constructed (GObject *object)
 
   g_assert (priv->context);
 
+  priv->settings = meta_settings_new (backend);
+
 #ifdef HAVE_LIBWACOM
   priv->wacom_db = libwacom_database_new ();
   if (!priv->wacom_db)
@@ -876,17 +896,13 @@ meta_backend_class_init (MetaBackendClass *klass)
   klass->is_headless = meta_backend_real_is_headless;
 
   obj_props[PROP_CONTEXT] =
-    g_param_spec_object ("context",
-                         "context",
-                         "MetaContext",
+    g_param_spec_object ("context", NULL, NULL,
                          META_TYPE_CONTEXT,
                          G_PARAM_READWRITE |
                          G_PARAM_CONSTRUCT_ONLY |
                          G_PARAM_STATIC_STRINGS);
   obj_props[PROP_CAPABILITIES] =
-    g_param_spec_flags ("capabilities",
-                        "capabilities",
-                        "Backend capabilities",
+    g_param_spec_flags ("capabilities", NULL, NULL,
                         META_TYPE_BACKEND_CAPABILITIES,
                         META_BACKEND_CAPABILITY_NONE,
                         G_PARAM_READABLE |
@@ -1016,10 +1032,13 @@ update_last_device_from_event (MetaBackend  *backend,
                                ClutterEvent *event)
 {
   ClutterInputDevice *source;
+  ClutterEventType event_type;
+
+  event_type = clutter_event_type (event);
 
   /* Handled elsewhere */
-  if (event->type == CLUTTER_DEVICE_ADDED ||
-      event->type == CLUTTER_DEVICE_REMOVED)
+  if (event_type == CLUTTER_DEVICE_ADDED ||
+      event_type == CLUTTER_DEVICE_REMOVED)
     return;
 
   source = clutter_event_get_source_device (event);
@@ -1037,7 +1056,12 @@ update_pointer_visibility_from_event (MetaBackend  *backend,
   ClutterInputDeviceType device_type;
   uint32_t time_ms;
 
+  g_warn_if_fail (!priv->in_init);
+
   device = clutter_event_get_source_device (event);
+  if (!device)
+    return;
+
   device_type = clutter_input_device_get_device_type (device);
   time_ms = clutter_event_get_time (event);
 
@@ -1066,6 +1090,28 @@ update_pointer_visibility_from_event (MetaBackend  *backend,
     default:
       break;
     }
+}
+
+static gboolean
+dispatch_clutter_event (MetaBackend *backend)
+{
+  MetaBackendPrivate *priv = meta_backend_get_instance_private (backend);
+  ClutterStage *stage = CLUTTER_STAGE (meta_backend_get_stage (backend));
+  ClutterEvent *event;
+
+  event = clutter_event_get ();
+  if (event)
+    {
+      g_warn_if_fail (!priv->in_init ||
+                      clutter_event_type (event) == CLUTTER_DEVICE_ADDED);
+
+      clutter_stage_handle_event (stage, event);
+      meta_backend_update_from_event (backend, event);
+      clutter_event_free (event);
+      return TRUE;
+    }
+
+  return FALSE;
 }
 
 /* Mutter is responsible for pulling events off the X queue, so Clutter
@@ -1100,16 +1146,8 @@ clutter_source_dispatch (GSource     *source,
                          gpointer     user_data)
 {
   MetaBackendSource *backend_source = (MetaBackendSource *) source;
-  ClutterEvent *event = clutter_event_get ();
 
-  if (event)
-    {
-      event->any.stage =
-        CLUTTER_STAGE (meta_backend_get_stage (backend_source->backend));
-      clutter_do_event (event);
-      meta_backend_update_from_event (backend_source->backend, event);
-      clutter_event_free (event);
-    }
+  dispatch_clutter_event (backend_source->backend);
 
   return TRUE;
 }
@@ -1181,7 +1219,6 @@ meta_backend_initable_init (GInitable     *initable,
   MetaBackend *backend = META_BACKEND (initable);
   MetaBackendPrivate *priv = meta_backend_get_instance_private (backend);
 
-  priv->settings = meta_settings_new (backend);
   priv->orientation_manager = g_object_new (META_TYPE_ORIENTATION_MANAGER, NULL);
 
   priv->monitor_manager = meta_backend_create_monitor_manager (backend, error);
@@ -1210,6 +1247,15 @@ meta_backend_initable_init (GInitable     *initable,
 
   meta_backend_post_init (backend);
 
+  while (TRUE)
+    {
+      if (!dispatch_clutter_event (backend))
+        break;
+    }
+  _clutter_stage_process_queued_events (CLUTTER_STAGE (priv->stage));
+
+  priv->in_init = FALSE;
+
   return TRUE;
 }
 
@@ -1222,6 +1268,9 @@ initable_iface_init (GInitableIface *initable_iface)
 static void
 meta_backend_init (MetaBackend *backend)
 {
+  MetaBackendPrivate *priv = meta_backend_get_instance_private (backend);
+
+  priv->in_init = TRUE;
 }
 
 /**
@@ -1400,6 +1449,14 @@ meta_backend_get_screen_cast (MetaBackend *backend)
   return priv->screen_cast;
 }
 #endif /* HAVE_REMOTE_DESKTOP */
+
+MetaInputCapture *
+meta_backend_get_input_capture (MetaBackend *backend)
+{
+  MetaBackendPrivate *priv = meta_backend_get_instance_private (backend);
+
+  return priv->input_capture;
+}
 
 /**
  * meta_backend_get_remote_access_controller:
@@ -1713,8 +1770,12 @@ void
 meta_backend_update_from_event (MetaBackend  *backend,
                                 ClutterEvent *event)
 {
+  MetaBackendPrivate *priv = meta_backend_get_instance_private (backend);
+
   update_last_device_from_event (backend, event);
-  update_pointer_visibility_from_event (backend, event);
+
+  if (!priv->in_init)
+    update_pointer_visibility_from_event (backend, event);
 }
 
 /**
@@ -1741,4 +1802,38 @@ meta_backend_get_vendor_name (MetaBackend *backend,
 #else
   return g_strdup (pnp_id);
 #endif
+}
+
+uint32_t
+meta_clutter_button_to_evdev (uint32_t clutter_button)
+{
+  switch (clutter_button)
+    {
+    case CLUTTER_BUTTON_PRIMARY:
+      return BTN_LEFT;
+    case CLUTTER_BUTTON_SECONDARY:
+      return BTN_RIGHT;
+    case CLUTTER_BUTTON_MIDDLE:
+      return BTN_MIDDLE;
+    }
+
+  return (clutter_button + (BTN_LEFT - 1)) - 4;
+}
+
+uint32_t
+meta_evdev_button_to_clutter (uint32_t evdev_button)
+{
+  switch (evdev_button)
+    {
+    case BTN_LEFT:
+      return CLUTTER_BUTTON_PRIMARY;
+    case BTN_RIGHT:
+      return CLUTTER_BUTTON_SECONDARY;
+    case BTN_MIDDLE:
+      return CLUTTER_BUTTON_MIDDLE;
+    }
+
+  g_return_val_if_fail (evdev_button > BTN_LEFT, 0);
+
+  return (evdev_button - (BTN_LEFT - 1)) + 4;
 }

@@ -12,9 +12,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "config.h"
@@ -555,9 +553,7 @@ meta_backend_x11_cm_class_init (MetaBackendX11CmClass *klass)
   backend_x11_class->translate_crossing_event = meta_backend_x11_cm_translate_crossing_event;
 
   obj_props[PROP_DISPLAY_NAME] =
-    g_param_spec_string ("display-name",
-                         "display name",
-                         "X11 display name",
+    g_param_spec_string ("display-name", NULL, NULL,
                          NULL,
                          G_PARAM_WRITABLE |
                          G_PARAM_CONSTRUCT_ONLY |

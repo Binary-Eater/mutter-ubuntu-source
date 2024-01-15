@@ -12,9 +12,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "config.h"
@@ -327,12 +325,13 @@ static void
 set_output_details_from_edid (MetaOutputInfo *output_info,
                               MetaEdidInfo   *edid_info)
 {
-  output_info->vendor = g_strndup (edid_info->manufacturer_code, 4);
+  output_info->vendor = g_strdup (edid_info->manufacturer_code);
   if (!g_utf8_validate (output_info->vendor, -1, NULL))
     g_clear_pointer (&output_info->vendor, g_free);
 
-  output_info->product = g_strndup (edid_info->dsc_product_name, 14);
-  if (!g_utf8_validate (output_info->product, -1, NULL) ||
+  output_info->product = g_strdup (edid_info->dsc_product_name);
+  if (!output_info->product ||
+      !g_utf8_validate (output_info->product, -1, NULL) ||
       output_info->product[0] == '\0')
     {
       g_clear_pointer (&output_info->product, g_free);
@@ -340,8 +339,9 @@ set_output_details_from_edid (MetaOutputInfo *output_info,
         g_strdup_printf ("0x%04x", (unsigned) edid_info->product_code);
     }
 
-  output_info->serial = g_strndup (edid_info->dsc_serial_number, 14);
-  if (!g_utf8_validate (output_info->serial, -1, NULL) ||
+  output_info->serial = g_strdup (edid_info->dsc_serial_number);
+  if (!output_info->serial ||
+      !g_utf8_validate (output_info->serial, -1, NULL) ||
       output_info->serial[0] == '\0')
     {
       g_clear_pointer (&output_info->serial, g_free);
@@ -355,38 +355,22 @@ meta_output_info_parse_edid (MetaOutputInfo *output_info,
                              GBytes         *edid)
 {
   MetaEdidInfo *edid_info;
-  size_t len;
+  size_t size;
   gconstpointer data;
 
   g_return_if_fail (!output_info->edid_info);
   g_return_if_fail (edid);
 
-  data = g_bytes_get_data (edid, &len);
-  edid_info = meta_edid_info_new_parse (data);
+  data = g_bytes_get_data (edid, &size);
+  edid_info = meta_edid_info_new_parse (data, size);
 
   output_info->edid_checksum_md5 = g_compute_checksum_for_data (G_CHECKSUM_MD5,
-                                                                data, len);
+                                                                data, size);
 
   if (edid_info)
     {
       output_info->edid_info = edid_info;
       set_output_details_from_edid (output_info, edid_info);
-    }
-}
-
-gboolean
-meta_output_is_laptop (MetaOutput *output)
-{
-  const MetaOutputInfo *output_info = meta_output_get_info (output);
-
-  switch (output_info->connector_type)
-    {
-    case META_CONNECTOR_TYPE_eDP:
-    case META_CONNECTOR_TYPE_LVDS:
-    case META_CONNECTOR_TYPE_DSI:
-      return TRUE;
-    default:
-      return FALSE;
     }
 }
 
@@ -581,6 +565,21 @@ meta_output_peek_color_space (MetaOutput *output)
   return priv->color_space;
 }
 
+const char *
+meta_output_colorspace_get_name (MetaOutputColorspace color_space)
+{
+  switch (color_space)
+    {
+    case META_OUTPUT_COLORSPACE_UNKNOWN:
+      return "Unknown";
+    case META_OUTPUT_COLORSPACE_DEFAULT:
+      return "Default";
+    case META_OUTPUT_COLORSPACE_BT2020:
+      return "bt.2020";
+    }
+  g_assert_not_reached ();
+}
+
 gboolean
 meta_output_is_hdr_metadata_supported (MetaOutput *output,
                                        MetaOutputHdrMetadataEOTF eotf)
@@ -662,33 +661,25 @@ meta_output_class_init (MetaOutputClass *klass)
   object_class->finalize = meta_output_finalize;
 
   obj_props[PROP_ID] =
-    g_param_spec_uint64 ("id",
-                         "id",
-                         "CRTC id",
+    g_param_spec_uint64 ("id", NULL, NULL,
                          0, UINT64_MAX, 0,
                          G_PARAM_READWRITE |
                          G_PARAM_CONSTRUCT_ONLY |
                          G_PARAM_STATIC_STRINGS);
   obj_props[PROP_GPU] =
-    g_param_spec_object ("gpu",
-                         "gpu",
-                         "MetaGpu",
+    g_param_spec_object ("gpu", NULL, NULL,
                          META_TYPE_GPU,
                          G_PARAM_READWRITE |
                          G_PARAM_CONSTRUCT_ONLY |
                          G_PARAM_STATIC_STRINGS);
   obj_props[PROP_INFO] =
-    g_param_spec_boxed ("info",
-                        "info",
-                        "MetaOutputInfo",
+    g_param_spec_boxed ("info", NULL, NULL,
                         META_TYPE_OUTPUT_INFO,
                         G_PARAM_READWRITE |
                         G_PARAM_CONSTRUCT_ONLY |
                         G_PARAM_STATIC_STRINGS);
   obj_props[PROP_IS_PRIVACY_SCREEN_ENABLED] =
-    g_param_spec_boolean ("is-privacy-screen-enabled",
-                          "is-privacy-screen-enabled",
-                          "Is privacy screen enabled",
+    g_param_spec_boolean ("is-privacy-screen-enabled", NULL, NULL,
                           FALSE,
                           G_PARAM_READWRITE |
                           G_PARAM_STATIC_STRINGS);

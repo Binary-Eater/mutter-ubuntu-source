@@ -28,8 +28,7 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef META_WORKSPACE_PRIVATE_H
-#define META_WORKSPACE_PRIVATE_H
+#pragma once
 
 #include "core/window-private.h"
 #include "meta/workspace.h"
@@ -57,7 +56,7 @@ struct _MetaWorkspace
 
   GHashTable *logical_monitor_data;
 
-  MetaRectangle work_area_screen;
+  MtkRectangle work_area_screen;
   GList  *screen_region;
   GList  *screen_edges;
   GList  *monitor_edges;
@@ -84,7 +83,7 @@ void           meta_workspace_relocate_windows (MetaWorkspace *workspace,
 
 void meta_workspace_get_work_area_for_logical_monitor (MetaWorkspace      *workspace,
                                                        MetaLogicalMonitor *logical_monitor,
-                                                       MetaRectangle      *area);
+                                                       MtkRectangle       *area);
 
 void meta_workspace_invalidate_work_area (MetaWorkspace *workspace);
 
@@ -106,5 +105,3 @@ GList * meta_workspace_get_default_focus_candidates (MetaWorkspace *workspace);
 const char* meta_workspace_get_name (MetaWorkspace *workspace);
 
 void meta_workspace_index_changed (MetaWorkspace *workspace);
-
-#endif

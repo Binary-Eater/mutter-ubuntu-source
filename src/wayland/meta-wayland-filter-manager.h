@@ -12,13 +12,10 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef META_WAYLAND_FILTER_MANAGER_H
-#define META_WAYLAND_FILTER_MANAGER_H
+#pragma once
 
 #include <glib.h>
 #include <wayland-server-core.h>
@@ -52,5 +49,3 @@ void meta_wayland_filter_manager_add_global (MetaWaylandFilterManager *filter_ma
 META_EXPORT_TEST
 void meta_wayland_filter_manager_remove_global (MetaWaylandFilterManager *filter_manager,
                                                 struct wl_global         *global);
-
-#endif /* META_WAYLAND_FILTER_MANAGER_H */

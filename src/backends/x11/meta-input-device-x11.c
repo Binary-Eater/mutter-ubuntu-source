@@ -26,6 +26,7 @@
 #include "backends/x11/meta-clutter-backend-x11.h"
 #include "backends/x11/meta-input-device-x11.h"
 #include "backends/x11/meta-seat-x11.h"
+#include "mtk/mtk-x11.h"
 
 struct _MetaInputDeviceX11
 {
@@ -291,12 +292,12 @@ meta_input_device_x11_get_dimensions (ClutterInputDevice *device,
   static gboolean atoms_initialized = FALSE;
   static Atom abs_axis_atoms[4] = { 0, };
 
-  meta_clutter_x11_trap_x_errors ();
+  mtk_x11_error_trap_push (xdisplay);
 
   info = XIQueryDevice (xdisplay, device_x11->device_id, &n_info);
   *width = *height = w = h = 0;
 
-  if (meta_clutter_x11_untrap_x_errors ())
+  if (mtk_x11_error_trap_pop_with_return (xdisplay))
     return FALSE;
 
   if (!info)
@@ -365,9 +366,7 @@ meta_input_device_x11_class_init (MetaInputDeviceX11Class *klass)
   device_class->get_dimensions = meta_input_device_x11_get_dimensions;
 
   props[PROP_ID] =
-    g_param_spec_int ("id",
-                      "Id",
-                      "Unique identifier of the device",
+    g_param_spec_int ("id", NULL, NULL,
                       -1, G_MAXINT,
                       0,
                       CLUTTER_PARAM_READWRITE |
@@ -379,84 +378,6 @@ meta_input_device_x11_class_init (MetaInputDeviceX11Class *klass)
 static void
 meta_input_device_x11_init (MetaInputDeviceX11 *self)
 {
-}
-
-static ClutterModifierType
-get_modifier_for_button (int i)
-{
-  switch (i)
-    {
-    case 1:
-      return CLUTTER_BUTTON1_MASK;
-    case 2:
-      return CLUTTER_BUTTON2_MASK;
-    case 3:
-      return CLUTTER_BUTTON3_MASK;
-    case 4:
-      return CLUTTER_BUTTON4_MASK;
-    case 5:
-      return CLUTTER_BUTTON5_MASK;
-    default:
-      return 0;
-    }
-}
-
-void
-meta_input_device_x11_translate_state (ClutterEvent    *event,
-                                       XIModifierState *modifiers_state,
-                                       XIButtonState   *buttons_state,
-                                       XIGroupState    *group_state)
-{
-  uint32_t button = 0;
-  uint32_t base = 0;
-  uint32_t latched = 0;
-  uint32_t locked = 0;
-  uint32_t effective;
-
-  if (modifiers_state)
-    {
-      base = (uint32_t) modifiers_state->base;
-      latched = (uint32_t) modifiers_state->latched;
-      locked = (uint32_t) modifiers_state->locked;
-    }
-
-  if (buttons_state)
-    {
-      int len, i;
-
-      len = MIN (N_BUTTONS, buttons_state->mask_len * 8);
-
-      for (i = 0; i < len; i++)
-        {
-          if (!XIMaskIsSet (buttons_state->mask, i))
-            continue;
-
-          button |= get_modifier_for_button (i);
-        }
-    }
-
-  /* The XIButtonState sent in the event specifies the
-   * state of the buttons before the event. In order to
-   * get the current state of the buttons, we need to
-   * filter out the current button.
-   */
-  switch (event->type)
-    {
-    case CLUTTER_BUTTON_PRESS:
-      button |=  (get_modifier_for_button (event->button.button));
-      break;
-    case CLUTTER_BUTTON_RELEASE:
-      button &= ~(get_modifier_for_button (event->button.button));
-      break;
-    default:
-      break;
-    }
-
-  effective = button | base | latched | locked;
-  if (group_state)
-    effective |= (group_state->effective) << 13;
-
-  _clutter_event_set_state_full (event, button, base, latched, locked, effective);
 }
 
 void
@@ -482,6 +403,7 @@ meta_input_device_x11_query_pointer_location (MetaInputDeviceX11 *device_xi2)
   MetaSeatX11 *seat_x11 = META_SEAT_X11 (seat);
   MetaBackendX11 *backend_x11 =
     META_BACKEND_X11 (meta_seat_x11_get_backend (seat_x11));
+  Display *xdisplay = meta_backend_x11_get_xdisplay (backend_x11);
   Window xroot_window, xchild_window;
   double xroot_x, xroot_y, xwin_x, xwin_y;
   XIButtonState button_state = { 0 };
@@ -489,7 +411,7 @@ meta_input_device_x11_query_pointer_location (MetaInputDeviceX11 *device_xi2)
   XIGroupState group_state;
   int result;
 
-  meta_clutter_x11_trap_x_errors ();
+  mtk_x11_error_trap_push (xdisplay);
   result = XIQueryPointer (meta_backend_x11_get_xdisplay (backend_x11),
                            device_xi2->device_id,
                            meta_backend_x11_get_root_xwindow (backend_x11),
@@ -500,7 +422,7 @@ meta_input_device_x11_query_pointer_location (MetaInputDeviceX11 *device_xi2)
                            &button_state,
                            &mod_state,
                            &group_state);
-  meta_clutter_x11_untrap_x_errors ();
+  mtk_x11_error_trap_pop (xdisplay);
 
   g_free (button_state.mask);
 

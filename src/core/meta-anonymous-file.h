@@ -12,15 +12,12 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Author: Sebastian Wick <sebastian@sebastianwick.net>
  */
 
-#ifndef META_ANONYMOUS_FILE_H
-#define META_ANONYMOUS_FILE_H
+#pragma once
 
 #include "meta/common.h"
 #include "core/util-private.h"
@@ -49,5 +46,3 @@ int meta_anonymous_file_open_fd (MetaAnonymousFile        *file,
 
 META_EXPORT_TEST
 void meta_anonymous_file_close_fd (int fd);
-
-#endif /* META_ANONYMOUS_FILE_H */

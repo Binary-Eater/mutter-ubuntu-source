@@ -1,13 +1,13 @@
 project('mutter', 'c',
-  version: '44.8',
-  meson_version: '>= 0.58.0',
+  version: '45.3',
+  meson_version: '>= 0.60.0',
   license: 'GPLv2+'
 )
 
 split_version = meson.project_version().split('.')
 
 # API version, bump each development cycle
-libmutter_api_version = '12'
+libmutter_api_version = '13'
 
 mutter_srcdir = meson.current_source_dir()
 mutter_builddir = meson.current_build_dir()
@@ -39,6 +39,7 @@ libcanberra_req = '>= 0.26'
 libwacom_req = '>= 0.13'
 atk_req = '>= 2.5.3'
 harfbuzz_req = '>= 2.6'
+libei_req = '>= 1.0.901'
 
 # optional version requirements
 udev_req = '>= 228'
@@ -46,7 +47,7 @@ gudev_req = '>= 232'
 
 # wayland version requirements
 wayland_server_req = '>= 1.21'
-wayland_protocols_req = '>= 1.31'
+wayland_protocols_req = '>= 1.32'
 
 # native backend version requirements
 libinput_req = '>= 1.19.0'
@@ -80,30 +81,28 @@ add_project_link_arguments(
 
 prefix = get_option('prefix')
 
-bindir = join_paths(prefix, get_option('bindir'))
-datadir = join_paths(prefix, get_option('datadir'))
-libdir = join_paths(prefix, get_option('libdir'))
-libexecdir = join_paths(prefix, get_option('libexecdir'))
-includedir = join_paths(prefix, get_option('includedir'))
+bindir = prefix / get_option('bindir')
+datadir = prefix / get_option('datadir')
+libdir = prefix / get_option('libdir')
+libexecdir = prefix / get_option('libexecdir')
+includedir = prefix / get_option('includedir')
 sysconfdir = get_option('sysconfdir')
 
 pkgname = '@0@-@1@'.format(meson.project_name(), libmutter_api_version)
 
-pkgdatadir = join_paths(datadir, pkgname)
-pkglibdir = join_paths(libdir, pkgname)
-pkgincludedir = join_paths(includedir, pkgname)
+pkgdatadir = datadir / pkgname
+pkglibdir = libdir / pkgname
+pkgincludedir = includedir / pkgname
 
-pcdir = join_paths(libdir, 'pkgconfig')
+pcdir = libdir / 'pkgconfig'
 
 gettext_package = meson.project_name()
-localedir = join_paths(datadir, 'locale')
+localedir = datadir / 'locale'
 
 libmutter_name = 'mutter-' + libmutter_api_version
 
-mutter_installed_tests_datadir = join_paths(
-  datadir, 'installed-tests', libmutter_name)
-mutter_installed_tests_libexecdir = join_paths(
-  libexecdir, 'installed-tests', libmutter_name)
+mutter_installed_tests_datadir = datadir / 'installed-tests' / libmutter_name
+mutter_installed_tests_libexecdir = libexecdir / 'installed-tests' / libmutter_name
 
 m_dep = cc.find_library('m', required: true)
 graphene_dep = dependency('graphene-gobject-1.0', version: graphene_req)
@@ -130,6 +129,8 @@ dbus_dep = dependency('dbus-1')
 colord_dep = dependency('colord', version: colord_req)
 lcms2_dep = dependency('lcms2', version: lcms2_req)
 harfbuzz_dep = dependency('harfbuzz', version: harfbuzz_req)
+libeis_dep = dependency('libeis-1.0', version: libei_req)
+libei_dep = dependency('libei-1.0', version: libei_req)
 
 have_wayland = get_option('wayland')
 # For now always require X11 support
@@ -168,6 +169,10 @@ if have_x11_client
   xau_dep = dependency('xau')
 endif
 
+have_libdisplay_info = get_option('libdisplay_info')
+if have_libdisplay_info
+  libdisplay_info_dep = dependency('libdisplay-info')
+endif
 
 have_gnome_desktop = get_option('libgnome_desktop')
 if have_gnome_desktop
@@ -239,7 +244,6 @@ libsystemd_dep = dependency('libsystemd', required: have_libsystemd)
 
 have_native_backend = get_option('native_backend')
 if have_native_backend
-  libdrm_dep = dependency('libdrm')
   libgbm_dep = dependency('gbm', version: gbm_req)
   libinput_dep = dependency('libinput', version: libinput_req)
 
@@ -260,6 +264,10 @@ if have_native_backend
   if not have_libgudev
     error('The native backend requires udev to be enabled')
   endif
+endif
+
+if have_wayland or have_native_backend
+  libdrm_dep = dependency('libdrm')
 endif
 
 have_egl_device = get_option('egl_device')
@@ -429,9 +437,9 @@ if have_profiler
 
   if libsysprof_capture_dep.type_name() == 'pkgconfig'
     sysprof_dep = dependency('sysprof-6', 'sysprof-4')
-    sysprof_dbus_interfaces_dir = join_paths(sysprof_dep.get_variable('datadir'), 'dbus-1', 'interfaces')
+    sysprof_dbus_interfaces_dir = sysprof_dep.get_variable('datadir') / 'dbus-1' / 'interfaces'
   else
-    sysprof_dbus_interfaces_dir = join_paths(mutter_srcdir, 'subprojects', 'sysprof', 'src')
+    sysprof_dbus_interfaces_dir = mutter_srcdir / 'subprojects' / 'sysprof' / 'src'
   endif
 endif
 
@@ -532,6 +540,7 @@ cdata.set('HAVE_SM', have_sm)
 cdata.set('HAVE_STARTUP_NOTIFICATION', have_startup_notification)
 cdata.set('HAVE_INTROSPECTION', have_introspection)
 cdata.set('HAVE_PROFILER', have_profiler)
+cdata.set('HAVE_LIBDISPLAY_INFO', have_libdisplay_info)
 
 if have_x11_client
   xkb_base = xkeyboard_config_dep.get_variable('xkb_base')
@@ -546,6 +555,7 @@ have_xwayland_initfd = false
 have_xwayland_listenfd = false
 have_xwayland_terminate_delay = false
 have_xwayland_byte_swapped_clients = false
+have_xwayland_enable_ei_portal = false
 if have_xwayland
   xwayland_dep = dependency('xwayland', required: false)
 
@@ -617,6 +627,16 @@ if have_xwayland
   if (have_xwayland_byte_swapped_clients)
     cdata.set('HAVE_XWAYLAND_BYTE_SWAPPED_CLIENTS', 1)
   endif
+
+  # For Xwayland -enable-portal usage
+  if xwayland_dep.found()
+    have_xwayland_enable_ei_portal = xwayland_dep.get_variable('have_enable_ei_portal',
+                                                               default_value: 'false') == 'true'
+  endif
+
+  if (have_xwayland_enable_ei_portal)
+    cdata.set('HAVE_XWAYLAND_ENABLE_EI_PORTAL', 1)
+  endif
 endif
 
 optional_functions = [
@@ -637,7 +657,7 @@ xwayland_grab_default_access_rules = get_option('xwayland_grab_default_access_ru
 cdata.set_quoted('XWAYLAND_GRAB_DEFAULT_ACCESS_RULES',
                  xwayland_grab_default_access_rules)
 
-cdata.set_quoted('MUTTER_PLUGIN_DIR', join_paths(pkglibdir, 'plugins'))
+cdata.set_quoted('MUTTER_PLUGIN_DIR', pkglibdir / 'plugins')
 cdata.set_quoted('MUTTER_LOCALEDIR', localedir)
 cdata.set_quoted('MUTTER_LIBEXECDIR', libexecdir)
 cdata.set_quoted('MUTTER_PKGDATADIR', pkgdatadir)
@@ -650,6 +670,7 @@ config_h = configure_file(
 
 top_includepath = include_directories('.')
 
+subdir('mtk')
 subdir('cogl')
 subdir('clutter')
 subdir('data')
@@ -687,6 +708,7 @@ summary('Native Backend', have_native_backend, section: 'Options')
 summary('EGL Device', have_egl_device, section: 'Options')
 summary('Remote desktop', have_remote_desktop, section: 'Options')
 summary('libgnome-desktop', have_gnome_desktop, section: 'Options')
+summary('libdisplay-info', have_libdisplay_info, section: 'Options')
 summary('Sound player', have_sound_player, section: 'Options')
 summary('gudev', have_libgudev, section: 'Options')
 summary('Wacom', have_libwacom, section: 'Options')
@@ -699,6 +721,7 @@ summary('Xwayland initfd', have_xwayland_initfd, section: 'Options')
 summary('Xwayland listenfd', have_xwayland_listenfd, section: 'Options')
 summary('Xwayland terminate delay', have_xwayland_terminate_delay, section: 'Options')
 summary('Xwayland byte-swapped clients', have_xwayland_byte_swapped_clients, section: 'Options')
+summary('Xwayland enable EI portal', have_xwayland_enable_ei_portal, section: 'Options')
 
 summary('Enabled', have_tests, section: 'Tests')
 summary('Core tests', have_core_tests, section: 'Tests')

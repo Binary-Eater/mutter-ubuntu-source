@@ -14,14 +14,11 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  */
 
-#ifndef META_REMOTE_DESKTOP_H
-#define META_REMOTE_DESKTOP_H
+#pragma once
 
 #include <glib-object.h>
 
@@ -31,6 +28,14 @@
 
 #include "meta-dbus-remote-desktop.h"
 
+typedef enum _MetaRemoteDesktopDeviceTypes
+{
+  META_REMOTE_DESKTOP_DEVICE_TYPE_NONE = 0,
+  META_REMOTE_DESKTOP_DEVICE_TYPE_KEYBOARD = 1 << 0,
+  META_REMOTE_DESKTOP_DEVICE_TYPE_POINTER = 1 << 1,
+  META_REMOTE_DESKTOP_DEVICE_TYPE_TOUCHSCREEN = 1 << 2,
+} MetaRemoteDesktopDeviceTypes;
+
 typedef struct _MetaRemoteDesktopSession MetaRemoteDesktopSession;
 
 #define META_TYPE_REMOTE_DESKTOP (meta_remote_desktop_get_type ())
@@ -39,5 +44,3 @@ G_DECLARE_FINAL_TYPE (MetaRemoteDesktop, meta_remote_desktop,
                       MetaDbusSessionManager)
 
 MetaRemoteDesktop * meta_remote_desktop_new (MetaBackend *backend);
-
-#endif /* META_REMOTE_DESKTOP_H */

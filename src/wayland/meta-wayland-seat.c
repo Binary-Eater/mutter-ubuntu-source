@@ -14,9 +14,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "config.h"
@@ -274,8 +272,11 @@ static gboolean
 event_is_synthesized_crossing (const ClutterEvent *event)
 {
   ClutterInputDevice *device;
+  ClutterEventType event_type;
 
-  if (event->type != CLUTTER_ENTER && event->type != CLUTTER_LEAVE)
+  event_type = clutter_event_type (event);
+
+  if (event_type != CLUTTER_ENTER && event_type != CLUTTER_LEAVE)
     return FALSE;
 
   device = clutter_event_get_source_device (event);
@@ -325,7 +326,7 @@ meta_wayland_seat_update (MetaWaylandSeat    *seat,
       !event_is_synthesized_crossing (event))
     return;
 
-  switch (event->type)
+  switch (clutter_event_type (event))
     {
     case CLUTTER_MOTION:
     case CLUTTER_BUTTON_PRESS:
@@ -359,17 +360,21 @@ gboolean
 meta_wayland_seat_handle_event (MetaWaylandSeat *seat,
                                 const ClutterEvent *event)
 {
+  ClutterEventType event_type;
+
   if (!(clutter_event_get_flags (event) & CLUTTER_EVENT_FLAG_INPUT_METHOD) &&
       !event_from_supported_hardware_device (seat, event))
     return FALSE;
 
-  if (event->type == CLUTTER_BUTTON_PRESS ||
-      event->type == CLUTTER_TOUCH_BEGIN)
+  event_type = clutter_event_type (event);
+
+  if (event_type == CLUTTER_BUTTON_PRESS ||
+      event_type == CLUTTER_TOUCH_BEGIN)
     {
       meta_wayland_text_input_handle_event (seat->text_input, event);
     }
 
-  switch (event->type)
+  switch (event_type)
     {
     case CLUTTER_MOTION:
     case CLUTTER_BUTTON_PRESS:
@@ -384,9 +389,6 @@ meta_wayland_seat_handle_event (MetaWaylandSeat *seat,
       break;
     case CLUTTER_KEY_PRESS:
     case CLUTTER_KEY_RELEASE:
-      if (meta_wayland_text_input_handle_event (seat->text_input, event))
-        return TRUE;
-
       if (meta_wayland_seat_has_keyboard (seat))
         return meta_wayland_keyboard_handle_event (seat->keyboard,
                                                    (const ClutterKeyEvent *) event);
@@ -453,13 +455,17 @@ meta_wayland_seat_get_grab_info (MetaWaylandSeat       *seat,
   if (meta_wayland_seat_has_touch (seat))
     {
       ClutterEventSequence *sequence;
+
       sequence = meta_wayland_touch_find_grab_sequence (seat->touch,
                                                         surface,
                                                         serial);
       if (sequence)
         {
+          ClutterSeat *clutter_seat =
+            clutter_backend_get_default_seat (clutter_get_default_backend ());
+
           if (device_out)
-            *device_out = seat->pointer->device;
+            *device_out = clutter_seat_get_pointer (clutter_seat);
           if (sequence_out)
             *sequence_out = sequence;
 

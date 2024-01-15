@@ -12,14 +12,11 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  */
 
-#ifndef META_CURSOR_TRACKER_X11_H
-#define META_CURSOR_TRACKER_X11_H
+#pragma once
 
 #include "backends/meta-cursor-tracker-private.h"
 
@@ -30,5 +27,3 @@ G_DECLARE_FINAL_TYPE (MetaCursorTrackerX11, meta_cursor_tracker_x11,
 
 gboolean meta_cursor_tracker_x11_handle_xevent (MetaCursorTrackerX11 *tracker_x11,
                                                 XEvent               *xevent);
-
-#endif /* META_CURSOR_TRACKER_X11_H */

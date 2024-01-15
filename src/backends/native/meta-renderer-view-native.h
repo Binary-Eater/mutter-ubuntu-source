@@ -14,21 +14,16 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Written by:
  *     Dor Askayo <dor.askayo@gmail.com>
  */
 
-#ifndef META_RENDERER_VIEW_NATIVE_H
-#define META_RENDERER_VIEW_NATIVE_H
+#pragma once
 
 #include "backends/meta-renderer-view.h"
 
 #define META_TYPE_RENDERER_VIEW_NATIVE (meta_renderer_view_native_get_type ())
 G_DECLARE_FINAL_TYPE (MetaRendererViewNative, meta_renderer_view_native,
                       META, RENDERER_VIEW_NATIVE, MetaRendererView)
-
-#endif /* META_RENDERER_VIEW_NATIVE_H */

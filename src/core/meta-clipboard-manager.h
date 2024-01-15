@@ -12,19 +12,14 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Author: Carlos Garnacho <carlosg@gnome.org>
  */
 
-#ifndef META_CLIPBOARD_MANAGER_H
-#define META_CLIPBOARD_MANAGER_H
+#pragma once
 
 #include "core/display-private.h"
 
 void meta_clipboard_manager_init     (MetaDisplay *display);
 void meta_clipboard_manager_shutdown (MetaDisplay *display);
-
-#endif /* META_CLIPBOARD_MANAGER_H */

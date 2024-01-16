@@ -1,0 +1,11 @@
+  * Team upload
+  [ Daniel van Vugt ]
+  * Drop cogl-onscreen-glx-Forcefully-disable-cogl_onscreen_glx_ge.patch.
+    The bug was fixed properly in Mutter 45.0 and in Mesa 23.3.0.
+  [ Jeremy Bícha ]
+  * debian/control: Add Homepage
+  [ Simon McVittie ]
+  * Merge packaging changes from unstable
+    - d/control: Build-depend on systemd-dev instead of udev
+      (Closes: #1060619)
+    - All other changes were included in 45.3-1

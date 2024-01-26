@@ -1,0 +1,2 @@
+  * Cherry-pick patch from 45.1 to fix using caps lock to enter
+    accented characters with ibus 1.5.29 (Closes: #1054214) (LP: #2035076)

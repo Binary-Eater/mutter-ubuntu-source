@@ -1,0 +1,2 @@
+  * Cherry-pick several cursor fixes to fix compatibility with latest
+    adwaita-icon-theme (Closes: #1063640)

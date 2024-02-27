@@ -1,0 +1,11 @@
+  [ Jeremy Bícha ]
+  * New upstream release
+  * Update binary package names for soname bump
+  * Update symbols
+  * Add Build-Depends: libpixman-1-dev
+  * Bump minimum wayland-protocols to 1.33
+  * Drop obsolete Build-Depends: libjson-glib-dev
+  * Drop patch applied in new release
+  * Temporarily disable x11 fractional scaling patch
+  [ Daniel van Vugt ]
+  * Update triple buffering patch

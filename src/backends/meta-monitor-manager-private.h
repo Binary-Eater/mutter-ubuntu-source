@@ -47,9 +47,7 @@ typedef enum _MetaMonitorManagerCapability
 {
   META_MONITOR_MANAGER_CAPABILITY_NONE = 0,
   META_MONITOR_MANAGER_CAPABILITY_LAYOUT_MODE = (1 << 0),
-  META_MONITOR_MANAGER_CAPABILITY_GLOBAL_SCALE_REQUIRED = (1 << 1),
-  META_MONITOR_MANAGER_CAPABILITY_TILING = (1 << 2),
-  META_MONITOR_MANAGER_CAPABILITY_NATIVE_OUTPUT_SCALING = (1 << 3),
+  META_MONITOR_MANAGER_CAPABILITY_GLOBAL_SCALE_REQUIRED = (1 << 1)
 } MetaMonitorManagerCapability;
 
 /* Equivalent to the 'method' enum in org.gnome.Mutter.DisplayConfig */
@@ -64,8 +62,7 @@ typedef enum _MetaMonitorsConfigMethod
 typedef enum _MetaLogicalMonitorLayoutMode
 {
   META_LOGICAL_MONITOR_LAYOUT_MODE_LOGICAL = 1,
-  META_LOGICAL_MONITOR_LAYOUT_MODE_PHYSICAL = 2,
-  META_LOGICAL_MONITOR_LAYOUT_MODE_GLOBAL_UI_LOGICAL = 3
+  META_LOGICAL_MONITOR_LAYOUT_MODE_PHYSICAL = 2
 } MetaLogicalMonitorLayoutMode;
 
 /* The source the privacy screen change has been triggered */
@@ -88,9 +85,11 @@ struct _MetaCrtcAssignment
   MetaCrtc *crtc;
   MetaCrtcMode *mode;
   graphene_rect_t layout;
-  float scale;
   MetaMonitorTransform transform;
   GPtrArray *outputs;
+
+  gpointer backend_private;
+  GDestroyNotify backend_private_destroy;
 };
 
 /*
@@ -107,6 +106,7 @@ struct _MetaOutputAssignment
   gboolean is_underscanning;
   gboolean has_max_bpc;
   unsigned int max_bpc;
+  unsigned int rgb_range;
 };
 
 /*
@@ -152,7 +152,6 @@ struct _MetaMonitorManager
   int screen_height;
 
   GList *monitors;
-  GList *scale_override_monitors;
 
   GList *logical_monitors;
   MetaLogicalMonitor *primary_logical_monitor;
@@ -164,8 +163,6 @@ struct _MetaMonitorManager
   guint panel_orientation_managed : 1;
 
   MetaMonitorConfigManager *config_manager;
-
-  gulong experimental_features_changed_handler_id;
 
   MetaMonitorSwitchConfigType current_switch_config;
 
@@ -183,9 +180,6 @@ struct _MetaMonitorManager
  *
  * @apply_monitors_config: Tries to apply the given config using the given
  *   method. Throws an error if something went wrong.
- *
- * @update_screen_size_derived: Computes the screen size for derived
- *   configuration.
  *
  * @set_power_save_mode: Sets the #MetaPowerSave mode (for all displays).
  *
@@ -232,9 +226,6 @@ struct _MetaMonitorManagerClass
   void (* change_backlight) (MetaMonitorManager *manager,
                              MetaOutput         *output,
                              int                 backlight);
-
-  void (*update_screen_size_derived)  (MetaMonitorManager *,
-                                       MetaMonitorsConfig *);
 
   void (* tiled_monitor_added) (MetaMonitorManager *manager,
                                 MetaMonitor        *monitor);
@@ -339,8 +330,6 @@ void                meta_monitor_manager_power_save_mode_changed (MetaMonitorMan
 void                meta_monitor_manager_confirm_configuration (MetaMonitorManager *manager,
                                                                 gboolean            ok);
 
-gboolean           meta_monitor_manager_has_hotplug_mode_update (MetaMonitorManager *manager);
-
 META_EXPORT_TEST
 void               meta_monitor_manager_read_current_state (MetaMonitorManager *manager);
 
@@ -359,10 +348,6 @@ void               meta_monitor_manager_tiled_monitor_added (MetaMonitorManager 
                                                              MetaMonitor        *monitor);
 void               meta_monitor_manager_tiled_monitor_removed (MetaMonitorManager *manager,
                                                                MetaMonitor        *monitor);
-
-gboolean           meta_monitor_manager_is_transform_handled (MetaMonitorManager  *manager,
-                                                              MetaCrtc            *crtc,
-                                                              MetaMonitorTransform transform);
 
 META_EXPORT_TEST
 MetaMonitorsConfig * meta_monitor_manager_ensure_configured (MetaMonitorManager *manager);
@@ -397,11 +382,6 @@ gboolean           meta_monitor_manager_is_scale_supported (MetaMonitorManager  
                                                             MetaMonitorMode             *monitor_mode,
                                                             float                        scale);
 
-float              meta_monitor_manager_get_maximum_crtc_scale (MetaMonitorManager *manager);
-
-gboolean           meta_monitor_manager_disable_scale_for_monitor (MetaMonitorManager *manager,
-                                                                   MetaLogicalMonitor *monitor);
-
 MetaMonitorManagerCapability
                    meta_monitor_manager_get_capabilities (MetaMonitorManager *manager);
 
@@ -422,10 +402,6 @@ MetaMonitorConfigManager *
                    meta_monitor_manager_get_config_manager (MetaMonitorManager *manager);
 
 void meta_monitor_manager_rotate_monitor (MetaMonitorManager *manager);
-
-void meta_monitor_manager_clear_output (MetaOutput *output);
-void meta_monitor_manager_clear_mode (MetaCrtcMode *mode);
-void meta_monitor_manager_clear_crtc (MetaCrtc *crtc);
 
 gboolean meta_monitor_has_aspect_as_size (MetaMonitor *monitor);
 

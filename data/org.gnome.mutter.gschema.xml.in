@@ -3,8 +3,7 @@
   <flags id="org.gnome.mutter.MetaExperimentalFeature">
     <value nick="scale-monitor-framebuffer" value="1"/>
     <value nick="kms-modifiers" value="2"/>
-    <value nick="rt-scheduler" value="4"/>
-    <value nick="autoclose-xwayland" value="8"/>
+    <value nick="autoclose-xwayland" value="4"/>
   </flags>
 
   <schema id="org.gnome.mutter" path="/org/gnome/mutter/"
@@ -101,7 +100,8 @@
       </description>
     </key>
 
-    <key name="experimental-features" type="as">
+    <key name="experimental-features"
+        flags='org.gnome.mutter.MetaExperimentalFeature'>
       <default>[]</default>
       <summary>Enable experimental features</summary>
       <description>
@@ -125,17 +125,10 @@
                                         supported by the driver. Requires a
                                         restart.
 
-        • “rt-scheduler”              — makes mutter request a low priority
-                                        real-time scheduling. Requires a restart.
-
         • “autoclose-xwayland”        — automatically terminates Xwayland if all
                                         relevant X11 clients are gone.
                                         Requires a restart.
 
-        • “x11-randr-fractional-scaling” — enable fractional scaling under X11
-                                           using xrandr scaling. It might reduce
-                                           performances.
-                                           Does not require a restart.
       </description>
     </key>
 

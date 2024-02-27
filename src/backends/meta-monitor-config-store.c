@@ -166,6 +166,7 @@ typedef enum
   STATE_MONITOR_MODE_FLAG,
   STATE_MONITOR_UNDERSCANNING,
   STATE_MONITOR_MAXBPC,
+  STATE_MONITOR_RGB_RANGE,
   STATE_DISABLED,
   STATE_POLICY,
   STATE_STORES,
@@ -209,6 +210,15 @@ typedef struct
 
 G_DEFINE_TYPE (MetaMonitorConfigStore, meta_monitor_config_store,
                G_TYPE_OBJECT)
+
+static void
+meta_monitor_config_init (MetaMonitorConfig *config)
+{
+  config->enable_underscanning = FALSE;
+  config->has_max_bpc = FALSE;
+  config->max_bpc = 0;
+  config->rgb_range = META_OUTPUT_RGB_RANGE_AUTO;
+}
 
 static gboolean
 text_equals (const char *text,
@@ -387,6 +397,7 @@ handle_start_element (GMarkupParseContext  *context,
         else if (g_str_equal (element_name, "monitor"))
           {
             parser->current_monitor_config = g_new0 (MetaMonitorConfig, 1);
+            meta_monitor_config_init (parser->current_monitor_config);
 
             parser->state = STATE_MONITOR;
           }
@@ -453,6 +464,10 @@ handle_start_element (GMarkupParseContext  *context,
         else if (g_str_equal (element_name, "maxbpc"))
           {
             parser->state = STATE_MONITOR_MAXBPC;
+          }
+        else if (g_str_equal (element_name, "rgbrange"))
+          {
+            parser->state = STATE_MONITOR_RGB_RANGE;
           }
         else
           {
@@ -554,6 +569,13 @@ handle_start_element (GMarkupParseContext  *context,
         return;
       }
 
+    case STATE_MONITOR_RGB_RANGE:
+      {
+        g_set_error (error, G_MARKUP_ERROR, G_MARKUP_ERROR_UNKNOWN_ELEMENT,
+                     "Invalid element '%s' under rgbrange", element_name);
+        return;
+      }
+
     case STATE_DISABLED:
       {
         if (!g_str_equal (element_name, "monitorspec"))
@@ -648,7 +670,6 @@ handle_start_element (GMarkupParseContext  *context,
 static gboolean
 derive_logical_monitor_layout (MetaLogicalMonitorConfig    *logical_monitor_config,
                                MetaLogicalMonitorLayoutMode layout_mode,
-                               float                        max_scale,
                                GError                     **error)
 {
   MetaMonitorConfig *monitor_config;
@@ -689,10 +710,6 @@ derive_logical_monitor_layout (MetaLogicalMonitorConfig    *logical_monitor_conf
 
   switch (layout_mode)
     {
-    case META_LOGICAL_MONITOR_LAYOUT_MODE_GLOBAL_UI_LOGICAL:
-      width *= ceilf (max_scale);
-      height *= ceilf (max_scale);
-      /* fall through! */
     case META_LOGICAL_MONITOR_LAYOUT_MODE_LOGICAL:
       width = roundf (width / scale);
       height = roundf (height / scale);
@@ -850,6 +867,14 @@ handle_end_element (GMarkupParseContext  *context,
         return;
       }
 
+    case STATE_MONITOR_RGB_RANGE:
+      {
+        g_assert (g_str_equal (element_name, "rgbrange"));
+
+        parser->state = STATE_MONITOR;
+        return;
+      }
+
     case STATE_MONITOR:
       {
         MetaLogicalMonitorConfig *logical_monitor_config;
@@ -914,7 +939,6 @@ handle_end_element (GMarkupParseContext  *context,
         GList *l;
         MetaLogicalMonitorLayoutMode layout_mode;
         MetaMonitorsConfigFlag config_flags = META_MONITORS_CONFIG_FLAG_NONE;
-        float max_scale = 1.0f;
 
         g_assert (g_str_equal (element_name, "configuration"));
 
@@ -924,29 +948,18 @@ handle_end_element (GMarkupParseContext  *context,
           layout_mode =
             meta_monitor_manager_get_default_layout_mode (store->monitor_manager);
 
-        if (layout_mode == META_LOGICAL_MONITOR_LAYOUT_MODE_GLOBAL_UI_LOGICAL)
-          {
-            for (l = parser->current_logical_monitor_configs; l; l = l->next)
-              {
-                MetaLogicalMonitorConfig *logical_monitor_config = l->data;
-                max_scale = MAX (max_scale, logical_monitor_config->scale);
-              }
-          }
-
         for (l = parser->current_logical_monitor_configs; l; l = l->next)
           {
             MetaLogicalMonitorConfig *logical_monitor_config = l->data;
 
             if (!derive_logical_monitor_layout (logical_monitor_config,
                                                 layout_mode,
-                                                max_scale,
                                                 error))
               return;
 
             if (!meta_verify_logical_monitor_config (logical_monitor_config,
                                                      layout_mode,
                                                      store->monitor_manager,
-                                                     max_scale,
                                                      error))
               return;
           }
@@ -1376,6 +1389,21 @@ handle_text (GMarkupParseContext *context,
         return;
       }
 
+    case STATE_MONITOR_RGB_RANGE:
+      {
+        if (text_equals (text, text_len, "auto"))
+          parser->current_monitor_config->rgb_range = META_OUTPUT_RGB_RANGE_AUTO;
+        else if (text_equals (text, text_len, "full"))
+          parser->current_monitor_config->rgb_range = META_OUTPUT_RGB_RANGE_FULL;
+        else if (text_equals (text, text_len, "limited"))
+          parser->current_monitor_config->rgb_range = META_OUTPUT_RGB_RANGE_LIMITED;
+        else
+          g_set_error (error, G_MARKUP_ERROR, G_MARKUP_ERROR_INVALID_CONTENT,
+                       "Invalid RGB Range type %.*s", (int)text_len, text);
+
+        return;
+      }
+
     case STATE_STORE:
       {
         MetaConfigStore store;
@@ -1524,6 +1552,30 @@ append_monitor_spec (GString         *buffer,
 }
 
 static void
+append_rgb_range (GString            *buffer,
+                  MetaOutputRGBRange  rgb_range,
+                  const char         *indentation)
+{
+  const char *rgb_range_str;
+
+  switch (rgb_range)
+    {
+    case META_OUTPUT_RGB_RANGE_FULL:
+      rgb_range_str = "full";
+      break;
+    case META_OUTPUT_RGB_RANGE_LIMITED:
+      rgb_range_str = "limited";
+      break;
+    default:
+      return;
+    }
+
+  g_string_append_printf (buffer, "%s<rgbrange>%s</rgbrange>\n",
+                          indentation,
+                          rgb_range_str);
+}
+
+static void
 append_monitors (GString *buffer,
                  GList   *monitor_configs)
 {
@@ -1551,6 +1603,7 @@ append_monitors (GString *buffer,
       g_string_append (buffer, "        </mode>\n");
       if (monitor_config->enable_underscanning)
         g_string_append (buffer, "        <underscanning>yes</underscanning>\n");
+      append_rgb_range (buffer, monitor_config->rgb_range, "        ");
 
       if (monitor_config->has_max_bpc)
         {

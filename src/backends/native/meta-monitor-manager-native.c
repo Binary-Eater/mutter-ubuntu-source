@@ -57,7 +57,6 @@
 #include "backends/native/meta-virtual-monitor-native.h"
 #include "clutter/clutter.h"
 #include "meta/main.h"
-#include "meta/meta-x11-errors.h"
 
 #include "meta-dbus-display-config.h"
 
@@ -214,12 +213,14 @@ apply_crtc_assignments (MetaMonitorManager    *manager,
         }
       else
         {
+          MetaCrtcConfig *crtc_config;
           unsigned int j;
 
-          meta_crtc_set_config (crtc,
-                                &crtc_assignment->layout,
-                                crtc_assignment->mode,
-                                crtc_assignment->transform);
+          crtc_config = meta_crtc_config_new (&crtc_assignment->layout,
+                                              crtc_assignment->mode,
+                                              crtc_assignment->transform);
+          meta_crtc_set_config (crtc, crtc_config,
+                                crtc_assignment->backend_private);
 
           for (j = 0; j < crtc_assignment->outputs->len; j++)
             {
@@ -435,15 +436,6 @@ meta_monitor_manager_native_resume (MetaMonitorManagerNative *manager_native)
   meta_monitor_manager_native_connect_hotplug_handler (manager_native);
 }
 
-static gboolean
-meta_monitor_manager_native_is_transform_handled (MetaMonitorManager  *manager,
-                                                  MetaCrtc            *crtc,
-                                                  MetaMonitorTransform transform)
-{
-  return meta_crtc_native_is_transform_handled (META_CRTC_NATIVE (crtc),
-                                                transform);
-}
-
 static MetaMonitorScalesConstraint
 get_monitor_scale_constraints_from_layout_mode (MetaLogicalMonitorLayoutMode layout_mode)
 {
@@ -453,7 +445,6 @@ get_monitor_scale_constraints_from_layout_mode (MetaLogicalMonitorLayoutMode lay
   switch (layout_mode)
     {
     case META_LOGICAL_MONITOR_LAYOUT_MODE_LOGICAL:
-    case META_LOGICAL_MONITOR_LAYOUT_MODE_GLOBAL_UI_LOGICAL:
       break;
     case META_LOGICAL_MONITOR_LAYOUT_MODE_PHYSICAL:
       constraints |= META_MONITOR_SCALES_CONSTRAINT_NO_FRAC;
@@ -716,8 +707,6 @@ meta_monitor_manager_native_class_init (MetaMonitorManagerNativeClass *klass)
     meta_monitor_manager_native_apply_monitors_config;
   manager_class->set_power_save_mode =
     meta_monitor_manager_native_set_power_save_mode;
-  manager_class->is_transform_handled =
-    meta_monitor_manager_native_is_transform_handled;
   manager_class->calculate_monitor_mode_scale =
     meta_monitor_manager_native_calculate_monitor_mode_scale;
   manager_class->calculate_supported_scales =

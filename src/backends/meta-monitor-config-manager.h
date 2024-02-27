@@ -33,6 +33,7 @@ typedef struct _MetaMonitorConfig
   gboolean enable_underscanning;
   gboolean has_max_bpc;
   unsigned int max_bpc;
+  MetaOutputRGBRange rgb_range;
 } MetaMonitorConfig;
 
 typedef struct _MetaLogicalMonitorConfig
@@ -114,10 +115,6 @@ MetaMonitorsConfig * meta_monitor_config_manager_create_for_builtin_orientation 
 
 META_EXPORT_TEST
 MetaMonitorsConfig * meta_monitor_config_manager_create_for_rotate_monitor (MetaMonitorConfigManager *config_manager);
-
-MetaMonitorsConfig * meta_monitor_config_manager_create_for_layout (MetaMonitorConfigManager     *config_manager,
-                                                                    MetaMonitorsConfig           *config,
-                                                                    MetaLogicalMonitorLayoutMode  layout_mode);
 
 META_EXPORT_TEST
 MetaMonitorsConfig * meta_monitor_config_manager_create_for_switch_config (MetaMonitorConfigManager    *config_manager,
@@ -204,7 +201,6 @@ META_EXPORT_TEST
 gboolean meta_verify_logical_monitor_config (MetaLogicalMonitorConfig    *logical_monitor_config,
                                              MetaLogicalMonitorLayoutMode layout_mode,
                                              MetaMonitorManager          *monitor_manager,
-                                             float                        max_scale,
                                              GError                     **error);
 
 META_EXPORT_TEST

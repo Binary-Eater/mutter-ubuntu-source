@@ -178,12 +178,14 @@ apply_crtc_assignments (MetaMonitorManager    *manager,
         }
       else
         {
+          MetaCrtcConfig *crtc_config;
           unsigned int j;
 
-          meta_crtc_set_config (crtc,
-                                &crtc_assignment->layout,
-                                crtc_assignment->mode,
-                                crtc_assignment->transform);
+          crtc_config = meta_crtc_config_new (&crtc_assignment->layout,
+                                              crtc_assignment->mode,
+                                              crtc_assignment->transform);
+          meta_crtc_set_config (crtc, crtc_config,
+                                crtc_assignment->backend_private);
 
           for (j = 0; j < crtc_assignment->outputs->len; j++)
             {
@@ -325,7 +327,6 @@ get_monitor_scale_constraints_from_layout_mode (MetaLogicalMonitorLayoutMode lay
   switch (layout_mode)
     {
     case META_LOGICAL_MONITOR_LAYOUT_MODE_LOGICAL:
-    case META_LOGICAL_MONITOR_LAYOUT_MODE_GLOBAL_UI_LOGICAL:
       break;
     case META_LOGICAL_MONITOR_LAYOUT_MODE_PHYSICAL:
       constraints |= META_MONITOR_SCALES_CONSTRAINT_NO_FRAC;
@@ -377,8 +378,7 @@ meta_monitor_manager_test_calculate_supported_scales (MetaMonitorManager        
 static MetaMonitorManagerCapability
 meta_monitor_manager_test_get_capabilities (MetaMonitorManager *manager)
 {
-  return META_MONITOR_MANAGER_CAPABILITY_LAYOUT_MODE |
-         META_MONITOR_MANAGER_CAPABILITY_TILING;
+  return META_MONITOR_MANAGER_CAPABILITY_LAYOUT_MODE;
 }
 
 static gboolean

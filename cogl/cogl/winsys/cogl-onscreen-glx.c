@@ -541,6 +541,8 @@ cogl_onscreen_glx_get_buffer_age (CoglOnscreen *onscreen)
   GLXDrawable drawable;
   unsigned int age = 0;
 
+  return 0;
+
   if (!_cogl_winsys_has_feature (COGL_WINSYS_FEATURE_BUFFER_AGE))
     return 0;
 

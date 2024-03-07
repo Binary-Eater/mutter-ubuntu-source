@@ -83,10 +83,10 @@
 #include "meta/meta-cursor-tracker.h"
 #include "meta/meta-enum-types.h"
 #include "meta/prefs.h"
-#include "mtk/mtk-x11.h"
 
 #ifdef HAVE_X11_CLIENT
 #include "meta/group.h"
+#include "mtk/mtk-x11.h"
 #include "x11/meta-x11-display-private.h"
 #include "x11/window-props.h"
 #include "x11/window-x11-private.h"
@@ -315,9 +315,6 @@ meta_window_finalize (GObject *object)
   MetaWindow *window = META_WINDOW (object);
 
   g_clear_pointer (&window->frame_bounds, mtk_region_unref);
-  g_clear_pointer (&window->shape_region, mtk_region_unref);
-  g_clear_pointer (&window->opaque_region, mtk_region_unref);
-  g_clear_pointer (&window->input_region, mtk_region_unref);
 
   if (window->transient_for)
     g_object_unref (window->transient_for);
@@ -325,8 +322,6 @@ meta_window_finalize (GObject *object)
   if (window->cgroup_path)
     g_object_unref (window->cgroup_path);
 
-  g_free (window->sm_client_id);
-  g_free (window->wm_client_machine);
   g_free (window->startup_id);
   g_free (window->role);
   g_free (window->res_class);
@@ -1049,7 +1044,6 @@ meta_window_constructed (GObject *object)
   window->tile_hfraction = -1.;
   window->initially_iconic = FALSE;
   window->minimized = FALSE;
-  window->tab_unminimized = FALSE;
   window->iconic = FALSE;
   window->known_to_compositor = FALSE;
   window->visible_to_compositor = FALSE;
@@ -1060,8 +1054,6 @@ meta_window_constructed (GObject *object)
   window->placed = ((window->mapped && !window->hidden) || window->override_redirect);
   window->denied_focus_and_not_transient = FALSE;
   window->unmanaging = FALSE;
-  window->keys_grabbed = FALSE;
-  window->grab_on_frame = FALSE;
   window->withdrawn = FALSE;
   window->initial_workspace_set = FALSE;
   window->initial_timestamp_set = FALSE;
@@ -1101,8 +1093,6 @@ meta_window_constructed (GObject *object)
   window->res_class = NULL;
   window->res_name = NULL;
   window->role = NULL;
-  window->sm_client_id = NULL;
-  window->wm_client_machine = NULL;
   window->is_remote = FALSE;
   window->startup_id = NULL;
 
@@ -1123,12 +1113,16 @@ meta_window_constructed (GObject *object)
   window->compositor_private = NULL;
 
   if (window->rect.width > 0 && window->rect.height > 0)
-    window->monitor = meta_window_find_monitor_from_frame_rect (window);
+    {
+      window->monitor = meta_window_find_monitor_from_frame_rect (window);
+      window->highest_scale_monitor =
+        meta_window_find_highest_scale_monitor_from_frame_rect (window);
+    }
   else
-    window->monitor = meta_backend_get_current_logical_monitor (backend);
-
-  window->highest_scale_monitor =
-    meta_window_find_highest_scale_monitor_from_frame_rect (window);
+    {
+      window->monitor = meta_backend_get_current_logical_monitor (backend);
+      window->highest_scale_monitor = window->monitor;
+    }
 
   if (window->monitor)
     window->preferred_output_winsys_id = window->monitor->winsys_id;
@@ -1405,7 +1399,6 @@ meta_window_unmanage (MetaWindow  *window,
   window->unmanaging = TRUE;
 
   g_clear_handle_id (&priv->suspend_timoeut_id, g_source_remove);
-  g_clear_handle_id (&window->unmanage_idle_id, g_source_remove);
   g_clear_handle_id (&window->close_dialog_timeout_id, g_source_remove);
 
   g_signal_emit (window, window_signals[UNMANAGING], 0);
@@ -2551,8 +2544,8 @@ meta_window_unminimize (MetaWindow  *window)
 }
 
 static void
-ensure_size_hints_satisfied (MtkRectangle     *rect,
-                             const XSizeHints *size_hints)
+ensure_size_hints_satisfied (MtkRectangle        *rect,
+                             const MetaSizeHints *size_hints)
 {
   int minw, minh, maxw, maxh;   /* min/max width/height                      */
   int basew, baseh, winc, hinc; /* base width/height, width/height increment */
@@ -3781,8 +3774,11 @@ meta_window_update_monitor (MetaWindow                   *window,
     }
 
   old_highest_scale = window->highest_scale_monitor;
-  window->highest_scale_monitor =
-    meta_window_find_highest_scale_monitor_from_frame_rect (window);
+
+  window->highest_scale_monitor = window->rect.width > 0 && window->rect.height > 0
+    ? meta_window_find_highest_scale_monitor_from_frame_rect (window)
+    : window->monitor;
+
   if (old_highest_scale != window->highest_scale_monitor)
     g_signal_emit (window, window_signals[HIGHEST_SCALE_MONITOR_CHANGED], 0);
 }
@@ -4328,6 +4324,14 @@ meta_window_get_session_geometry (MetaWindow  *window,
     window->size_hints.width_inc;
   *height = (window->rect.height - window->size_hints.base_height) /
     window->size_hints.height_inc;
+}
+
+gboolean
+meta_window_geometry_contains_rect (MetaWindow   *window,
+                                    MtkRectangle *rect)
+{
+  return mtk_rectangle_contains_rect (&window->rect,
+                                      rect);
 }
 
 /**
@@ -6125,18 +6129,21 @@ meta_window_is_ancestor_of_transient (MetaWindow *window,
  * @device: (nullable):
  * @sequence: (nullable):
  * @timestamp:
+ * @pos_hint: (nullable):
  **/
 gboolean
 meta_window_begin_grab_op (MetaWindow           *window,
                            MetaGrabOp            op,
                            ClutterInputDevice   *device,
                            ClutterEventSequence *sequence,
-                           guint32               timestamp)
+                           guint32               timestamp,
+                           graphene_point_t     *pos_hint)
 {
   return meta_compositor_drag_window (window->display->compositor,
                                       window, op,
                                       device, sequence,
-                                      timestamp);
+                                      timestamp,
+                                      pos_hint);
 }
 
 MetaStackLayer
@@ -6148,6 +6155,13 @@ meta_window_get_default_layer (MetaWindow *window)
     return META_LAYER_TOP;
   else if (window->type == META_WINDOW_DESKTOP)
     return META_LAYER_DESKTOP;
+  else if (window->type == META_WINDOW_DOCK)
+    {
+      if (window->monitor && window->monitor->in_fullscreen)
+        return META_LAYER_BOTTOM;
+      else
+        return META_LAYER_DOCK;
+    }
   else
     return META_LAYER_NORMAL;
 }
@@ -6865,25 +6879,6 @@ meta_window_unit_cgroup_equal (MetaWindow *window1,
 }
 
 /**
- * meta_window_get_client_machine:
- * @window: a #MetaWindow
- *
- * Returns name of the client machine from which this windows was created,
- * if known (obtained from the WM_CLIENT_MACHINE property).
- *
- * Returns: (transfer none) (nullable): the machine name, or %NULL; the string
- * is owned by the window manager and should not be freed or modified by the
- * caller.
- */
-const char *
-meta_window_get_client_machine (MetaWindow *window)
-{
-  g_return_val_if_fail (META_IS_WINDOW (window), NULL);
-
-  return window->wm_client_machine;
-}
-
-/**
  * meta_window_is_remote:
  * @window: a #MetaWindow
  *
@@ -7389,7 +7384,7 @@ meta_window_has_pointer (MetaWindow *window)
 #endif
 }
 
-void
+gboolean
 meta_window_handle_ungrabbed_event (MetaWindow         *window,
                                     const ClutterEvent *event)
 {
@@ -7405,14 +7400,14 @@ meta_window_handle_ungrabbed_event (MetaWindow         *window,
   guint button;
 
   if (window->unmanaging)
-    return;
+    return CLUTTER_EVENT_PROPAGATE;
 
   event_type = clutter_event_type (event);
   time_ms = clutter_event_get_time (event);
 
   if (event_type != CLUTTER_BUTTON_PRESS &&
       event_type != CLUTTER_TOUCH_BEGIN)
-    return;
+    return CLUTTER_EVENT_PROPAGATE;
 
   if (event_type == CLUTTER_TOUCH_BEGIN)
     {
@@ -7421,7 +7416,7 @@ meta_window_handle_ungrabbed_event (MetaWindow         *window,
       button = 1;
       sequence = clutter_event_get_event_sequence (event);
       if (!meta_display_is_pointer_emulating_sequence (window->display, sequence))
-        return;
+        return CLUTTER_EVENT_PROPAGATE;
     }
   else
     button = clutter_event_get_button (event);
@@ -7431,7 +7426,7 @@ meta_window_handle_ungrabbed_event (MetaWindow         *window,
    * we have to take special care not to act for an override-redirect window.
    */
   if (window->override_redirect)
-    return;
+    return CLUTTER_EVENT_PROPAGATE;
 
   /* Don't focus panels--they must explicitly request focus.
    * See bug 160470
@@ -7512,11 +7507,13 @@ meta_window_handle_ungrabbed_event (MetaWindow         *window,
           if (op != META_GRAB_OP_WINDOW_BASE)
             {
               op |= META_GRAB_OP_WINDOW_FLAG_UNCONSTRAINED;
-              meta_window_begin_grab_op (window,
-                                         op,
-                                         clutter_event_get_device (event),
-                                         clutter_event_get_event_sequence (event),
-                                         time_ms);
+              if (meta_window_begin_grab_op (window,
+                                             op,
+                                             clutter_event_get_device (event),
+                                             clutter_event_get_event_sequence (event),
+                                             time_ms,
+                                             NULL))
+                return CLUTTER_EVENT_STOP;
             }
         }
     }
@@ -7524,22 +7521,29 @@ meta_window_handle_ungrabbed_event (MetaWindow         *window,
     {
       if (meta_prefs_get_raise_on_click ())
         meta_window_raise (window);
+
       meta_window_show_menu (window,
                              META_WINDOW_MENU_WM,
                              x, y);
+
+      return CLUTTER_EVENT_STOP;
     }
   else if (is_window_grab && (int) button == 1)
     {
       if (window->has_move_func)
         {
-          meta_window_begin_grab_op (window,
-                                     META_GRAB_OP_MOVING |
-                                     META_GRAB_OP_WINDOW_FLAG_UNCONSTRAINED,
-                                     clutter_event_get_device (event),
-                                     clutter_event_get_event_sequence (event),
-                                     time_ms);
+          if (meta_window_begin_grab_op (window,
+                                         META_GRAB_OP_MOVING |
+                                         META_GRAB_OP_WINDOW_FLAG_UNCONSTRAINED,
+                                         clutter_event_get_device (event),
+                                         clutter_event_get_event_sequence (event),
+                                         time_ms,
+                                         NULL))
+            return CLUTTER_EVENT_STOP;
         }
     }
+
+  return CLUTTER_EVENT_PROPAGATE;
 }
 
 gboolean

@@ -1,5 +1,5 @@
 project('mutter', 'c',
-  version: '46.beta',
+  version: '46.rc',
   meson_version: '>= 0.60.0',
   license: 'GPLv2+'
 )
@@ -168,10 +168,9 @@ if have_x11_client
   xau_dep = dependency('xau')
 endif
 
-have_libdisplay_info = get_option('libdisplay_info')
-if have_libdisplay_info
-  libdisplay_info_dep = dependency('libdisplay-info')
-endif
+use_libdisplay_info = get_option('libdisplay_info')
+libdisplay_info_dep = dependency('libdisplay-info', required: use_libdisplay_info)
+have_libdisplay_info = libdisplay_info_dep.found()
 
 have_gnome_desktop = get_option('libgnome_desktop')
 if have_gnome_desktop
@@ -331,6 +330,19 @@ if have_introspection
     'fatal_warnings': get_option('werror'),
   }
 endif
+
+# Check for timerfd_create(2)
+have_timerfd = cc.links('''
+#include <sys/timerfd.h>
+#include <time.h>
+#include <unistd.h>
+int main (int argc, char ** argv) {
+  struct itimerspec ts = {{0}};
+  int fd = timerfd_create (CLOCK_MONOTONIC, TFD_NONBLOCK | TFD_CLOEXEC);
+  timerfd_settime (fd, TFD_TIMER_ABSTIME, &ts, NULL);
+  return 0;
+}
+''', name : 'timerfd_create(2) system call')
 
 have_documentation = get_option('docs')
 have_tests = get_option('tests')
@@ -552,6 +564,7 @@ cdata.set('HAVE_INTROSPECTION', have_introspection)
 cdata.set('HAVE_PROFILER', have_profiler)
 cdata.set('HAVE_LIBDISPLAY_INFO', have_libdisplay_info)
 cdata.set('HAVE_PANGO_FT2', have_pango_ft2)
+cdata.set('HAVE_TIMERFD', have_timerfd)
 
 if have_x11_client
   xkb_base = xkeyboard_config_dep.get_variable('xkb_base')
@@ -575,7 +588,7 @@ if have_xwayland
     if xwayland_dep.found()
       xwayland_path = xwayland_dep.get_variable('xwayland')
     else
-      xwayland_path = find_program('Xwayland').path()
+      xwayland_path = find_program('Xwayland').full_path()
     endif
   endif
   cdata.set_quoted('XWAYLAND_PATH', xwayland_path)
@@ -594,7 +607,7 @@ if have_xwayland
   if xwayland_dep.found()
     xwayland_supports_initfd = xwayland_dep.get_variable('have_initfd') == 'true'
   else
-    xwayland_options = run_command(xwayland_path, '-help')
+    xwayland_options = run_command(xwayland_path, '-help', check: false)
     xwayland_supports_initfd = xwayland_options.stderr().contains('-initfd')
   endif
 

@@ -1934,6 +1934,8 @@ meta_seat_x11_grab (ClutterSeat *seat,
 
   seat_x11->grab_state = state;
 
+  meta_backend_x11_sync_pointer (META_BACKEND_X11 (backend));
+
   return state;
 }
 
@@ -1959,6 +1961,8 @@ meta_seat_x11_ungrab (ClutterSeat *seat,
     }
 
   seat_x11->grab_state = CLUTTER_GRAB_STATE_NONE;
+
+  meta_backend_x11_sync_pointer (META_BACKEND_X11 (backend));
 }
 
 static void
@@ -2374,6 +2378,7 @@ meta_seat_x11_translate_event (MetaSeatX11  *seat,
                                                        tool,
                                                        state,
                                                        GRAPHENE_POINT_INIT (x, y),
+                                                       CLUTTER_SCROLL_SOURCE_UNKNOWN,
                                                        scroll_direction);
 
             g_debug ("scroll: win:0x%x, device:%d '%s', time:%d "

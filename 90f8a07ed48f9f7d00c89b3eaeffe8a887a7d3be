@@ -1,0 +1,5 @@
+  * Add build-Set-built-headers-as-libmutter_dep-sources.patch to prevent
+    occasional build failures depending on parallelism (LP: #2055530)
+  * Add cogl-gl-framebuffer-Fix-inverted-test-in-ensure_bits_init.patch to
+    fix test failures in mutter:cogl+cogl/conform / framebuffer-get-bits
+    when Mesa >= 23.1.1 (LP: #2055519)

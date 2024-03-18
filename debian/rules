@@ -20,6 +20,7 @@ export MUTTER_SONAME
 	dh $@
 
 CONFFLAGS = \
+	-Dauto_features=enabled \
 	-Degl_device=true \
 	-Dremote_desktop=true \
 	-Dwayland_eglstream=true
@@ -27,6 +28,10 @@ export deb_udevdir = $(shell pkg-config --variable=udevdir udev | sed s,^/,,)
 
 ifneq ($(filter i386,$(DEB_HOST_ARCH)),)
 CONFFLAGS +=-Dprofiler=false
+endif
+
+ifeq ($(shell dpkg-vendor --query vendor),Ubuntu)
+CONFFLAGS += -Dlibdisplay_info=disabled
 endif
 
 override_dh_gnome_clean:
@@ -54,7 +59,7 @@ TEST_COMMAND_FLAKY=env DEB_ALLOW_FLAKY_TESTS=1 $(TEST_COMMAND_BASE) --suite flak
 override_dh_auto_test:
 ifeq ($(filter nocheck,$(DEB_BUILD_OPTIONS)),)
 	glib-compile-schemas $(BUILDDIR)/data
-ifeq (,$(filter mips mips64el mipsel riscv64 s390x alpha hppa powerpc sparc64 x32,$(DEB_HOST_ARCH)))
+ifeq (,$(filter armhf mips mips64el mipsel ppc64el riscv64 s390x alpha hppa powerpc sparc64 x32,$(DEB_HOST_ARCH)))
 	$(TEST_COMMAND)
 	-$(TEST_COMMAND_FLAKY) --logbase flaky-tests
 endif

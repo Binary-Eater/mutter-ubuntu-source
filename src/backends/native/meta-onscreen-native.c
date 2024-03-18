@@ -883,6 +883,9 @@ copy_shared_framebuffer_gpu (CoglOnscreen                        *onscreen,
   COGL_TRACE_BEGIN_SCOPED (CopySharedFramebufferSecondaryGpu,
                            "copy_shared_framebuffer_gpu()");
 
+  if (renderer_gpu_data->secondary.needs_explicit_sync)
+    cogl_framebuffer_finish (COGL_FRAMEBUFFER (onscreen));
+
   render_device = renderer_gpu_data->render_device;
   egl_display = meta_render_device_get_egl_display (render_device);
 
@@ -995,8 +998,7 @@ copy_shared_framebuffer_primary_gpu (CoglOnscreen                        *onscre
   COGL_TRACE_BEGIN_SCOPED (CopySharedFramebufferPrimaryGpu,
                            "copy_shared_framebuffer_primary_gpu()");
 
-  if (!secondary_gpu_state ||
-      secondary_gpu_state->egl_surface == EGL_NO_SURFACE)
+  if (!secondary_gpu_state)
     return NULL;
 
   primary_gpu = meta_renderer_native_get_primary_gpu (renderer_native);
@@ -2624,6 +2626,15 @@ init_secondary_gpu_state_gpu_copy_mode (MetaRendererNative         *renderer_nat
                                     width, height,
                                     format,
                                     GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING);
+
+  if (!gbm_surface)
+    {
+      gbm_surface = gbm_surface_create (gbm_device,
+                                        width, height,
+                                        format,
+                                        0);
+    }
+
   if (!gbm_surface)
     {
       g_set_error (error, G_IO_ERROR, G_IO_ERROR_FAILED,

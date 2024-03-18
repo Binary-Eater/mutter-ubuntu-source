@@ -22,7 +22,6 @@
 #include <xf86drmMode.h>
 
 #include "backends/native/meta-kms-types.h"
-#include "backends/native/meta-swap-chain.h"
 #include "backends/meta-backend-types.h"
 #include "core/util-private.h"
 #include "meta/boxes.h"
@@ -34,6 +33,11 @@ typedef struct _MetaKmsCrtcState
   MtkRectangle rect;
   gboolean is_drm_mode_valid;
   drmModeModeInfo drm_mode;
+
+  struct {
+    gboolean enabled;
+    gboolean supported;
+  } vrr;
 
   struct {
     MetaGammaLut *value;
@@ -61,5 +65,3 @@ int meta_kms_crtc_get_idx (MetaKmsCrtc *crtc);
 
 META_EXPORT_TEST
 gboolean meta_kms_crtc_is_active (MetaKmsCrtc *crtc);
-
-MetaSwapChain * meta_kms_crtc_get_swap_chain (MetaKmsCrtc *crtc);

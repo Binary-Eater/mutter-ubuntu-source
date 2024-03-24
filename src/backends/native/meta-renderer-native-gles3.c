@@ -3,6 +3,7 @@
 /*
  * Copyright (C) 2017 Red Hat
  * Copyright (c) 2018 DisplayLink (UK) Ltd.
+ * Copyright (c) 2023 Canonical Ltd.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -43,6 +44,127 @@
 #error "Somehow included OpenGL headers when we shouldn't have"
 #endif
 
+static GQuark
+get_quark_for_egl_context (EGLContext egl_context)
+{
+  char key[128];
+
+  g_snprintf (key, sizeof key, "EGLContext %p", egl_context);
+
+  return g_quark_from_string (key);
+}
+
+static GLuint
+load_shader (const char *src,
+             GLenum      type)
+{
+  GLuint shader = glCreateShader (type);
+
+  if (shader)
+    {
+      GLint compiled;
+
+      glShaderSource (shader, 1, &src, NULL);
+      glCompileShader (shader);
+      glGetShaderiv (shader, GL_COMPILE_STATUS, &compiled);
+      if (!compiled)
+        {
+          GLchar log[1024];
+
+          glGetShaderInfoLog (shader, sizeof (log) - 1, NULL, log);
+          log[sizeof (log) - 1] = '\0';
+          g_warning ("load_shader compile failed: %s", log);
+          glDeleteShader (shader);
+          shader = 0;
+        }
+    }
+
+  return shader;
+}
+
+static void
+ensure_shader_program (MetaGles3 *gles3)
+{
+  static const char vertex_shader_source[] =
+    "#version 100\n"
+    "attribute vec2 position;\n"
+    "attribute vec2 texcoord;\n"
+    "varying vec2 v_texcoord;\n"
+    "\n"
+    "void main()\n"
+    "{\n"
+    "  gl_Position = vec4(position, 0.0, 1.0);\n"
+    "  v_texcoord = texcoord;\n"
+    "}\n";
+
+  static const char fragment_shader_source[] =
+    "#version 100\n"
+    "#extension GL_OES_EGL_image_external : require\n"
+    "precision mediump float;\n"
+    "uniform samplerExternalOES s_texture;\n"
+    "varying vec2 v_texcoord;\n"
+    "\n"
+    " void main()\n"
+    "{\n"
+    "  gl_FragColor = texture2D(s_texture, v_texcoord);\n"
+    "}\n";
+
+  static const GLfloat box[] =
+  { /* position    texcoord */
+    -1.0f, +1.0f, 0.0f, 0.0f,
+    +1.0f, +1.0f, 1.0f, 0.0f,
+    +1.0f, -1.0f, 1.0f, 1.0f,
+    -1.0f, -1.0f, 0.0f, 1.0f,
+  };
+  GLint linked;
+  GLuint vertex_shader, fragment_shader;
+  GLint position_attrib, texcoord_attrib;
+  GQuark shader_program_quark;
+  GLuint shader_program;
+
+  shader_program_quark = get_quark_for_egl_context (eglGetCurrentContext ());
+  if (g_object_get_qdata (G_OBJECT (gles3), shader_program_quark))
+    return;
+
+  shader_program = glCreateProgram ();
+  g_return_if_fail (shader_program);
+  g_object_set_qdata_full (G_OBJECT (gles3),
+                           shader_program_quark,
+                           GUINT_TO_POINTER (shader_program),
+                           NULL);
+
+  vertex_shader = load_shader (vertex_shader_source, GL_VERTEX_SHADER);
+  g_return_if_fail (vertex_shader);
+  fragment_shader = load_shader (fragment_shader_source, GL_FRAGMENT_SHADER);
+  g_return_if_fail (fragment_shader);
+
+  GLBAS (gles3, glAttachShader, (shader_program, vertex_shader));
+  GLBAS (gles3, glAttachShader, (shader_program, fragment_shader));
+  GLBAS (gles3, glLinkProgram, (shader_program));
+  GLBAS (gles3, glGetProgramiv, (shader_program, GL_LINK_STATUS, &linked));
+  if (!linked)
+    {
+      GLchar log[1024];
+
+      glGetProgramInfoLog (shader_program, sizeof (log) - 1, NULL, log);
+      log[sizeof (log) - 1] = '\0';
+      g_warning ("Link failed: %s", log);
+      return;
+    }
+
+  GLBAS (gles3, glUseProgram, (shader_program));
+
+  position_attrib = glGetAttribLocation (shader_program, "position");
+  GLBAS (gles3, glEnableVertexAttribArray, (position_attrib));
+  GLBAS (gles3, glVertexAttribPointer,
+         (position_attrib, 2, GL_FLOAT, GL_FALSE, 4 * sizeof (GLfloat), box));
+
+  texcoord_attrib = glGetAttribLocation (shader_program, "texcoord");
+  GLBAS (gles3, glEnableVertexAttribArray, (texcoord_attrib));
+  GLBAS (gles3, glVertexAttribPointer,
+         (texcoord_attrib, 2, GL_FLOAT, GL_FALSE, 4 * sizeof (GLfloat), box + 2));
+}
+
 static void
 paint_egl_image (MetaGles3   *gles3,
                  EGLImageKHR  egl_image,
@@ -50,39 +172,33 @@ paint_egl_image (MetaGles3   *gles3,
                  int          height)
 {
   GLuint texture;
-  GLuint framebuffer;
 
   meta_gles3_clear_error (gles3);
+  ensure_shader_program (gles3);
 
-  GLBAS (gles3, glGenFramebuffers, (1, &framebuffer));
-  GLBAS (gles3, glBindFramebuffer, (GL_READ_FRAMEBUFFER, framebuffer));
+  GLBAS (gles3, glViewport, (0, 0, width, height));
 
   GLBAS (gles3, glActiveTexture, (GL_TEXTURE0));
   GLBAS (gles3, glGenTextures, (1, &texture));
-  GLBAS (gles3, glBindTexture, (GL_TEXTURE_2D, texture));
-  GLEXT (gles3, glEGLImageTargetTexture2DOES, (GL_TEXTURE_2D, egl_image));
-  GLBAS (gles3, glTexParameteri, (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,
+  GLBAS (gles3, glBindTexture, (GL_TEXTURE_EXTERNAL_OES, texture));
+  GLEXT (gles3, glEGLImageTargetTexture2DOES, (GL_TEXTURE_EXTERNAL_OES,
+                                               egl_image));
+  GLBAS (gles3, glTexParameteri, (GL_TEXTURE_EXTERNAL_OES,
+                                  GL_TEXTURE_MAG_FILTER,
                                   GL_NEAREST));
-  GLBAS (gles3, glTexParameteri, (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
+  GLBAS (gles3, glTexParameteri, (GL_TEXTURE_EXTERNAL_OES,
+                                  GL_TEXTURE_MIN_FILTER,
                                   GL_NEAREST));
-  GLBAS (gles3, glTexParameteri, (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S,
+  GLBAS (gles3, glTexParameteri, (GL_TEXTURE_EXTERNAL_OES,
+                                  GL_TEXTURE_WRAP_S,
                                   GL_CLAMP_TO_EDGE));
-  GLBAS (gles3, glTexParameteri, (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T,
-                                  GL_CLAMP_TO_EDGE));
-  GLBAS (gles3, glTexParameteri, (GL_TEXTURE_2D, GL_TEXTURE_WRAP_R_OES,
+  GLBAS (gles3, glTexParameteri, (GL_TEXTURE_EXTERNAL_OES,
+                                  GL_TEXTURE_WRAP_T,
                                   GL_CLAMP_TO_EDGE));
 
-  GLBAS (gles3, glFramebufferTexture2D, (GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-                                         GL_TEXTURE_2D, texture, 0));
-
-  GLBAS (gles3, glBindFramebuffer, (GL_READ_FRAMEBUFFER, framebuffer));
-  GLBAS (gles3, glBlitFramebuffer, (0, height, width, 0,
-                                    0, 0, width, height,
-                                    GL_COLOR_BUFFER_BIT,
-                                    GL_NEAREST));
+  GLBAS (gles3, glDrawArrays, (GL_TRIANGLE_FAN, 0, 4));
 
   GLBAS (gles3, glDeleteTextures, (1, &texture));
-  GLBAS (gles3, glDeleteFramebuffers, (1, &framebuffer));
 }
 
 gboolean
@@ -155,4 +271,13 @@ meta_renderer_native_gles3_blit_shared_bo (MetaEgl        *egl,
   meta_egl_destroy_image (egl, egl_display, egl_image, NULL);
 
   return TRUE;
+}
+
+void
+meta_renderer_native_gles3_forget_context (MetaGles3  *gles3,
+                                           EGLContext  egl_context)
+{
+  GQuark shader_program_quark = get_quark_for_egl_context (egl_context);
+
+  g_object_set_qdata (G_OBJECT (gles3), shader_program_quark, NULL);
 }

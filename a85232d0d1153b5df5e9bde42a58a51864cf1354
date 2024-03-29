@@ -1,0 +1,2 @@
+  * Stop ignoring test results.
+  * Keep the relaxed dependency on mutter-common. See Debian #1067675.

@@ -1,3 +1,10 @@
+mutter (46.0-1ubuntu4) noble; urgency=medium
+
+  * Stop ignoring test results.
+  * Keep the relaxed dependency on mutter-common. See Debian #1067675.
+
+ -- Matthias Klose <doko@ubuntu.com>  Fri, 29 Mar 2024 10:35:03 +0100
+
 mutter (46.0-1ubuntu3) noble; urgency=medium
 
   * Ignore test results to have an installable package on other architectures,

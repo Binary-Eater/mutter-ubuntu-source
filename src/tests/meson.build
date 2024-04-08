@@ -375,6 +375,7 @@ if have_native_tests
       'name': 'input-capture',
       'suite': 'backends/native',
       'sources': [ 'input-capture-tests.c' ],
+      'flaky': true,
     },
     {
       'name': 'thread',
@@ -655,8 +656,14 @@ if have_native_tests
 
     test_depends = [ default_plugin ] + test_case.get('depends', [])
 
+    extra_suites = []
+
+    if test_case.get('flaky', false)
+      extra_suites += 'flaky'
+    endif
+
     test(test_case['name'], test_executable,
-      suite: ['core', 'mutter/' + test_case['suite']],
+      suite: ['core', 'mutter/' + test_case['suite']] + extra_suites,
       env: test_env,
       depends: test_depends,
       is_parallel: false,
@@ -684,6 +691,7 @@ stacking_tests = [
   'override-redirect',
   'set-override-redirect-parent',
   'set-parent-exported',
+  'restore-size',
   'unmaximize-new-size',
   'fullscreen-maximize',
   'unfullscreen-strut-change',
@@ -706,8 +714,26 @@ stacking_tests = [
 ]
 
 foreach stacking_test: stacking_tests
+  extra_suites = []
+  flaky = false
+
+  if {
+    'closed-transient-only-take-focus-parents': true,
+    # https://gitlab.gnome.org/GNOME/mutter/-/issues/3050
+    'fullscreen-maximize': true,
+    'minimized': true,
+    # https://gitlab.gnome.org/GNOME/mutter/-/issues/2509, https://bugs.debian.org/1050022
+    'restore-size': true,
+    # https://gitlab.gnome.org/GNOME/mutter/-/issues/3051
+    'unfullscreen-strut-change': true,
+    'unmaximize-new-size': true,
+  }.get(stacking_test, false)
+    extra_suites += 'flaky'
+    flaky = true
+  endif
+
   test(stacking_test, test_runner,
-    suite: ['core', 'mutter/stacking'],
+    suite: ['core', 'mutter/stacking'] + extra_suites,
     env: test_env,
     args: [
       files('stacking' / stacking_test + '.metatest'),
@@ -716,7 +742,7 @@ foreach stacking_test: stacking_tests
     timeout: 60,
   )
 
-  if have_installed_tests
+  if have_installed_tests and not flaky
     installed_tests_cdata = configuration_data()
     installed_tests_cdata.set('apiversion', libmutter_api_version)
     installed_tests_cdata.set('libexecdir', libexecdir)

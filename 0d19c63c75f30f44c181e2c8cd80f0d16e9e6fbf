@@ -1,0 +1,7 @@
+  [ Daniel van Vugt ]
+  * debian/control: mutter-common now breaks libmutter back to focal.
+    Because  we have dropped X11 fractional scaling support for now,
+    `org.gnome.mutter.x11.gschema.xml` is no longer shipped and those
+    older versions of libmutter will fail to start(LP: #2060423)
+  * Add compositor-sync-ring-Allow-the-gpu_fence-to-be-moved.patch
+    to fix lag and freezes on the Nvidia Xorg driver (LP: #2059847)

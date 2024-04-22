@@ -1,0 +1,2 @@
+  * Have mutter-common Breaks/Replaces recent magpie-common
+    for org.gnome.mutter.x11.gschema.xml (LP: #2060659)

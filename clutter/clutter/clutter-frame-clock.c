@@ -875,6 +875,25 @@ clutter_frame_clock_uninhibit (ClutterFrameClock *frame_clock)
     maybe_reschedule_update (frame_clock);
 }
 
+static gboolean
+want_triple_buffering (ClutterFrameClock *frame_clock)
+{
+  switch (triple_buffering_mode)
+    {
+    case TRIPLE_BUFFERING_MODE_NEVER:
+      return FALSE;
+    case TRIPLE_BUFFERING_MODE_AUTO:
+      return frame_clock->mode == CLUTTER_FRAME_CLOCK_MODE_FIXED &&
+             !(frame_clock->last_flip_hints &
+               CLUTTER_FRAME_HINT_DIRECT_SCANOUT_ATTEMPTED);
+    case TRIPLE_BUFFERING_MODE_ALWAYS:
+      return TRUE;
+    }
+
+  g_assert_not_reached ();
+  return FALSE;
+}
+
 void
 clutter_frame_clock_schedule_update_now (ClutterFrameClock *frame_clock)
 {
@@ -897,12 +916,18 @@ clutter_frame_clock_schedule_update_now (ClutterFrameClock *frame_clock)
     case CLUTTER_FRAME_CLOCK_STATE_SCHEDULED_NOW:
     case CLUTTER_FRAME_CLOCK_STATE_DISPATCHED_ONE_AND_SCHEDULED_NOW:
       return;
-    case CLUTTER_FRAME_CLOCK_STATE_DISPATCHED_ONE:
     case CLUTTER_FRAME_CLOCK_STATE_DISPATCHED_ONE_AND_SCHEDULED:
-      next_update_time_us = g_get_monotonic_time ();
       frame_clock->state =
         CLUTTER_FRAME_CLOCK_STATE_DISPATCHED_ONE_AND_SCHEDULED_NOW;
       break;
+    case CLUTTER_FRAME_CLOCK_STATE_DISPATCHED_ONE:
+      if (want_triple_buffering (frame_clock))
+        {
+          frame_clock->state =
+            CLUTTER_FRAME_CLOCK_STATE_DISPATCHED_ONE_AND_SCHEDULED_NOW;
+          break;
+        }
+      G_GNUC_FALLTHROUGH;
     case CLUTTER_FRAME_CLOCK_STATE_DISPATCHED_TWO:
       frame_clock->pending_reschedule = TRUE;
       frame_clock->pending_reschedule_now = TRUE;
@@ -941,8 +966,7 @@ clutter_frame_clock_schedule_update (ClutterFrameClock *frame_clock)
   TripleBufferingMode current_mode = triple_buffering_mode;
 
   if (current_mode == TRIPLE_BUFFERING_MODE_AUTO &&
-      (frame_clock->last_flip_hints &
-       CLUTTER_FRAME_HINT_DIRECT_SCANOUT_ATTEMPTED))
+      !want_triple_buffering (frame_clock))
     current_mode = TRIPLE_BUFFERING_MODE_NEVER;
 
   if (frame_clock->inhibit_count > 0)
@@ -973,14 +997,6 @@ clutter_frame_clock_schedule_update (ClutterFrameClock *frame_clock)
           frame_clock->pending_reschedule = TRUE;
           return;
         case TRIPLE_BUFFERING_MODE_AUTO:
-          calculate_next_update_time_us (frame_clock,
-                                         &next_update_time_us,
-                                         &frame_clock->next_presentation_time_us,
-                                         &frame_clock->next_frame_deadline_us);
-          frame_clock->is_next_presentation_time_valid =
-            (frame_clock->next_presentation_time_us != 0);
-          frame_clock->has_next_frame_deadline =
-            (frame_clock->next_frame_deadline_us != 0);
           frame_clock->state =
             CLUTTER_FRAME_CLOCK_STATE_DISPATCHED_ONE_AND_SCHEDULED;
           break;
@@ -990,7 +1006,7 @@ clutter_frame_clock_schedule_update (ClutterFrameClock *frame_clock)
           frame_clock->is_next_presentation_time_valid = FALSE;
           frame_clock->state =
             CLUTTER_FRAME_CLOCK_STATE_DISPATCHED_ONE_AND_SCHEDULED;
-          break;
+          return;
         }
       break;
     case CLUTTER_FRAME_CLOCK_STATE_DISPATCHED_TWO:

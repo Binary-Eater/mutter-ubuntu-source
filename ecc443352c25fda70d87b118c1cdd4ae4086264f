@@ -1,0 +1,2 @@
+  * Update libmutter-14-0.symbols for i386
+  * Drop packaging references to Hurd since this is Linux-only

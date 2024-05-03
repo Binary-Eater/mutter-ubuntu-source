@@ -1,0 +1,8 @@
+  * Merge with Debian (LP: #2064735). Remaining changes:
+    - Add x11-Add-support-for-fractional-scaling-using-Randr.patch
+    - Add window-Add-ability-to-override-the-edge-constraints.patch
+      + Make possible for extensions (such as Tiling Assistant) to override
+        window constraints
+    - Ignore test results on armhf & ppc64el
+  * Drop compositor-sync-ring-Allow-the-gpu_fence-to-be-moved.patch:
+    applied in new release

@@ -363,9 +363,17 @@ stacking_tests = [
   'map-on-hotplug',
 ]
 
+flaky_stacking_tests = [
+  'fullscreen-maximize',
+]
+
 foreach stacking_test: stacking_tests
+  extra_suites = []
+  if (flaky_stacking_tests.contains(stacking_test))
+    extra_suites += 'flaky'
+  endif
   test(stacking_test, test_runner,
-    suite: ['core', 'mutter/stacking'],
+    suite: ['core', 'mutter/stacking'] + extra_suites,
     env: test_env,
     args: [
       files(join_paths('stacking', stacking_test + '.metatest')),

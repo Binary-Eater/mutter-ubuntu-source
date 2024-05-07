@@ -195,6 +195,7 @@ test_cases += [
   },
   {
     'name': 'stage-views',
+    'flaky': true,
     'suite': 'compositor',
     'sources': [ 'stage-view-tests.c', ],
   },
@@ -322,7 +323,8 @@ if have_native_tests
     )
 
     test(test_case['name'], test_executable,
-      suite: ['core', 'mutter/' + test_case['suite']],
+      suite: ['core', 'mutter/' + test_case['suite']]
+        + (test_case.get('flaky', false) ? ['flaky'] : []),
       env: test_env,
       is_parallel: false,
       timeout: 60,
@@ -361,9 +363,17 @@ stacking_tests = [
   'map-on-hotplug',
 ]
 
+flaky_stacking_tests = [
+  'fullscreen-maximize',
+]
+
 foreach stacking_test: stacking_tests
+  extra_suites = []
+  if (flaky_stacking_tests.contains(stacking_test))
+    extra_suites += 'flaky'
+  endif
   test(stacking_test, test_runner,
-    suite: ['core', 'mutter/stacking'],
+    suite: ['core', 'mutter/stacking'] + extra_suites,
     env: test_env,
     args: [
       files(join_paths('stacking', stacking_test + '.metatest')),

@@ -1,0 +1,5 @@
+  * Replace tests-Disable-restore-size-test.patch with
+    Mark-several-additional-tests-as-flaky.patch from Debian to avoid
+    wasting time on rebuilds for known flaky test cases.
+  * Add compositor-sync-ring-Allow-the-gpu_fence-to-be-moved.patch to
+    fix lag and freezes on the Nvidia Xorg driver (LP: #2059847)

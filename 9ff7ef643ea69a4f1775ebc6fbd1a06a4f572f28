@@ -1,0 +1,8 @@
+  [ Daniel van Vugt ]
+  * Add fullscreen-maximize to tests-Tag-unstable-tests-as-flaky.patch
+  * Add compositor-sync-ring-Allow-the-gpu_fence-to-be-moved.patch to
+    fix lag and freezes on the Nvidia Xorg driver (LP: #2059847)
+  [ Marco Trevisan (Treviño) ]
+  * debian/patches: Refresh git indexes
+  * debian/patches: Add fix to handle crash on destruction of invalid popups
+    (LP: #2065066)

@@ -91,7 +91,7 @@ gesture_disposed_while_active (void)
 
   clutter_actor_set_size (second_actor, 20, 20);
   clutter_actor_set_x (second_actor, 15);
-  clutter_actor_set_reactive (second_actor, true);
+  clutter_actor_set_reactive (second_actor, TRUE);
   clutter_actor_add_child (stage, second_actor);
   clutter_actor_add_action (second_actor, CLUTTER_ACTION (gesture));
 
@@ -134,6 +134,12 @@ gesture_state_machine_move_to_waiting (void)
   int64_t now_us;
   ClutterGesture *gesture = CLUTTER_GESTURE (g_object_new (TEST_TYPE_GESTURE, NULL));
   gboolean was_updated;
+
+  if (g_getenv ("DEB_ALLOW_FLAKY_TESTS") == NULL)
+    {
+      g_test_skip ("https://gitlab.gnome.org/GNOME/mutter/-/issues/3521");
+      return;
+    }
 
   virtual_pointer = clutter_seat_create_virtual_device (seat, CLUTTER_POINTER_DEVICE);
   now_us = g_get_monotonic_time ();
@@ -196,6 +202,12 @@ gesture_state_machine_move_to_cancelled_while_possible (void)
   gboolean was_updated;
   ClutterGestureState gesture_state_change;
 
+  if (g_getenv ("DEB_ALLOW_FLAKY_TESTS") == NULL)
+    {
+      g_test_skip ("https://gitlab.gnome.org/GNOME/mutter/-/issues/3521");
+      return;
+    }
+
   virtual_pointer = clutter_seat_create_virtual_device (seat, CLUTTER_POINTER_DEVICE);
   now_us = g_get_monotonic_time ();
 
@@ -244,13 +256,19 @@ gesture_state_machine_move_to_cancelled_on_sequence_cancel (void)
   gboolean was_updated;
   ClutterGestureState gesture_state_change;
 
+  if (g_getenv ("DEB_ALLOW_FLAKY_TESTS") == NULL)
+    {
+      g_test_skip ("https://gitlab.gnome.org/GNOME/mutter/-/issues/3521");
+      return;
+    }
+
   virtual_pointer = clutter_seat_create_virtual_device (seat, CLUTTER_POINTER_DEVICE);
   now_us = g_get_monotonic_time ();
 
   clutter_actor_add_action (stage, CLUTTER_ACTION (gesture));
 
   clutter_actor_set_size (second_actor, 20, 20);
-  clutter_actor_set_reactive (second_actor, true);
+  clutter_actor_set_reactive (second_actor, TRUE);
   clutter_actor_add_child (stage, second_actor);
 
   g_signal_connect (stage, "after-update", G_CALLBACK (on_after_update),
@@ -301,6 +319,12 @@ gesture_multiple_mouse_buttons (void)
   int64_t now_us;
   ClutterGesture *gesture = CLUTTER_GESTURE (g_object_new (TEST_TYPE_GESTURE, NULL));
   gboolean was_updated;
+
+  if (g_getenv ("DEB_ALLOW_FLAKY_TESTS") == NULL)
+    {
+      g_test_skip ("https://gitlab.gnome.org/GNOME/mutter/-/issues/3521");
+      return;
+    }
 
   virtual_pointer = clutter_seat_create_virtual_device (seat, CLUTTER_POINTER_DEVICE);
   now_us = g_get_monotonic_time ();

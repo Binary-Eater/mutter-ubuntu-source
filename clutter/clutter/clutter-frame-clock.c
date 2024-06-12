@@ -1006,7 +1006,7 @@ clutter_frame_clock_schedule_update (ClutterFrameClock *frame_clock)
           frame_clock->is_next_presentation_time_valid = FALSE;
           frame_clock->state =
             CLUTTER_FRAME_CLOCK_STATE_DISPATCHED_ONE_AND_SCHEDULED;
-          return;
+          goto got_update_time;
         }
       break;
     case CLUTTER_FRAME_CLOCK_STATE_DISPATCHED_TWO:
@@ -1034,6 +1034,7 @@ clutter_frame_clock_schedule_update (ClutterFrameClock *frame_clock)
       break;
     }
 
+got_update_time:
   g_warn_if_fail (next_update_time_us != -1);
 
   frame_clock->next_update_time_us = next_update_time_us;

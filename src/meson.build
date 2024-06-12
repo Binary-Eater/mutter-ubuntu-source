@@ -115,6 +115,7 @@ if have_x11
     xkbfile_dep,
     xkeyboard_config_dep,
     xkbcommon_x11_dep,
+    xrender_dep,
     x11_xcb_dep,
     xcb_randr_dep,
     xcb_res_dep,

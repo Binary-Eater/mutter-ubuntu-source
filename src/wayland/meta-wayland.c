@@ -57,6 +57,7 @@
 #include "wayland/meta-wayland-tablet-manager.h"
 #include "wayland/meta-wayland-transaction.h"
 #include "wayland/meta-wayland-xdg-foreign.h"
+#include "wayland/meta-wayland-linux-drm-syncobj.h"
 
 #ifdef HAVE_XWAYLAND
 #include "wayland/meta-wayland-x11-interop.h"

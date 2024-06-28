@@ -35,6 +35,7 @@
 #include "backends/meta-egl-ext.h"
 #include "backends/meta-gles3.h"
 #include "backends/meta-gles3-table.h"
+#include "meta/meta-debug.h"
 
 /*
  * GL/gl.h being included may conflict with gl3.h on some architectures.
@@ -44,6 +45,26 @@
 #error "Somehow included OpenGL headers when we shouldn't have"
 #endif
 
+typedef struct _ContextData
+{
+  GArray *buffer_support;
+  GLuint shader_program;
+} ContextData;
+
+typedef struct
+{
+  uint32_t drm_format;
+  uint64_t drm_modifier;
+  gboolean can_blit;
+} BufferTypeSupport;
+
+static void
+context_data_free (ContextData *context_data)
+{
+  g_array_free (context_data->buffer_support, TRUE);
+  g_free (context_data);
+}
+
 static GQuark
 get_quark_for_egl_context (EGLContext egl_context)
 {
@@ -52,6 +73,90 @@ get_quark_for_egl_context (EGLContext egl_context)
   g_snprintf (key, sizeof key, "EGLContext %p", egl_context);
 
   return g_quark_from_string (key);
+}
+
+static gboolean
+can_blit_buffer (ContextData *context_data,
+                 MetaEgl     *egl,
+                 EGLDisplay   egl_display,
+                 uint32_t     drm_format,
+                 uint64_t     drm_modifier)
+{
+  EGLint num_modifiers;
+  EGLuint64KHR *modifiers;
+  EGLBoolean *external_only;
+  g_autoptr (GError) error = NULL;
+  int i;
+  gboolean can_blit;
+  BufferTypeSupport support;
+
+  can_blit = drm_modifier == DRM_FORMAT_MOD_LINEAR;
+
+  for (i = 0; i < context_data->buffer_support->len; i++)
+    {
+      BufferTypeSupport *support =
+        &g_array_index (context_data->buffer_support, BufferTypeSupport, i);
+
+      if (support->drm_format == drm_format &&
+          support->drm_modifier == drm_modifier)
+        return support->can_blit;
+    }
+
+  if (!meta_egl_has_extensions (egl, egl_display, NULL,
+                                "EGL_EXT_image_dma_buf_import_modifiers",
+                                NULL))
+    {
+      meta_topic (META_DEBUG_RENDER,
+                  "No support for EGL_EXT_image_dma_buf_import_modifiers, "
+                  "assuming blitting linearly will still work.");
+      goto out;
+    }
+
+  if (!meta_egl_query_dma_buf_modifiers (egl, egl_display,
+                                         drm_format, 0, NULL, NULL,
+                                         &num_modifiers, &error))
+    {
+      meta_topic (META_DEBUG_RENDER,
+                  "Failed to query supported DMA buffer modifiers (%s), "
+                  "assuming blitting linearly will still work.",
+                  error->message);
+      goto out;
+    }
+
+  if (num_modifiers == 0)
+    goto out;
+
+  modifiers = g_alloca0 (sizeof (EGLuint64KHR) * num_modifiers);
+  external_only = g_alloca0 (sizeof (EGLBoolean) * num_modifiers);
+  if (!meta_egl_query_dma_buf_modifiers (egl, egl_display,
+                                         drm_format, num_modifiers,
+                                         modifiers, external_only,
+                                         &num_modifiers, &error))
+    {
+      g_warning ("Failed to requery supported DMA buffer modifiers: %s",
+                 error->message);
+      can_blit = FALSE;
+      goto out;
+    }
+
+  can_blit = FALSE;
+  for (i = 0; i < num_modifiers; i++)
+    {
+      if (drm_modifier == modifiers[i])
+        {
+          can_blit = !external_only[i];
+          goto out;
+        }
+    }
+
+out:
+  support = (BufferTypeSupport) {
+    .drm_format = drm_format,
+    .drm_modifier = drm_modifier,
+    .can_blit = can_blit,
+  };
+  g_array_append_val (context_data->buffer_support, support);
+  return can_blit;
 }
 
 static GLuint
@@ -83,7 +188,8 @@ load_shader (const char *src,
 }
 
 static void
-ensure_shader_program (MetaGles3 *gles3)
+ensure_shader_program (ContextData *context_data,
+                       MetaGles3   *gles3)
 {
   static const char vertex_shader_source[] =
     "#version 100\n"
@@ -119,19 +225,14 @@ ensure_shader_program (MetaGles3 *gles3)
   GLint linked;
   GLuint vertex_shader, fragment_shader;
   GLint position_attrib, texcoord_attrib;
-  GQuark shader_program_quark;
   GLuint shader_program;
 
-  shader_program_quark = get_quark_for_egl_context (eglGetCurrentContext ());
-  if (g_object_get_qdata (G_OBJECT (gles3), shader_program_quark))
+  if (context_data->shader_program)
     return;
 
   shader_program = glCreateProgram ();
   g_return_if_fail (shader_program);
-  g_object_set_qdata_full (G_OBJECT (gles3),
-                           shader_program_quark,
-                           GUINT_TO_POINTER (shader_program),
-                           NULL);
+  context_data->shader_program = shader_program;
 
   vertex_shader = load_shader (vertex_shader_source, GL_VERTEX_SHADER);
   g_return_if_fail (vertex_shader);
@@ -166,7 +267,52 @@ ensure_shader_program (MetaGles3 *gles3)
 }
 
 static void
-paint_egl_image (MetaGles3   *gles3,
+blit_egl_image (MetaGles3   *gles3,
+                EGLImageKHR  egl_image,
+                int          width,
+                int          height)
+{
+  GLuint texture;
+  GLuint framebuffer;
+
+  meta_gles3_clear_error (gles3);
+
+  GLBAS (gles3, glViewport, (0, 0, width, height));
+
+  GLBAS (gles3, glGenFramebuffers, (1, &framebuffer));
+  GLBAS (gles3, glBindFramebuffer, (GL_READ_FRAMEBUFFER, framebuffer));
+
+  GLBAS (gles3, glActiveTexture, (GL_TEXTURE0));
+  GLBAS (gles3, glGenTextures, (1, &texture));
+  GLBAS (gles3, glBindTexture, (GL_TEXTURE_2D, texture));
+  GLEXT (gles3, glEGLImageTargetTexture2DOES, (GL_TEXTURE_2D, egl_image));
+  GLBAS (gles3, glTexParameteri, (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,
+                                  GL_NEAREST));
+  GLBAS (gles3, glTexParameteri, (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
+                                  GL_NEAREST));
+  GLBAS (gles3, glTexParameteri, (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S,
+                                  GL_CLAMP_TO_EDGE));
+  GLBAS (gles3, glTexParameteri, (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T,
+                                  GL_CLAMP_TO_EDGE));
+  GLBAS (gles3, glTexParameteri, (GL_TEXTURE_2D, GL_TEXTURE_WRAP_R_OES,
+                                  GL_CLAMP_TO_EDGE));
+
+  GLBAS (gles3, glFramebufferTexture2D, (GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                                         GL_TEXTURE_2D, texture, 0));
+
+  GLBAS (gles3, glBindFramebuffer, (GL_READ_FRAMEBUFFER, framebuffer));
+  GLBAS (gles3, glBlitFramebuffer, (0, height, width, 0,
+                                    0, 0, width, height,
+                                    GL_COLOR_BUFFER_BIT,
+                                    GL_NEAREST));
+
+  GLBAS (gles3, glDeleteTextures, (1, &texture));
+  GLBAS (gles3, glDeleteFramebuffers, (1, &framebuffer));
+}
+
+static void
+paint_egl_image (ContextData *context_data,
+                 MetaGles3   *gles3,
                  EGLImageKHR  egl_image,
                  int          width,
                  int          height)
@@ -174,7 +320,7 @@ paint_egl_image (MetaGles3   *gles3,
   GLuint texture;
 
   meta_gles3_clear_error (gles3);
-  ensure_shader_program (gles3);
+  ensure_shader_program (context_data, gles3);
 
   GLBAS (gles3, glViewport, (0, 0, width, height));
 
@@ -221,6 +367,28 @@ meta_renderer_native_gles3_blit_shared_bo (MetaEgl        *egl,
   uint32_t format;
   EGLImageKHR egl_image;
   gboolean use_modifiers;
+  GQuark context_data_quark;
+  ContextData *context_data;
+  gboolean can_blit;
+
+  context_data_quark = get_quark_for_egl_context (egl_context);
+  context_data = g_object_get_qdata (G_OBJECT (gles3), context_data_quark);
+  if (!context_data)
+    {
+      context_data = g_new0 (ContextData, 1);
+      context_data->buffer_support = g_array_new (FALSE, FALSE,
+                                                  sizeof (BufferTypeSupport));
+
+      g_object_set_qdata_full (G_OBJECT (gles3),
+                               context_data_quark,
+                               context_data,
+                               (GDestroyNotify) context_data_free);
+    }
+
+  can_blit = can_blit_buffer (context_data,
+                              egl, egl_display,
+                              gbm_bo_get_format (shared_bo),
+                              gbm_bo_get_modifier (shared_bo));
 
   shared_bo_fd = gbm_bo_get_fd (shared_bo);
   if (shared_bo_fd < 0)
@@ -266,7 +434,10 @@ meta_renderer_native_gles3_blit_shared_bo (MetaEgl        *egl,
   if (!egl_image)
     return FALSE;
 
-  paint_egl_image (gles3, egl_image, width, height);
+  if (can_blit)
+    blit_egl_image (gles3, egl_image, width, height);
+  else
+    paint_egl_image (context_data, gles3, egl_image, width, height);
 
   meta_egl_destroy_image (egl, egl_display, egl_image, NULL);
 
@@ -277,7 +448,7 @@ void
 meta_renderer_native_gles3_forget_context (MetaGles3  *gles3,
                                            EGLContext  egl_context)
 {
-  GQuark shader_program_quark = get_quark_for_egl_context (egl_context);
+  GQuark context_data_quark = get_quark_for_egl_context (egl_context);
 
-  g_object_set_qdata (G_OBJECT (gles3), shader_program_quark, NULL);
+  g_object_set_qdata (G_OBJECT (gles3), context_data_quark, NULL);
 }

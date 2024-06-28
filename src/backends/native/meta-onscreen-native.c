@@ -51,6 +51,7 @@
 #include "backends/native/meta-renderer-native-private.h"
 #include "cogl/cogl.h"
 #include "common/meta-cogl-drm-formats.h"
+#include "common/meta-drm-format-helpers.h"
 
 typedef enum _MetaSharedFramebufferImportStatus
 {
@@ -540,6 +541,8 @@ meta_onscreen_native_flip_crtc (CoglOnscreen           *onscreen,
   MetaGpuKms *gpu_kms;
   MetaDrmBuffer *buffer;
   MetaKmsPlaneAssignment *plane_assignment;
+  graphene_rect_t src_rect;
+  MtkRectangle dst_rect;
 
   COGL_TRACE_BEGIN_SCOPED (MetaOnscreenNativeFlipCrtcs,
                            "Meta::OnscreenNative::flip_crtc()");
@@ -553,9 +556,6 @@ meta_onscreen_native_flip_crtc (CoglOnscreen           *onscreen,
   switch (renderer_gpu_data->mode)
     {
     case META_RENDERER_NATIVE_MODE_GBM:
-      graphene_rect_t src_rect;
-      MtkRectangle dst_rect;
-
       g_set_object (&onscreen_native->gbm.posted_fb,
                     onscreen_native->gbm.next_fb);
       g_clear_object (&onscreen_native->gbm.next_fb);
@@ -1335,10 +1335,12 @@ meta_onscreen_native_swap_buffers_with_damage (CoglOnscreen  *onscreen,
   MetaRendererNativeGpuData *renderer_gpu_data = cogl_renderer_egl->platform;
   MetaRendererNative *renderer_native = renderer_gpu_data->renderer_native;
   MetaOnscreenNative *onscreen_native = META_ONSCREEN_NATIVE (onscreen);
+  MetaOnscreenNativeSecondaryGpuState *secondary_gpu_state;
   MetaGpuKms *render_gpu = onscreen_native->render_gpu;
   MetaDeviceFile *render_device_file;
   ClutterFrame *frame = user_data;
   CoglOnscreenClass *parent_class;
+  gboolean create_timestamp_query = TRUE;
   gboolean egl_context_changed = FALSE;
   g_autoptr (GError) error = NULL;
   MetaDrmBufferFlags buffer_flags;
@@ -1367,6 +1369,22 @@ meta_onscreen_native_swap_buffers_with_damage (CoglOnscreen  *onscreen,
     update_secondary_gpu_state_pre_swap_buffers (onscreen,
                                                  rectangles,
                                                  n_rectangles);
+
+  secondary_gpu_state = onscreen_native->secondary_gpu_state;
+  if (secondary_gpu_state)
+    {
+      MetaRendererNativeGpuData *secondary_gpu_data;
+
+      secondary_gpu_data =
+        meta_renderer_native_get_gpu_data (renderer_native,
+                                           secondary_gpu_state->gpu_kms);
+      if (secondary_gpu_data->secondary.copy_mode ==
+          META_SHARED_FRAMEBUFFER_COPY_MODE_SECONDARY_GPU)
+        create_timestamp_query = FALSE;
+    }
+
+  if (create_timestamp_query)
+    cogl_onscreen_egl_maybe_create_timestamp_query (onscreen, frame_info);
 
   parent_class = COGL_ONSCREEN_CLASS (meta_onscreen_native_parent_class);
   parent_class->swap_buffers_with_damage (onscreen,
@@ -1436,6 +1454,17 @@ meta_onscreen_native_swap_buffers_with_damage (CoglOnscreen  *onscreen,
         g_set_object (&onscreen_native->gbm.next_fb, secondary_gpu_fb);
       else
         g_set_object (&onscreen_native->gbm.next_fb, primary_gpu_fb);
+
+      if (!meta_drm_buffer_ensure_fb_id (onscreen_native->gbm.next_fb, &error))
+        {
+          g_warning ("Failed to ensure KMS FB ID on %s: %s",
+                     meta_device_file_get_path (render_device_file),
+                     error->message);
+
+          frame_info->flags |= COGL_FRAME_INFO_FLAG_SYMBOLIC;
+          meta_onscreen_native_notify_frame_complete (onscreen);
+          return;
+        }
       break;
     case META_RENDERER_NATIVE_MODE_SURFACELESS:
       break;

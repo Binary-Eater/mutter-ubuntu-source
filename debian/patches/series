@@ -6,7 +6,10 @@ workarounds/tests-skip-monitor-width-size-check-as-it-may-lead-to-une.patch
 workarounds/tests-Skip-thread-priority-test.patch
 workarounds/Mark-several-additional-tests-as-flaky.patch
 workarounds/kms-crtc-Increase-default-deadline-evasion-to-1000-micros.patch
-Nvidia-secondary-GPU-copy-acceleration.patch
+workarounds/place-Always-center-initial-setup.patch
+build-Compile-schemas-locally-for-use-in-build-tests.patch
 ubuntu/x11-Add-support-for-fractional-scaling-using-Randr.patch
 ubuntu/window-Add-ability-to-override-the-edge-constraints.patch
-compositor-sync-ring-Allow-the-gpu_fence-to-be-moved.patch
+ubuntu/wayland-Disable-linux-drm-syncobj-v1.patch
+ubuntu/backends-Handle-null-views-instead-of-creating-dummy-view.patch
+ubuntu/backends-Restore-support-for-X11-cursor-themes.patch

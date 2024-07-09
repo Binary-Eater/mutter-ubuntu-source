@@ -1,0 +1,8 @@
+  [ Jeremy Bícha ]
+  * New upstream release
+  * Drop patch applied in new release
+  [ Daniel van Vugt ]
+  * Refresh Support-Dynamic-triple-double-buffering.patch
+  [ Marco Trevisan (Treviño) ]
+  * debian/patches: Import patch from Fedora to always center Initial Setup
+    (LP: #2016013)

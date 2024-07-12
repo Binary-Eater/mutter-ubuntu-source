@@ -1,0 +1,1 @@
+  * Ignore test failures on ppc64el but stop ignoring on armhf

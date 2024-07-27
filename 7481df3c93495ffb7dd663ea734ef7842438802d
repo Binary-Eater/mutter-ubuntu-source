@@ -1,0 +1,37 @@
+  * Merge with Debian (LP: #2063147, LP: #2066080). Remaining changes:
+    - Add x11-Add-support-for-fractional-scaling-using-Randr.patch
+    - Add window-Add-ability-to-override-the-edge-constraints.patch
+      + Make possible for extensions (such as Tiling Assistant) to override
+        window constraints
+    - Add backends-Handle-null-views-instead-of-creating-dummy-view.patch
+      to prevent "clutter_frame_clock_notify_presented: code should not be
+      reached" log spam in some Nvidia Wayland sessions (LP: #1967707)
+  [ Daniel van Vugt ]
+  * Add patches to fix ppc64el build tests on Ubuntu (LP: #2073009)
+  [ Jeremy Bícha ]
+  * Stop disabling libdisplay-info on Ubuntu
+  [ Simon McVittie ]
+  * Remove version constraints unnecessary since bullseye (oldstable)
+  * Explicitly version various dependencies as per meson.build
+  * Make the package cross-compilable
+    - d/control: Explicitly depend on gir1.2-*-dev for every GIR XML
+      module mentioned in 'includes:'
+    - d/control: Build-Depend on gobject-introspection (>= 1.80)
+      instead of libgirepository1.0-dev
+    - d/rules: Opt-in to cross-friendly gobject-introspection
+      (workaround for #1060838)
+    - d/control: Add ${gir:Provides} to gir1.2-mutter-14
+    - d/control: Add ${gir:Depends}, ${gir:Provides} to -dev package
+    - d/control: Remove unused Build-Depends on python3-attr, -jinja2.
+      ei-scanner from the libei source package needs these, but it's run
+      at libei build time and is not packaged.
+    - d/control: Require a build-architecture copy of cvt.
+      We run it during the build, and the xcvt package is not yet marked
+      Multi-Arch: foreign.
+  * d/control: Don't annotate python3-dbusmock as <!nocheck>, avoiding
+    FTBFS when built with nocheck.
+    The build system checks for this if we are building the "as-installed"
+    tests, even if we are not going to run tests during the build.
+  [ Jeremy Bícha ]
+  * Update patch to fix build with gcc-14 on some architectures
+    (Closes: #1077078)

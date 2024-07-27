@@ -1,0 +1,4 @@
+  [ Daniel van Vugt ]
+  * Add patches to fix ppc64el build tests on Ubuntu (LP: #2073009)
+  [ Jeremy Bícha ]
+  * Stop disabling libdisplay-info on Ubuntu

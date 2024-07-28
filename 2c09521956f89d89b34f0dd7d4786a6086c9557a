@@ -1,0 +1,2 @@
+  * Run dh_auto_test everywhere even if results are skipped on some
+    architectures

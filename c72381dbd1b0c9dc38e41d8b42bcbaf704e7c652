@@ -1,0 +1,5 @@
+  [ Daniel van Vugt ]
+  * Delete patches that aren't needed for LP#2073009
+  [ Jeremy Bícha ]
+  * Stop ignoring build test failures on Debian ports.
+    The test failures make it appear that GNOME Shell/Mutter is broken there.

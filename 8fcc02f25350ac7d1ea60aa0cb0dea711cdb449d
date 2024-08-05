@@ -1,0 +1,8 @@
+  * New upstream release
+  * Rename packages for API bump (mutter-14 -> mutter-15)
+  * Update symbols files
+  * Bump minimum libinput, libwayland, wayland-protocols, & meson
+  * Refresh patches
+  * Drop 2 obsolete patches
+  * Add patch to skip unreliable focus test
+  * Temporarily disable triple buffering patch

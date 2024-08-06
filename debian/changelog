@@ -1,3 +1,9 @@
+mutter (47~beta-2) experimental; urgency=medium
+
+  * debian/patches: Update triple buffering patch for GNOME 47.beta
+
+ -- Marco Trevisan (Treviño) <marco@ubuntu.com>  Tue, 06 Aug 2024 00:21:06 -0600
+
 mutter (47~beta-1) experimental; urgency=medium
 
   * New upstream release

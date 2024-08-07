@@ -1,0 +1,9 @@
+  [ Jeremy Bícha ]
+  * Merge with Debian. Remaining changes:
+    - Add x11-Add-support-for-fractional-scaling-using-Randr.patch
+    - Add window-Add-ability-to-override-the-edge-constraints.patch
+      + Make possible for extensions (such as Tiling Assistant) to override
+        window constraints
+  * Drop log spam patch applied in new release
+  [ Marco Trevisan (Treviño) ]
+  * d/p: Cherry-pick fixes for Cogl.Color introspection

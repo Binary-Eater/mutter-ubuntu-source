@@ -1,0 +1,5 @@
+  * Expand tests-Temporarily-disable-mutter-x11-tests-for-Ubuntu.patch to
+    include the tools suite below it which is failing with the same
+    root cause. Again, this is not a failure of the test case but a
+    temporary problem with Mesa that Glib apps are incorrectly turning into
+    a bigger issue than it is.

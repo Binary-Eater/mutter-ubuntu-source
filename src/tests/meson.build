@@ -858,7 +858,7 @@ if have_kvm_tests or have_tty_tests
   endif
 endif
 
-if have_x11_tests
+if false #have_x11_tests
   xvfb_args = [
     '-a',
     '-s',

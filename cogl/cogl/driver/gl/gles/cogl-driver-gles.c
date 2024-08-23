@@ -565,12 +565,84 @@ _cogl_get_gl_version (CoglContext *ctx,
 }
 
 static gboolean
-_cogl_driver_update_features (CoglContext *context,
-                              GError **error)
+check_gl_version (CoglContext  *ctx,
+                  GError      **error)
+{
+  int major, minor;
+
+  if (!_cogl_get_gl_version (ctx, &major, &minor))
+    {
+      g_set_error (error,
+                   COGL_DRIVER_ERROR,
+                   COGL_DRIVER_ERROR_UNKNOWN_VERSION,
+                   "The GLES version could not be determined");
+      return FALSE;
+    }
+
+  if (!COGL_CHECK_GL_VERSION (major, minor, 2, 0))
+    {
+      g_set_error (error,
+                   COGL_DRIVER_ERROR,
+                   COGL_DRIVER_ERROR_INVALID_VERSION,
+                   "OpenGL ES 2.0 or better is required");
+      return FALSE;
+    }
+
+  return TRUE;
+}
+
+static gboolean
+_cogl_get_glsl_version (CoglContext *ctx,
+                        int         *major_out,
+                        int         *minor_out)
+{
+  const char *version_string;
+
+  version_string = (char *)ctx->glGetString (GL_SHADING_LANGUAGE_VERSION);
+
+  if (!g_str_has_prefix (version_string, "OpenGL ES GLSL ES "))
+    return FALSE;
+
+  return _cogl_gl_util_parse_gl_version (version_string + 18,
+                                         major_out,
+                                         minor_out);
+}
+
+static gboolean
+check_glsl_version (CoglContext  *ctx,
+                    GError      **error)
+{
+  int major, minor;
+
+  if (!_cogl_get_glsl_version (ctx, &major, &minor))
+    {
+      g_set_error (error,
+                   COGL_DRIVER_ERROR,
+                   COGL_DRIVER_ERROR_UNKNOWN_VERSION,
+                   "The supported GLSL version could not be determined");
+      return FALSE;
+    }
+
+  if (!COGL_CHECK_GL_VERSION (major, minor, ctx->glsl_major, ctx->glsl_minor))
+    {
+      g_set_error (error,
+                   COGL_DRIVER_ERROR,
+                   COGL_DRIVER_ERROR_INVALID_VERSION,
+                   "GLSL ES %d%d0 or better is required",
+                   ctx->glsl_major, ctx->glsl_minor);
+      return FALSE;
+    }
+
+  return TRUE;
+}
+
+static gboolean
+_cogl_driver_update_features (CoglContext  *context,
+                              GError      **error)
 {
   unsigned long private_features
     [COGL_FLAGS_N_LONGS_FOR_SIZE (COGL_N_PRIVATE_FEATURES)] = { 0 };
-  char **gl_extensions;
+  g_auto (GStrv) gl_extensions = 0;
   int gl_major, gl_minor;
   int i;
 
@@ -586,9 +658,19 @@ _cogl_driver_update_features (CoglContext *context,
 
   gl_extensions = _cogl_context_get_gl_extensions (context);
 
+  if (!check_gl_version (context, error))
+    return FALSE;
+
+  context->glsl_major = 1;
+  context->glsl_minor = 0;
+  context->glsl_es = TRUE;
+
+  if (!check_glsl_version (context, error))
+    return FALSE;
+
   if (G_UNLIKELY (COGL_DEBUG_ENABLED (COGL_DEBUG_WINSYS)))
     {
-      char *all_extensions = g_strjoinv (" ", gl_extensions);
+      g_autofree char *all_extensions = g_strjoinv (" ", gl_extensions);
 
       COGL_NOTE (WINSYS,
                  "Checking features\n"
@@ -600,29 +682,9 @@ _cogl_driver_update_features (CoglContext *context,
                  context->glGetString (GL_RENDERER),
                  _cogl_context_get_gl_version (context),
                  all_extensions);
-
-      g_free (all_extensions);
     }
 
-  context->glsl_major = 1;
-  context->glsl_minor = 0;
-  context->glsl_version_to_use = 100;
-
-  if (!_cogl_get_gl_version (context, &gl_major, &gl_minor))
-    {
-      gl_major = 1;
-      gl_minor = 1;
-    }
-
-  if (!COGL_CHECK_GL_VERSION (gl_major, gl_minor, 2, 0))
-    {
-      g_set_error (error,
-                   COGL_DRIVER_ERROR,
-                   COGL_DRIVER_ERROR_INVALID_VERSION,
-                   "OpenGL ES 2.0 or better is required");
-      g_strfreev (gl_extensions);
-      return FALSE;
-    }
+  _cogl_get_gl_version (context, &gl_major, &gl_minor);
 
   _cogl_feature_check_ext_functions (context,
                                      gl_major,
@@ -636,7 +698,6 @@ _cogl_driver_update_features (CoglContext *context,
                    COGL_DRIVER_ERROR,
                    COGL_DRIVER_ERROR_INVALID_VERSION,
                    "GL_OES_rgb8_rgba8 is required for GLES 2");
-      g_strfreev (gl_extensions);
       return FALSE;
     }
 
@@ -751,8 +812,6 @@ _cogl_driver_update_features (CoglContext *context,
   /* Cache features */
   for (i = 0; i < G_N_ELEMENTS (private_features); i++)
     context->private_features[i] |= private_features[i];
-
-  g_strfreev (gl_extensions);
 
   return TRUE;
 }

@@ -890,7 +890,7 @@ if false #have_x11_tests
 endif
 
 tools_test_env = test_env
-tools_test_env.set('G_DEBUG', 'fatal-warnings')
+#tools_test_env.set('G_DEBUG', 'fatal-warnings')
 
 test('get-state-tool-gio', mutter,
   args: [

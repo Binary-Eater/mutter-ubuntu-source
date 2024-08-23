@@ -101,8 +101,7 @@
       </description>
     </key>
 
-    <key name="experimental-features"
-        flags='org.gnome.mutter.MetaExperimentalFeature'>
+    <key name="experimental-features" type="as">
       <default>[]</default>
       <summary>Enable experimental features</summary>
       <description>
@@ -136,6 +135,10 @@
                                         GPU and DRM driver. Configurable in
                                         Settings. Requires a restart.
 
+        • “x11-randr-fractional-scaling” — enable fractional scaling under X11
+                                           using xrandr scaling. It might reduce
+                                           performances.
+                                           Does not require a restart.
       </description>
     </key>
 

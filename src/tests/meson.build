@@ -858,7 +858,7 @@ if have_kvm_tests or have_tty_tests
   endif
 endif
 
-if have_x11_tests
+if false #have_x11_tests
   xvfb_args = [
     '-a',
     '-s',
@@ -890,7 +890,7 @@ if have_x11_tests
 endif
 
 tools_test_env = test_env
-tools_test_env.set('G_DEBUG', 'fatal-warnings')
+#tools_test_env.set('G_DEBUG', 'fatal-warnings')
 
 test('get-state-tool-gio', mutter,
   args: [

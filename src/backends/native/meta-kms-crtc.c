@@ -28,8 +28,8 @@
 #include "backends/native/meta-kms-update-private.h"
 #include "backends/native/meta-kms-utils.h"
 
-#define DEADLINE_EVASION_US 1000
-#define DEADLINE_EVASION_WITH_KMS_TOPIC_US 1000
+#define DEADLINE_EVASION_US 2000
+#define DEADLINE_EVASION_WITH_KMS_TOPIC_US 2000
 
 #define MINIMUM_REFRESH_RATE 30.f
 

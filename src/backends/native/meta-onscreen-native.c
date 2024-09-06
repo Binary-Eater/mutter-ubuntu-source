@@ -474,13 +474,13 @@ apply_transform (MetaCrtcKms            *crtc_kms,
 {
   MetaCrtc *crtc = META_CRTC (crtc_kms);
   const MetaCrtcConfig *crtc_config;
-  MetaMonitorTransform hw_transform;
+  MtkMonitorTransform hw_transform;
 
   crtc_config = meta_crtc_get_config (crtc);
 
   hw_transform = crtc_config->transform;
   if (!meta_kms_plane_is_transform_handled (kms_plane, hw_transform))
-    hw_transform = META_MONITOR_TRANSFORM_NORMAL;
+    hw_transform = MTK_MONITOR_TRANSFORM_NORMAL;
   if (!meta_kms_plane_is_transform_handled (kms_plane, hw_transform))
     return;
 
@@ -614,6 +614,7 @@ meta_onscreen_native_flip_crtc (CoglOnscreen           *onscreen,
       break;
 #ifdef HAVE_EGL_DEVICE
     case META_RENDERER_NATIVE_MODE_EGL_DEVICE:
+      meta_kms_update_set_flushing (kms_update, kms_crtc);
       meta_kms_update_set_custom_page_flip (kms_update,
                                             custom_egl_stream_page_flip,
                                             onscreen_native);
@@ -840,14 +841,9 @@ import_shared_framebuffer (CoglOnscreen                        *onscreen,
                                        &error);
   if (!imported_buffer)
     {
-      meta_topic (META_DEBUG_KMS,
-                  "Zero-copy disabled for %s, "
-                  "meta_drm_buffer_import_new failed: %s",
-                  meta_render_device_get_name (render_device),
-                  error->message);
-
-      g_warn_if_fail (secondary_gpu_state->import_status ==
-                      META_SHARED_FRAMEBUFFER_IMPORT_STATUS_NONE);
+      g_warning ("Zero-copy disabled for %s, import failed: %s",
+                 meta_render_device_get_name (render_device),
+                 error->message);
       secondary_gpu_state->import_status =
         META_SHARED_FRAMEBUFFER_IMPORT_STATUS_FAILED;
       return NULL;
@@ -856,12 +852,6 @@ import_shared_framebuffer (CoglOnscreen                        *onscreen,
   if (secondary_gpu_state->import_status ==
       META_SHARED_FRAMEBUFFER_IMPORT_STATUS_NONE)
     {
-      /*
-       * Clean up the cpu-copy part of
-       * init_secondary_gpu_state_cpu_copy_mode ()
-       */
-      secondary_gpu_release_dumb (secondary_gpu_state);
-
       meta_topic (META_DEBUG_KMS,
                   "Using zero-copy for %s succeeded once.",
                   meta_render_device_get_name (render_device));
@@ -1256,6 +1246,12 @@ acquire_front_buffer (CoglOnscreen   *onscreen,
         META_SHARED_FRAMEBUFFER_COPY_MODE_PRIMARY;
       G_GNUC_FALLTHROUGH;
     case META_SHARED_FRAMEBUFFER_COPY_MODE_PRIMARY:
+      if (secondary_gpu_fb == NULL)
+        {
+          g_set_error (error, G_IO_ERROR, G_IO_ERROR_FAILED,
+                       "Missing secondary GPU framebuffer");
+          return NULL;
+        }
       return g_object_ref (secondary_gpu_fb);
     case META_SHARED_FRAMEBUFFER_COPY_MODE_SECONDARY_GPU:
       return copy_shared_framebuffer_gpu (onscreen,
@@ -1510,6 +1506,7 @@ try_post_latest_swap (CoglOnscreen *onscreen)
   g_autoptr (MetaKmsFeedback) kms_feedback = NULL;
   g_autoptr (ClutterFrame) frame = NULL;
   MetaFrameNative *frame_native;
+  int sync_fd;
   COGL_TRACE_SCOPED_ANCHOR (MetaRendererNativePostKmsUpdate);
 
   if (onscreen_native->next_frame == NULL ||
@@ -1629,6 +1626,8 @@ try_post_latest_swap (CoglOnscreen *onscreen)
               meta_kms_device_get_path (kms_device));
 
   kms_update = meta_frame_native_steal_kms_update (frame_native);
+  sync_fd = cogl_context_get_latest_sync_fd (cogl_context);
+  meta_kms_update_set_sync_fd (kms_update, sync_fd);
   meta_kms_device_post_update (kms_device, kms_update,
                                META_KMS_UPDATE_FLAG_NONE);
 }
@@ -1663,7 +1662,7 @@ meta_onscreen_native_is_buffer_scanout_compatible (CoglOnscreen *onscreen,
   assign_primary_plane (crtc_kms,
                         buffer,
                         test_update,
-                        META_KMS_ASSIGN_PLANE_FLAG_DIRECT_SCANOUT,
+                        META_KMS_ASSIGN_PLANE_FLAG_DISABLE_IMPLICIT_SYNC,
                         &src_rect,
                         &dst_rect);
 
@@ -1809,7 +1808,7 @@ meta_onscreen_native_direct_scanout (CoglOnscreen   *onscreen,
                                   onscreen_native->view,
                                   onscreen_native->crtc,
                                   kms_update,
-                                  META_KMS_ASSIGN_PLANE_FLAG_DIRECT_SCANOUT,
+                                  META_KMS_ASSIGN_PLANE_FLAG_DISABLE_IMPLICIT_SYNC,
                                   NULL,
                                   0);
 
@@ -1894,6 +1893,14 @@ meta_onscreen_native_before_redraw (CoglOnscreen *onscreen,
                                     ClutterFrame *frame)
 {
   MetaOnscreenNative *onscreen_native = META_ONSCREEN_NATIVE (onscreen);
+
+  if (meta_get_debug_paint_flags () & META_DEBUG_PAINT_SYNC_CURSOR_PRIMARY)
+    {
+      MetaCrtcKms *crtc_kms = META_CRTC_KMS (onscreen_native->crtc);
+      MetaKmsCrtc *kms_crtc = meta_crtc_kms_get_kms_crtc (crtc_kms);
+
+      meta_kms_device_await_flush (meta_kms_crtc_get_device (kms_crtc), kms_crtc);
+    }
 
   maybe_update_frame_sync (onscreen_native, frame);
 }
@@ -2315,7 +2322,6 @@ choose_onscreen_egl_config (CoglOnscreen  *onscreen,
   g_return_val_if_fail (META_IS_KMS_PLANE (kms_plane), FALSE);
 
   cogl_display_egl_determine_attributes (cogl_display,
-                                         &cogl_display->onscreen_template->config,
                                          attrs);
 
   /* Secondary GPU contexts use GLES3, which doesn't guarantee that 10 bpc

@@ -354,6 +354,12 @@ meta_kms_create_device (MetaKms            *kms,
   return device;
 }
 
+gboolean
+meta_kms_is_shutting_down (MetaKms *kms)
+{
+  return kms->shutting_down;
+}
+
 static gpointer
 prepare_shutdown_in_impl (MetaThreadImpl  *thread_impl,
                           gpointer         user_data,
@@ -431,10 +437,21 @@ meta_kms_new (MetaBackend   *backend,
   return kms;
 }
 
-gboolean
-meta_kms_is_shutting_down (MetaKms *kms)
+static gpointer
+notify_probed_in_impl (MetaThreadImpl  *thread_impl,
+                       gpointer         user_data,
+                       GError         **error)
 {
-  return kms->shutting_down;
+  meta_kms_impl_notify_probed (META_KMS_IMPL (thread_impl));
+  return NULL;
+}
+
+void
+meta_kms_notify_probed (MetaKms *kms)
+{
+  meta_thread_post_impl_task (META_THREAD (kms),
+                              notify_probed_in_impl,
+                              NULL, NULL, NULL, NULL);
 }
 
 static void

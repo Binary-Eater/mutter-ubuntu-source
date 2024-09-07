@@ -1,0 +1,3 @@
+  * debian/*symbols: Update architectures for new cogl_trace symbols
+  * Have mutter-15-tests depend on pipewire & libglib2.0-bin (Closes: #108016)
+  * autopkgtest: create the required /tmp/.X11-unix/

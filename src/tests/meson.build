@@ -423,7 +423,7 @@ test_cases += [
     'name': 'input-capture',
     'suite': 'backends/native',
     'sources': [ 'input-capture-tests.c' ],
-    'flaky': true,
+    'broken': true,
   },
   {
     'name': 'thread',
@@ -721,6 +721,10 @@ foreach test_case: test_cases
     extra_suites += 'flaky'
   endif
 
+  if test_case.get('broken', false)
+    extra_suites += 'broken'
+  endif
+
   test(test_case['name'], test_executable,
     suite: ['core', 'mutter/' + test_case['suite']] + extra_suites,
     env: test_env,
@@ -783,26 +787,8 @@ stacking_tests = [
 ]
 
 foreach stacking_test: stacking_tests
-  extra_suites = []
-  flaky = false
-
-  if {
-    'closed-transient-only-take-focus-parents': true,
-    # https://gitlab.gnome.org/GNOME/mutter/-/issues/3050
-    'fullscreen-maximize': true,
-    'minimized': true,
-    # https://gitlab.gnome.org/GNOME/mutter/-/issues/2509, https://bugs.debian.org/1050022
-    'restore-size': true,
-    # https://gitlab.gnome.org/GNOME/mutter/-/issues/3051
-    'unfullscreen-strut-change': true,
-    'unmaximize-new-size': true,
-  }.get(stacking_test, false)
-    extra_suites += 'flaky'
-    flaky = true
-  endif
-
   test(stacking_test, test_runner,
-    suite: ['core', 'mutter/stacking'] + extra_suites,
+    suite: ['core', 'mutter/stacking', 'flaky'],
     env: test_env,
     args: [
       files('stacking' / stacking_test + '.metatest'),
@@ -944,7 +930,7 @@ test('get-state-tool-gdbus', mutter,
 
 # Installed tests
 
-if have_installed_tests and not flaky
+if have_installed_tests
   install_subdir('stacking', install_dir: tests_datadir)
 
   foreach stacking_test: stacking_tests
@@ -959,7 +945,7 @@ if have_installed_tests and not flaky
       output: stacking_test + '.test',
       configuration: stacking_installed_tests_cdata,
       install: true,
-      install_dir: mutter_installed_tests_datadir,
+      install_dir: mutter_installed_tests_datadir / 'stacking',
     )
   endforeach
 

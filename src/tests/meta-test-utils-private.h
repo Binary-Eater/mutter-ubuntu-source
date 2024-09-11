@@ -21,3 +21,5 @@
 
 void meta_ensure_test_client_path (int    argc,
                                    char **argv);
+
+void meta_rm_rf (const char *path);

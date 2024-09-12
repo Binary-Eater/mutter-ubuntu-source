@@ -117,7 +117,7 @@ main (int argc, char **argv)
   const char *data_home_path = NULL;
 
   context = meta_create_test_context (META_CONTEXT_TEST_TYPE_HEADLESS,
-                                      META_CONTEXT_TEST_FLAG_TEMP_XDG_DATA_HOME);
+                                      META_CONTEXT_TEST_FLAG_NONE);
 
   g_assert (meta_context_configure (context, &argc, &argv, NULL));
 
@@ -132,7 +132,6 @@ main (int argc, char **argv)
   g_assert_nonnull (data_home_path);
 
   dest_dir = g_build_filename (data_home_path,
-                               "share",
                                "icc",
                                NULL);
   g_assert_no_errno (g_mkdir_with_parents (dest_dir, 0755));

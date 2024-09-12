@@ -2,7 +2,6 @@
 
 /*
  * Copyright (C) 2014-2017 Red Hat, Inc.
- * Copyright (C) 2024 Endless OS Foundation LLC
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -22,8 +21,6 @@
 
 #include "tests/meta-test-utils-private.h"
 
-#include <ftw.h>
-#include <glib/gstdio.h>
 #include <gio/gio.h>
 #include <string.h>
 #include <X11/Xlib-xcb.h>
@@ -918,58 +915,4 @@ meta_flush_input (MetaContext *context)
   g_cond_wait (&cond, &mutex);
   g_mutex_unlock (&mutex);
 #endif
-}
-
-static int
-rm_rf_nftw_visitor (const char *fpath,
-                    const struct stat *sb,
-                    int typeflag,
-                    struct FTW *ftwbuf)
-{
-  switch (typeflag)
-    {
-    case FTW_DP:
-    case FTW_D:
-    case FTW_DNR:
-      if (g_rmdir (fpath) != 0)
-        {
-          int errsv = errno;
-          g_printerr ("Unable to clean up temporary directory %s: %s\n",
-                      fpath,
-                      g_strerror (errsv));
-        }
-      break;
-
-    default:
-      if (g_remove (fpath) != 0)
-        {
-          int errsv = errno;
-          g_printerr ("Unable to clean up temporary file %s: %s\n",
-                      fpath,
-                      g_strerror (errsv));
-        }
-      break;
-    }
-
-  return 0;
-}
-
-void
-meta_rm_rf (const char *path)
-{
-  /* nopenfd specifies the maximum number of directories that [n]ftw() will
-   * hold open simultaneously. Rather than attempt to determine how many file
-   * descriptors are available, we assume that 5 are available when tearing
-   * down a test case; if that assumption is invalid, the only harm is leaving
-   * a temporary directory on disk.
-   */
-  const int nopenfd = 5;
-  int ret = nftw (path, rm_rf_nftw_visitor, nopenfd, FTW_DEPTH | FTW_MOUNT | FTW_PHYS);
-  if (ret != 0)
-    {
-      int errsv = errno;
-      g_printerr ("Unable to clean up temporary directory %s: %s\n",
-                  path,
-                  g_strerror (errsv));
-    }
 }

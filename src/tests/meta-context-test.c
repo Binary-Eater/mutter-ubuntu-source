@@ -49,7 +49,6 @@ static guint signals[N_SIGNALS];
 
 typedef struct _MetaContextTestPrivate
 {
-  char *xdg_data_home;
   MetaContextTestType type;
   MetaContextTestFlag flags;
 } MetaContextTestPrivate;
@@ -98,16 +97,6 @@ meta_context_test_configure (MetaContext   *context,
 
   if (priv->flags & META_CONTEXT_TEST_FLAG_TEST_CLIENT)
     meta_ensure_test_client_path (*argc, *argv);
-
-  if (priv->flags & META_CONTEXT_TEST_FLAG_TEMP_XDG_DATA_HOME)
-    {
-      priv->xdg_data_home = g_dir_make_tmp ("mutter-test-xdh.XXXXXX", error);
-
-      if (priv->xdg_data_home == NULL)
-        return FALSE;
-
-      g_setenv ("XDG_DATA_HOME", priv->xdg_data_home, TRUE);
-    }
 
   meta_wayland_override_display_name ("mutter-test-display");
 #ifdef HAVE_XWAYLAND
@@ -352,24 +341,8 @@ meta_create_test_context (MetaContextTestType type,
 }
 
 static void
-meta_context_test_finalize (GObject *object)
-{
-  MetaContextTest *context_test = META_CONTEXT_TEST (object);
-  MetaContextTestPrivate *priv =
-    meta_context_test_get_instance_private (context_test);
-
-  if (priv->xdg_data_home != NULL)
-    meta_rm_rf (priv->xdg_data_home);
-
-  g_clear_pointer (&priv->xdg_data_home, g_free);
-
-  G_OBJECT_CLASS (meta_context_test_parent_class)->finalize (object);
-}
-
-static void
 meta_context_test_class_init (MetaContextTestClass *klass)
 {
-  GObjectClass *object_class = G_OBJECT_CLASS (klass);
   MetaContextClass *context_class = META_CONTEXT_CLASS (klass);
 
   context_class->configure = meta_context_test_configure;
@@ -383,8 +356,6 @@ meta_context_test_class_init (MetaContextTestClass *klass)
 #ifdef HAVE_X11
   context_class->is_x11_sync = meta_context_test_is_x11_sync;
 #endif
-
-  object_class->finalize = meta_context_test_finalize;
 
   signals[BEFORE_TESTS] =
     g_signal_new ("before-tests",

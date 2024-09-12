@@ -1,0 +1,12 @@
+  * Team upload
+  [ Simon McVittie ]
+  * d/p/tests-Create-a-temporary-XDG_DATA_HOME-to-run-each-test.patch,
+    d/p/tests-Create-a-temporary-XDG_CONFIG_HOME.patch,
+    d/p/tests-Create-a-temporary-XDG_CACHE_HOME.patch,
+    d/p/color-management-tests-Use-the-inherited-temporary-XDG_DA.patch:
+    Reimplement creation of temporary XDG_DATA_HOME for tests based on
+    upstream feedback.
+  * d/patches, d/clean: Remove duplicate ICC profile from test data
+  [ Jeremy Bícha ]
+  * d/p/window-xwayland-Handle-arithmetics-close-to-the-int-limit.patch:
+    Cherry-pick resizing fix for various Electron apps (LP: #2080073)

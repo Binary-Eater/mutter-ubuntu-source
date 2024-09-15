@@ -1,0 +1,4 @@
+  * New upstream release
+  * debian/libmutter-15-0.symbols: Add new symbol
+  * Bump minimum PipeWire to 1.2.0
+  * Remove patches applied in new release

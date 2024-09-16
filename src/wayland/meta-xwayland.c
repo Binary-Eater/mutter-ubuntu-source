@@ -1349,6 +1349,9 @@ meta_xwayland_get_effective_scale (MetaXWaylandManager *manager)
     case META_LOGICAL_MONITOR_LAYOUT_MODE_PHYSICAL:
       break;
 
+    case META_LOGICAL_MONITOR_LAYOUT_MODE_GLOBAL_UI_LOGICAL:
+      g_warn_if_reached ();
+
     case META_LOGICAL_MONITOR_LAYOUT_MODE_LOGICAL:
       if (meta_settings_is_experimental_feature_enabled (settings,
                                                          META_EXPERIMENTAL_FEATURE_XWAYLAND_NATIVE_SCALING) &&
@@ -1376,6 +1379,8 @@ meta_xwayland_get_x11_ui_scaling_factor (MetaXWaylandManager *manager)
       return meta_settings_get_ui_scaling_factor (settings);
     case META_LOGICAL_MONITOR_LAYOUT_MODE_LOGICAL:
       return meta_xwayland_get_effective_scale (manager);
+    case META_LOGICAL_MONITOR_LAYOUT_MODE_GLOBAL_UI_LOGICAL:
+      g_warn_if_reached ();
     }
 
   g_assert_not_reached ();

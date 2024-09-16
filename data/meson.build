@@ -54,6 +54,13 @@ locally_compiled_schemas_dep = declare_dependency(
   sources: locally_compiled_schemas
 )
 
+configure_file(
+  input: 'org.gnome.mutter.x11.gschema.xml.in',
+  output: 'org.gnome.mutter.x11.gschema.xml',
+  configuration: gschema_config,
+  install_dir: schemadir
+)
+
 install_data(['mutter-schemas.convert'],
   install_dir: datadir / 'GConf/gsettings',
 )

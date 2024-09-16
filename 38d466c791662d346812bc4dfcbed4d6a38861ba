@@ -1,0 +1,2 @@
+  * debian/patches: Refresh Indexes
+  * debian/patches: Fix potential crash on destroying x11 struts

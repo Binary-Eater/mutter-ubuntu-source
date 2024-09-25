@@ -688,11 +688,6 @@ _cogl_driver_update_features (CoglContext  *context,
   context->glGetString =
     (void *) cogl_renderer_get_proc_address (context->display->renderer,
                                              "glGetString");
-  context->glGetStringi =
-    (void *) cogl_renderer_get_proc_address (context->display->renderer,
-                                             "glGetStringi");
-
-  gl_extensions = _cogl_context_get_gl_extensions (context);
 
   if (!check_gl_version (context, error))
     return FALSE;
@@ -703,6 +698,8 @@ _cogl_driver_update_features (CoglContext  *context,
 
   if (!check_glsl_version (context, error))
     return FALSE;
+
+  gl_extensions = _cogl_context_get_gl_extensions (context);
 
   if (G_UNLIKELY (COGL_DEBUG_ENABLED (COGL_DEBUG_WINSYS)))
     {

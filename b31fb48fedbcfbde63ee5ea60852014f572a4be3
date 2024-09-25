@@ -1,0 +1,2 @@
+  * Add patches to restore support for EGL 1.4 and GLES 2.0. They are
+    required for Xilinx (Mali) support (LP: #2080602)

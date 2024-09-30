@@ -2878,6 +2878,7 @@ derive_logical_monitor_size (MetaMonitorConfig             *monitor_config,
     case META_LOGICAL_MONITOR_LAYOUT_MODE_LOGICAL:
       width = (int) roundf (width / scale);
       height = (int) roundf (height / scale);
+      break;
     case META_LOGICAL_MONITOR_LAYOUT_MODE_GLOBAL_UI_LOGICAL:
       width = (int) roundf (width / scale);
       height = (int) roundf (height / scale);

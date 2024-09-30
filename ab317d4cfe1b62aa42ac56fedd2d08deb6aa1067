@@ -1,0 +1,5 @@
+  * Add a missing break in derive_logical_monitor_size as part of
+    x11-Add-support-for-fractional-scaling-using-Randr.patch.
+    Because falling through two switch cases was causing the scale to be
+    applied twice, which then resulted in mode verification failing later.
+    (LP: #2080374)

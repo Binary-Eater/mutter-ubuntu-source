@@ -261,6 +261,13 @@ struct _MetaWindow
     MetaEdgeConstraint left;
   } edge_constraints;
 
+  struct {
+    MetaEdgeConstraint top;
+    MetaEdgeConstraint right;
+    MetaEdgeConstraint bottom;
+    MetaEdgeConstraint left;
+  } overridden_constraints;
+
   double tile_hfraction;
 
   uint64_t preferred_output_winsys_id;

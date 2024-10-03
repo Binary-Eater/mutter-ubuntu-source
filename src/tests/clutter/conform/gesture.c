@@ -135,6 +135,12 @@ gesture_state_machine_move_to_waiting (void)
   ClutterGesture *gesture = CLUTTER_GESTURE (g_object_new (TEST_TYPE_GESTURE, NULL));
   gboolean was_updated;
 
+  if (g_getenv ("DEB_ALLOW_FLAKY_TESTS") == NULL)
+    {
+      g_test_skip ("https://gitlab.gnome.org/GNOME/mutter/-/issues/3521");
+      return;
+    }
+
   virtual_pointer = clutter_seat_create_virtual_device (seat, CLUTTER_POINTER_DEVICE);
   now_us = g_get_monotonic_time ();
 
@@ -196,6 +202,12 @@ gesture_state_machine_move_to_cancelled_while_possible (void)
   gboolean was_updated;
   ClutterGestureState gesture_state_change;
 
+  if (g_getenv ("DEB_ALLOW_FLAKY_TESTS") == NULL)
+    {
+      g_test_skip ("https://gitlab.gnome.org/GNOME/mutter/-/issues/3521");
+      return;
+    }
+
   virtual_pointer = clutter_seat_create_virtual_device (seat, CLUTTER_POINTER_DEVICE);
   now_us = g_get_monotonic_time ();
 
@@ -243,6 +255,12 @@ gesture_state_machine_move_to_cancelled_on_sequence_cancel (void)
   ClutterGesture *gesture = CLUTTER_GESTURE (g_object_new (TEST_TYPE_GESTURE, NULL));
   gboolean was_updated;
   ClutterGestureState gesture_state_change;
+
+  if (g_getenv ("DEB_ALLOW_FLAKY_TESTS") == NULL)
+    {
+      g_test_skip ("https://gitlab.gnome.org/GNOME/mutter/-/issues/3521");
+      return;
+    }
 
   virtual_pointer = clutter_seat_create_virtual_device (seat, CLUTTER_POINTER_DEVICE);
   now_us = g_get_monotonic_time ();
@@ -301,6 +319,12 @@ gesture_multiple_mouse_buttons (void)
   int64_t now_us;
   ClutterGesture *gesture = CLUTTER_GESTURE (g_object_new (TEST_TYPE_GESTURE, NULL));
   gboolean was_updated;
+
+  if (g_getenv ("DEB_ALLOW_FLAKY_TESTS") == NULL)
+    {
+      g_test_skip ("https://gitlab.gnome.org/GNOME/mutter/-/issues/3521");
+      return;
+    }
 
   virtual_pointer = clutter_seat_create_virtual_device (seat, CLUTTER_POINTER_DEVICE);
   now_us = g_get_monotonic_time ();

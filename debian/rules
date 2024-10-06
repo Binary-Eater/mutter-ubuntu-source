@@ -47,7 +47,8 @@ TEST_COMMAND_BASE=env \
 	GIO_USE_VFS=local \
 	GIO_USE_VOLUME_MONITOR=unix \
 	GVFS_DISABLE_FUSE=1 \
-	dbus-run-session -- xvfb-run -s '+iglx -noreset' -a \
+	dbus-run-session -- \
+	xvfb-run -e /dev/stderr -s '+iglx -noreset -screen 0 1280x1024x24' -a \
 	dh_auto_test -- -C $(BUILDDIR) --no-rebuild --verbose --timeout-multiplier 6 \
 	           --no-stdsplit --print-errorlogs
 TEST_COMMAND=$(TEST_COMMAND_BASE) --no-suite flaky --no-suite broken
@@ -65,6 +66,7 @@ TEST_COMMAND_FLAKY=env DEB_ALLOW_FLAKY_TESTS=1 $(TEST_COMMAND_BASE) --suite flak
 #
 # Please keep this list in sync with debian/tests/installed-tests
 override_dh_auto_test:
+	debian/tests/ensure-x11-dir
 ifeq (,$(filter mips64el riscv64 s390x,$(DEB_HOST_ARCH)))
 	$(TEST_COMMAND)
 	-$(TEST_COMMAND_FLAKY) --logbase flaky-tests

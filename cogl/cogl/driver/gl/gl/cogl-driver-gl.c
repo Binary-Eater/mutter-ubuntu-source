@@ -388,7 +388,6 @@ _cogl_get_gl_version (CoglContext *ctx,
 
 static gboolean
 check_gl_version (CoglContext *ctx,
-                  char **gl_extensions,
                   GError **error)
 {
   int major, minor;
@@ -432,7 +431,7 @@ _cogl_driver_update_features (CoglContext *ctx,
     (void *) _cogl_renderer_get_proc_address (ctx->display->renderer,
                                               "glGetString");
 
-  if (!check_gl_version (ctx, gl_extensions, error))
+  if (!check_gl_version (ctx, error))
     return FALSE;
 
   /* These are only used in _cogl_context_get_gl_extensions for GL 3.0

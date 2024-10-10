@@ -1,23 +1,31 @@
-Description: cogl/gles: Use unsized internal formats for RGB8, RGBA8 in GLES 2.0
- GLES 2.0 does not have RGB8 and RGBA8 as sized internal formats. There
- is OES_rgb8_rgba8 which adds RGB8 and RGBA8 but only for
- RenderbufferStorageOES and not for TexImage2D which I wrongly assumed.
- It seems like there is currently no GLES2 extension which adds RGB8 and
- RGBA8 to TexImage2D so we have no choice but to fall back to unsized
- internal formats in those cases as long as we don't want to drop GLES2
- support.
+From: Sebastian Wick <sebastian.wick@redhat.com>
+Date: Wed, 18 Sep 2024 12:57:48 +0200
+Subject: cogl/gles: Use unsized internal formats for RGB8, RGBA8 in GLES 2.0
 
- This should be fine in practice and we should get our 8bpc textures.
-Author: Talha Can Havadar <talha.can.havadar@canonical.com>
+GLES 2.0 does not have RGB8 and RGBA8 as sized internal formats. There
+is OES_rgb8_rgba8 which adds RGB8 and RGBA8 but only for
+RenderbufferStorageOES and not for TexImage2D which I wrongly assumed.
+It seems like there is currently no GLES2 extension which adds RGB8 and
+RGBA8 to TexImage2D so we have no choice but to fall back to unsized
+internal formats in those cases as long as we don't want to drop GLES2
+support.
+
+This should be fine in practice and we should get our 8bpc textures.
+
+Fixes: 7f943613a8 ("cogl: Use sized internal renderable formats")
 Origin: https://gitlab.gnome.org/GNOME/mutter/-/merge_requests/4036
 Bug: https://gitlab.gnome.org/GNOME/mutter/-/issues/3680
 Bug-Ubuntu: https://bugs.launchpad.net/bugs/2080602
-Last-Update: 2024-09-30
 ---
-This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+ cogl/cogl/cogl-private.h                    |  1 +
+ cogl/cogl/driver/gl/gles/cogl-driver-gles.c | 35 ++++++++++++++++-------------
+ 2 files changed, 20 insertions(+), 16 deletions(-)
+
+diff --git a/cogl/cogl/cogl-private.h b/cogl/cogl/cogl-private.h
+index fb18c8b..c8dbe83 100644
 --- a/cogl/cogl/cogl-private.h
 +++ b/cogl/cogl/cogl-private.h
-@@ -46,6 +46,7 @@
+@@ -46,6 +46,7 @@ typedef enum
    COGL_PRIVATE_FEATURE_EXT_PACKED_DEPTH_STENCIL,
    COGL_PRIVATE_FEATURE_OES_PACKED_DEPTH_STENCIL,
    COGL_PRIVATE_FEATURE_TEXTURE_FORMAT_BGRA8888,
@@ -25,9 +33,11 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
    COGL_PRIVATE_FEATURE_UNPACK_SUBIMAGE,
    COGL_PRIVATE_FEATURE_SAMPLER_OBJECTS,
    COGL_PRIVATE_FEATURE_READ_PIXELS_ANY_STRIDE,
+diff --git a/cogl/cogl/driver/gl/gles/cogl-driver-gles.c b/cogl/cogl/driver/gl/gles/cogl-driver-gles.c
+index 29ef69a..7f9e65a 100644
 --- a/cogl/cogl/driver/gl/gles/cogl-driver-gles.c
 +++ b/cogl/cogl/driver/gl/gles/cogl-driver-gles.c
-@@ -125,10 +125,7 @@
+@@ -125,10 +125,7 @@ _cogl_driver_pixel_format_to_gl (CoglContext     *context,
     * Sized formats from table 4.5:
     *   RGBA4, RGB5_A1, RGB565
     *
@@ -39,7 +49,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
     *
     *   EXT_texture_format_BGRA8888
     *     adds BGRA_EXT as internal and external color-renderable format
-@@ -137,8 +134,9 @@
+@@ -137,8 +134,9 @@ _cogl_driver_pixel_format_to_gl (CoglContext     *context,
     *     adds R16F, RG16F (required EXT_texture_rg) and RGB16F, RGBA16F
     *     as internal color-renderable formats
     *
@@ -51,7 +61,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
     */
  
    /* We try to use the exact matching GL format but if that's not possible
-@@ -181,7 +179,12 @@
+@@ -181,7 +179,12 @@ _cogl_driver_pixel_format_to_gl (CoglContext     *context,
        break;
  
      case COGL_PIXEL_FORMAT_RGB_888:
@@ -65,7 +75,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
        glformat = GL_RGB;
        gltype = GL_UNSIGNED_BYTE;
        break;
-@@ -287,7 +290,11 @@
+@@ -287,7 +290,11 @@ _cogl_driver_pixel_format_to_gl (CoglContext     *context,
  
      case COGL_PIXEL_FORMAT_RGBA_8888:
      case COGL_PIXEL_FORMAT_RGBA_8888_PRE:
@@ -78,7 +88,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
        glformat = GL_RGBA;
        gltype = GL_UNSIGNED_BYTE;
        break;
-@@ -626,15 +633,11 @@
+@@ -626,15 +633,11 @@ _cogl_driver_update_features (CoglContext *context,
                                       gl_minor,
                                       gl_extensions);
  

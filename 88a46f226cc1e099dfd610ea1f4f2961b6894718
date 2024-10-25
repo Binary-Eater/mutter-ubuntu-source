@@ -1,0 +1,2 @@
+  * Regenerate the patches for Xilinx (Mali) support using gbp pq syntax
+    and fixing an unused uninitialized variable. (LP: #2080602)

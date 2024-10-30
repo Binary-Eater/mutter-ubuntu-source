@@ -1365,7 +1365,7 @@ meta_onscreen_native_swap_buffers_with_damage (CoglOnscreen  *onscreen,
   ClutterFrame *frame = user_data;
   MetaFrameNative *frame_native = meta_frame_native_from_frame (frame);
   CoglOnscreenClass *parent_class;
-  gboolean create_timestamp_query = TRUE;
+  gboolean secondary_gpu_used = FALSE;
   g_autoptr (GError) error = NULL;
   MetaDrmBufferFlags buffer_flags;
   MetaDrmBufferGbm *buffer_gbm;
@@ -1402,12 +1402,12 @@ meta_onscreen_native_swap_buffers_with_damage (CoglOnscreen  *onscreen,
       secondary_gpu_data =
         meta_renderer_native_get_gpu_data (renderer_native,
                                            secondary_gpu_state->gpu_kms);
-      if (secondary_gpu_data->secondary.copy_mode ==
-          META_SHARED_FRAMEBUFFER_COPY_MODE_SECONDARY_GPU)
-        create_timestamp_query = FALSE;
+      secondary_gpu_used =
+        secondary_gpu_data->secondary.copy_mode ==
+        META_SHARED_FRAMEBUFFER_COPY_MODE_SECONDARY_GPU;
     }
 
-  if (create_timestamp_query)
+  if (!secondary_gpu_used)
     cogl_onscreen_egl_maybe_create_timestamp_query (onscreen, frame_info);
 
   parent_class = COGL_ONSCREEN_CLASS (meta_onscreen_native_parent_class);
@@ -1510,7 +1510,9 @@ try_post_latest_swap (CoglOnscreen *onscreen)
   g_autoptr (MetaKmsFeedback) kms_feedback = NULL;
   g_autoptr (ClutterFrame) frame = NULL;
   MetaFrameNative *frame_native;
-  int sync_fd;
+  MetaOnscreenNativeSecondaryGpuState *secondary_gpu_state;
+  gboolean secondary_gpu_used = FALSE;
+
   COGL_TRACE_SCOPED_ANCHOR (MetaRendererNativePostKmsUpdate);
 
   if (onscreen_native->next_frame == NULL ||
@@ -1630,8 +1632,28 @@ try_post_latest_swap (CoglOnscreen *onscreen)
               meta_kms_device_get_path (kms_device));
 
   kms_update = meta_frame_native_steal_kms_update (frame_native);
-  sync_fd = cogl_context_get_latest_sync_fd (cogl_context);
-  meta_kms_update_set_sync_fd (kms_update, sync_fd);
+
+  secondary_gpu_state = onscreen_native->secondary_gpu_state;
+  if (secondary_gpu_state)
+    {
+      MetaRendererNativeGpuData *secondary_gpu_data;
+
+      secondary_gpu_data =
+        meta_renderer_native_get_gpu_data (renderer_native,
+                                           secondary_gpu_state->gpu_kms);
+      secondary_gpu_used =
+        secondary_gpu_data->secondary.copy_mode ==
+        META_SHARED_FRAMEBUFFER_COPY_MODE_SECONDARY_GPU;
+    }
+
+  if (!secondary_gpu_used)
+    {
+      int sync_fd;
+
+      sync_fd = cogl_context_get_latest_sync_fd (cogl_context);
+      meta_kms_update_set_sync_fd (kms_update, g_steal_fd (&sync_fd));
+    }
+
   meta_kms_device_post_update (kms_device, kms_update,
                                META_KMS_UPDATE_FLAG_NONE);
 }

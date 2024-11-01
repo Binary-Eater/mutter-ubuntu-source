@@ -449,6 +449,7 @@ get_monitor_scale_constraints_from_layout_mode (MetaLogicalMonitorLayoutMode lay
   switch (layout_mode)
     {
     case META_LOGICAL_MONITOR_LAYOUT_MODE_LOGICAL:
+    case META_LOGICAL_MONITOR_LAYOUT_MODE_GLOBAL_UI_LOGICAL:
       break;
     case META_LOGICAL_MONITOR_LAYOUT_MODE_PHYSICAL:
       constraints |= META_MONITOR_SCALES_CONSTRAINT_NO_FRAC;
@@ -491,7 +492,7 @@ meta_monitor_manager_native_get_capabilities (MetaMonitorManager *manager)
   MetaBackend *backend = meta_monitor_manager_get_backend (manager);
   MetaSettings *settings = meta_backend_get_settings (backend);
   MetaMonitorManagerCapability capabilities =
-    META_MONITOR_MANAGER_CAPABILITY_NONE;
+    META_MONITOR_MANAGER_CAPABILITY_TILING;
 
   if (meta_settings_is_experimental_feature_enabled (
         settings,

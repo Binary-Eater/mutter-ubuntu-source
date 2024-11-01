@@ -1,0 +1,2 @@
+  [ Nathan Teodosio ]
+  * Fix access check for X11_TMP_UNIX_DIR. (LP: #2069564)

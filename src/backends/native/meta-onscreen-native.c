@@ -101,6 +101,7 @@ struct _MetaOnscreenNative
   MetaCrtc *crtc;
 
   MetaOnscreenNativeSecondaryGpuState *secondary_gpu_state;
+  gboolean secondary_gpu_used;
 
   ClutterFrame *presented_frame;
   ClutterFrame *posted_frame;
@@ -1359,13 +1360,11 @@ meta_onscreen_native_swap_buffers_with_damage (CoglOnscreen  *onscreen,
   MetaRendererNativeGpuData *renderer_gpu_data = cogl_renderer_egl->platform;
   MetaRendererNative *renderer_native = renderer_gpu_data->renderer_native;
   MetaOnscreenNative *onscreen_native = META_ONSCREEN_NATIVE (onscreen);
-  MetaOnscreenNativeSecondaryGpuState *secondary_gpu_state;
   MetaGpuKms *render_gpu = onscreen_native->render_gpu;
   MetaDeviceFile *render_device_file;
   ClutterFrame *frame = user_data;
   MetaFrameNative *frame_native = meta_frame_native_from_frame (frame);
   CoglOnscreenClass *parent_class;
-  gboolean secondary_gpu_used = FALSE;
   g_autoptr (GError) error = NULL;
   MetaDrmBufferFlags buffer_flags;
   MetaDrmBufferGbm *buffer_gbm;
@@ -1394,20 +1393,7 @@ meta_onscreen_native_swap_buffers_with_damage (CoglOnscreen  *onscreen,
                                                  rectangles,
                                                  n_rectangles);
 
-  secondary_gpu_state = onscreen_native->secondary_gpu_state;
-  if (secondary_gpu_state)
-    {
-      MetaRendererNativeGpuData *secondary_gpu_data;
-
-      secondary_gpu_data =
-        meta_renderer_native_get_gpu_data (renderer_native,
-                                           secondary_gpu_state->gpu_kms);
-      secondary_gpu_used =
-        secondary_gpu_data->secondary.copy_mode ==
-        META_SHARED_FRAMEBUFFER_COPY_MODE_SECONDARY_GPU;
-    }
-
-  if (!secondary_gpu_used)
+  if (!onscreen_native->secondary_gpu_used)
     cogl_onscreen_egl_maybe_create_timestamp_query (onscreen, frame_info);
 
   parent_class = COGL_ONSCREEN_CLASS (meta_onscreen_native_parent_class);
@@ -1510,9 +1496,6 @@ try_post_latest_swap (CoglOnscreen *onscreen)
   g_autoptr (MetaKmsFeedback) kms_feedback = NULL;
   g_autoptr (ClutterFrame) frame = NULL;
   MetaFrameNative *frame_native;
-  MetaOnscreenNativeSecondaryGpuState *secondary_gpu_state;
-  gboolean secondary_gpu_used = FALSE;
-
   COGL_TRACE_SCOPED_ANCHOR (MetaRendererNativePostKmsUpdate);
 
   if (onscreen_native->next_frame == NULL ||
@@ -1633,20 +1616,7 @@ try_post_latest_swap (CoglOnscreen *onscreen)
 
   kms_update = meta_frame_native_steal_kms_update (frame_native);
 
-  secondary_gpu_state = onscreen_native->secondary_gpu_state;
-  if (secondary_gpu_state)
-    {
-      MetaRendererNativeGpuData *secondary_gpu_data;
-
-      secondary_gpu_data =
-        meta_renderer_native_get_gpu_data (renderer_native,
-                                           secondary_gpu_state->gpu_kms);
-      secondary_gpu_used =
-        secondary_gpu_data->secondary.copy_mode ==
-        META_SHARED_FRAMEBUFFER_COPY_MODE_SECONDARY_GPU;
-    }
-
-  if (!secondary_gpu_used)
+  if (!onscreen_native->secondary_gpu_used)
     {
       int sync_fd;
 
@@ -2882,7 +2852,10 @@ init_secondary_gpu_state (MetaRendererNative  *renderer_native,
                                                   onscreen,
                                                   renderer_gpu_data,
                                                   &local_error))
-        return TRUE;
+        {
+          onscreen_native->secondary_gpu_used = TRUE;
+          return TRUE;
+        }
 
       g_warning ("Secondary GPU initialization failed (%s). "
                  "Falling back to GPU-less mode instead, so the "

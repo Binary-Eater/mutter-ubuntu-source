@@ -128,7 +128,7 @@ check_timeline (ClutterTimeline *timeline,
         succeeded = FALSE;
       }
 
-  if (check_missed_frames && g_getenv ("DEB_ALLOW_FLAKY_TESTS") != NULL)
+  if (check_missed_frames)
     {
       for (i = 0; i < FRAME_COUNT; i++)
         if (data->frame_hit_count[i + frame_offset] < 1)

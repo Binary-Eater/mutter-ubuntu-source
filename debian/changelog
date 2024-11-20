@@ -1,3 +1,13 @@
+mutter (47.0-1ubuntu7) plucky; urgency=medium
+
+  [ Nathan Pratta Teodosio ]
+  * Warn if the X11 temp directory does not have the expected permission set.
+
+  [ Simon McVittie ]
+  * d/rules: Treat x11-test.sh as flaky
+
+ -- Marco Trevisan (Treviño) <marco@ubuntu.com>  Wed, 20 Nov 2024 15:33:34 +0100
+
 mutter (47.0-1ubuntu6) plucky; urgency=medium
 
   [ Nathan Teodosio ]

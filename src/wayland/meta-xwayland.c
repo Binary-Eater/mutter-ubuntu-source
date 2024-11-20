@@ -545,14 +545,22 @@ ensure_x11_unix_perms (GError **error)
   if (x11_tmp.st_uid != tmp.st_uid && x11_tmp.st_uid != getuid ())
     {
       g_set_error (error, G_IO_ERROR, G_IO_ERROR_PERMISSION_DENIED,
-                   "Wrong ownership for directory \"%s\"",
-                   X11_TMP_UNIX_DIR);
+                   "Wrong ownership for directory \"%s\": %d.\n"
+                   "Ownership of \"%s\": %d.\n"
+                   "Current user: %d.",
+                   X11_TMP_UNIX_DIR, x11_tmp.st_uid, TMP_UNIX_DIR, tmp.st_uid,
+                   getuid ());
       return FALSE;
     }
 
   /* ... be writable ... */
-  if ((x11_tmp.st_mode & 0022) != 0022)
+  if (access (X11_TMP_UNIX_DIR, W_OK) != 0)
     {
+      if ((x11_tmp.st_mode & 0022) != 0022)
+        {
+          g_warning ("%s is accessible although its permissions are not 0022",
+                     X11_TMP_UNIX_DIR);
+        }
       g_set_error (error, G_IO_ERROR, G_IO_ERROR_PERMISSION_DENIED,
                    "Directory \"%s\" is not writable",
                    X11_TMP_UNIX_DIR);

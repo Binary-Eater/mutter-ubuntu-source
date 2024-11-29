@@ -1,0 +1,5 @@
+  [ 林博仁(Buo-ren Lin) ]
+  * Fix Intelligent Input Bus (IBus) not activatable during filename editing
+    operations. (LP: #2076869)
+  [ Alessandro Astone ]
+  * Backport patches to fix restarting the x11 compositor (LP: #2040453)

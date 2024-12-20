@@ -267,6 +267,13 @@ struct _MetaWindow
     MetaEdgeConstraint left;
   } edge_constraints;
 
+  struct {
+    MetaEdgeConstraint top;
+    MetaEdgeConstraint right;
+    MetaEdgeConstraint bottom;
+    MetaEdgeConstraint left;
+  } overridden_constraints;
+
   double tile_hfraction;
 
   MetaLogicalMonitorId *preferred_logical_monitor;

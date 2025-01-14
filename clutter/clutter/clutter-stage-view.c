@@ -192,7 +192,7 @@ create_offscreen (ClutterStageView  *view,
                                                  width, height, format);
     }
 
-  cogl_texture_set_auto_mipmap (texture, FALSE);
+  cogl_texture_2d_set_auto_mipmap (COGL_TEXTURE_2D (texture), FALSE);
 
   if (!cogl_texture_allocate (texture, error))
     return FALSE;
@@ -599,7 +599,7 @@ copy_shadowfb_to_onscreen (ClutterStageView *view,
 
       rect = mtk_region_get_rectangle (damage_region, i);
 
-      if (!cogl_blit_framebuffer (shadowfb,
+      if (!cogl_framebuffer_blit (shadowfb,
                                   priv->framebuffer,
                                   rect.x, rect.y,
                                   rect.x, rect.y,
@@ -1076,20 +1076,13 @@ handle_frame_clock_frame (ClutterFrameClock *frame_clock,
 
       _clutter_stage_window_redraw_view (stage_window, view, frame);
 
-      clutter_frame_clock_record_flip (frame_clock,
-                                       g_get_monotonic_time (),
-                                       clutter_frame_get_hints (frame));
+      clutter_frame_clock_record_flip_time (frame_clock,
+                                            g_get_monotonic_time ());
 
       clutter_stage_emit_after_paint (stage, view, frame);
 
       if (clutter_context_get_show_fps (context))
         end_frame_timing_measurement (view);
-    }
-  else
-    {
-      clutter_frame_clock_record_flip (frame_clock,
-                                       g_get_monotonic_time (),
-                                       clutter_frame_get_hints (frame));
     }
 
   _clutter_stage_window_finish_frame (stage_window, view, frame);

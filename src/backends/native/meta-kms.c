@@ -20,13 +20,13 @@
 
 #include "backends/native/meta-kms-private.h"
 
+#include "backends/meta-udev.h"
 #include "backends/native/meta-backend-native.h"
 #include "backends/native/meta-kms-cursor-manager.h"
 #include "backends/native/meta-kms-device-private.h"
 #include "backends/native/meta-kms-impl.h"
 #include "backends/native/meta-kms-update-private.h"
 #include "backends/native/meta-thread-private.h"
-#include "backends/native/meta-udev.h"
 #include "cogl/cogl.h"
 
 #include "meta-private-enum-types.h"
@@ -66,8 +66,6 @@ struct _MetaKms
   int kernel_thread_inhibit_count;
 
   MetaKmsCursorManager *cursor_manager;
-
-  gboolean shutting_down;
 };
 
 G_DEFINE_TYPE (MetaKms, meta_kms, META_TYPE_THREAD)
@@ -354,12 +352,6 @@ meta_kms_create_device (MetaKms            *kms,
   return device;
 }
 
-gboolean
-meta_kms_is_shutting_down (MetaKms *kms)
-{
-  return kms->shutting_down;
-}
-
 static gpointer
 prepare_shutdown_in_impl (MetaThreadImpl  *thread_impl,
                           gpointer         user_data,
@@ -375,7 +367,6 @@ static void
 on_prepare_shutdown (MetaBackend *backend,
                      MetaKms     *kms)
 {
-  kms->shutting_down = TRUE;
   meta_kms_run_impl_task_sync (kms, prepare_shutdown_in_impl, NULL, NULL);
   meta_thread_flush_callbacks (META_THREAD (kms));
 
@@ -387,8 +378,7 @@ meta_kms_new (MetaBackend   *backend,
               MetaKmsFlags   flags,
               GError       **error)
 {
-  MetaBackendNative *backend_native = META_BACKEND_NATIVE (backend);
-  MetaUdev *udev = meta_backend_native_get_udev (backend_native);
+  MetaUdev *udev = meta_backend_get_udev (backend);
   MetaKms *kms;
   const char *thread_type_string;
   const char *preferred_scheduling_priority_string;
@@ -482,8 +472,7 @@ meta_kms_finalize (GObject *object)
 {
   MetaKms *kms = META_KMS (object);
   MetaBackend *backend = meta_thread_get_backend (META_THREAD (kms));
-  MetaBackendNative *backend_native = META_BACKEND_NATIVE (backend);
-  MetaUdev *udev = meta_backend_native_get_udev (backend_native);
+  MetaUdev *udev = meta_backend_get_udev (backend);
 
   g_list_free_full (kms->devices, g_object_unref);
 

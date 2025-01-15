@@ -874,7 +874,7 @@ output_info_init_modes (MetaOutputInfo *output_info,
             {
               if (sanity_check_duplicate (output_info->modes, n_actual_modes, mode))
                 {
-                  output_info->modes[n_actual_modes] = mode;
+                  output_info->modes[n_actual_modes] = g_object_ref (mode);
                   n_actual_modes += 1;
                 }
               else
@@ -1007,7 +1007,8 @@ meta_output_xrandr_new (MetaGpuXrandr *gpu_xrandr,
       output_info->height_mm = xrandr_output->mm_height;
     }
 
-  if (meta_monitor_manager_xrandr_has_randr15 (monitor_manager_xrandr))
+  if ((meta_monitor_manager_get_capabilities (monitor_manager) &
+        META_MONITOR_MANAGER_CAPABILITY_TILING))
     output_info_init_tile_info (output_info, xdisplay, output_id);
   output_info_init_modes (output_info, gpu, xrandr_output);
   output_info_init_crtcs (output_info, gpu, xrandr_output);

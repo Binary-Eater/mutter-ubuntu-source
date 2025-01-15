@@ -787,6 +787,8 @@ if have_native_backend
     'backends/native/meta-drm-buffer-private.h',
     'backends/native/meta-drm-buffer.c',
     'backends/native/meta-drm-buffer.h',
+    'backends/native/meta-egl-gbm.c',
+    'backends/native/meta-egl-gbm.h',
     'backends/native/meta-gpu-kms.c',
     'backends/native/meta-gpu-kms.h',
     'backends/native/meta-frame-native.c',
@@ -1320,7 +1322,8 @@ if have_introspection
     sources: [
       mutter_enum_types[1],
       mutter_introspected_sources,
-      mutter_public_header_files
+      mutter_public_header_files,
+      'core' / 'meta-private-introspected.h',
     ],
     nsversion: libmutter_api_version,
     namespace: 'Meta',

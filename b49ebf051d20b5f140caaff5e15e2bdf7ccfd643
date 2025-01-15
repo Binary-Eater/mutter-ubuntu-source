@@ -1,0 +1,3 @@
+  * New upstream release
+  * Add Build-Depends: wireplumber for build tests
+  * debian/*.symbols: Update symbols files

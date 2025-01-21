@@ -1,0 +1,6 @@
+  * New upstream release
+  * Rename packages for API bump (mutter-15 -> mutter-16)
+  * debian/libmutter-16-0.symbols: Update
+  * libmutter-cogl-pango is no longer provided
+  * Bump minimum libdisplay-info & wayland-protocols
+  * Temporarily disable triple buffering patch until it can be updated

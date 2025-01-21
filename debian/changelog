@@ -1,3 +1,10 @@
+mutter (47.4-1ubuntu2) plucky; urgency=medium
+
+  [ Alessandro Astone ]
+  * Add proposed patch to fix tests on Ubuntu
+
+ -- Marco Trevisan (Treviño) <marco@ubuntu.com>  Tue, 21 Jan 2025 19:41:56 +0100
+
 mutter (47.4-1ubuntu1) plucky; urgency=medium
 
   * Merge with Debian (LP: #2091159, LP: #2089843, LP: #1966635).

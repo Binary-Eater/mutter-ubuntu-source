@@ -48,6 +48,12 @@ struct _MetaWaylandInput
   ClutterGrab *grab;
 };
 
+typedef enum
+{
+  INVALIDATE_FOCUS_FLAG_DEFAULT = 0,
+  INVALIDATE_FOCUS_FLAG_CANCEL_TOUCH = 1 << 0,
+} InvalidateFocusFlag;
+
 static void meta_wayland_input_sync_focus (MetaWaylandInput *input);
 
 G_DEFINE_FINAL_TYPE (MetaWaylandInput, meta_wayland_input, G_TYPE_OBJECT)
@@ -137,7 +143,8 @@ meta_wayland_event_handler_invalidate_focus (MetaWaylandEventHandler *handler,
 }
 
 static void
-meta_wayland_input_invalidate_all_focus (MetaWaylandInput *input)
+meta_wayland_input_invalidate_all_focus (MetaWaylandInput    *input,
+                                         InvalidateFocusFlag  flags)
 {
   MetaWaylandEventHandler *handler;
   MetaWaylandSeat *seat = input->seat;
@@ -162,6 +169,20 @@ meta_wayland_input_invalidate_all_focus (MetaWaylandInput *input)
     }
 
   if (meta_wayland_seat_has_touch (seat))
+    {
+      g_autoptr (GList) touches = NULL;
+      GList *l;
+
+      device = clutter_seat_get_pointer (clutter_seat);
+      handler = wl_container_of (input->event_handler_list.next, handler, link);
+
+      touches = g_hash_table_get_keys (seat->touch->touches);
+      for (l = touches; l; l = l->next)
+        meta_wayland_event_handler_invalidate_focus (handler, device, l->data);
+    }
+
+  if (meta_wayland_seat_has_touch (seat) &&
+      (flags & INVALIDATE_FOCUS_FLAG_CANCEL_TOUCH) != 0)
     meta_wayland_touch_cancel (seat->touch);
 
   g_hash_table_iter_init (&iter, seat->tablet_seat->tablets);
@@ -257,7 +278,8 @@ meta_wayland_input_sync_focus (MetaWaylandInput *input)
 
   g_assert (!wl_list_empty (&input->event_handler_list));
   handler = wl_container_of (input->event_handler_list.next, handler, link);
-  meta_wayland_input_invalidate_all_focus (input);
+  meta_wayland_input_invalidate_all_focus (input,
+                                           INVALIDATE_FOCUS_FLAG_CANCEL_TOUCH);
 }
 
 static void
@@ -303,12 +325,15 @@ meta_wayland_input_attach_event_handler (MetaWaylandInput                *input,
                                                    grab_handle_event,
                                                    input,
                                                    NULL);
+      clutter_grab_activate (input->grab);
+
       g_signal_connect_swapped (input->grab, "notify::revoked",
                                 G_CALLBACK (on_grab_revocation_change),
                                 input);
     }
 
-  meta_wayland_input_invalidate_all_focus (input);
+  meta_wayland_input_invalidate_all_focus (input,
+                                           INVALIDATE_FOCUS_FLAG_DEFAULT);
 
   return handler;
 }
@@ -340,7 +365,8 @@ meta_wayland_input_detach_event_handler (MetaWaylandInput        *input,
         wl_container_of (input->event_handler_list.next,
                          head, link);
 
-      meta_wayland_input_invalidate_all_focus (input);
+      meta_wayland_input_invalidate_all_focus (input,
+                                               INVALIDATE_FOCUS_FLAG_DEFAULT);
     }
 
   if (input->grab && !should_be_grabbed (input))

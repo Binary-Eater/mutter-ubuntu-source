@@ -1,0 +1,4 @@
+  * Add mutter Depends: gir1.2-glib-2.0, python3-argcomplete, python3-gi
+  * Cherry-pick proposed patch from Alessandro Astone to embed a copy of
+    the Adwaita cursors inside mutter's tests for resiliance against
+    changes to the Adwaita cursor theme (Closes: #1095225)

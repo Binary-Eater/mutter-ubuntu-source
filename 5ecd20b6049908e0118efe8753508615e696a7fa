@@ -1,0 +1,30 @@
+  * Merge with Debian.
+  * debian/patches/xrandr-scaling: Update for mutter 48
+  * debian/patches/ubuntu: Make argcomplete in gdctl optional
+  * debian/control: Mark python3-argcomplete as suggested package.
+    As per the patch we have now to make python3-argcomplete option, we can
+    safely mark python3-argcomplete as a suggested package, given that's not
+    in main in ubuntu
+  * Remaining changes with debian:
+    - Add x11-Add-support-for-fractional-scaling-using-Randr.patch
+    - Add window-Add-ability-to-override-the-edge-constraints.patch
+      + Make possible for extensions (such as Tiling Assistant) to override
+        window constraints
+    - Add seat-impl-Initialize-the-impl-reverse-pointer-slightly-ea.patch
+      to avoid crashing when mousekeys or keyboard a11y features are
+      enabled
+    - Add tools-gdctl-Make-argcomplete-optional.patch to not require python3
+      argcomplete module to run gdctl
+    - Mark python3-argcomplete as suggested package
+  * debian: Install gdctl in mutter-common-bin
+    gdctl is a tool to show and set the gnome display configuration and it's
+    not mutter-specific, but it works for any-mutter based compositor including
+    gnome-shell, so it's something that we should not provide in the mutter
+    package (that only contains the mutter basic compositor implementation).
+    As per this, move the dependencies to mutter-common-bin and make
+    python3-argcomplete a required dependency for it (since the tools needs
+    it).
+  * debian/control: Mark zenity as a test-dependency only.
+    There's no strict dependency on zenity, but mutter uses it only for
+    x11-tests, so it's only a dependency of mutter-16-tests and a build-one
+    only if tests are performed

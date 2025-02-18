@@ -1,0 +1,20 @@
+  * Merge with debian, remaining changes:
+    - Add x11-Add-support-for-fractional-scaling-using-Randr.patch
+    - Add window-Add-ability-to-override-the-edge-constraints.patch
+      + Make possible for extensions (such as Tiling Assistant) to override
+        window constraints
+    - Add seat-impl-Initialize-the-impl-reverse-pointer-slightly-ea.patch
+      to avoid crashing when mousekeys or keyboard a11y features are
+      enabled
+    - Add tools-gdctl-Make-argcomplete-optional.patch to not require python3
+      argcomplete module to run gdctl
+    - Mark python3-argcomplete as suggested package
+  * d/p: Refresh indexes
+  * debian/patches: Make argcomplete in gdctl optional
+  * debian/control:
+    - add gir1.2-glib-2.0 dependency to mutter-common-bin
+    - Fix mutter-common-bin breaks/replaces (LP: #2098605)
+    - Mark python3-argcomplete as suggested package
+  * d/p: Use env in bash scripts
+  * d/p/triple-buffering: Update patch to the one landed upstream
+    (Closes: #1050020)

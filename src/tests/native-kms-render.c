@@ -47,14 +47,13 @@ typedef struct
   GMainLoop *loop;
 
   struct {
-    int n_paints;
+    int n_frames_started;
     int n_presentations;
     int n_direct_scanouts;
     GList *fb_ids;
+    gboolean wait_for_scanout;
+    gboolean expect_double_buffering;
   } scanout;
-
-  gboolean wait_for_scanout;
-  gboolean expect_double_buffering;
 
   struct {
     int last_frame_started;
@@ -125,15 +124,6 @@ meta_test_kms_render_basic (void)
 }
 
 static void
-on_scanout_before_update (ClutterStage     *stage,
-                          ClutterStageView *stage_view,
-                          ClutterFrame     *frame,
-                          KmsRenderingTest *test)
-{
-  test->scanout.n_paints = 0;
-}
-
-static void
 on_scanout_before_paint (ClutterStage     *stage,
                          ClutterStageView *stage_view,
                          ClutterFrame     *frame,
@@ -143,6 +133,8 @@ on_scanout_before_paint (ClutterStage     *stage,
   CoglScanoutBuffer *scanout_buffer;
   MetaDrmBuffer *buffer;
   uint32_t fb_id;
+
+  test->scanout.n_frames_started++;
 
   scanout = clutter_stage_view_peek_scanout (stage_view);
   if (!scanout)
@@ -158,16 +150,6 @@ on_scanout_before_paint (ClutterStage     *stage,
 
   /* Triple buffering, but no higher */
   g_assert_cmpuint (g_list_length (test->scanout.fb_ids), <=, 2);
-}
-
-static void
-on_scanout_paint_view (ClutterStage     *stage,
-                       ClutterStageView *stage_view,
-                       MtkRegion        *region,
-                       ClutterFrame     *frame,
-                       KmsRenderingTest *test)
-{
-  test->scanout.n_paints++;
 }
 
 static void
@@ -188,7 +170,11 @@ on_scanout_presented (ClutterStage     *stage,
   drmModeCrtc *drm_crtc;
   uint32_t first_fb_id_expected;
 
-  if (test->wait_for_scanout && test->scanout.fb_ids == NULL)
+  /* Ignore frames from previous sub-tests */
+  if (test->scanout.n_frames_started <= 0)
+    return;
+
+  if (test->scanout.wait_for_scanout && test->scanout.fb_ids == NULL)
     return;
 
   test->scanout.n_presentations++;
@@ -217,7 +203,8 @@ on_scanout_presented (ClutterStage     *stage,
    * fb_ids yet...
    */
   if (test->scanout.fb_ids &&
-      (test->expect_double_buffering || test->scanout.n_presentations > 1))
+      (test->scanout.expect_double_buffering ||
+       test->scanout.n_presentations > 1))
     {
       test->scanout.n_direct_scanouts++;
       first_fb_id_expected = GPOINTER_TO_UINT (test->scanout.fb_ids->data);
@@ -260,9 +247,7 @@ meta_test_kms_render_client_scanout (void)
   KmsRenderingTest test;
   MetaWaylandTestClient *wayland_test_client;
   g_autoptr (MetaWaylandTestDriver) test_driver = NULL;
-  gulong before_update_handler_id;
   gulong before_paint_handler_id;
-  gulong paint_view_handler_id;
   gulong presented_handler_id;
   MetaWindow *window;
   MtkRectangle view_rect;
@@ -281,8 +266,8 @@ meta_test_kms_render_client_scanout (void)
     .number_of_frames_left = N_FRAMES_PER_TEST,
     .loop = g_main_loop_new (NULL, FALSE),
     .scanout = {0},
-    .wait_for_scanout = TRUE,
   };
+  test.scanout.wait_for_scanout = TRUE;
 
   g_assert_cmpuint (g_list_length (clutter_stage_peek_stage_views (stage)),
                     ==,
@@ -290,12 +275,6 @@ meta_test_kms_render_client_scanout (void)
   clutter_stage_view_get_layout (clutter_stage_peek_stage_views (stage)->data,
                                  &view_rect);
 
-  paint_view_handler_id =
-    g_signal_connect (stage, "paint-view",
-                      G_CALLBACK (on_scanout_paint_view), &test);
-  before_update_handler_id =
-    g_signal_connect (stage, "before-update",
-                      G_CALLBACK (on_scanout_before_update), &test);
   before_paint_handler_id =
     g_signal_connect (stage, "before-paint",
                       G_CALLBACK (on_scanout_before_paint), &test);
@@ -328,9 +307,10 @@ meta_test_kms_render_client_scanout (void)
   g_assert_cmpint (buffer_rect.x, ==, 10);
   g_assert_cmpint (buffer_rect.y, ==, 10);
 
-  test.wait_for_scanout = FALSE;
-  test.expect_double_buffering = TRUE; /* because wait_for_sync_point */
   test.number_of_frames_left = N_FRAMES_PER_TEST;
+  test.scanout.wait_for_scanout = FALSE;
+  test.scanout.expect_double_buffering = TRUE; /* because wait_for_sync_point */
+  test.scanout.n_frames_started = 0;
   test.scanout.n_presentations = 0;
   test.scanout.n_direct_scanouts = 0;
 
@@ -349,9 +329,10 @@ meta_test_kms_render_client_scanout (void)
   g_assert_cmpint (buffer_rect.x, ==, 0);
   g_assert_cmpint (buffer_rect.y, ==, 0);
 
-  test.wait_for_scanout = TRUE;
-  test.expect_double_buffering = FALSE;
   test.number_of_frames_left = N_FRAMES_PER_TEST;
+  test.scanout.wait_for_scanout = TRUE;
+  test.scanout.expect_double_buffering = FALSE;
+  test.scanout.n_frames_started = 0;
   test.scanout.n_presentations = 0;
   test.scanout.n_direct_scanouts = 0;
 
@@ -361,9 +342,7 @@ meta_test_kms_render_client_scanout (void)
   g_assert_cmpint (test.scanout.n_presentations, ==, N_FRAMES_PER_TEST);
   g_assert_cmpint (test.scanout.n_direct_scanouts, ==, N_FRAMES_PER_TEST - 1);
 
-  g_signal_handler_disconnect (stage, before_update_handler_id);
   g_signal_handler_disconnect (stage, before_paint_handler_id);
-  g_signal_handler_disconnect (stage, paint_view_handler_id);
   g_signal_handler_disconnect (stage, presented_handler_id);
 
   meta_wayland_test_driver_emit_sync_event (test_driver, 0);

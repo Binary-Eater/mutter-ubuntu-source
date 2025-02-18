@@ -1132,6 +1132,7 @@ clutter_frame_clock_schedule_update_later (ClutterFrameClock *frame_clock,
   int64_t ready_time_us = 0, extrapolated_presentation_time_us;
   int64_t max_render_time_us;
   int64_t cycles;
+  ClutterFrameClockState next_state = frame_clock->state;
 
   if (frame_clock->inhibit_count > 0)
     {
@@ -1144,7 +1145,7 @@ clutter_frame_clock_schedule_update_later (ClutterFrameClock *frame_clock,
     case CLUTTER_FRAME_CLOCK_STATE_INIT:
     case CLUTTER_FRAME_CLOCK_STATE_IDLE:
     case CLUTTER_FRAME_CLOCK_STATE_SCHEDULED_LATER:
-      frame_clock->state = CLUTTER_FRAME_CLOCK_STATE_SCHEDULED_LATER;
+      next_state = CLUTTER_FRAME_CLOCK_STATE_SCHEDULED_LATER;
       break;
     case CLUTTER_FRAME_CLOCK_STATE_SCHEDULED_NOW:
     case CLUTTER_FRAME_CLOCK_STATE_SCHEDULED:
@@ -1156,7 +1157,7 @@ clutter_frame_clock_schedule_update_later (ClutterFrameClock *frame_clock,
     case CLUTTER_FRAME_CLOCK_STATE_DISPATCHED_ONE:
       if (want_triple_buffering (frame_clock))
         {
-          frame_clock->state =
+          next_state =
             CLUTTER_FRAME_CLOCK_STATE_DISPATCHED_ONE_AND_SCHEDULED_LATER;
           break;
         }
@@ -1216,6 +1217,7 @@ clutter_frame_clock_schedule_update_later (ClutterFrameClock *frame_clock,
 
   g_source_set_ready_time (frame_clock->source, ready_time_us);
   frame_clock->pending_reschedule = TRUE;
+  frame_clock->state = next_state;
 }
 
 static int

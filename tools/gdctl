@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
 
 import argparse
-import argcomplete
 import sys
 
 from dataclasses import dataclass, field
 from gi.repository import GLib, Gio
 from enum import Enum, Flag
-from argcomplete.completers import BaseCompleter, SuppressCompleter
+
+try:
+    import argcomplete
+    from argcomplete.completers import BaseCompleter
+except ModuleNotFoundError:
+    argcomplete = None
+    BaseCompleter = object
 
 NAME = "org.gnome.Mutter.DisplayConfig"
 INTERFACE = "org.gnome.Mutter.DisplayConfig"
@@ -1434,15 +1439,18 @@ if __name__ == "__main__":
         type=str,
     ).completer = MonitorCompleter()
 
-    for action in [
-        GroupAction,
-        SubGroupAction,
-        AppendToGroup,
-        AppendToSubGroup,
-        AppendToGlobal,
-    ]:
-        argcomplete.safe_actions.add(action)
-    argcomplete.autocomplete(parser, default_completer=SuppressCompleter)
+    if argcomplete:
+        for action in [
+            GroupAction,
+            SubGroupAction,
+            AppendToGroup,
+            AppendToSubGroup,
+            AppendToGlobal,
+        ]:
+            argcomplete.safe_actions.add(action)
+
+        argcomplete.autocomplete(parser,
+            default_completer=argcomplete.SuppressCompleter)
 
     args = parser.parse_args()
 

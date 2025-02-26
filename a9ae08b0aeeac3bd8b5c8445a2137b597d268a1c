@@ -1,0 +1,12 @@
+  [ Alessandro Astone ]
+  * Backport patch to avoid full framebuffer damage when dragging a window
+    (LP: #2080698)
+  * Backport patches to fix crash with pointer-constraints and touch
+    (LP: #2090824)
+  * Backport patches to fix touchscreen drag&drop (LP: #1966635)
+  * The above patches require and include the fix for LP: #2090824 even
+    though that bug does not exist on Noble.
+  * Silence lintian error about the version of two new symbols.
+  [ Yao Wei (魏銘廷) ]
+  * debian/patches: Synchronize touchscreen enabled state when adding it to
+    device mapper, which fixes suspend/resume related issue (LP: #2087831)

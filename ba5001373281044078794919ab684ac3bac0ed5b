@@ -1,0 +1,3 @@
+  [ Daniel van Vugt ]
+  * Add patch to fix mutter tests failing in a remote login (or in autopkgtests)
+    (Closes: #1096037)

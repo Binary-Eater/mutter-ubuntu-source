@@ -1,0 +1,2 @@
+  [ Daniel van Vugt ]
+  * Add patch to fix gdctl path for installed tests (Closes: #1096037)

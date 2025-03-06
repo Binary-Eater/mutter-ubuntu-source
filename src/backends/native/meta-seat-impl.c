@@ -3082,6 +3082,9 @@ meta_seat_impl_initable_init (GInitable     *initable,
 {
   MetaSeatImpl *seat_impl = META_SEAT_IMPL (initable);
 
+  g_assert (seat_impl->seat_native);
+  seat_impl->seat_native->impl = seat_impl;
+
   seat_impl->input_context = g_main_context_new ();
   seat_impl->main_context = g_main_context_ref_thread_default ();
   g_assert (seat_impl->main_context == g_main_context_default ());

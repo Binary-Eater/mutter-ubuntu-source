@@ -1,0 +1,11 @@
+  * Merge with Debian. Remaining changes:
+    - Add x11-Add-support-for-fractional-scaling-using-Randr.patch
+    - Add window-Add-ability-to-override-the-edge-constraints.patch
+      + Make possible for extensions (such as Tiling Assistant) to override
+        window constraints
+    - Add seat-impl-Initialize-the-impl-reverse-pointer-slightly-ea.patch
+      to avoid crashing when mousekeys or keyboard a11y features are
+      enabled
+    - Add Use-access-instead-of-checking-permission-modes-for-tmp-..patch
+      to fix access check for X11_TMP_UNIX_DIR
+  * Release to unstable

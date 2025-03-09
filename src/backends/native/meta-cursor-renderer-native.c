@@ -130,14 +130,26 @@ realize_cursor_sprite_for_crtc (MetaCursorRenderer *renderer,
                                 MetaCursorSprite   *cursor_sprite);
 
 static void
-invalidate_cursor_gpu_state (MetaCursorRenderer *cursor_renderer,
-                             MetaCursorSprite   *cursor_sprite);
+meta_cursor_renderer_native_invalidate_gpu_state (MetaCursorRendererNative *native);
 
 static CursorStageView *
 get_cursor_stage_view (MetaStageView *view)
 {
   return g_object_get_qdata (G_OBJECT (view),
                              quark_cursor_stage_view);
+}
+
+static void
+on_output_color_state_changed (MetaStageView *view,
+                               gpointer       user_data)
+{
+  CursorStageView *cursor_stage_view;
+
+  cursor_stage_view = get_cursor_stage_view (view);
+  if (!cursor_stage_view)
+    return;
+
+  cursor_stage_view->is_hw_cursor_valid = FALSE;
 }
 
 static CursorStageView *
@@ -150,6 +162,12 @@ ensure_cursor_stage_view (MetaStageView *view)
     {
       cursor_stage_view = g_new0 (CursorStageView, 1);
       cursor_stage_view->is_hw_cursor_valid = FALSE;
+
+      g_signal_connect (G_OBJECT (view),
+                        "notify::output-color-state",
+                        G_CALLBACK (on_output_color_state_changed),
+                        NULL);
+
       g_object_set_qdata_full (G_OBJECT (view),
                                quark_cursor_stage_view,
                                cursor_stage_view,
@@ -282,7 +300,10 @@ static void
 on_cursor_sprite_texture_changed (MetaCursorSprite   *cursor_sprite,
                                   MetaCursorRenderer *cursor_renderer)
 {
-  invalidate_cursor_gpu_state (cursor_renderer, cursor_sprite);
+  MetaCursorRendererNative *native =
+    META_CURSOR_RENDERER_NATIVE (cursor_renderer);
+
+  meta_cursor_renderer_native_invalidate_gpu_state (native);
 }
 
 static gboolean
@@ -429,11 +450,8 @@ meta_cursor_renderer_native_update_cursor (MetaCursorRenderer *cursor_renderer,
 }
 
 static void
-invalidate_cursor_gpu_state (MetaCursorRenderer *cursor_renderer,
-                             MetaCursorSprite   *cursor_sprite)
+meta_cursor_renderer_native_invalidate_gpu_state (MetaCursorRendererNative *native)
 {
-  MetaCursorRendererNative *native =
-    META_CURSOR_RENDERER_NATIVE (cursor_renderer);
   MetaCursorRendererNativePrivate *priv =
     meta_cursor_renderer_native_get_instance_private (native);
   MetaRenderer *renderer = meta_backend_get_renderer (priv->backend);

@@ -1,0 +1,12 @@
+  [ Alessandro Astone ]
+  * debian: Update metadata for ubuntu/oracular branch
+  * Backport patch to fix touch drag&drop (LP: #1966635)
+  * Backport patch to fix touch grab (LP: #2089843)
+  * Backport patch to fix opening popups with touch input (LP: #2091159)
+  [ Yao Wei (魏銘廷) ]
+  * debian/patches: Synchronize touchscreen enabled state when adding it to
+    device mapper, which fixes suspend/resume related issue (LP: #2087831)
+  [ Daniel van Vugt ]
+  * Drop the previous fix attempted in 47.0-1ubuntu4.2 because verification
+    failed and rather than retry it right now we just want to unblock the
+    above fixes.

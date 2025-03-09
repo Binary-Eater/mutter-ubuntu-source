@@ -2085,6 +2085,15 @@ meta_kms_impl_device_schedule_process (MetaKmsImplDevice *impl_device,
       ensure_deadline_timer_armed (impl_device, crtc_frame))
     return;
 
+  if (crtc_frame->pending_update)
+    {
+      meta_kms_impl_device_do_process_update (impl_device, crtc_frame,
+                                              crtc_frame->crtc,
+                                              crtc_frame->pending_update,
+                                              META_KMS_UPDATE_FLAG_NONE);
+      return;
+    }
+
   meta_kms_device_set_needs_flush (meta_kms_crtc_get_device (crtc), crtc);
 }
 

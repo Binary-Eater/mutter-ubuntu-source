@@ -30,6 +30,7 @@ typedef struct _MetaCrtcConfig
   graphene_rect_t layout;
   MtkMonitorTransform transform;
   MetaCrtcMode *mode;
+  float scale;
 } MetaCrtcConfig;
 
 #define META_TYPE_CRTC (meta_crtc_get_type ())
@@ -86,6 +87,11 @@ META_EXPORT_TEST
 void meta_crtc_set_config (MetaCrtc       *crtc,
                            MetaCrtcConfig *config,
                            gpointer        backend_private);
+
+void meta_crtc_set_config_scale (MetaCrtc *crtc,
+                                 float    scale);
+
+float meta_crtc_get_config_scale (MetaCrtc *crtc);
 
 META_EXPORT_TEST
 void meta_crtc_unset_config (MetaCrtc *crtc);

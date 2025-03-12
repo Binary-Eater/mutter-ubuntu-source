@@ -25,3 +25,8 @@ workarounds/tests-skip-monitor-width-size-check-as-it-may-lead-to-une.patch
 workarounds/tests-Skip-thread-priority-test.patch
 workarounds/Mark-several-additional-tests-as-flaky.patch
 workarounds/tests-Install-stacking-tests-into-a-subdirectory.patch
+clutter-Repick-actors-when-touches-emulate-button-clicks.patch
+ubuntu/x11-Add-support-for-fractional-scaling-using-Randr.patch
+ubuntu/window-Add-ability-to-override-the-edge-constraints.patch
+ubuntu/Use-access-instead-of-checking-permission-modes-for-tmp-..patch
+workarounds/seat-impl-Initialize-the-impl-reverse-pointer-slightly-ea.patch

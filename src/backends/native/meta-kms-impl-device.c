@@ -67,6 +67,7 @@ typedef struct _CrtcDeadline
   MetaKmsCrtc *crtc;
   MetaKmsUpdate *pending_update;
   gboolean await_flush;
+  gboolean need_schedule;
   gboolean pending_page_flip;
 
   struct {
@@ -1423,7 +1424,7 @@ notify_crtc_frame_ready (CrtcFrame *crtc_frame)
   crtc_frame->pending_page_flip = FALSE;
   crtc_frame->deadline.is_deadline_page_flip = FALSE;
 
-  if (!crtc_frame->pending_update)
+  if (!crtc_frame->pending_update && !crtc_frame->need_schedule)
     return;
 
   if (crtc_frame->await_flush)
@@ -2070,17 +2071,19 @@ meta_kms_impl_device_schedule_process (MetaKmsImplDevice *impl_device,
 
   crtc_frame = ensure_crtc_frame (impl_device, crtc);
 
+  if (crtc_frame->pending_page_flip)
+    {
+      crtc_frame->need_schedule = TRUE;
+      return;
+    }
+  crtc_frame->need_schedule = FALSE;
+
   if (crtc_frame->await_flush)
     return;
 
-  if (is_using_deadline_timer (impl_device))
-    {
-      if (crtc_frame->pending_page_flip)
-        return;
-
-      if (ensure_deadline_timer_armed (impl_device, crtc_frame))
-        return;
-    }
+  if (is_using_deadline_timer (impl_device) &&
+      ensure_deadline_timer_armed (impl_device, crtc_frame))
+    return;
 
   meta_kms_device_set_needs_flush (meta_kms_crtc_get_device (crtc), crtc);
 }

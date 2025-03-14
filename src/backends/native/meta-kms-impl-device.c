@@ -1398,11 +1398,9 @@ ensure_deadline_timer_armed (MetaKmsImplDevice *impl_device,
 
           priv->deadline_timer_state = META_DEADLINE_TIMER_STATE_INHIBITED;
         }
-      else
+      else if (!g_error_matches (local_error, G_IO_ERROR, G_IO_ERROR_NOT_FOUND))
         {
-          if (!g_error_matches (local_error, G_IO_ERROR, G_IO_ERROR_NOT_FOUND))
-            g_warning ("Failed to determine deadline: %s", local_error->message);
-
+          g_warning ("Failed to determine deadline: %s", local_error->message);
           priv->deadline_timer_state = META_DEADLINE_TIMER_STATE_DISABLED;
         }
 

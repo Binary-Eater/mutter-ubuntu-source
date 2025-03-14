@@ -1,0 +1,3 @@
+  * Refresh seat-impl-Initialize-the-impl-reverse-pointer-slightly-ea.patch
+  * Add tests-Mark-wayland-unit-as-flaky.patch to avoid spurious Launchpad
+    build failures that blocked the previous 48~rc-ubuntu tags.

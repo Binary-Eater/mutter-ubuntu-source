@@ -34,6 +34,7 @@
 #include "backends/x11/meta-crtc-xrandr.h"
 
 #include <X11/Xlib-xcb.h>
+#include <X11/extensions/Xrender.h>
 #include <stdlib.h>
 #include <xcb/randr.h>
 
@@ -43,6 +44,9 @@
 #include "backends/x11/meta-crtc-xrandr.h"
 #include "backends/x11/meta-gpu-xrandr.h"
 #include "backends/x11/meta-monitor-manager-xrandr.h"
+
+#define ALL_TRANSFORMS ((1 << (META_MONITOR_TRANSFORM_FLIPPED_270 + 1)) - 1)
+#define DOUBLE_TO_FIXED(d) ((xcb_render_fixed_t) ((d) * 65536))
 
 struct _MetaCrtcXrandr
 {
@@ -107,6 +111,63 @@ meta_crtc_xrandr_set_config (MetaCrtcXrandr      *crtc_xrandr,
 
   *out_timestamp = reply->timestamp;
   free (reply);
+
+
+  return TRUE;
+}
+
+gboolean
+meta_crtc_xrandr_set_scale (MetaCrtc         *crtc,
+                            xcb_randr_crtc_t  xrandr_crtc,
+                            float             scale)
+{
+  MetaGpu *gpu = meta_crtc_get_gpu (crtc);
+  MetaBackend *backend = meta_gpu_get_backend (gpu);
+  MetaMonitorManager *monitor_manager =
+    meta_backend_get_monitor_manager (backend);
+  MetaMonitorManagerXrandr *monitor_manager_xrandr =
+    META_MONITOR_MANAGER_XRANDR (monitor_manager);
+  Display *xdisplay;
+  const char *scale_filter;
+  xcb_connection_t *xcb_conn;
+  xcb_void_cookie_t transform_cookie;
+  xcb_generic_error_t *xcb_error = NULL;
+  xcb_render_transform_t transformation = {
+    DOUBLE_TO_FIXED (1), DOUBLE_TO_FIXED (0), DOUBLE_TO_FIXED (0),
+    DOUBLE_TO_FIXED (0), DOUBLE_TO_FIXED (1), DOUBLE_TO_FIXED (0),
+    DOUBLE_TO_FIXED (0), DOUBLE_TO_FIXED (0), DOUBLE_TO_FIXED (1)
+  };
+
+  if (!(meta_monitor_manager_get_capabilities (monitor_manager) &
+        META_MONITOR_MANAGER_CAPABILITY_NATIVE_OUTPUT_SCALING))
+    return FALSE;
+
+  xdisplay = meta_monitor_manager_xrandr_get_xdisplay (monitor_manager_xrandr);
+  xcb_conn = XGetXCBConnection (xdisplay);
+
+  if (fabsf (scale - 1.0f) > 0.001)
+    {
+      scale_filter = FilterGood;
+      transformation.matrix11 = DOUBLE_TO_FIXED (1.0 / scale);
+      transformation.matrix22 = DOUBLE_TO_FIXED (1.0 / scale);
+    }
+  else
+    scale_filter = FilterFast;
+
+  transform_cookie =
+    xcb_randr_set_crtc_transform_checked (xcb_conn, xrandr_crtc, transformation,
+                                          strlen (scale_filter), scale_filter,
+                                          0, NULL);
+
+  xcb_error = xcb_request_check (xcb_conn, transform_cookie);
+  if (xcb_error)
+    {
+      meta_warning ("Impossible to set scaling on crtc %u to %f, error id %u",
+                    xrandr_crtc, scale, xcb_error->error_code);
+      g_clear_pointer (&xcb_error, free);
+
+      return FALSE;
+    }
 
   return TRUE;
 }
@@ -219,11 +280,34 @@ meta_crtc_xrandr_get_current_mode (MetaCrtcXrandr *crtc_xrandr)
   return crtc_xrandr->current_mode;
 }
 
+static float
+meta_monitor_scale_from_transformation (XRRCrtcTransformAttributes *transformation)
+{
+  XTransform *xt;
+  float scale;
+
+  if (!transformation)
+    return 1.0f;
+
+  xt = &transformation->currentTransform;
+
+  if (xt->matrix[0][0] == xt->matrix[1][1])
+    scale = XFixedToDouble (xt->matrix[0][0]);
+  else
+    scale = XFixedToDouble (xt->matrix[0][0] + xt->matrix[1][1]) / 2.0;
+
+  g_return_val_if_fail (scale > 0.0f, 1.0f);
+
+  return 1.0f / scale;
+}
+
 MetaCrtcXrandr *
-meta_crtc_xrandr_new (MetaGpuXrandr      *gpu_xrandr,
-                      XRRCrtcInfo        *xrandr_crtc,
-                      RRCrtc              crtc_id,
-                      XRRScreenResources *resources)
+meta_crtc_xrandr_new (MetaGpuXrandr              *gpu_xrandr,
+                      XRRCrtcInfo                *xrandr_crtc,
+                      RRCrtc                      crtc_id,
+                      XRRScreenResources         *resources,
+                      XRRCrtcTransformAttributes *transform_attributes,
+                      float                       scale_multiplier)
 {
   MetaGpu *gpu = META_GPU (gpu_xrandr);
   MetaBackend *backend = meta_gpu_get_backend (gpu);
@@ -285,6 +369,8 @@ meta_crtc_xrandr_new (MetaGpuXrandr      *gpu_xrandr,
   if (crtc_xrandr->current_mode)
     {
       MetaCrtcConfig *crtc_config;
+      float crtc_scale =
+        meta_monitor_scale_from_transformation (transform_attributes);
 
       crtc_config =
         meta_crtc_config_new (&GRAPHENE_RECT_INIT (crtc_xrandr->rect.x,
@@ -294,6 +380,11 @@ meta_crtc_xrandr_new (MetaGpuXrandr      *gpu_xrandr,
                               crtc_xrandr->current_mode,
                               crtc_xrandr->transform);
       meta_crtc_set_config (META_CRTC (crtc_xrandr), crtc_config, NULL);
+
+      if (scale_multiplier > 0.0f)
+        crtc_scale *= scale_multiplier;
+
+      meta_crtc_set_config_scale (META_CRTC (crtc_xrandr), crtc_scale);
     }
 
   return crtc_xrandr;

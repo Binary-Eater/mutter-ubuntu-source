@@ -89,6 +89,15 @@
 #ifndef GL_RGBA16
 #define GL_RGBA16 0x805B
 #endif
+#ifndef GL_BGRA
+#define GL_BGRA 0x80E1
+#endif
+#ifndef GL_BGRA8
+#define GL_BGRA8 0x93A1
+#endif
+#ifndef GL_RG8
+#define GL_RG8 0x822B
+#endif
 
 static CoglPixelFormat
 _cogl_driver_pixel_format_to_gl (CoglContext     *context,
@@ -163,7 +172,7 @@ _cogl_driver_pixel_format_to_gl (CoglContext     *context,
     case COGL_PIXEL_FORMAT_RG_88:
       if (cogl_has_feature (context, COGL_FEATURE_ID_TEXTURE_RG))
         {
-          glintformat = GL_RG8_EXT;
+          glintformat = GL_RG8;
           glformat = GL_RG;
           gltype = GL_UNSIGNED_BYTE;
         }
@@ -248,8 +257,13 @@ _cogl_driver_pixel_format_to_gl (CoglContext     *context,
       if (_cogl_has_private_feature
           (context, COGL_PRIVATE_FEATURE_TEXTURE_FORMAT_BGRA8888))
         {
-          glintformat = GL_BGRA_EXT;
-          glformat = GL_BGRA_EXT;
+          /* Using the sized internal format GL_BGRA8 only become possible on
+           * 23/06/2024 (https://registry.khronos.org/OpenGL/extensions/EXT/EXT_texture_format_BGRA8888.txt).
+           * When support has propagated to more drivers, we should start
+           * using GL_BGRA8 again.
+           */
+          glintformat = GL_BGRA;
+          glformat = GL_BGRA;
           gltype = GL_UNSIGNED_BYTE;
         }
       else
@@ -356,7 +370,6 @@ _cogl_driver_pixel_format_to_gl (CoglContext     *context,
                                          &gltype);
       break;
 
-    case COGL_PIXEL_FORMAT_RGBX_FP_16161616:
     case COGL_PIXEL_FORMAT_RGBA_FP_16161616:
     case COGL_PIXEL_FORMAT_RGBA_FP_16161616_PRE:
       if (cogl_has_feature (context, COGL_FEATURE_ID_TEXTURE_HALF_FLOAT))
@@ -371,14 +384,23 @@ _cogl_driver_pixel_format_to_gl (CoglContext     *context,
         }
       break;
 
+    case COGL_PIXEL_FORMAT_RGBX_FP_16161616:
     case COGL_PIXEL_FORMAT_BGRX_FP_16161616:
-    case COGL_PIXEL_FORMAT_BGRA_FP_16161616:
     case COGL_PIXEL_FORMAT_XRGB_FP_16161616:
-    case COGL_PIXEL_FORMAT_ARGB_FP_16161616:
     case COGL_PIXEL_FORMAT_XBGR_FP_16161616:
-    case COGL_PIXEL_FORMAT_ABGR_FP_16161616:
+      required_format =
+        _cogl_driver_pixel_format_to_gl (context,
+                                         COGL_PIXEL_FORMAT_RGBA_FP_16161616_PRE,
+                                         &glintformat,
+                                         &glformat,
+                                         &gltype);
+      break;
+
+    case COGL_PIXEL_FORMAT_BGRA_FP_16161616:
     case COGL_PIXEL_FORMAT_BGRA_FP_16161616_PRE:
+    case COGL_PIXEL_FORMAT_ARGB_FP_16161616:
     case COGL_PIXEL_FORMAT_ARGB_FP_16161616_PRE:
+    case COGL_PIXEL_FORMAT_ABGR_FP_16161616:
     case COGL_PIXEL_FORMAT_ABGR_FP_16161616_PRE:
       required_format =
         _cogl_driver_pixel_format_to_gl (context,

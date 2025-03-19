@@ -345,6 +345,12 @@ meta_wayland_drag_grab_get_device (MetaWaylandDragGrab    *drag_grab,
   return drag_grab->device;
 }
 
+MetaWaylandSurface *
+meta_wayland_drag_grab_get_origin (MetaWaylandDragGrab *drag_grab)
+{
+  return drag_grab->drag_origin;
+}
+
 static void
 data_source_update_user_dnd_action (MetaWaylandDataSource *source,
                                     ClutterModifierType    modifiers)
@@ -1061,8 +1067,7 @@ data_device_set_selection (struct wl_client   *client,
         }
     }
 
-  if (wl_resource_get_client (resource) !=
-      meta_wayland_seat_get_input_focus_client (seat))
+  if (wl_resource_get_client (resource) != data_device->focus_client)
     {
       if (source)
         meta_wayland_data_source_cancel (source);
@@ -1098,16 +1103,9 @@ owner_changed_cb (MetaSelection         *selection,
                   MetaSelectionSource   *new_owner,
                   MetaWaylandDataDevice *data_device)
 {
-  MetaDisplay *display = meta_selection_get_display (selection);
-  MetaContext *context = meta_display_get_context (display);
-  MetaWaylandCompositor *compositor =
-    meta_context_get_wayland_compositor (context);
-  MetaWaylandSeat *seat = compositor->seat;
   struct wl_resource *data_device_resource;
-  struct wl_client *focus_client;
 
-  focus_client = meta_wayland_seat_get_input_focus_client (seat);
-  if (!focus_client)
+  if (!data_device->focus_client)
     return;
 
   if (selection_type == META_SELECTION_CLIPBOARD)
@@ -1249,13 +1247,15 @@ create_and_send_clipboard_offer (MetaWaylandDataDevice *data_device,
 }
 
 void
-meta_wayland_data_device_sync_focus (MetaWaylandDataDevice *data_device)
+meta_wayland_data_device_set_focus (MetaWaylandDataDevice *data_device,
+                                    MetaWaylandSurface    *surface)
 {
   MetaWaylandSeat *seat = wl_container_of (data_device, seat, data_device);
-  struct wl_client *focus_client;
+  struct wl_client *focus_client = NULL;
   struct wl_resource *data_device_resource;
 
-  focus_client = meta_wayland_seat_get_input_focus_client (seat);
+  if (surface)
+    focus_client = wl_resource_get_client (surface->resource);
 
   if (focus_client == data_device->focus_client)
     return;

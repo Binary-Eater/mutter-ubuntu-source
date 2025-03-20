@@ -67,7 +67,6 @@ typedef struct _CrtcDeadline
   MetaKmsCrtc *crtc;
   MetaKmsUpdate *pending_update;
   gboolean await_flush;
-  gboolean need_schedule;
   gboolean pending_page_flip;
 
   struct {
@@ -1383,6 +1382,9 @@ ensure_deadline_timer_armed (MetaKmsImplDevice *impl_device,
   if (crtc_frame->deadline.armed)
     return TRUE;
 
+  if (!meta_kms_crtc_get_current_state (crtc_frame->crtc)->is_drm_mode_valid)
+    return FALSE;
+
   if (!meta_kms_crtc_determine_deadline (crtc_frame->crtc,
                                          &next_deadline_us,
                                          &next_presentation_us,
@@ -1398,7 +1400,7 @@ ensure_deadline_timer_armed (MetaKmsImplDevice *impl_device,
 
           priv->deadline_timer_state = META_DEADLINE_TIMER_STATE_INHIBITED;
         }
-      else if (!g_error_matches (local_error, G_IO_ERROR, G_IO_ERROR_NOT_FOUND))
+      else
         {
           g_warning ("Failed to determine deadline: %s", local_error->message);
           priv->deadline_timer_state = META_DEADLINE_TIMER_STATE_DISABLED;
@@ -1422,7 +1424,7 @@ notify_crtc_frame_ready (CrtcFrame *crtc_frame)
   crtc_frame->pending_page_flip = FALSE;
   crtc_frame->deadline.is_deadline_page_flip = FALSE;
 
-  if (!crtc_frame->pending_update && !crtc_frame->need_schedule)
+  if (!crtc_frame->pending_update)
     return;
 
   if (crtc_frame->await_flush)
@@ -2069,19 +2071,25 @@ meta_kms_impl_device_schedule_process (MetaKmsImplDevice *impl_device,
 
   crtc_frame = ensure_crtc_frame (impl_device, crtc);
 
-  if (crtc_frame->pending_page_flip)
-    {
-      crtc_frame->need_schedule = TRUE;
-      return;
-    }
-  crtc_frame->need_schedule = FALSE;
-
   if (crtc_frame->await_flush)
     return;
 
-  if (is_using_deadline_timer (impl_device) &&
-      ensure_deadline_timer_armed (impl_device, crtc_frame))
-    return;
+  if (is_using_deadline_timer (impl_device))
+    {
+      if (crtc_frame->pending_page_flip)
+        return;
+
+      if (ensure_deadline_timer_armed (impl_device, crtc_frame))
+        return;
+    }
+  else if (crtc_frame->pending_update)
+    {
+      MetaKmsImplDevicePrivate *priv =
+        meta_kms_impl_device_get_instance_private (impl_device);
+
+      g_warning_once ("crtc_frame->pending_update=%p, deadline_timer_state=%d",
+                      crtc_frame->pending_update, priv->deadline_timer_state);
+    }
 
   if (crtc_frame->pending_update)
     {
@@ -2089,7 +2097,6 @@ meta_kms_impl_device_schedule_process (MetaKmsImplDevice *impl_device,
                                               crtc_frame->crtc,
                                               crtc_frame->pending_update,
                                               META_KMS_UPDATE_FLAG_NONE);
-      return;
     }
 
   meta_kms_device_set_needs_flush (meta_kms_crtc_get_device (crtc), crtc);

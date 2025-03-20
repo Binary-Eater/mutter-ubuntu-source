@@ -143,7 +143,7 @@ subdir('wayland-test-clients')
 test_env = environment()
 
 test_env_variables = {
-  'G_TEST_SRCDIR': mutter_srcdir / 'src',
+  'G_TEST_SRCDIR': mutter_srcdir / 'src' / 'tests',
   'G_TEST_BUILDDIR': mutter_builddir / 'src' / 'tests',
   'XDG_CONFIG_HOME': mutter_builddir / '.config',
   'MUTTER_TEST_PLUGIN_PATH': '@0@'.format(default_plugin.full_path()),
@@ -265,6 +265,7 @@ test_cases += [
   {
     'name': 'monitor-unit',
     'suite': 'backend',
+    'timeout': 300,
     'sources': [ 'monitor-unit-tests.c', ],
     'depends': [
       test_client,
@@ -514,6 +515,14 @@ test_cases += [
     ],
   },
   {
+    'name': 'cursor-overlay-tests',
+    'suite': 'backends/native',
+    'sources': [
+      'cursor-overlay-tests.c',
+      wayland_test_utils,
+    ],
+  },
+  {
     'name': 'cursor-tests',
     'suite': 'backends/native',
     'sources': [
@@ -758,6 +767,7 @@ wayland_test_cases = [
     'depends': [
       test_client,
       test_client_executables.get('buffer-transform'),
+      test_client_executables.get('cursor-shape'),
       test_client_executables.get('dma-buf-scanout'),
       test_client_executables.get('fractional-scale'),
       test_client_executables.get('fullscreen'),
@@ -882,7 +892,7 @@ foreach test_case: test_cases
     env: test_env,
     depends: test_depends,
     is_parallel: false,
-    timeout: 60,
+    timeout: test_case.get('timeout', 60),
   )
 endforeach
 
@@ -1092,6 +1102,7 @@ if have_installed_tests
     stacking_installed_tests_cdata = configuration_data()
     stacking_installed_tests_cdata.set('apiversion', libmutter_api_version)
     stacking_installed_tests_cdata.set('libexecdir', libexecdir)
+    stacking_installed_tests_cdata.set('pkgdatadir', pkgdatadir)
     stacking_installed_tests_cdata.set('tests_datadir', tests_datadir)
     stacking_installed_tests_cdata.set('stacking_test', stacking_test)
 

@@ -248,7 +248,8 @@ meta_cursor_renderer_native_prepare_frame (MetaCursorRendererNative *cursor_rend
     {
       meta_cursor_renderer_emit_painted (cursor_renderer,
                                          cursor_sprite,
-                                         CLUTTER_STAGE_VIEW (view));
+                                         CLUTTER_STAGE_VIEW (view),
+                                         frame->frame_count);
       cursor_stage_view->needs_emit_painted = FALSE;
     }
 }
@@ -363,15 +364,10 @@ meta_cursor_renderer_native_update_cursor (MetaCursorRenderer *cursor_renderer,
           !is_hw_cursor_available_for_gpu (META_GPU_KMS (gpu)) ||
           !meta_crtc_native_is_hw_cursor_supported (crtc_native))
         {
-          if (cursor_stage_view->has_hw_cursor)
-            {
-              meta_stage_view_uninhibit_cursor_overlay (view);
-              cursor_stage_view->has_hw_cursor = FALSE;
-            }
-          continue;
+          cursor_stage_view->is_hw_cursor_valid = TRUE;
+          has_hw_cursor = FALSE;
         }
-
-      if (cursor_sprite && !meta_backend_is_hw_cursors_inhibited (backend))
+      else if (cursor_sprite && !meta_backend_is_hw_cursors_inhibited (backend))
         {
           meta_cursor_sprite_realize_texture (cursor_sprite);
 
@@ -1182,8 +1178,9 @@ realize_cursor_sprite_from_wl_buffer_for_crtc (MetaCursorRenderer      *renderer
 
       if (!supports_exact_cursor_size (crtc_kms, width, height))
         {
-          g_warning ("Invalid cursor size %ux%u, falling back to SW GL cursors)",
-                     width, height);
+          meta_topic (META_DEBUG_KMS,
+                      "Invalid cursor size %ux%u, falling back to SW GL cursors)",
+                      width, height);
           return FALSE;
         }
 

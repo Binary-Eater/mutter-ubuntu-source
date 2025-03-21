@@ -91,12 +91,14 @@ class Transform(NamedEnum):
 class LayoutMode(NamedEnum):
     LOGICAL = 1
     PHYSICAL = 2
+    GLOBAL_UI_LOGICAL = 3
 
     @classmethod
     def enum_names(cls):
         return [
             (LayoutMode.LOGICAL, "logical"),
             (LayoutMode.PHYSICAL, "physical"),
+            (LayoutMode.GLOBAL_UI_LOGICAL, "global-ui-logical"),
         ]
 
 

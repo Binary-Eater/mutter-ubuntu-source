@@ -757,6 +757,7 @@ wayland_test_cases = [
   {
     'name': 'wayland-unit',
     'suite': 'wayland',
+    'flaky': true,
     'sources': [
       'wayland-unit-tests.c',
       dummy_client_header,

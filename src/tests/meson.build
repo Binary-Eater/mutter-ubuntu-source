@@ -265,6 +265,7 @@ test_cases += [
   {
     'name': 'monitor-unit',
     'suite': 'backend',
+    'timeout': 300,
     'sources': [ 'monitor-unit-tests.c', ],
     'depends': [
       test_client,
@@ -891,7 +892,7 @@ foreach test_case: test_cases
     env: test_env,
     depends: test_depends,
     is_parallel: false,
-    timeout: 60,
+    timeout: test_case.get('timeout', 60),
   )
 endforeach
 

@@ -1,0 +1,8 @@
+  [ Alessandro Astone ]
+  * Backport patches to fix crash when closing apps with subsurfaces
+    (LP: #2093237)
+  * Backport patches to fix drag&drop from X11 to Wayland windows
+    (LP: #2097415)
+  * Backport patches to fix possibly out of sync selection (LP: #2085634)
+  * Backport patches to fix handling of pixel formats with no alpha, which
+    fixes rendering of dialogs in IntelliJ IDEA. (LP: #2099879)

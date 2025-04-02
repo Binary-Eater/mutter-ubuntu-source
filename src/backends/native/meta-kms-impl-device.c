@@ -231,7 +231,7 @@ meta_kms_impl_device_has_cursor_plane_for (MetaKmsImplDevice *impl_device,
   return FALSE;
 }
 
-const MetaKmsDeviceCaps *
+MetaKmsDeviceCaps *
 meta_kms_impl_device_get_caps (MetaKmsImplDevice *impl_device)
 {
   MetaKmsImplDevicePrivate *priv =
@@ -2081,22 +2081,23 @@ meta_kms_impl_device_schedule_process (MetaKmsImplDevice *impl_device,
 
       if (ensure_deadline_timer_armed (impl_device, crtc_frame))
         return;
+
+      if (crtc_frame->pending_update)
+        {
+          meta_kms_impl_device_do_process_update (impl_device, crtc_frame,
+                                                  crtc_frame->crtc,
+                                                  crtc_frame->pending_update,
+                                                  META_KMS_UPDATE_FLAG_NONE);
+        }
     }
-  else if (crtc_frame->pending_update)
+
+  if (crtc_frame->pending_update)
     {
       MetaKmsImplDevicePrivate *priv =
         meta_kms_impl_device_get_instance_private (impl_device);
 
       g_warning_once ("crtc_frame->pending_update=%p, deadline_timer_state=%d",
                       crtc_frame->pending_update, priv->deadline_timer_state);
-    }
-
-  if (crtc_frame->pending_update)
-    {
-      meta_kms_impl_device_do_process_update (impl_device, crtc_frame,
-                                              crtc_frame->crtc,
-                                              crtc_frame->pending_update,
-                                              META_KMS_UPDATE_FLAG_NONE);
     }
 
   meta_kms_device_set_needs_flush (meta_kms_crtc_get_device (crtc), crtc);

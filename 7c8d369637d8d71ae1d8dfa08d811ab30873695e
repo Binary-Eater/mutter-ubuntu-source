@@ -1,0 +1,2 @@
+  * Add cursor-sprite-xcursor-Reset-current_frame-only-if-xcursor.patch
+    to fix animated cursors (LP: #2106097)

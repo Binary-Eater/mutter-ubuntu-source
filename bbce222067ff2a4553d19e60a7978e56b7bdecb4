@@ -1,0 +1,3 @@
+  * Add wayland-xdg-shell-Check-for-NULL-xdg_popup-resource.patch and
+    wayland-xdg-shell-Check-popup-resource-for-parent-unmappe.patch to fix
+    popup crashes (LP: #2043177)

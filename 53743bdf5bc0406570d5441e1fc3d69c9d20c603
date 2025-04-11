@@ -1,0 +1,2 @@
+  * Add clutter-Repick-actors-when-touches-emulate-button-clicks.patch
+    to resolve touchscreen problems on X11 (LP: #2063005, LP: #1904237)

@@ -50,6 +50,7 @@
 #include "wayland/meta-wayland-seat.h"
 #include "wayland/meta-wayland-toplevel-drag.h"
 #include "wayland/meta-wayland-types.h"
+#include "wayland/meta-xwayland-dnd-private.h"
 
 #define ROOTWINDOW_DROP_MIME "application/x-rootwindow-drop"
 
@@ -230,6 +231,12 @@ meta_wayland_drag_grab_set_cursor (MetaWaylandDragGrab *drag_grab,
     meta_backend_get_cursor_tracker (backend);
   g_autoptr (MetaCursorSprite) cursor_sprite = NULL;
   MetaCursorRenderer *cursor_renderer;
+
+#ifdef HAVE_X11_CLIENT
+  /* X11 DnD lets the drag source client drive pointer cursor updates */
+  if (META_IS_WAYLAND_DATA_SOURCE_XWAYLAND (drag_grab->drag_data_source))
+    return;
+#endif
 
   cursor_sprite =
     META_CURSOR_SPRITE (meta_cursor_sprite_xcursor_new (cursor, cursor_tracker));
@@ -446,6 +453,8 @@ data_device_end_drag_grab (MetaWaylandDragGrab *drag_grab)
   MetaDisplay *display = display_from_data_device (data_device);
   MetaCompositor *compositor = meta_display_get_compositor (display);
 
+  meta_wayland_drag_grab_set_cursor (drag_grab, META_CURSOR_DEFAULT);
+
   meta_wayland_drag_grab_set_source (drag_grab, NULL);
   meta_wayland_drag_grab_set_focus (drag_grab, NULL);
 
@@ -478,7 +487,6 @@ data_device_end_drag_grab (MetaWaylandDragGrab *drag_grab)
       drag_grab->handler = NULL;
     }
 
-  meta_wayland_drag_grab_set_cursor (drag_grab, META_CURSOR_DEFAULT);
   meta_dnd_wayland_handle_end_modal (compositor);
 
   g_free (drag_grab);

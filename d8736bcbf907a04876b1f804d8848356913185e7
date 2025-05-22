@@ -1,0 +1,4 @@
+  [ Carlos Garnacho ]
+  * d/p/u/cursor-drag-and-drop.patch: Fixes cursor stuck in incorrect state
+    after attempt to drag and drop text inside the application's window.
+    https://bugzilla.mozilla.org/show_bug.cgi?id=1699942

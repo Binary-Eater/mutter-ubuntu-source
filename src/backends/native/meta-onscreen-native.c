@@ -369,7 +369,11 @@ page_flip_feedback_discarded (MetaKmsCrtc  *kms_crtc,
   if (error &&
       !g_error_matches (error,
                         G_IO_ERROR,
-                        G_IO_ERROR_PERMISSION_DENIED))
+                        G_IO_ERROR_PERMISSION_DENIED) &&
+      !g_error_matches (error,
+                        META_KMS_ERROR,
+                        META_KMS_ERROR_DISCARDED))
+
     g_warning ("Page flip discarded: %s", error->message);
 
   frame_info = cogl_onscreen_peek_head_frame_info (onscreen);
@@ -1701,7 +1705,7 @@ meta_onscreen_native_is_buffer_scanout_compatible (CoglOnscreen *onscreen,
   assign_primary_plane (crtc_kms,
                         buffer,
                         test_update,
-                        META_KMS_ASSIGN_PLANE_FLAG_DIRECT_SCANOUT,
+                        META_KMS_ASSIGN_PLANE_FLAG_DISABLE_IMPLICIT_SYNC,
                         &src_rect,
                         &dst_rect);
 
@@ -1781,6 +1785,7 @@ meta_onscreen_native_direct_scanout (CoglOnscreen   *onscreen,
   MetaKmsCrtc *kms_crtc;
   MetaKmsDevice *kms_device;
   MetaKmsUpdate *kms_update;
+  int sync_fd;
 
   power_save_mode = meta_monitor_manager_get_power_save_mode (monitor_manager);
   if (power_save_mode != META_POWER_SAVE_ON)
@@ -1843,7 +1848,7 @@ meta_onscreen_native_direct_scanout (CoglOnscreen   *onscreen,
                                   onscreen_native->view,
                                   onscreen_native->crtc,
                                   kms_update,
-                                  META_KMS_ASSIGN_PLANE_FLAG_DIRECT_SCANOUT,
+                                  META_KMS_ASSIGN_PLANE_FLAG_DISABLE_IMPLICIT_SYNC,
                                   NULL,
                                   0);
 
@@ -1853,6 +1858,8 @@ meta_onscreen_native_direct_scanout (CoglOnscreen   *onscreen,
               meta_kms_device_get_path (kms_device));
 
   kms_update = meta_frame_native_steal_kms_update (frame_native);
+  sync_fd = cogl_context_get_latest_sync_fd (cogl_context);
+  meta_kms_update_set_sync_fd (kms_update, sync_fd);
   meta_kms_device_post_update (kms_device, kms_update,
                                META_KMS_UPDATE_FLAG_NONE);
   clutter_frame_set_result (frame, CLUTTER_FRAME_RESULT_PENDING_PRESENTED);
@@ -2250,8 +2257,8 @@ get_supported_egl_modifiers (CoglOnscreen *onscreen,
   MetaRenderDevice *render_device;
   EGLDisplay egl_display;
   EGLint num_modifiers;
-  GArray *modifiers;
-  GError *error = NULL;
+  g_autofree EGLuint64KHR *modifiers = NULL;
+  g_autoptr (GError) error = NULL;
   gboolean ret;
 
   gpu = meta_crtc_get_gpu (META_CRTC (crtc_kms));
@@ -2271,22 +2278,20 @@ get_supported_egl_modifiers (CoglOnscreen *onscreen,
   if (!ret || num_modifiers == 0)
     return NULL;
 
-  modifiers = g_array_sized_new (FALSE, FALSE, sizeof (uint64_t),
-                                 num_modifiers);
+  modifiers = g_new (typeof (*modifiers), num_modifiers);
   ret = meta_egl_query_dma_buf_modifiers (egl, egl_display,
                                           format, num_modifiers,
-                                          (EGLuint64KHR *) modifiers->data, NULL,
+                                          modifiers, NULL,
                                           &num_modifiers, &error);
 
   if (!ret)
     {
       g_warning ("Failed to query DMABUF modifiers: %s", error->message);
-      g_error_free (error);
-      g_array_free (modifiers, TRUE);
       return NULL;
     }
 
-  return modifiers;
+  return g_array_new_take (g_steal_pointer (&modifiers), num_modifiers, FALSE,
+                           sizeof (*modifiers));
 }
 
 static GArray *

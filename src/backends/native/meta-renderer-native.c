@@ -1661,7 +1661,6 @@ all_primary_planes_support_format (MetaCrtcKms *crtc_kms,
   return supported;
 }
 
-
 static gboolean
 create_secondary_egl_config (MetaEgl                    *egl,
                              MetaRendererNativeGpuData  *renderer_gpu_data,
@@ -2218,6 +2217,22 @@ choose_primary_gpu_unchecked (MetaBackend        *backend,
             META_KMS_DEVICE_FLAG_PREFERRED_PRIMARY)
           {
             g_message ("GPU %s selected primary given udev rule",
+                       meta_gpu_kms_get_file_path (gpu_kms));
+            return gpu_kms;
+          }
+      }
+
+    /* Then prefer a GPU with a builtin panel connected to it. */
+    for (l = gpus; l; l = l->next)
+      {
+        MetaGpuKms *gpu_kms = META_GPU_KMS (l->data);
+        MetaKmsDevice *kms_device = meta_gpu_kms_get_kms_device (gpu_kms);
+
+        if (meta_kms_device_has_connected_builtin_panel (kms_device) &&
+            (allow_sw == 1 ||
+             gpu_kms_is_hardware_rendering (renderer_native, gpu_kms)))
+          {
+            g_message ("GPU %s selected primary from builtin panel presence",
                        meta_gpu_kms_get_file_path (gpu_kms));
             return gpu_kms;
           }

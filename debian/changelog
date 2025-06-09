@@ -1,3 +1,15 @@
+mutter (48.1-1ubuntu3.1) plucky; urgency=medium
+
+  [ Nathan Pratta Teodosio ]
+  * d/p/u/cursor-drag-and-drop.patch: Fixes cursor stuck in incorrect state
+    after attempt to drag and drop text inside the application's window.
+    https://bugzilla.mozilla.org/show_bug.cgi?id=1699942, LP: #2111502.
+
+  [ Alessandro Astone ]
+  * Fix crash seen when dismissing many notifications at once (LP: #2102063)
+
+ -- Daniel van Vugt <daniel.van.vugt@canonical.com>  Mon, 09 Jun 2025 16:28:56 +0800
+
 mutter (48.1-1ubuntu3) plucky; urgency=medium
 
   * Add wayland-xdg-shell-Check-for-NULL-xdg_popup-resource.patch and

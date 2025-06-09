@@ -16,6 +16,7 @@
  *
  */
 
+#include "backends/meta-monitor-manager-private.h"
 #include "config.h"
 
 #include "backends/meta-cursor-sprite-xcursor.h"
@@ -233,6 +234,8 @@ setup_test_case (int                           width,
                                                            width / 2.0f,
                                                            height / 2.0f);
       break;
+    case META_LOGICAL_MONITOR_LAYOUT_MODE_GLOBAL_UI_LOGICAL:
+      g_return_val_if_reached (NULL);
     }
 
   meta_flush_input (test_context);
@@ -249,6 +252,8 @@ layout_mode_to_string (MetaLogicalMonitorLayoutMode layout_mode)
     {
     case META_LOGICAL_MONITOR_LAYOUT_MODE_LOGICAL:
       return "logical";
+    case META_LOGICAL_MONITOR_LAYOUT_MODE_GLOBAL_UI_LOGICAL:
+      g_return_val_if_reached (NULL);
     case META_LOGICAL_MONITOR_LAYOUT_MODE_PHYSICAL:
       return "physical";
     }

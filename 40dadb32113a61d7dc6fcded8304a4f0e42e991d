@@ -1,0 +1,12 @@
+  [ Chun-Yi Wu ]
+  * Backport patches to fix AMD platform Nvidia dGPU screen freeze in
+    Wayland. It was seen as a screen freeze but actually just running on
+    the dGPU when that's not wired to the laptop display. (LP: #2111902)
+  [ Yao Wei (魏銘廷) ]
+  * d/p/wayland-Pass-latest-cogl-sync_fd-on-kms-update.patch:
+    Fix issue where glxgears runs slower than display refresh rate
+    (LP: #2111698)
+  [ Daniel van Vugt ]
+  * Add onscreen-native-Return-the-correct-number-of-EGL-modifier.patch
+    to fix multi-monitor reverse PRIME support on desktops where Nvidia is
+    primary and an integrated GPU is secondary. (LP: #1978905)

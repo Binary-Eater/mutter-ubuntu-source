@@ -48,9 +48,7 @@ typedef enum _MetaMonitorManagerCapability
 {
   META_MONITOR_MANAGER_CAPABILITY_NONE = 0,
   META_MONITOR_MANAGER_CAPABILITY_LAYOUT_MODE = (1 << 0),
-  META_MONITOR_MANAGER_CAPABILITY_GLOBAL_SCALE_REQUIRED = (1 << 1),
-  META_MONITOR_MANAGER_CAPABILITY_TILING = (1 << 2),
-  META_MONITOR_MANAGER_CAPABILITY_NATIVE_OUTPUT_SCALING = (1 << 3),
+  META_MONITOR_MANAGER_CAPABILITY_GLOBAL_SCALE_REQUIRED = (1 << 1)
 } MetaMonitorManagerCapability;
 
 /* Equivalent to the 'method' enum in org.gnome.Mutter.DisplayConfig */
@@ -65,8 +63,7 @@ typedef enum _MetaMonitorsConfigMethod
 typedef enum _MetaLogicalMonitorLayoutMode
 {
   META_LOGICAL_MONITOR_LAYOUT_MODE_LOGICAL = 1,
-  META_LOGICAL_MONITOR_LAYOUT_MODE_PHYSICAL = 2,
-  META_LOGICAL_MONITOR_LAYOUT_MODE_GLOBAL_UI_LOGICAL = 3
+  META_LOGICAL_MONITOR_LAYOUT_MODE_PHYSICAL = 2
 } MetaLogicalMonitorLayoutMode;
 
 /* The source the privacy screen change has been triggered */
@@ -89,7 +86,6 @@ struct _MetaCrtcAssignment
   MetaCrtc *crtc;
   MetaCrtcMode *mode;
   graphene_rect_t layout;
-  float scale;
   MtkMonitorTransform transform;
   GPtrArray *outputs;
 
@@ -158,7 +154,6 @@ struct _MetaMonitorManager
   int screen_height;
 
   GList *monitors;
-  GList *scale_override_monitors;
 
   GList *logical_monitors;
   MetaLogicalMonitor *primary_logical_monitor;
@@ -170,8 +165,6 @@ struct _MetaMonitorManager
   guint panel_orientation_managed : 1;
 
   MetaMonitorConfigManager *config_manager;
-
-  gulong experimental_features_changed_handler_id;
 
   MetaMonitorSwitchConfigType current_switch_config;
 
@@ -189,9 +182,6 @@ struct _MetaMonitorManager
  *
  * @apply_monitors_config: Tries to apply the given config using the given
  *   method. Throws an error if something went wrong.
- *
- * @update_screen_size_derived: Computes the screen size for derived
- *   configuration.
  *
  * @set_power_save_mode: Sets the #MetaPowerSave mode (for all displays).
  *
@@ -231,9 +221,6 @@ struct _MetaMonitorManagerClass
 
   void (* set_power_save_mode) (MetaMonitorManager *manager,
                                 MetaPowerSave       power_save);
-
-  void (*update_screen_size_derived)  (MetaMonitorManager *,
-                                       MetaMonitorsConfig *);
 
   void (* tiled_monitor_added) (MetaMonitorManager *manager,
                                 MetaMonitor        *monitor);
@@ -284,9 +271,6 @@ void                meta_monitor_manager_rebuild_derived (MetaMonitorManager *ma
 META_EXPORT_TEST
 int                 meta_monitor_manager_get_num_logical_monitors (MetaMonitorManager *manager);
 
-META_EXPORT_TEST
-GList *             meta_monitor_manager_get_logical_monitors (MetaMonitorManager *manager);
-
 MetaLogicalMonitor *meta_monitor_manager_get_logical_monitor_from_number (MetaMonitorManager *manager,
                                                                           int                 number);
 
@@ -310,16 +294,13 @@ MetaLogicalMonitor *meta_monitor_manager_get_logical_monitor_neighbor (MetaMonit
 MetaMonitor *       meta_monitor_manager_get_primary_monitor (MetaMonitorManager *manager);
 
 META_EXPORT_TEST
-MetaMonitor *       meta_monitor_manager_get_laptop_panel (MetaMonitorManager *manager);
+MetaMonitor *       meta_monitor_manager_get_builtin_monitor (MetaMonitorManager *manager);
 
 MetaMonitor *       meta_monitor_manager_get_monitor_from_spec (MetaMonitorManager *manager,
                                                                 MetaMonitorSpec    *monitor_spec);
 
 MetaMonitor *       meta_monitor_manager_get_monitor_from_connector (MetaMonitorManager *manager,
                                                                      const char         *connector);
-
-META_EXPORT_TEST
-GList *             meta_monitor_manager_get_monitors      (MetaMonitorManager *manager);
 
 void                meta_monitor_manager_get_screen_size   (MetaMonitorManager *manager,
                                                             int                *width,
@@ -358,14 +339,16 @@ MetaMonitorsConfig * meta_monitor_manager_ensure_configured (MetaMonitorManager 
 
 META_EXPORT_TEST
 void               meta_monitor_manager_update_logical_state (MetaMonitorManager *manager,
-                                                              MetaMonitorsConfig *config);
+                                                              MetaMonitorsConfig *config,
+                                                              MtkDisposeBin      *bin);
 
 void               meta_monitor_manager_update_for_lease_state (MetaMonitorManager *manager,
                                                                 MetaMonitorsConfig *config);
 
 META_EXPORT_TEST
 void               meta_monitor_manager_update_logical_state_derived (MetaMonitorManager *manager,
-                                                                      MetaMonitorsConfig *config);
+                                                                      MetaMonitorsConfig *config,
+                                                                      MtkDisposeBin      *bin);
 
 META_EXPORT_TEST
 void               meta_monitor_manager_lid_is_closed_changed (MetaMonitorManager *manager);
@@ -388,11 +371,6 @@ gboolean           meta_monitor_manager_is_scale_supported (MetaMonitorManager  
                                                             MetaMonitor                 *monitor,
                                                             MetaMonitorMode             *monitor_mode,
                                                             float                        scale);
-
-float              meta_monitor_manager_get_maximum_crtc_scale (MetaMonitorManager *manager);
-
-gboolean           meta_monitor_manager_disable_scale_for_monitor (MetaMonitorManager *manager,
-                                                                   MetaLogicalMonitor *monitor);
 
 MetaMonitorManagerCapability
                    meta_monitor_manager_get_capabilities (MetaMonitorManager *manager);
@@ -450,3 +428,6 @@ gboolean meta_monitor_manager_apply_monitors_config (MetaMonitorManager        *
                                                      GError                   **error);
 
 MetaLogicalMonitorLayoutMode meta_monitor_manager_get_layout_mode (MetaMonitorManager *manager);
+
+MetaOutput * meta_monitor_manager_find_output (MetaMonitorManager *monitor_manager,
+                                               MetaOutput         *old_output);

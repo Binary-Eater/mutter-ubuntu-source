@@ -24,7 +24,7 @@
 #include <gio/gio.h>
 
 #include "backends/meta-backend-private.h"
-#include "backends/meta-logical-monitor.h"
+#include "backends/meta-logical-monitor-private.h"
 #include "backends/meta-monitor-manager-private.h"
 
 #ifndef XWAYLAND_GRAB_DEFAULT_ACCESS_RULES
@@ -37,10 +37,8 @@ enum
   UI_SCALING_FACTOR_CHANGED,
   GLOBAL_SCALING_FACTOR_CHANGED,
   FONT_DPI_CHANGED,
-  X11_SCALE_MODE_CHANGED,
   EXPERIMENTAL_FEATURES_CHANGED,
   PRIVACY_SCREEN_CHANGED,
-  OUTPUT_LUMINANCE_CHANGED,
 
   N_SIGNALS
 };
@@ -65,7 +63,6 @@ struct _MetaSettings
   GSettings *mutter_settings;
   GSettings *privacy_settings;
   GSettings *wayland_settings;
-  GSettings *x11_settings;
 
   int ui_scaling_factor;
   int global_scaling_factor;
@@ -86,10 +83,6 @@ struct _MetaSettings
 
   /* Whether Xwayland should allow X11 clients from different endianness */
   gboolean xwayland_allow_byte_swapped_clients;
-
-  GPtrArray *output_luminance;
-
-  MetaX11ScaleMode x11_scale_mode;
 };
 
 G_DEFINE_TYPE (MetaSettings, meta_settings, G_TYPE_OBJECT)
@@ -99,40 +92,14 @@ calculate_ui_scaling_factor (MetaSettings *settings)
 {
   MetaMonitorManager *monitor_manager =
     meta_backend_get_monitor_manager (settings->backend);
+  MetaLogicalMonitor *primary_logical_monitor;
 
-  if (!meta_is_wayland_compositor () &&
-      monitor_manager &&
-      (meta_monitor_manager_get_capabilities (monitor_manager) &
-       META_MONITOR_MANAGER_CAPABILITY_LAYOUT_MODE))
-    {
-      MetaLogicalMonitorLayoutMode layout_mode =
-        meta_monitor_manager_get_default_layout_mode (monitor_manager);
+  primary_logical_monitor =
+    meta_monitor_manager_get_primary_logical_monitor (monitor_manager);
+  if (!primary_logical_monitor)
+    return 1;
 
-      if (layout_mode == META_LOGICAL_MONITOR_LAYOUT_MODE_GLOBAL_UI_LOGICAL)
-        {
-          float max_scale =
-            meta_monitor_manager_get_maximum_crtc_scale (monitor_manager);
-          return (int) ceilf (max_scale);
-        }
-      else if (layout_mode == META_LOGICAL_MONITOR_LAYOUT_MODE_LOGICAL)
-        {
-          return 1.0f;
-        }
-    }
-
-  if (monitor_manager)
-    {
-      MetaLogicalMonitor *primary_logical_monitor;
-
-      primary_logical_monitor =
-        meta_monitor_manager_get_primary_logical_monitor (monitor_manager);
-      if (!primary_logical_monitor)
-        return 1;
-
-      return (int) meta_logical_monitor_get_scale (primary_logical_monitor);
-    }
-
-  return 1;
+  return (int) meta_logical_monitor_get_scale (primary_logical_monitor);
 }
 
 static gboolean
@@ -303,76 +270,6 @@ meta_settings_override_experimental_features (MetaSettings *settings)
   settings->experimental_features_overridden = TRUE;
 }
 
-static gboolean
-update_x11_scale_mode (MetaSettings *settings)
-{
-  MetaX11ScaleMode scale_mode;
-
-  if (!(settings->experimental_features &
-        META_EXPERIMENTAL_FEATURE_X11_RANDR_FRACTIONAL_SCALING))
-    {
-      scale_mode = META_X11_SCALE_MODE_NONE;
-    }
-  else
-    {
-      scale_mode =
-        g_settings_get_enum (settings->x11_settings, "fractional-scale-mode");
-    }
-
-  if (settings->x11_scale_mode != scale_mode)
-    {
-      settings->x11_scale_mode = scale_mode;
-      return TRUE;
-    }
-
-  return FALSE;
-}
-
-void meta_settings_enable_x11_fractional_scaling (MetaSettings *settings,
-                                                  gboolean      enable)
-{
-  g_auto(GStrv) existing_features = NULL;
-  gboolean have_fractional_scaling = FALSE;
-  g_autoptr(GVariantBuilder) builder = NULL;
-  MetaExperimentalFeature old_experimental_features;
-
-  if (enable == meta_settings_is_experimental_feature_enabled (settings,
-        META_EXPERIMENTAL_FEATURE_X11_RANDR_FRACTIONAL_SCALING))
-    return;
-
-  /* Change the internal value now, as we don't want to wait for gsettings */
-  old_experimental_features = settings->experimental_features;
-  settings->experimental_features |=
-    META_EXPERIMENTAL_FEATURE_X11_RANDR_FRACTIONAL_SCALING;
-
-  update_x11_scale_mode (settings);
-
-  g_signal_emit (settings, signals[EXPERIMENTAL_FEATURES_CHANGED], 0,
-                   (unsigned int) old_experimental_features);
-
-  /* Add or remove the fractional scaling feature from mutter */
-  existing_features = g_settings_get_strv (settings->mutter_settings,
-                                           "experimental-features");
-  builder = g_variant_builder_new (G_VARIANT_TYPE ("as"));
-  for (int i = 0; existing_features[i] != NULL; i++)
-    {
-      if (g_strcmp0 (existing_features[i], "x11-randr-fractional-scaling") == 0)
-        {
-          if (enable)
-            have_fractional_scaling = TRUE;
-          else
-            continue;
-        }
-
-      g_variant_builder_add (builder, "s", existing_features[i]);
-    }
-  if (enable && !have_fractional_scaling)
-    g_variant_builder_add (builder, "s", "x11-randr-fractional-scaling");
-
-  g_settings_set_value (settings->mutter_settings, "experimental-features",
-                        g_variant_builder_end (builder));
-}
-
 void
 meta_settings_enable_experimental_feature (MetaSettings           *settings,
                                            MetaExperimentalFeature feature)
@@ -380,9 +277,6 @@ meta_settings_enable_experimental_feature (MetaSettings           *settings,
   g_assert (settings->experimental_features_overridden);
 
   settings->experimental_features |= feature;
-
-  if (update_x11_scale_mode (settings))
-    g_signal_emit (settings, signals[X11_SCALE_MODE_CHANGED], 0, NULL);
 }
 
 static gboolean
@@ -416,8 +310,6 @@ experimental_features_handler (GVariant *features_variant,
         feature = META_EXPERIMENTAL_FEATURE_VARIABLE_REFRESH_RATE;
       else if (g_str_equal (feature_str, "xwayland-native-scaling"))
         feature = META_EXPERIMENTAL_FEATURE_XWAYLAND_NATIVE_SCALING;
-      else if (g_str_equal (feature_str, "x11-randr-fractional-scaling"))
-        feature = META_EXPERIMENTAL_FEATURE_X11_RANDR_FRACTIONAL_SCALING;
 
       if (feature)
         g_message ("Enabling experimental feature '%s'", feature_str);
@@ -430,7 +322,6 @@ experimental_features_handler (GVariant *features_variant,
   if (features != settings->experimental_features)
     {
       settings->experimental_features = features;
-      update_x11_scale_mode (settings);
       *result = GINT_TO_POINTER (TRUE);
     }
   else
@@ -450,210 +341,6 @@ update_experimental_features (MetaSettings *settings)
                                                  settings));
 }
 
-typedef struct _LuminanceEntry
-{
-  MetaMonitorSpec *monitor_spec;
-  MetaColorMode color_mode;
-  double luminance;
-} LuminanceEntry;
-
-static void
-luminance_entry_free (LuminanceEntry *entry)
-{
-  g_clear_pointer (&entry->monitor_spec, meta_monitor_spec_free);
-  g_free (entry);
-}
-
-static LuminanceEntry *
-luminance_entry_new (const MetaMonitorSpec *monitor_spec,
-                     MetaColorMode          color_mode,
-                     double                 luminance)
-{
-  LuminanceEntry *entry;
-
-  entry = g_new0 (LuminanceEntry, 1);
-  entry->monitor_spec = meta_monitor_spec_clone (monitor_spec);
-  entry->color_mode = color_mode;
-  entry->luminance = luminance;
-
-  return entry;
-}
-
-static gboolean
-luminance_entry_matches (LuminanceEntry        *entry,
-                         const MetaMonitorSpec *monitor_spec,
-                         MetaColorMode          color_mode)
-{
-  return (meta_monitor_spec_equals (entry->monitor_spec, monitor_spec) &&
-          entry->color_mode == color_mode);
-}
-
-static LuminanceEntry *
-find_luminance_entry (MetaSettings          *settings,
-                      const MetaMonitorSpec *monitor_spec,
-                      MetaColorMode          color_mode)
-{
-  size_t i;
-
-  for (i = 0; i < settings->output_luminance->len; i++)
-    {
-      LuminanceEntry *entry =
-        g_ptr_array_index (settings->output_luminance, i);
-
-      if (luminance_entry_matches (entry, monitor_spec, color_mode))
-        return entry;
-    }
-
-  return NULL;
-}
-
-gboolean
-meta_settings_has_output_luminance (MetaSettings          *settings,
-                                    const MetaMonitorSpec *monitor_spec,
-                                    MetaColorMode          color_mode)
-{
-  return !!find_luminance_entry (settings, monitor_spec, color_mode);
-}
-
-double
-meta_settings_get_output_luminance (MetaSettings          *settings,
-                                    const MetaMonitorSpec *monitor_spec,
-                                    MetaColorMode          color_mode)
-{
-  LuminanceEntry *entry;
-
-  entry = find_luminance_entry (settings, monitor_spec, color_mode);
-  if (entry)
-    return entry->luminance;
-
-  return meta_settings_get_default_output_luminance (settings,
-                                                     monitor_spec,
-                                                     color_mode);
-}
-
-double
-meta_settings_get_default_output_luminance (MetaSettings          *settings,
-                                            const MetaMonitorSpec *monitor_spec,
-                                            MetaColorMode          color_mode)
-{
-  return 100.0;
-}
-
-static void
-sync_luminance_settings (MetaSettings *settings)
-{
-  GVariantBuilder builder;
-  size_t i;
-
-  g_variant_builder_init (&builder, G_VARIANT_TYPE ("a(ssssud)"));
-
-  for (i = 0; i < settings->output_luminance->len; i++)
-    {
-      LuminanceEntry *entry =
-        g_ptr_array_index (settings->output_luminance, i);
-
-      g_variant_builder_add (&builder, "(ssssud)",
-                             entry->monitor_spec->connector,
-                             entry->monitor_spec->vendor,
-                             entry->monitor_spec->product,
-                             entry->monitor_spec->serial,
-                             entry->color_mode,
-                             entry->luminance);
-    }
-
-  g_settings_set_value (settings->mutter_settings,
-                        "output-luminance",
-                        g_variant_builder_end (&builder));
-}
-
-void
-meta_settings_set_output_luminance (MetaSettings          *settings,
-                                    const MetaMonitorSpec *monitor_spec,
-                                    MetaColorMode          color_mode,
-                                    double                 luminance)
-{
-  LuminanceEntry *entry;
-
-  entry = find_luminance_entry (settings, monitor_spec, color_mode);
-  if (entry)
-    {
-      entry->luminance = luminance;
-    }
-  else
-    {
-      entry = luminance_entry_new (monitor_spec, color_mode, luminance);
-      g_ptr_array_add (settings->output_luminance, entry);
-    }
-
-  sync_luminance_settings (settings);
-}
-
-void
-meta_settings_reset_output_luminance (MetaSettings          *settings,
-                                      const MetaMonitorSpec *monitor_spec,
-                                      MetaColorMode          color_mode)
-{
-  size_t i;
-
-  for (i = 0; i < settings->output_luminance->len; i++)
-    {
-      LuminanceEntry *entry = g_ptr_array_index (settings->output_luminance, i);
-
-      if (luminance_entry_matches (entry, monitor_spec, color_mode))
-        {
-          g_ptr_array_remove_index (settings->output_luminance, i);
-          break;
-        }
-    }
-
-  sync_luminance_settings (settings);
-}
-
-static void
-update_output_luminance_settings (MetaSettings *settings)
-{
-  g_autoptr (GVariant) output_luminance_variant = NULL;
-  GVariantIter iter;
-  char *connector;
-  char *vendor;
-  char *product;
-  char *serial;
-  uint32_t color_mode_value;
-  double luminance;
-
-  output_luminance_variant = g_settings_get_value (settings->mutter_settings,
-                                                   "output-luminance");
-  g_variant_iter_init (&iter, output_luminance_variant);
-
-  g_ptr_array_remove_range (settings->output_luminance,
-                            0,
-                            settings->output_luminance->len);
-
-  while (g_variant_iter_next (&iter,
-                              "(ssssud)",
-                              &connector, &vendor, &product, &serial,
-                              &color_mode_value,
-                              &luminance))
-    {
-      g_autoptr (MetaMonitorSpec) monitor_spec = NULL;
-      MetaColorMode color_mode = color_mode_value;
-      LuminanceEntry *entry;
-
-      monitor_spec = g_new0 (MetaMonitorSpec, 1);
-      *monitor_spec = (MetaMonitorSpec) {
-        .connector = connector,
-        .vendor = vendor,
-        .product = product,
-        .serial = serial
-      };
-
-      entry = luminance_entry_new (monitor_spec, color_mode, luminance);
-      g_ptr_array_add (settings->output_luminance, entry);
-    }
-
-  g_signal_emit (settings, signals[OUTPUT_LUMINANCE_CHANGED], 0);
-}
-
 static void
 mutter_settings_changed (GSettings    *mutter_settings,
                          gchar        *key,
@@ -667,10 +354,6 @@ mutter_settings_changed (GSettings    *mutter_settings,
       if (update_experimental_features (settings))
         g_signal_emit (settings, signals[EXPERIMENTAL_FEATURES_CHANGED], 0,
                        (unsigned int) old_experimental_features);
-    }
-  else if (g_str_equal (key, "output-luminance"))
-    {
-      update_output_luminance_settings (settings);
     }
 }
 
@@ -792,18 +475,6 @@ wayland_settings_changed (GSettings    *wayland_settings,
     }
 }
 
-static void
-x11_settings_changed (GSettings    *wayland_settings,
-                      gchar        *key,
-                      MetaSettings *settings)
-{
-  if (g_str_equal (key, "fractional-scale-mode"))
-    {
-      if (update_x11_scale_mode (settings))
-        g_signal_emit (settings, signals[X11_SCALE_MODE_CHANGED], 0, NULL);
-    }
-}
-
 void
 meta_settings_get_xwayland_grab_patterns (MetaSettings  *settings,
                                           GPtrArray    **allow_list_patterns,
@@ -849,12 +520,6 @@ meta_settings_set_privacy_screen_enabled (MetaSettings *settings,
                           enabled);
 }
 
-MetaX11ScaleMode
-meta_settings_get_x11_scale_mode (MetaSettings *settings)
-{
-  return settings->x11_scale_mode;
-}
-
 MetaSettings *
 meta_settings_new (MetaBackend *backend)
 {
@@ -875,13 +540,10 @@ meta_settings_dispose (GObject *object)
   g_clear_object (&settings->interface_settings);
   g_clear_object (&settings->privacy_settings);
   g_clear_object (&settings->wayland_settings);
-  g_clear_object (&settings->x11_settings);
   g_clear_pointer (&settings->xwayland_grab_allow_list_patterns,
                    g_ptr_array_unref);
   g_clear_pointer (&settings->xwayland_grab_deny_list_patterns,
                    g_ptr_array_unref);
-
-  g_clear_pointer (&settings->output_luminance, g_ptr_array_unref);
 
   G_OBJECT_CLASS (meta_settings_parent_class)->dispose (object);
 }
@@ -890,9 +552,6 @@ static void
 meta_settings_init (MetaSettings *settings)
 {
   const char *experimental_features_env;
-
-  settings->output_luminance =
-    g_ptr_array_new_with_free_func ((GDestroyNotify) luminance_entry_free);
 
   settings->interface_settings = g_settings_new ("org.gnome.desktop.interface");
   g_signal_connect (settings->interface_settings, "changed",
@@ -909,10 +568,6 @@ meta_settings_init (MetaSettings *settings)
   settings->wayland_settings = g_settings_new ("org.gnome.mutter.wayland");
   g_signal_connect (settings->wayland_settings, "changed",
                     G_CALLBACK (wayland_settings_changed),
-                    settings);
-  settings->x11_settings = g_settings_new ("org.gnome.mutter.x11");
-  g_signal_connect (settings->x11_settings, "changed",
-                    G_CALLBACK (x11_settings_changed),
                     settings);
 
   /* Chain up inter-dependent settings. */
@@ -943,7 +598,6 @@ meta_settings_init (MetaSettings *settings)
   update_xwayland_disable_extensions (settings);
   update_privacy_settings (settings);
   update_xwayland_allow_byte_swapped_clients (settings);
-  update_output_luminance_settings (settings);
 }
 
 static void
@@ -998,14 +652,6 @@ meta_settings_class_init (MetaSettingsClass *klass)
                   NULL, NULL, NULL,
                   G_TYPE_NONE, 0);
 
-  signals[X11_SCALE_MODE_CHANGED] =
-    g_signal_new ("x11-scale-mode-changed",
-                  G_TYPE_FROM_CLASS (object_class),
-                  G_SIGNAL_RUN_LAST,
-                  0,
-                  NULL, NULL, NULL,
-                  G_TYPE_NONE, 0);
-
   signals[EXPERIMENTAL_FEATURES_CHANGED] =
     g_signal_new ("experimental-features-changed",
                   G_TYPE_FROM_CLASS (object_class),
@@ -1021,13 +667,4 @@ meta_settings_class_init (MetaSettingsClass *klass)
                   0,
                   NULL, NULL, NULL,
                   G_TYPE_NONE, 0);
-
-  signals[OUTPUT_LUMINANCE_CHANGED] =
-    g_signal_new ("output-luminance-changed",
-                  G_TYPE_FROM_CLASS (object_class),
-                  G_SIGNAL_RUN_LAST,
-                  0,
-                  NULL, NULL, NULL,
-                  G_TYPE_NONE, 0);
-
 }

@@ -1,5 +1,24 @@
 msgfmt = find_program('msgfmt')
 
+desktop_conf = configuration_data()
+desktop_conf.set('bindir', bindir)
+desktop_conf.set('libexecdir', libexecdir)
+
+if have_devkit
+  i18n.merge_file(
+    input: configure_file(
+      input: 'org.gnome.Mutter.Mdk.desktop.in.in',
+      output: 'org.gnome.Mutter.Mdk.desktop.in',
+      configuration: desktop_conf
+    ),
+    output: 'org.gnome.Mutter.Mdk.desktop',
+    po_dir: po_path,
+    install: true,
+    install_dir: desktopdir,
+    type: 'desktop',
+  )
+endif
+
 # Unconditionally use this dir to avoid a circular dep with gnomecc
 gnome_keybindings_keysdir = datadir / 'gnome-control-center' / 'keybindings'
 
@@ -54,13 +73,6 @@ locally_compiled_schemas_dep = declare_dependency(
   sources: locally_compiled_schemas
 )
 
-configure_file(
-  input: 'org.gnome.mutter.x11.gschema.xml.in',
-  output: 'org.gnome.mutter.x11.gschema.xml',
-  configuration: gschema_config,
-  install_dir: schemadir
-)
-
 install_data(['mutter-schemas.convert'],
   install_dir: datadir / 'GConf/gsettings',
 )
@@ -72,3 +84,7 @@ if have_libgudev
 endif
 
 subdir('dbus-interfaces')
+
+if have_devkit
+  subdir('icons')
+endif

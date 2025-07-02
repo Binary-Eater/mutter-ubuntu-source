@@ -754,8 +754,7 @@ get_monitor_size_with_rotation (MetaLogicalMonitorConfig *logical_monitor_config
 
 static void
 derive_logical_monitor_layouts (GList                       *logical_monitor_configs,
-                                MetaLogicalMonitorLayoutMode layout_mode,
-                                float                        max_scale)
+                                MetaLogicalMonitorLayoutMode layout_mode)
 {
   GList *l;
 
@@ -766,14 +765,7 @@ derive_logical_monitor_layouts (GList                       *logical_monitor_con
 
       get_monitor_size_with_rotation (logical_monitor_config, &width, &height);
 
-      if (layout_mode == META_LOGICAL_MONITOR_LAYOUT_MODE_GLOBAL_UI_LOGICAL)
-        {
-          width *= (int) ceilf (max_scale);
-          height *= (int) ceilf (max_scale);
-        }
-
-      if (layout_mode == META_LOGICAL_MONITOR_LAYOUT_MODE_LOGICAL ||
-          layout_mode == META_LOGICAL_MONITOR_LAYOUT_MODE_GLOBAL_UI_LOGICAL)
+      if (layout_mode == META_LOGICAL_MONITOR_LAYOUT_MODE_LOGICAL)
         {
           width = (int) roundf (width / logical_monitor_config->scale);
           height = (int) roundf (height / logical_monitor_config->scale);
@@ -809,8 +801,7 @@ detect_layout_mode_configs (MetaMonitorManager      *monitor_manager,
     g_list_copy_deep (for_lease_monitor_specs, (GCopyFunc) meta_monitor_spec_clone, NULL);
 
   derive_logical_monitor_layouts (logical_monitor_configs,
-                                  META_LOGICAL_MONITOR_LAYOUT_MODE_PHYSICAL,
-                                  1.0f);
+                                  META_LOGICAL_MONITOR_LAYOUT_MODE_PHYSICAL);
   physical_config =
     meta_monitors_config_new_full (g_steal_pointer (&logical_monitor_configs),
                                    g_steal_pointer (&disabled_monitor_specs),
@@ -823,8 +814,7 @@ detect_layout_mode_configs (MetaMonitorManager      *monitor_manager,
     g_clear_object (&physical_config);
 
   derive_logical_monitor_layouts (logical_monitor_configs_copy,
-                                  META_LOGICAL_MONITOR_LAYOUT_MODE_LOGICAL,
-                                  1.0f);
+                                  META_LOGICAL_MONITOR_LAYOUT_MODE_LOGICAL);
   logical_config =
     meta_monitors_config_new_full (g_steal_pointer (&logical_monitor_configs_copy),
                                    g_steal_pointer (&disabled_monitor_specs_copy),
@@ -1287,8 +1277,7 @@ attempt_layout_mode_conversion (MetaMonitorManager     *monitor_manager,
 
   maybe_convert_scales (logical_monitor_configs_copy);
   derive_logical_monitor_layouts (logical_monitor_configs_copy,
-                                  META_LOGICAL_MONITOR_LAYOUT_MODE_LOGICAL,
-                                  1.0f);
+                                  META_LOGICAL_MONITOR_LAYOUT_MODE_LOGICAL);
 
   if (meta_verify_logical_monitor_config_list (logical_monitor_configs,
                                                META_LOGICAL_MONITOR_LAYOUT_MODE_LOGICAL,
@@ -1595,24 +1584,8 @@ handle_end_element (GMarkupParseContext  *context,
           }
         else
           {
-            float max_scale = 1.0f;
-
-            if (layout_mode == META_LOGICAL_MONITOR_LAYOUT_MODE_LOGICAL &&
-                meta_monitor_manager_get_default_layout_mode (store->monitor_manager) ==
-                META_LOGICAL_MONITOR_LAYOUT_MODE_GLOBAL_UI_LOGICAL)
-              {
-                layout_mode = META_LOGICAL_MONITOR_LAYOUT_MODE_GLOBAL_UI_LOGICAL;
-
-                for (GList *l = parser->current_logical_monitor_configs; l;
-                     l = l->next)
-                  {
-                    MetaLogicalMonitorConfig *logical_monitor_config = l->data;
-                    max_scale = MAX (max_scale, logical_monitor_config->scale);
-                  }
-              }
-
             derive_logical_monitor_layouts (parser->current_logical_monitor_configs,
-                                            layout_mode, max_scale);
+                                            layout_mode);
 
             config =
               meta_monitors_config_new_full (parser->current_logical_monitor_configs,
@@ -2452,7 +2425,6 @@ generate_config_xml (MetaMonitorConfigStore *config_store)
       switch (config->layout_mode)
         {
         case META_LOGICAL_MONITOR_LAYOUT_MODE_LOGICAL:
-        case META_LOGICAL_MONITOR_LAYOUT_MODE_GLOBAL_UI_LOGICAL:
           g_string_append (buffer, "    <layoutmode>logical</layoutmode>\n");
           break;
         case META_LOGICAL_MONITOR_LAYOUT_MODE_PHYSICAL:
@@ -2846,6 +2818,10 @@ meta_monitor_config_store_reset (MetaMonitorConfigStore *config_store)
   g_clear_object (&config_store->custom_read_file);
   g_clear_object (&config_store->custom_write_file);
   g_hash_table_remove_all (config_store->configs);
+
+  config_store->has_stores_policy = FALSE;
+  config_store->policy.enable_dbus = TRUE;
+  config_store->has_dbus_policy = FALSE;
 
   for (system_dirs = g_get_system_config_dirs ();
        system_dirs && *system_dirs;

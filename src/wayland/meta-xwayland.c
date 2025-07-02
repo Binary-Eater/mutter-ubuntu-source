@@ -545,9 +545,8 @@ ensure_x11_unix_perms (GError **error)
   if (x11_tmp.st_uid != tmp.st_uid && x11_tmp.st_uid != getuid ())
     {
       g_set_error (error, G_IO_ERROR, G_IO_ERROR_PERMISSION_DENIED,
-                   "Wrong ownership for directory \"%s\": %d.\n"
-                   "Ownership of \"%s\": %d.\n"
-                   "Current user: %d.",
+                   "Wrong ownership for directory \"%s\", owned by %d but "
+                   "should be same as %s (owned by (%d)) or %d",
                    X11_TMP_UNIX_DIR, x11_tmp.st_uid, TMP_UNIX_DIR, tmp.st_uid,
                    getuid ());
       return FALSE;
@@ -556,11 +555,6 @@ ensure_x11_unix_perms (GError **error)
   /* ... be writable ... */
   if (access (X11_TMP_UNIX_DIR, W_OK) != 0)
     {
-      if ((x11_tmp.st_mode & 0022) != 0022)
-        {
-          g_warning ("%s is accessible although its permissions are not 0022",
-                     X11_TMP_UNIX_DIR);
-        }
       g_set_error (error, G_IO_ERROR, G_IO_ERROR_PERMISSION_DENIED,
                    "Directory \"%s\" is not writable",
                    X11_TMP_UNIX_DIR);
@@ -1357,9 +1351,6 @@ meta_xwayland_get_effective_scale (MetaXWaylandManager *manager)
     case META_LOGICAL_MONITOR_LAYOUT_MODE_PHYSICAL:
       break;
 
-    case META_LOGICAL_MONITOR_LAYOUT_MODE_GLOBAL_UI_LOGICAL:
-      g_warn_if_reached ();
-
     case META_LOGICAL_MONITOR_LAYOUT_MODE_LOGICAL:
       if (meta_settings_is_experimental_feature_enabled (settings,
                                                          META_EXPERIMENTAL_FEATURE_XWAYLAND_NATIVE_SCALING) &&
@@ -1468,8 +1459,6 @@ meta_xwayland_get_x11_ui_scaling_factor (MetaXWaylandManager *manager)
       return meta_settings_get_ui_scaling_factor (settings);
     case META_LOGICAL_MONITOR_LAYOUT_MODE_LOGICAL:
       return meta_xwayland_get_effective_scale (manager);
-    case META_LOGICAL_MONITOR_LAYOUT_MODE_GLOBAL_UI_LOGICAL:
-      g_warn_if_reached ();
     }
 
   g_assert_not_reached ();

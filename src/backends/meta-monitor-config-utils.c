@@ -185,7 +185,6 @@ meta_verify_logical_monitor_config_list (GList                         *logical_
   GList *region;
   GList *l;
   gboolean global_scale_required;
-  float max_scale = 1.0f;
 
   if (!logical_monitor_configs)
     {
@@ -203,15 +202,6 @@ meta_verify_logical_monitor_config_list (GList                         *logical_
   region = NULL;
   has_primary = FALSE;
 
-  if (layout_mode == META_LOGICAL_MONITOR_LAYOUT_MODE_GLOBAL_UI_LOGICAL)
-    {
-      for (l = logical_monitor_configs; l; l = l->next)
-        {
-          MetaLogicalMonitorConfig *logical_monitor_config = l->data;
-          max_scale = MAX (max_scale, logical_monitor_config->scale);
-        }
-    }
-
   for (l = logical_monitor_configs; l; l = l->next)
     {
       MetaLogicalMonitorConfig *logical_monitor_config = l->data;
@@ -219,7 +209,6 @@ meta_verify_logical_monitor_config_list (GList                         *logical_
       if (!meta_verify_logical_monitor_config (logical_monitor_config,
                                                layout_mode,
                                                monitor_manager,
-                                               max_scale,
                                                error))
         return FALSE;
 

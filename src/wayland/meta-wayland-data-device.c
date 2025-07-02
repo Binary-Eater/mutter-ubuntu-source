@@ -26,8 +26,6 @@
 
 #include "wayland/meta-wayland-data-device.h"
 
-#include <gio/gunixoutputstream.h>
-#include <glib-unix.h>
 #include <glib.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -35,6 +33,7 @@
 #include <unistd.h>
 
 #include "backends/meta-dnd-private.h"
+#include "backends/meta-cursor-tracker-private.h"
 #include "compositor/meta-dnd-actor-private.h"
 #include "compositor/meta-surface-actor.h"
 #include "compositor/meta-window-drag.h"
@@ -50,7 +49,10 @@
 #include "wayland/meta-wayland-seat.h"
 #include "wayland/meta-wayland-toplevel-drag.h"
 #include "wayland/meta-wayland-types.h"
+
+#ifdef HAVE_X11_CLIENT
 #include "wayland/meta-xwayland-dnd-private.h"
+#endif
 
 #define ROOTWINDOW_DROP_MIME "application/x-rootwindow-drop"
 
@@ -244,7 +246,12 @@ meta_wayland_drag_grab_set_cursor (MetaWaylandDragGrab *drag_grab,
     meta_backend_get_cursor_renderer_for_device (backend, drag_grab->device);
 
   if (cursor_renderer && cursor_sprite)
-    meta_cursor_renderer_set_cursor (cursor_renderer, cursor_sprite);
+    {
+      if (cursor_renderer == meta_backend_get_cursor_renderer (backend))
+        meta_cursor_tracker_set_window_cursor (cursor_tracker, cursor_sprite);
+      else
+        meta_cursor_renderer_set_cursor (cursor_renderer, cursor_sprite);
+    }
 }
 
 static void
@@ -257,7 +264,7 @@ meta_wayland_drag_grab_update_cursor (MetaWaylandDragGrab *drag_grab)
   switch (action)
     {
     case WL_DATA_DEVICE_MANAGER_DND_ACTION_NONE:
-      cursor = META_CURSOR_NOT_ALLOWED;
+      cursor = META_CURSOR_NO_DROP;
       break;
     case WL_DATA_DEVICE_MANAGER_DND_ACTION_MOVE:
       cursor = META_CURSOR_MOVE;
@@ -490,49 +497,6 @@ data_device_end_drag_grab (MetaWaylandDragGrab *drag_grab)
   meta_dnd_wayland_handle_end_modal (compositor);
 
   g_free (drag_grab);
-}
-
-static gboolean
-on_fake_read_hup (GIOChannel   *channel,
-                  GIOCondition  condition,
-                  gpointer      data)
-{
-  MetaWaylandDataSource *source = data;
-
-  meta_wayland_data_source_notify_finish (source);
-  g_io_channel_shutdown (channel, FALSE, NULL);
-  g_io_channel_unref (channel);
-
-  return G_SOURCE_REMOVE;
-}
-
-static void
-meta_wayland_data_source_fake_read (MetaWaylandDataSource *source,
-                                    const gchar           *mimetype)
-{
-  GIOChannel *channel;
-  int p[2];
-
-  if (!g_unix_open_pipe (p, FD_CLOEXEC, NULL))
-    {
-      meta_wayland_data_source_notify_finish (source);
-      return;
-    }
-
-  if (!g_unix_set_fd_nonblocking (p[0], TRUE, NULL) ||
-      !g_unix_set_fd_nonblocking (p[1], TRUE, NULL))
-    {
-      meta_wayland_data_source_notify_finish (source);
-      close (p[0]);
-      close (p[1]);
-      return;
-    }
-
-  meta_wayland_data_source_send (source, mimetype, p[1]);
-  close (p[1]);
-  channel = g_io_channel_unix_new (p[0]);
-  g_io_channel_set_close_on_unref (channel, TRUE);
-  g_io_add_watch (channel, G_IO_HUP, on_fake_read_hup, source);
 }
 
 static MetaWaylandSurface *

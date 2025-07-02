@@ -16,11 +16,10 @@
  *
  */
 
-#include "backends/meta-monitor-manager-private.h"
 #include "config.h"
 
 #include "backends/meta-cursor-sprite-xcursor.h"
-#include "backends/meta-logical-monitor.h"
+#include "backends/meta-logical-monitor-private.h"
 #include "backends/meta-screen-cast.h"
 #include "clutter/clutter.h"
 #include "compositor/meta-window-actor-private.h"
@@ -36,6 +35,7 @@
 #define CURSOR_SCALE_METHOD_BUFFER_SCALE "buffer-scale"
 #define CURSOR_SCALE_METHOD_VIEWPORT "viewport"
 #define CURSOR_SCALE_METHOD_VIEWPORT_CROPPED "viewport-cropped"
+#define CURSOR_SCALE_METHOD_SHAPE "shape"
 
 struct _MetaCrossOverlay
 {
@@ -234,8 +234,6 @@ setup_test_case (int                           width,
                                                            width / 2.0f,
                                                            height / 2.0f);
       break;
-    case META_LOGICAL_MONITOR_LAYOUT_MODE_GLOBAL_UI_LOGICAL:
-      g_return_val_if_reached (NULL);
     }
 
   meta_flush_input (test_context);
@@ -252,8 +250,6 @@ layout_mode_to_string (MetaLogicalMonitorLayoutMode layout_mode)
     {
     case META_LOGICAL_MONITOR_LAYOUT_MODE_LOGICAL:
       return "logical";
-    case META_LOGICAL_MONITOR_LAYOUT_MODE_GLOBAL_UI_LOGICAL:
-      g_return_val_if_reached (NULL);
     case META_LOGICAL_MONITOR_LAYOUT_MODE_PHYSICAL:
       return "physical";
     }
@@ -464,6 +460,12 @@ meta_test_native_cursor_scaling (void)
                           meta_ref_test_determine_ref_test_flag ());
       test_client_cursor (view,
                           CURSOR_SCALE_METHOD_VIEWPORT,
+                          cursor,
+                          MTK_MONITOR_TRANSFORM_NORMAL,
+                          ref_test_name, 0,
+                          META_REFTEST_FLAG_NONE);
+      test_client_cursor (view,
+                          CURSOR_SCALE_METHOD_SHAPE,
                           cursor,
                           MTK_MONITOR_TRANSFORM_NORMAL,
                           ref_test_name, 0,

@@ -44,7 +44,7 @@
 #include "backends/meta-backend-private.h"
 #include "backends/meta-crtc.h"
 #include "backends/meta-monitor-config-manager.h"
-#include "backends/meta-monitor.h"
+#include "backends/meta-monitor-private.h"
 #include "backends/meta-output.h"
 #include "backends/native/meta-backend-native.h"
 #include "backends/native/meta-crtc-kms.h"
@@ -133,7 +133,7 @@ meta_monitor_manager_native_ensure_initial_config (MetaMonitorManager *manager)
 
   config = meta_monitor_manager_ensure_configured (manager);
 
-  meta_monitor_manager_update_logical_state (manager, config);
+  meta_monitor_manager_update_logical_state (manager, config, NULL);
   meta_monitor_manager_update_for_lease_state (manager, config);
 }
 
@@ -428,7 +428,6 @@ get_monitor_scale_constraints_from_layout_mode (MetaLogicalMonitorLayoutMode lay
   switch (layout_mode)
     {
     case META_LOGICAL_MONITOR_LAYOUT_MODE_LOGICAL:
-    case META_LOGICAL_MONITOR_LAYOUT_MODE_GLOBAL_UI_LOGICAL:
       break;
     case META_LOGICAL_MONITOR_LAYOUT_MODE_PHYSICAL:
       constraints |= META_MONITOR_SCALES_CONSTRAINT_NO_FRAC;
@@ -471,7 +470,7 @@ meta_monitor_manager_native_get_capabilities (MetaMonitorManager *manager)
   MetaBackend *backend = meta_monitor_manager_get_backend (manager);
   MetaSettings *settings = meta_backend_get_settings (backend);
   MetaMonitorManagerCapability capabilities =
-    META_MONITOR_MANAGER_CAPABILITY_TILING;
+    META_MONITOR_MANAGER_CAPABILITY_NONE;
 
   if (meta_settings_is_experimental_feature_enabled (
         settings,

@@ -239,53 +239,14 @@
 	control it via this D-Bus interface.
 
 	  * 'connector' (s) - An associated monitor connector
-	  * 'active' (s) - True if the monitor is active
+	  * 'active' (b) - True if the monitor is active
+	  * 'min' (i) - Minimum value (optional)
+	  * 'max' (i) - Maximum value (optional)
 	  * 'value' (i) - Current value (optional)
 
 	The initial 'u' is a serial number used when setting the backlight.
     -->
     <property name="Backlight" type="(uaa{sv})" access="read" />
-
-    <!--
-        SetOutputLuminance:
-
-        Sets the luminance of a monitor when in the specified color mode (see
-        GetCurrentState() for available color modes). The luminance is a
-        floating point value representing the luminance in percent (%).
-    -->
-    <method name="SetLuminance">
-      <arg name="connector" direction="in" type="s" />
-      <arg name="color_mode" direction="in" type="u" />
-      <arg name="luminance" direction="in" type="d" />
-    </method>
-
-    <!--
-        ResetOutputLuminance:
-
-        Resets the luminance of a monitor to its default when in the specified
-        color mode (see GetCurrentState() for available color modes).
-    -->
-    <method name="ResetLuminance">
-      <arg name="connector" direction="in" type="s" />
-      <arg name="color_mode" direction="in" type="u" />
-    </method>
-
-    <!--
-        Luminance:
-
-        Luminance settings. The property is a list of dictionaries of luminance
-        settings entries.
-
-        The luminance setting is per color mode and monitor.
-
-        Each dictionary consists of the following entries:
-	  * 'connector' (s) - The associated connector.
-	  * 'color-mode' (u) - The associated color mode.
-	  * 'luminance' (d) - The current luminance.
-	  * 'is-unset' (b) - True if the luminance is not explicitly set.
-	  * 'default' (d) - The default luminance.
-    -->
-    <property name="Luminance" type="aa{sv}" access="read" />
 
     <!--
         GetCrtcGamma:
@@ -497,11 +458,6 @@
 			     using the logical monitor scale.
 	    * 2 : physical - the dimension of a logical monitor is derived from
 			     the monitor modes associated with it.
-	    * 3 : logical with ui scaling - the dimension of a logical monitor
-			     is derived from the monitor modes associated with it,
-			     then scaled using the logical monitor scale that is also
-			     scaled by the global UI scaling (computed using the maximum
-			     ceiled scaling value across the displays).
 	* "supports-changing-layout-mode" (b): True if the layout mode can be
 					       changed. Absence of this means the
 					       layout mode cannot be changed.

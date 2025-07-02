@@ -1,0 +1,1 @@
+  * debian/control: Add umockdev build dep in addition to libumockdev-dev.

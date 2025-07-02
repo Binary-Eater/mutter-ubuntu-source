@@ -1,0 +1,21 @@
+  * New upstream release 49.alpha.1 (LP: #1968901, LP: #2100243, LP: #2102063)
+  * Drop Xorg-specific patches:
+    - clutter-Repick-actors-when-touches-emulate-button-clicks.patch
+    - x11-Add-support-for-fractional-scaling-using-Randr.patch
+  * Drop upstreamed patches:
+    - wayland-xdg-shell-Check-popup-resource-for-parent-unmappe.patch
+    - wayland-xdg-shell-Check-for-NULL-xdg_popup-resource.patch
+    - cursor-drag-and-drop.patch
+    - cursor-sprite-xcursor-Reset-current_frame-only-if-xcursor.patch
+    - Use-access-instead-of-checking-permission-modes-for-tmp-..patch
+  * Refresh patches:
+    - tests-Do-not-run-screencast-tests.patch
+    - Mark-several-additional-tests-as-flaky.patch
+    - tests-Install-stacking-tests-into-a-subdirectory.patch
+  * Disable patch: window-Add-ability-to-override-the-edge-constraints.patch
+    because it doesn't apply anymore and its existence not fully explained.
+    It can't be Ubuntu-specific if in support of Tiling Assistant which is
+    not Ubuntu-specific. Needs to be proposed upstream if required at all.
+  * Added new binary package 'mutter-dev-bin' for the missing 'mutter-devkit'
+    binary. Four years late.
+  * Bump the Mutter API/ABI to 17.

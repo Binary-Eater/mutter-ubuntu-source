@@ -1,0 +1,2 @@
+  * debian/patches: Mark more tests as flaky for 49.alpha. These issues
+    have been reported upstream.

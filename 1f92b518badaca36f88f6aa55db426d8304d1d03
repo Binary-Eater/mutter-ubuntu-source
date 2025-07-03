@@ -1,0 +1,11 @@
+  [ Jeremy Bícha ]
+  * New upstream bugfix release
+    - Unlink outputs from unused connectors in update_outputs
+    - Add speed limit to Visual alerts
+    - Fix behavior of windows that get activated before mapped
+    - Fix incorrect cursor over Xwayland clients (LP: #2111502)
+    - Fix hi-res scroll events getting converted to flip-flopping discrete events
+    - Fixed crash
+  [ Simon McVittie ]
+  * d/gbp.conf: Use upstream/48.x branch for trixie
+  * d/watch: Only watch for 48.x releases

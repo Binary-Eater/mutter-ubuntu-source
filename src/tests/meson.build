@@ -620,17 +620,17 @@ test_cases += [
       'native-virtual-monitor.c',
     ],
   },
-#  {
-#    'name': 'native-screen-cast',
-#    'suite': 'backends/native',
-#    'sources': [
-#      'native-screen-cast.c',
-#    ],
-#    'depends': [
-#      screen_cast_client,
-#      screen_cast_client_driver,
-#    ],
-#  },
+  {
+    'name': 'native-screen-cast',
+    'suite': 'backends/native',
+    'sources': [
+      'native-screen-cast.c',
+    ],
+    'depends': [
+      screen_cast_client,
+      screen_cast_client_driver,
+    ],
+  },
   {
     'name': 'bezier',
     'suite': 'backends/native',

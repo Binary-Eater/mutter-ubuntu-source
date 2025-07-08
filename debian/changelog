@@ -1,3 +1,15 @@
+mutter (49~alpha.1-0ubuntu4) questing; urgency=medium
+
+  [ Marco Trevisan (Treviño) ]
+  * Merge with debian
+  * d/control: Add misisng ${misc:Depends} to mutter-dev-bin
+  * d/source/lintian-overrides: Drop unhandled and outdated line
+  * d/p/ubuntu: Enable window edge constraint override support again
+  * d/control: Add missing mutter-17-tests gio runtime dependencies
+  * d/control: Add new mutter-17-tests umockdev runtime dependency
+
+ -- Marco Trevisan (Treviño) <marco@ubuntu.com>  Tue, 08 Jul 2025 05:29:42 +0200
+
 mutter (49~alpha.1-0ubuntu3) questing; urgency=medium
 
   * debian/patches: Mark more tests as flaky for 49.alpha. These issues
@@ -36,6 +48,23 @@ mutter (49~alpha.1-0ubuntu1) questing; urgency=medium
   * Bump the Mutter API/ABI to 17.
 
  -- Daniel van Vugt <daniel.van.vugt@canonical.com>  Wed, 02 Jul 2025 17:41:53 +0800
+
+mutter (48.4-1) experimental; urgency=medium
+
+  [ Jeremy Bícha ]
+  * New upstream bugfix release
+    - Unlink outputs from unused connectors in update_outputs
+    - Add speed limit to Visual alerts
+    - Fix behavior of windows that get activated before mapped
+    - Fix incorrect cursor over Xwayland clients (LP: #2111502)
+    - Fix hi-res scroll events getting converted to flip-flopping discrete events
+    - Fixed crash
+
+  [ Simon McVittie ]
+  * d/gbp.conf: Use upstream/48.x branch for trixie
+  * d/watch: Only watch for 48.x releases
+
+ -- Jeremy Bícha <jbicha@ubuntu.com>  Thu, 03 Jul 2025 08:48:17 -0400
 
 mutter (48.1-1ubuntu4) questing; urgency=medium
 

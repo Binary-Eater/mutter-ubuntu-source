@@ -1,0 +1,4 @@
+  * Team upload
+  * d/gbp.conf, d/control: Switch packaging branch for trixie
+  * Expand previous changelog entry to document all upstream changes
+  * Upload to unstable

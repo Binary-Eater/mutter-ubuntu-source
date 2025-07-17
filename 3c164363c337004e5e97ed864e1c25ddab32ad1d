@@ -1,0 +1,5 @@
+  [ Daniel van Vugt ]
+  * debian/control: Drop new binary dependency on umockdev. It's very
+    weak (043efbb1831) and an unnecessary blocker being in universe.
+  * debian/libmutter-17-0.lintian-overrides: Fix outdated reference to
+    libmutter-16.

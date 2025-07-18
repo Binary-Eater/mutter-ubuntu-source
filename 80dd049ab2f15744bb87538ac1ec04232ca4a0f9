@@ -1,0 +1,2 @@
+  [ Daniel van Vugt ]
+  * debian/control: Restore mutter-17-tests Depends: umockdev

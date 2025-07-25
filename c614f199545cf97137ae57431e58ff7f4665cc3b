@@ -1,0 +1,2 @@
+  * debian/control: mutter-common breaks older versions of libmutter so don't
+    allow it to install prematurely (LP: #2118736)

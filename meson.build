@@ -1,5 +1,5 @@
 project('mutter', 'c',
-  version: '49.alpha.1',
+  version: '49.beta',
   meson_version: '>= 1.5.0',
   license: 'GPL-2.0-or-later',
 )
@@ -47,8 +47,8 @@ gudev_req = '>= 238'
 umockdev_req = '>= 0.3.0'
 
 # wayland version requirements
-wayland_server_req = '>= 1.23'
-wayland_protocols_req = '>= 1.44'
+wayland_server_req = '>= 1.24'
+wayland_protocols_req = '>= 1.45'
 
 # native backend version requirements
 libinput_req = '>= 1.27.0'

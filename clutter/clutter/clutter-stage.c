@@ -3643,6 +3643,9 @@ clutter_stage_update_device_for_event (ClutterStage *stage,
       else
         sprite = g_hash_table_lookup (priv->pointer_devices, device);
 
+      if (!sprite)
+        return;
+
       clutter_focus_set_current_actor (CLUTTER_FOCUS (sprite), NULL,
                                        source_device, time_ms);
       clutter_sprite_update (sprite, point, NULL);

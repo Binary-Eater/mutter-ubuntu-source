@@ -24,20 +24,26 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "backends/meta-monitor-config-utils.h"
 #include "backends/meta-virtual-monitor.h"
+#include "clutter/clutter.h"
+#include "compositor/compositor-private.h"
 #include "compositor/meta-window-actor-private.h"
+#include "compositor/meta-window-drag.h"
+#include "core/meta-workspace-manager-private.h"
 #include "core/meta-workspace-manager-private.h"
 #include "core/window-private.h"
+#include "core/workspace-private.h"
 #include "meta-test/meta-context-test.h"
 #include "meta/util.h"
 #include "meta/window.h"
-#include "core/meta-workspace-manager-private.h"
-#include "core/workspace-private.h"
 #include "tests/meta-test-utils.h"
-#include "wayland/meta-wayland.h"
+#include "wayland/meta-wayland-keyboard.h"
+#include "wayland/meta-wayland-pointer.h"
+#include "wayland/meta-wayland-private.h"
 #include "wayland/meta-window-wayland.h"
 #include "x11/meta-x11-display-private.h"
-#include "x11/window-x11.h"
+#include "x11/window-x11-private.h"
 
 typedef enum _StackFilter
 {
@@ -55,7 +61,9 @@ typedef struct {
   gulong x11_display_opened_handler_id;
   GHashTable *virtual_monitors;
   ClutterVirtualInputDevice *pointer;
+  ClutterVirtualInputDevice *keyboard;
   GHashTable *cloned_windows;
+  GHashTable *popups;
 } TestCase;
 
 #define META_SIDE_TEST_CASE_NONE G_MAXINT32
@@ -139,6 +147,8 @@ test_case_new (MetaContext *context)
   test->loop = g_main_loop_new (NULL, FALSE);
   test->pointer = clutter_seat_create_virtual_device (seat,
                                                       CLUTTER_POINTER_DEVICE);
+  test->keyboard = clutter_seat_create_virtual_device (seat,
+                                                       CLUTTER_KEYBOARD_DEVICE);
 
   test->virtual_monitors = g_hash_table_new_full (g_str_hash,
                                                   g_str_equal,
@@ -511,6 +521,46 @@ maybe_divide (const char  *str,
 }
 
 static int
+maybe_add (const char  *str,
+           int          value,
+           const char **out_str)
+{
+  *out_str = str;
+
+  if (str[0] == '+')
+    {
+      double term;
+
+      str += 1;
+      term = g_strtod (str, (char **) out_str);
+
+      value = (int) round (value + term);
+    }
+
+  return value;
+}
+
+static int
+maybe_subtract (const char  *str,
+                int          value,
+                const char **out_str)
+{
+  *out_str = str;
+
+  if (str[0] == '-')
+    {
+      double term;
+
+      str += 1;
+      term = g_strtod (str, (char **) out_str);
+
+      value = (int) round (value - term);
+    }
+
+  return value;
+}
+
+static int
 maybe_do_math (const char  *str,
                int          value,
                const char **out_str)
@@ -522,6 +572,12 @@ maybe_do_math (const char  *str,
       break;
     case '/':
       value = maybe_divide (str, value, &str);
+      break;
+    case '+':
+      value = maybe_add (str, value, &str);
+      break;
+    case '-':
+      value = maybe_subtract (str, value, &str);
       break;
     default:
       *out_str = str;
@@ -810,18 +866,25 @@ test_case_parse_signal (TestCase *test,
 
   if (signal_start != argv[0])
     {
+      g_autoptr (GError) local_error = NULL;
       g_autofree char *instance = g_strndup (argv[0], signal_start - argv[0]);
       MetaTestClient *client;
       const char *window_id;
       MetaWindow *window;
 
       if (!test_case_parse_window_id (test, instance, &client,
-                                      &window_id, error))
-        BAD_COMMAND ("Cannot find window for instance %s", instance);
+                                      &window_id, &local_error))
+        {
+          BAD_COMMAND ("Cannot find window for instance %s: %s",
+                       instance, local_error->message);
+        }
 
-      window = meta_test_client_find_window (client, window_id, error);
+      window = meta_test_client_find_window (client, window_id, &local_error);
       if (!window)
-        BAD_COMMAND ("Cannot find window for window id %s", window_id);
+        {
+          BAD_COMMAND ("Cannot find window for window id %s: %s",
+                       window_id, local_error->message);
+        }
 
       instance_obj = G_OBJECT (window);
     }
@@ -853,6 +916,151 @@ test_case_parse_signal (TestCase *test,
   *out_signal_name = g_strdup (signal_name);
 
   return TRUE;
+}
+
+static MetaGrabOp
+grab_op_from_edge (const char *edge)
+{
+  MetaGrabOp op = META_GRAB_OP_WINDOW_BASE;
+
+  if (strcmp (edge, "top") == 0)
+    op |= META_GRAB_OP_WINDOW_DIR_NORTH;
+  else if (strcmp (edge, "bottom") == 0)
+    op |= META_GRAB_OP_WINDOW_DIR_SOUTH;
+  else if (strcmp (edge, "left") == 0)
+    op |= META_GRAB_OP_WINDOW_DIR_WEST;
+  else if (strcmp (edge, "right") == 0)
+    op |= META_GRAB_OP_WINDOW_DIR_EAST;
+
+  return op;
+}
+
+static gboolean
+is_popup (gconstpointer a,
+          gconstpointer b)
+{
+  MetaWindow *window = META_WINDOW (a);
+
+  switch (meta_window_get_window_type (window))
+    {
+    case META_WINDOW_DROPDOWN_MENU:
+    case META_WINDOW_POPUP_MENU:
+      return TRUE;
+    default:
+      return FALSE;
+    }
+}
+
+static MetaWindow *
+find_popup (MetaWindow *window)
+{
+  GPtrArray *transient_children;
+  unsigned int i;
+
+  transient_children = meta_window_get_transient_children (window);
+  if (!transient_children)
+    return NULL;
+
+  if (!g_ptr_array_find_with_equal_func (transient_children, NULL,
+                                         is_popup, &i))
+    return NULL;
+
+  window = g_ptr_array_index (transient_children, i);
+  return window;
+}
+
+static gboolean
+track_popup (TestCase        *test,
+             MetaTestClient  *client,
+             const char      *window_id,
+             const char      *parent_id,
+             GError         **error)
+{
+  MetaWindow *parent;
+  MetaWindow *popup;
+
+  if (!test->popups)
+    {
+      test->popups = g_hash_table_new_full (g_str_hash, g_str_equal,
+                                            g_free, g_free);
+    }
+
+  g_hash_table_insert (test->popups,
+                       g_strdup (window_id), g_strdup (parent_id));
+
+  parent = meta_test_client_find_window (client, parent_id, error);
+  if (!parent)
+    return FALSE;
+
+  if (meta_test_client_get_client_type (client) ==
+      META_WINDOW_CLIENT_TYPE_WAYLAND)
+    {
+      g_autofree char *popup_title = NULL;
+
+      while (TRUE)
+        {
+          popup = find_popup (parent);
+          if (popup)
+            break;
+
+          g_main_context_iteration (NULL, TRUE);
+        }
+
+      popup_title = g_strdup_printf ("test/%s/%s",
+                                     meta_test_client_get_id (client),
+                                     window_id);
+      meta_window_set_title (popup, popup_title);
+    }
+  else
+    {
+      if (!test_case_wait (test, error))
+        return FALSE;
+
+      popup = meta_test_client_find_window (client, window_id, error);
+      if (!popup)
+        return FALSE;
+    }
+
+  meta_wait_for_window_shown (popup);
+
+  if (!test_case_wait (test, error))
+    return FALSE;
+
+  return TRUE;
+}
+
+static gboolean
+logical_monitor_config_has_connector (MetaLogicalMonitorConfig *logical_monitor_config,
+                                      const char               *connector)
+{
+  GList *l;
+
+  for (l = logical_monitor_config->monitor_configs; l; l = l->next)
+    {
+      MetaMonitorConfig *monitor_config = l->data;
+
+      if (g_strcmp0 (monitor_config->monitor_spec->connector, connector) == 0)
+        return TRUE;
+    }
+
+  return FALSE;
+}
+
+static MetaLogicalMonitorConfig *
+find_logical_monitor_config (MetaMonitorsConfig *config,
+                             const char         *connector)
+{
+  GList *l;
+
+  for (l = config->logical_monitor_configs; l; l = l->next)
+    {
+      MetaLogicalMonitorConfig *logical_monitor_config = l->data;
+
+      if (logical_monitor_config_has_connector (logical_monitor_config,
+                                                connector))
+        return logical_monitor_config;
+    }
+  return NULL;
 }
 
 static gboolean
@@ -1044,7 +1252,8 @@ test_case_do (TestCase    *test,
 
       meta_wait_for_window_shown (window);
     }
-  else if (strcmp (argv[0], "resize") == 0)
+  else if (strcmp (argv[0], "resize") == 0 ||
+           strcmp (argv[0], "resize_ignore_titlebar") == 0)
     {
       if (argc != 4)
         BAD_COMMAND("usage: %s <client-id>/<window-id> width height", argv[0]);
@@ -1057,6 +1266,111 @@ test_case_do (TestCase    *test,
       if (!meta_test_client_do (client, error, argv[0], window_id,
                                 argv[2], argv[3], NULL))
         return FALSE;
+    }
+  else if (strcmp (argv[0], "x11_geometry") == 0)
+    {
+      MetaTestClient *client;
+      const char *window_id;
+
+      if (argc != 3)
+        BAD_COMMAND ("usage: %s <client-id>/<window-id> <x11-geometry>", argv[0]);
+
+      if (!test_case_parse_window_id (test, argv[1], &client, &window_id, error))
+        return FALSE;
+
+      if (!meta_test_client_do (client, error, argv[0], window_id,
+                                argv[2], NULL))
+        return FALSE;
+    }
+  else if (strcmp (argv[0], "begin_resize") == 0)
+    {
+      MetaBackend *backend = meta_context_get_backend (test->context);
+      ClutterBackend *clutter_backend =
+        meta_backend_get_clutter_backend (backend);
+      ClutterStage *stage = CLUTTER_STAGE (meta_backend_get_stage (backend));
+      ClutterSprite *sprite;
+      MetaTestClient *client;
+      const char *window_id;
+      MetaWindow *window;
+      MetaGrabOp grab_op;
+      MtkRectangle rect;
+      gboolean ret;
+      MetaWindowDrag *window_drag;
+
+      if (argc != 3)
+        BAD_COMMAND("usage: %s <client-id>/<window-id> [top|bottom|left|right]", argv[0]);
+
+      if (!test_case_parse_window_id (test, argv[1], &client, &window_id, error))
+        return FALSE;
+
+      window = meta_test_client_find_window (client, window_id, error);
+
+      grab_op = grab_op_from_edge (argv[2]);
+
+      meta_window_get_frame_rect (window, &rect);
+      graphene_point_t grab_origin;
+
+      grab_origin = GRAPHENE_POINT_INIT (rect.x + rect.width / 2.0f,
+                                         rect.y + rect.height / 2.0f);
+
+      window_drag =
+        meta_compositor_get_current_window_drag (window->display->compositor);
+      g_assert_null (window_drag);
+
+      sprite = clutter_backend_get_pointer_sprite (clutter_backend, stage);
+      ret = meta_window_begin_grab_op (window,
+                                       grab_op,
+                                       sprite,
+                                       meta_display_get_current_time_roundtrip (window->display),
+                                       &grab_origin);
+      g_assert_true (ret);
+    }
+  else if (strcmp (argv[0], "update_resize") == 0)
+    {
+      MetaTestClient *client;
+      const char *window_id;
+      MetaWindow *window;
+      MtkRectangle rect;
+      int delta_x, delta_y;
+
+      if (argc != 4)
+        BAD_COMMAND("usage: %s <client-id>/<window-id> <x> <y>", argv[0]);
+
+      if (!test_case_parse_window_id (test, argv[1], &client, &window_id, error))
+        return FALSE;
+
+      window = meta_test_client_find_window (client, window_id, error);
+
+      meta_window_get_frame_rect (window, &rect);
+      delta_x = atoi (argv[2]);
+      delta_y = atoi (argv[3]);
+
+      meta_window_resize_frame (window,
+				TRUE,
+				rect.width + delta_x,
+				rect.height + delta_y);
+    }
+  else if (strcmp (argv[0], "end_resize") == 0)
+    {
+      MetaTestClient *client;
+      const char *window_id;
+      MetaWindow *window;
+      MetaWindowDrag *window_drag;
+
+      if (argc != 2)
+        BAD_COMMAND("usage: %s <client-id>/<window-id>", argv[0]);
+
+      if (!test_case_parse_window_id (test, argv[1], &client, &window_id, error))
+        return FALSE;
+
+      window = meta_test_client_find_window (client, window_id, error);
+
+      window_drag =
+        meta_compositor_get_current_window_drag (window->display->compositor);
+      g_assert_nonnull (window_drag);
+      g_assert_true (meta_window_drag_get_window (window_drag) == window);
+
+      meta_window_drag_end (window_drag);
     }
   else if (strcmp (argv[0], "move") == 0)
     {
@@ -1138,7 +1452,6 @@ test_case_do (TestCase    *test,
            strcmp (argv[0], "unminimize") == 0 ||
            strcmp (argv[0], "maximize") == 0 ||
            strcmp (argv[0], "unmaximize") == 0 ||
-           strcmp (argv[0], "fullscreen") == 0 ||
            strcmp (argv[0], "unfullscreen") == 0 ||
            strcmp (argv[0], "set_modal") == 0 ||
            strcmp (argv[0], "unset_modal") == 0 ||
@@ -1156,6 +1469,39 @@ test_case_do (TestCase    *test,
 
       if (!meta_test_client_do (client, error, argv[0], window_id, NULL))
         return FALSE;
+    }
+  else if (strcmp (argv[0], "fullscreen") == 0)
+    {
+      MetaTestClient *client;
+      const char *window_id;
+
+      if (argc != 2 && argc != 3)
+        BAD_COMMAND("usage: %s <client-id>/<window-id> [<connector>]", argv[0]);
+
+      if (!test_case_parse_window_id (test, argv[1], &client, &window_id, error))
+        return FALSE;
+
+      if (argc == 3)
+        {
+          MetaVirtualMonitor *virtual_monitor;
+          MetaOutput *output;
+
+          virtual_monitor = g_hash_table_lookup (test->virtual_monitors,
+                                                 argv[2]);
+          if (!virtual_monitor)
+            BAD_COMMAND ("Unknown monitor %s", argv[2]);
+
+          output = meta_virtual_monitor_get_output (virtual_monitor);
+          if (!meta_test_client_do (client, error, argv[0], window_id,
+                                    meta_output_get_name (output),
+                                    NULL))
+            return FALSE;
+        }
+      else
+        {
+          if (!meta_test_client_do (client, error, argv[0], window_id, NULL))
+            return FALSE;
+        }
     }
   else if (strcmp (argv[0], "local_activate") == 0)
     {
@@ -1480,9 +1826,170 @@ test_case_do (TestCase    *test,
             }
         }
     }
+  else if (strcmp (argv[0], "assert_keyboard_focus") == 0)
+    {
+      MetaWaylandCompositor *wayland_compositor;
+      MetaWaylandKeyboard *wayland_keyboard;
+      MetaWaylandSurface *focus_surface;
+      struct wl_resource *focus_surface_resource = NULL;
+
+      if (argc != 2)
+        BAD_COMMAND ("usage: %s <client-id>/<window-id>|none", argv[0]);
+
+      wayland_compositor = meta_context_get_wayland_compositor (test->context);
+      wayland_keyboard = wayland_compositor->seat->keyboard;
+      focus_surface =
+        meta_wayland_keyboard_get_focus_surface (wayland_keyboard);
+      if (focus_surface)
+        {
+          focus_surface_resource =
+            meta_wayland_surface_get_resource (focus_surface);
+        }
+
+      if (g_strcmp0 (argv[1], "none") == 0)
+        {
+          if (focus_surface)
+            {
+              g_set_error (error,
+                           META_TEST_CLIENT_ERROR,
+                           META_TEST_CLIENT_ERROR_ASSERTION_FAILED,
+                           "Expected no keyboard focus, but found wl_surface#%d",
+                           wl_resource_get_id (focus_surface_resource));
+              return FALSE;
+            }
+        }
+      else
+        {
+          MetaTestClient *client;
+          const char *window_id;
+          MetaWindow *window;
+          MetaWaylandSurface *surface;
+          struct wl_resource *surface_resource;
+
+          if (!test_case_parse_window_id (test, argv[1],
+                                          &client, &window_id, error))
+            return FALSE;
+
+          if (meta_test_client_get_client_type (client) !=
+              META_WINDOW_CLIENT_TYPE_WAYLAND)
+            BAD_COMMAND ("%s only works with Wayland clients", argv[0]);
+
+          window = meta_test_client_find_window (client, window_id, error);
+          if (!window)
+            return FALSE;
+
+          surface = meta_window_get_wayland_surface (window);
+          surface_resource = meta_wayland_surface_get_resource (surface);
+
+          if (focus_surface &&
+              focus_surface != surface)
+            {
+              g_set_error (error,
+                           META_TEST_CLIENT_ERROR,
+                           META_TEST_CLIENT_ERROR_ASSERTION_FAILED,
+                           "Expected keyboard focus wl_surface#%d, "
+                           "but found wl_surface#%d",
+                           wl_resource_get_id (surface_resource),
+                           wl_resource_get_id (focus_surface_resource));
+              return FALSE;
+            }
+          else if (!focus_surface)
+            {
+              g_set_error (error,
+                           META_TEST_CLIENT_ERROR,
+                           META_TEST_CLIENT_ERROR_ASSERTION_FAILED,
+                           "Expected keyboard focus wl_surface#%d, but found none",
+                           wl_resource_get_id (surface_resource));
+              return FALSE;
+            }
+        }
+    }
+  else if (strcmp (argv[0], "assert_pointer_focus") == 0)
+    {
+      MetaWaylandCompositor *wayland_compositor;
+      MetaWaylandPointer *wayland_pointer;
+      MetaWaylandSurface *focus_surface;
+      struct wl_resource *focus_surface_resource = NULL;
+
+      if (argc != 2)
+        BAD_COMMAND ("usage: %s <client-id>/<window-id>|none", argv[0]);
+
+      wayland_compositor = meta_context_get_wayland_compositor (test->context);
+      wayland_pointer = wayland_compositor->seat->pointer;
+      focus_surface = meta_wayland_pointer_get_focus_surface (wayland_pointer);
+      if (focus_surface)
+        {
+          focus_surface_resource =
+            meta_wayland_surface_get_resource (focus_surface);
+        }
+
+      if (g_strcmp0 (argv[1], "none") == 0)
+        {
+          if (focus_surface)
+            {
+              g_set_error (error,
+                           META_TEST_CLIENT_ERROR,
+                           META_TEST_CLIENT_ERROR_ASSERTION_FAILED,
+                           "Expected no pointer focus, but found wl_surface#%d",
+                           wl_resource_get_id (focus_surface_resource));
+              return FALSE;
+            }
+        }
+      else
+        {
+          MetaTestClient *client;
+          const char *window_id;
+          MetaWindow *window;
+          MetaWaylandSurface *surface;
+          struct wl_resource *surface_resource;
+
+          if (!test_case_parse_window_id (test, argv[1],
+                                          &client, &window_id, error))
+            return FALSE;
+
+          if (meta_test_client_get_client_type (client) !=
+              META_WINDOW_CLIENT_TYPE_WAYLAND)
+            BAD_COMMAND ("%s only works with Wayland clients", argv[0]);
+
+          window = meta_test_client_find_window (client, window_id, error);
+          if (!window)
+            return FALSE;
+
+          surface = meta_window_get_wayland_surface (window);
+          surface_resource = meta_wayland_surface_get_resource (surface);
+
+          if (focus_surface &&
+              focus_surface != surface)
+            {
+              g_set_error (error,
+                           META_TEST_CLIENT_ERROR,
+                           META_TEST_CLIENT_ERROR_ASSERTION_FAILED,
+                           "Expected pointer focus wl_surface#%d, "
+                           "but found wl_surface#%d",
+                           wl_resource_get_id (surface_resource),
+                           wl_resource_get_id (focus_surface_resource));
+              return FALSE;
+            }
+          else if (!focus_surface)
+            {
+              g_set_error (error,
+                           META_TEST_CLIENT_ERROR,
+                           META_TEST_CLIENT_ERROR_ASSERTION_FAILED,
+                           "Expected pointer focus wl_surface#%d, but found none",
+                           wl_resource_get_id (surface_resource));
+              return FALSE;
+            }
+        }
+    }
   else if (strcmp (argv[0], "assert_size") == 0)
     {
       MetaWindow *window;
+      int width;
+      int height;
+      int client_window_width;
+      int client_window_height;
+      g_autofree char *width_str = NULL;
+      g_autofree char *height_str = NULL;
 
       if (argc != 4)
         {
@@ -1499,19 +2006,26 @@ test_case_do (TestCase    *test,
       if (!window)
         return FALSE;
 
+      width = parse_window_size (window, argv[2]);
+      height = parse_window_size (window, argv[3]);
+      client_window_width = width;
+      client_window_height = height;
+
       if (META_IS_WINDOW_X11 (window) && meta_window_x11_get_frame (window))
         {
-          g_set_error (error,
-                       META_TEST_CLIENT_ERROR,
-                       META_TEST_CLIENT_ERROR_ASSERTION_FAILED,
-                       "Can only assert size of CSD window");
-          return FALSE;
+          MetaFrameBorders frame_borders;
+
+          g_assert_true (meta_window_x11_get_frame_borders (window,
+                                                            &frame_borders));
+
+          client_window_width -=
+            frame_borders.visible.left + frame_borders.visible.right;
+          client_window_height -=
+            frame_borders.visible.top + frame_borders.visible.bottom;
         }
 
-      int width = parse_window_size (window, argv[2]);
-      int height = parse_window_size (window, argv[3]);
-      g_autofree char *width_str = g_strdup_printf ("%d", width);
-      g_autofree char *height_str = g_strdup_printf ("%d", height);
+      width_str = g_strdup_printf ("%d", client_window_width);
+      height_str = g_strdup_printf ("%d", client_window_height);
 
       if (!meta_test_client_do (client, error, argv[0],
                                 window_id,
@@ -1625,6 +2139,94 @@ test_case_do (TestCase    *test,
       meta_monitor_manager_reload (monitor_manager);
 
       g_hash_table_insert (test->virtual_monitors, g_strdup (argv[1]), monitor);
+    }
+  else if (strcmp (argv[0], "set_monitor_order") == 0)
+    {
+      MetaBackend *backend = meta_context_get_backend (test->context);
+      MetaMonitorManager *monitor_manager =
+        meta_backend_get_monitor_manager (backend);
+      MetaMonitorsConfig *current_config;
+      g_autoptr (MetaMonitorsConfig) new_config = NULL;
+      int i;
+      int total_width = 0;
+
+      if (argc < 2)
+        BAD_COMMAND ("usage: %s [<monitor-id>, ...]", argv[0]);
+
+      current_config =
+        meta_monitor_config_manager_get_current (monitor_manager->config_manager);
+      new_config =
+        meta_monitors_config_copy (current_config);
+
+      for (i = 1; i < argc; i++)
+        {
+          MetaVirtualMonitor *virtual_monitor;
+          MetaOutput *output;
+          MetaLogicalMonitorConfig *logical_monitor_config;
+
+          virtual_monitor =
+            g_hash_table_lookup (test->virtual_monitors, argv[i]);
+          if (!virtual_monitor)
+            BAD_COMMAND ("Unknown monitor %s", argv[1]);
+
+          output = meta_virtual_monitor_get_output (virtual_monitor);
+          logical_monitor_config =
+            find_logical_monitor_config (new_config,
+                                         meta_output_get_name (output));
+          logical_monitor_config->layout.x = total_width;
+          total_width += logical_monitor_config->layout.width;
+        }
+
+      if (!meta_monitor_manager_apply_monitors_config (monitor_manager,
+                                                       new_config,
+                                                       META_MONITORS_CONFIG_METHOD_TEMPORARY,
+                                                       error))
+        return FALSE;
+    }
+  else if (strcmp (argv[0], "assert_window_main_monitor") == 0)
+    {
+      MetaTestClient *client;
+      const char *window_id;
+      MetaWindow *window;
+      MetaLogicalMonitor *logical_monitor;
+      const char *monitor_id;
+
+      if (argc != 3)
+        BAD_COMMAND ("usage: %s <window-id> <monitor-id>", argv[0]);
+
+      if (!test_case_parse_window_id (test, argv[1], &client, &window_id, error))
+        return FALSE;
+
+      window = meta_test_client_find_window (client, window_id, error);
+      if (!window)
+        return FALSE;
+
+      monitor_id = argv[2];
+      logical_monitor = get_logical_monitor (test, monitor_id, error);
+      if (!logical_monitor)
+        return FALSE;
+
+      if (window->monitor != logical_monitor)
+        {
+          g_set_error (error,
+                       META_TEST_CLIENT_ERROR,
+                       META_TEST_CLIENT_ERROR_ASSERTION_FAILED,
+                       "Monitor %s (%d, %dx%d+%d+%d) is not the primary monitor of window %s (%d, %dx%d+%d+%d)",
+                       monitor_id,
+                       logical_monitor->number,
+                       logical_monitor->rect.width,
+                       logical_monitor->rect.height,
+                       logical_monitor->rect.x,
+                       logical_monitor->rect.y,
+                       window_id,
+                       window->monitor->number,
+                       window->monitor->rect.width,
+                       window->monitor->rect.height,
+                       window->monitor->rect.x,
+                       window->monitor->rect.y
+                       );
+          return FALSE;
+        }
     }
   else if (strcmp (argv[0], "assert_primary_monitor") == 0)
     {
@@ -1896,6 +2498,32 @@ test_case_do (TestCase    *test,
                                                   CLUTTER_BUTTON_STATE_RELEASED);
       meta_flush_input (test->context);
     }
+  else if (strcmp (argv[0], "click_and_hold") == 0)
+    {
+      if (argc != 1)
+        BAD_COMMAND("usage: %s", argv[0]);
+
+      clutter_virtual_input_device_notify_button (test->pointer,
+                                                  CLUTTER_CURRENT_TIME,
+                                                  CLUTTER_BUTTON_PRIMARY,
+                                                  CLUTTER_BUTTON_STATE_PRESSED);
+      meta_flush_input (test->context);
+      if (!test_case_dispatch (test, error))
+        return FALSE;
+    }
+  else if (strcmp (argv[0], "release_click") == 0)
+    {
+      if (argc != 1)
+        BAD_COMMAND("usage: %s", argv[0]);
+
+      clutter_virtual_input_device_notify_button (test->pointer,
+                                                  CLUTTER_CURRENT_TIME,
+                                                  CLUTTER_BUTTON_PRIMARY,
+                                                  CLUTTER_BUTTON_STATE_RELEASED);
+      meta_flush_input (test->context);
+      if (!test_case_dispatch (test, error))
+        return FALSE;
+    }
   else if (strcmp (argv[0], "set_pref") == 0)
     {
       GSettings *wm;
@@ -1970,6 +2598,16 @@ test_case_do (TestCase    *test,
             BAD_COMMAND("usage: %s %s [true|false]", argv[0], argv[1]);
 
           g_assert_true (g_settings_set_boolean (mutter, "center-new-windows",
+                                                 value));
+        }
+      else if (strcmp (argv[1], "auto-maximize") == 0)
+        {
+          gboolean value;
+
+          if (!str_to_bool (argv[2], &value))
+            BAD_COMMAND("usage: %s %s [true|false]", argv[0], argv[1]);
+
+          g_assert_true (g_settings_set_boolean (mutter, "auto-maximize",
                                                  value));
         }
       else {
@@ -2064,7 +2702,6 @@ test_case_do (TestCase    *test,
       MetaTestClient *client;
       const char *window_id;
       MetaWindow *window;
-      MetaWindowActor *window_actor;
 
       if (argc != 2)
         BAD_COMMAND("usage: %s <client-id>/<window-id>", argv[0]);
@@ -2076,16 +2713,7 @@ test_case_do (TestCase    *test,
       if (!window)
         return FALSE;
 
-      window_actor = meta_window_actor_from_window (window);
-      g_object_add_weak_pointer (G_OBJECT (window_actor),
-                                 (gpointer *) &window_actor);
-      while (window_actor && meta_window_actor_effect_in_progress (window_actor))
-        g_main_context_iteration (NULL, TRUE);
-      if (window_actor)
-        {
-          g_object_remove_weak_pointer (G_OBJECT (window_actor),
-                                        (gpointer *) &window_actor);
-        }
+      meta_wait_for_effects (window);
     }
   else if (argc > 2 && g_str_equal (argv[1], "=>"))
     {
@@ -2113,6 +2741,78 @@ test_case_do (TestCase    *test,
                                   signal_name,
                                   G_CALLBACK (test_case_signal_cb),
                                   test_case_args);
+    }
+  else if (strcmp (argv[0], "popup") == 0)
+    {
+      MetaTestClient *client;
+      const char *window_id;
+      const char *parent_id;
+
+      if (argc != 3)
+        BAD_COMMAND("usage: %s <client-id>/<popup-id> <parent-id>", argv[0]);
+
+      if (!test_case_parse_window_id (test, argv[1],
+                                      &client, &window_id, error))
+        return FALSE;
+
+      parent_id = argv[2];
+
+      if (!meta_test_client_do (client, error,
+                                argv[0], window_id,
+                                parent_id,
+                                NULL))
+        return FALSE;
+
+      if (!track_popup (test, client, window_id, parent_id, error))
+        return FALSE;
+    }
+  else if (strcmp (argv[0], "popup_at") == 0)
+    {
+      MetaTestClient *client;
+      const char *window_id;
+      const char *parent_id;
+
+      if (argc != 6 && argc != 7)
+        BAD_COMMAND("usage: %s <client-id>/<popup-id> <parent-id> <top|bottom|left|right|center> <width> <height> [grab]", argv[0]);
+
+      if (!test_case_parse_window_id (test, argv[1],
+                                      &client, &window_id, error))
+        return FALSE;
+
+      parent_id = argv[2];
+
+      if (!meta_test_client_do (client, error,
+                                argv[0],
+                                window_id,
+                                parent_id,
+                                argv[3],
+                                argv[4],
+                                argv[5],
+                                argc == 7 ? argv[6] : NULL,
+                                NULL))
+        return FALSE;
+
+      if (!track_popup (test, client, window_id, parent_id, error))
+        return FALSE;
+    }
+  else if (strcmp (argv[0], "dismiss") == 0)
+    {
+      MetaTestClient *client;
+      const char *window_id;
+
+      if (argc != 2)
+        BAD_COMMAND("usage: %s <client-id>/<popup-id>", argv[0]);
+
+      if (!test_case_parse_window_id (test, argv[1],
+                                      &client, &window_id, error))
+        return FALSE;
+
+      if (!meta_test_client_do (client, error,
+                                argv[0], window_id,
+                                NULL))
+        return FALSE;
+
+      g_hash_table_remove (test->popups, argv[1]);
     }
   else
     {
@@ -2171,9 +2871,73 @@ test_case_destroy (TestCase *test,
   g_hash_table_destroy (test->clients);
   g_hash_table_unref (test->virtual_monitors);
   g_object_unref (test->pointer);
+  g_object_unref (test->keyboard);
+  g_clear_pointer (&test->popups, g_hash_table_unref);
   g_free (test);
 
   return TRUE;
+}
+
+static void
+check_window_has_transient_child (MetaWindow *window,
+                                  MetaWindow *transient_child)
+{
+  GPtrArray *transient_children;
+
+  transient_children = meta_window_get_transient_children (window);
+  g_assert_nonnull (transient_children);
+  g_assert_true (g_ptr_array_find (transient_children, transient_child, NULL));
+}
+
+static void
+sanity_check_transient_for (MetaWindow *window,
+                            GList      *windows)
+{
+  if (window->transient_for)
+    {
+      g_assert_nonnull (g_list_find (windows, window->transient_for));
+
+      check_window_has_transient_child (window->transient_for, window);
+    }
+}
+
+static void
+sanity_check_transient_children (MetaWindow *window,
+                                 GList      *windows)
+{
+  GPtrArray *transient_children;
+
+  transient_children = meta_window_get_transient_children (window);
+  if (transient_children &&
+      transient_children->len > 0)
+    {
+      int i;
+
+      for (i = 0; i < transient_children->len; i++)
+        {
+          MetaWindow *transient_child =
+            g_ptr_array_index (transient_children, i);
+
+          g_assert_nonnull (g_list_find (windows, transient_child));
+        }
+    }
+}
+
+static void
+sanity_check (MetaContext *context)
+{
+  MetaDisplay *display = meta_context_get_display (context);
+  g_autoptr (GList) windows = NULL;
+  GList *l;
+
+  windows = meta_display_list_all_windows (display);
+  for (l = windows; l; l = l->next)
+    {
+      MetaWindow *window = l->data;
+
+      sanity_check_transient_for (window, windows);
+      sanity_check_transient_children (window, windows);
+    }
 }
 
 /**********************************************************************/
@@ -2204,17 +2968,27 @@ run_test (MetaContext *context,
   int line_no = 0;
   while (error == NULL)
     {
-      char *line = g_data_input_stream_read_line_utf8 (in, NULL, NULL, &error);
+      g_autofree char *line = NULL;
+      int argc;
+      g_auto (GStrv) argv = NULL;
+
+      line = g_data_input_stream_read_line_utf8 (in, NULL, NULL, &error);
       if (line == NULL)
         break;
 
       line_no++;
 
-      int argc;
-      char **argv = NULL;
       if (!g_shell_parse_argv (line, &argc, &argv, &error))
         {
           if (g_error_matches (error, G_SHELL_ERROR, G_SHELL_ERROR_EMPTY_STRING))
+            {
+              g_clear_error (&error);
+              goto next;
+            }
+
+          /* Prior to glib 2.85.0, empty comment lines "#" emitted this */
+          if (g_error_matches (error, G_SHELL_ERROR, G_SHELL_ERROR_BAD_QUOTING) &&
+              line[0] == '#')
             {
               g_clear_error (&error);
               goto next;
@@ -2228,9 +3002,8 @@ run_test (MetaContext *context,
     next:
       if (error)
         g_prefix_error (&error, "%d: ", line_no);
-
-      g_free (line);
-      g_strfreev (argv);
+      else
+        sanity_check (context);
     }
 
   {

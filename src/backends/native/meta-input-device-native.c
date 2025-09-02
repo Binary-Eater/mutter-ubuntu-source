@@ -810,13 +810,12 @@ get_button_index (int button)
 static void
 emulate_button_press (MetaInputDeviceNative *device_evdev)
 {
-  ClutterInputDevice *device = CLUTTER_INPUT_DEVICE (device_evdev);
   int btn = device_evdev->mousekeys_btn;
 
   if (device_evdev->mousekeys_btn_states[get_button_index (btn)])
     return;
 
-  clutter_virtual_input_device_notify_button (device->accessibility_virtual_device,
+  clutter_virtual_input_device_notify_button (device_evdev->mousekeys_pointer,
                                               g_get_monotonic_time (), btn,
                                               CLUTTER_BUTTON_STATE_PRESSED);
   device_evdev->mousekeys_btn_states[get_button_index (btn)] = CLUTTER_BUTTON_STATE_PRESSED;
@@ -825,13 +824,12 @@ emulate_button_press (MetaInputDeviceNative *device_evdev)
 static void
 emulate_button_release (MetaInputDeviceNative *device_evdev)
 {
-  ClutterInputDevice *device = CLUTTER_INPUT_DEVICE (device_evdev);
   int btn = device_evdev->mousekeys_btn;
 
   if (device_evdev->mousekeys_btn_states[get_button_index (btn)] == CLUTTER_BUTTON_STATE_RELEASED)
     return;
 
-  clutter_virtual_input_device_notify_button (device->accessibility_virtual_device,
+  clutter_virtual_input_device_notify_button (device_evdev->mousekeys_pointer,
                                               g_get_monotonic_time (), btn,
                                               CLUTTER_BUTTON_STATE_RELEASED);
   device_evdev->mousekeys_btn_states[get_button_index (btn)] = CLUTTER_BUTTON_STATE_RELEASED;
@@ -905,7 +903,6 @@ emulate_pointer_motion (MetaInputDeviceNative *device_evdev,
                         int                    dx,
                         int                    dy)
 {
-  ClutterInputDevice *device = CLUTTER_INPUT_DEVICE (device_evdev);
   double dx_motion;
   double dy_motion;
   double speed;
@@ -924,7 +921,7 @@ emulate_pointer_motion (MetaInputDeviceNative *device_evdev,
   else
     dy_motion = ceil (((double) dy) * speed);
 
-  clutter_virtual_input_device_notify_relative_motion (device->accessibility_virtual_device,
+  clutter_virtual_input_device_notify_relative_motion (device_evdev->mousekeys_pointer,
                                                        time_us, dx_motion, dy_motion);
 }
 static gboolean
@@ -951,10 +948,10 @@ enable_mousekeys (MetaInputDeviceNative *device_evdev)
   device_evdev->mousekeys_last_motion_time = 0;
   device_evdev->last_mousekeys_key = 0;
 
-  if (device->accessibility_virtual_device)
+  if (device_evdev->mousekeys_pointer)
     return;
 
-  device->accessibility_virtual_device =
+  device_evdev->mousekeys_pointer =
     clutter_seat_create_virtual_device (clutter_input_device_get_seat (device),
                                         CLUTTER_POINTER_DEVICE);
 }
@@ -962,8 +959,6 @@ enable_mousekeys (MetaInputDeviceNative *device_evdev)
 static void
 disable_mousekeys (MetaInputDeviceNative *device_evdev)
 {
-  ClutterInputDevice *device = CLUTTER_INPUT_DEVICE (device_evdev);
-
   stop_mousekeys_move (device_evdev);
 
   /* Make sure we don't leave button pressed behind... */
@@ -985,8 +980,7 @@ disable_mousekeys (MetaInputDeviceNative *device_evdev)
       emulate_button_release (device_evdev);
     }
 
-  if (device->accessibility_virtual_device)
-    g_clear_object (&device->accessibility_virtual_device);
+  g_clear_object (&device_evdev->mousekeys_pointer);
 }
 
 static gboolean
@@ -1368,11 +1362,12 @@ update_pad_features (MetaInputDeviceNative *device_native)
   ClutterInputDevice *device = CLUTTER_INPUT_DEVICE (device_native);
   struct libinput_device *libinput_device;
   struct libinput_tablet_pad_mode_group *mode_group;
-  int n_groups, n_buttons, n_rings, n_strips, n_modes, i, j;
+  int n_groups, n_buttons, n_rings, n_strips, n_dials, n_modes, i, j;
 
   libinput_device = meta_input_device_native_get_libinput_device (device);
   n_rings = libinput_device_tablet_pad_get_num_rings (libinput_device);
   n_strips = libinput_device_tablet_pad_get_num_strips (libinput_device);
+  n_dials = libinput_device_tablet_pad_get_num_dials (libinput_device);
   n_groups = libinput_device_tablet_pad_get_num_mode_groups (libinput_device);
   n_buttons = libinput_device_tablet_pad_get_num_buttons (libinput_device);
 
@@ -1410,6 +1405,14 @@ update_pad_features (MetaInputDeviceNative *device_native)
           PadFeature feature = { CLUTTER_PAD_FEATURE_STRIP, j, i };
 
           if (libinput_tablet_pad_mode_group_has_strip (mode_group, j))
+            g_array_append_val (device_native->pad_features, feature);
+        }
+
+      for (j = 0; j < n_dials; j++)
+        {
+          PadFeature feature = { CLUTTER_PAD_FEATURE_DIAL, j, i };
+
+          if (libinput_tablet_pad_mode_group_has_dial (mode_group, j))
             g_array_append_val (device_native->pad_features, feature);
         }
     }
@@ -1508,15 +1511,16 @@ meta_input_device_native_new_in_impl (MetaSeatImpl           *seat_impl,
   ClutterInputDeviceType type;
   ClutterInputCapabilities capabilities;
   ClutterInputMode mode;
-  char *vendor, *product;
-  int n_rings = 0, n_strips = 0, n_groups = 1, n_buttons = 0;
+  unsigned int vendor, product, bustype;
+  int n_rings = 0, n_strips = 0, n_dials = 0, n_groups = 1, n_buttons = 0;
   char *node_path;
   double width, height;
 
   capabilities = translate_device_capabilities (libinput_device);
   type = determine_device_type (libinput_device);
-  vendor = g_strdup_printf ("%.4x", libinput_device_get_id_vendor (libinput_device));
-  product = g_strdup_printf ("%.4x", libinput_device_get_id_product (libinput_device));
+  vendor = libinput_device_get_id_vendor (libinput_device);
+  product = libinput_device_get_id_product (libinput_device);
+  bustype = libinput_device_get_id_bustype (libinput_device);
   node_path = g_strdup_printf ("/dev/input/%s", libinput_device_get_sysname (libinput_device));
 
   if (libinput_device_has_capability (libinput_device,
@@ -1530,6 +1534,7 @@ meta_input_device_native_new_in_impl (MetaSeatImpl           *seat_impl,
     {
       n_rings = libinput_device_tablet_pad_get_num_rings (libinput_device);
       n_strips = libinput_device_tablet_pad_get_num_strips (libinput_device);
+      n_dials = libinput_device_tablet_pad_get_num_dials (libinput_device);
       n_groups = libinput_device_tablet_pad_get_num_mode_groups (libinput_device);
       n_buttons = libinput_device_tablet_pad_get_num_buttons (libinput_device);
     }
@@ -1542,8 +1547,10 @@ meta_input_device_native_new_in_impl (MetaSeatImpl           *seat_impl,
                          "device-mode", mode,
                          "vendor-id", vendor,
                          "product-id", product,
+                         "bus-type", bustype,
                          "n-rings", n_rings,
                          "n-strips", n_strips,
+                         "n-dials", n_dials,
                          "n-mode-groups", n_groups,
                          "n-buttons", n_buttons,
                          "device-node", node_path,
@@ -1554,8 +1561,6 @@ meta_input_device_native_new_in_impl (MetaSeatImpl           *seat_impl,
 
   libinput_device_set_user_data (libinput_device, device);
   libinput_device_ref (libinput_device);
-  g_free (vendor);
-  g_free (product);
   g_free (node_path);
 
   if (libinput_device_has_capability (libinput_device,
@@ -1742,27 +1747,21 @@ meta_input_device_native_set_mapping_mode_in_impl (ClutterInputDevice     *devic
 }
 
 void
-meta_input_device_native_set_coords_in_impl (MetaInputDeviceNative *device_native,
-                                             float                  x,
-                                             float                  y)
-{
-  device_native->pointer_x = x;
-  device_native->pointer_y = y;
-}
-
-void
-meta_input_device_native_get_coords_in_impl (MetaInputDeviceNative *device_native,
-                                             float                 *x,
-                                             float                 *y)
-{
-  if (x)
-    *x = device_native->pointer_x;
-  if (y)
-    *y = device_native->pointer_y;
-}
-
-void
 meta_input_device_native_detach_libinput_in_impl (MetaInputDeviceNative *device_native)
 {
   g_clear_pointer (&device_native->libinput_device, libinput_device_unref);
+}
+
+gboolean
+meta_input_device_native_has_scroll_inverted (MetaInputDeviceNative *device_native)
+{
+  struct libinput_device *libinput_device = device_native->libinput_device;
+
+  if (!libinput_device)
+    return FALSE;
+
+  if (!libinput_device_config_scroll_has_natural_scroll (libinput_device))
+    return FALSE;
+
+  return !!libinput_device_config_scroll_get_natural_scroll_enabled (libinput_device);
 }

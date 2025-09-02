@@ -36,8 +36,7 @@ typedef gboolean (* ClutterEventHandler) (const ClutterEvent *event,
 typedef enum
 {
   CLUTTER_DEVICE_UPDATE_NONE = 0,
-  CLUTTER_DEVICE_UPDATE_EMIT_CROSSING = 1 << 0,
-  CLUTTER_DEVICE_UPDATE_IGNORE_CACHE = 1 << 1,
+  CLUTTER_DEVICE_UPDATE_IGNORE_CACHE = 1 << 0,
 } ClutterDeviceUpdateFlags;
 
 /* stage */
@@ -110,10 +109,6 @@ GList * clutter_stage_get_views_for_rect (ClutterStage          *stage,
 
 void clutter_stage_set_actor_needs_immediate_relayout (ClutterStage *stage);
 
-void clutter_stage_remove_device_entry (ClutterStage         *self,
-                                        ClutterInputDevice   *device,
-                                        ClutterEventSequence *sequence);
-
 void clutter_stage_unlink_grab (ClutterStage *self,
                                 ClutterGrab  *grab);
 
@@ -126,17 +121,15 @@ void clutter_stage_maybe_invalidate_focus (ClutterStage *self,
 void clutter_stage_emit_event (ClutterStage       *self,
                                const ClutterEvent *event);
 
-void clutter_stage_maybe_lost_implicit_grab (ClutterStage         *self,
-                                             ClutterInputDevice   *device,
-                                             ClutterEventSequence *sequence);
+void clutter_stage_maybe_lost_implicit_grab (ClutterStage  *self,
+                                             ClutterSprite *sprite);
 
 void clutter_stage_implicit_grab_actor_unmapped (ClutterStage *self,
                                                  ClutterActor *actor);
 
 CLUTTER_EXPORT_TEST
-void clutter_stage_notify_action_implicit_grab (ClutterStage         *self,
-                                                ClutterInputDevice   *device,
-                                                ClutterEventSequence *sequence);
+void clutter_stage_notify_action_implicit_grab (ClutterStage  *self,
+                                                ClutterSprite *sprite);
 
 void clutter_stage_add_to_redraw_clip (ClutterStage       *self,
                                        ClutterPaintVolume *clip);
@@ -151,8 +144,8 @@ void clutter_stage_invalidate_devices (ClutterStage *stage);
 
 GPtrArray * clutter_stage_get_active_gestures_array (ClutterStage *self);
 
-ClutterActor * clutter_stage_update_device_for_event (ClutterStage *stage,
-                                                      ClutterEvent *event);
+void clutter_stage_update_device_for_event (ClutterStage *stage,
+                                            ClutterEvent *event);
 
 void clutter_stage_update_devices_in_view (ClutterStage     *stage,
                                            ClutterStageView *view);

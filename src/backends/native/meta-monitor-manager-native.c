@@ -44,7 +44,7 @@
 #include "backends/meta-backend-private.h"
 #include "backends/meta-crtc.h"
 #include "backends/meta-monitor-config-manager.h"
-#include "backends/meta-monitor.h"
+#include "backends/meta-monitor-private.h"
 #include "backends/meta-output.h"
 #include "backends/native/meta-backend-native.h"
 #include "backends/native/meta-crtc-kms.h"
@@ -133,7 +133,7 @@ meta_monitor_manager_native_ensure_initial_config (MetaMonitorManager *manager)
 
   config = meta_monitor_manager_ensure_configured (manager);
 
-  meta_monitor_manager_update_logical_state (manager, config);
+  meta_monitor_manager_update_logical_state (manager, config, NULL);
   meta_monitor_manager_update_for_lease_state (manager, config);
 }
 
@@ -622,6 +622,15 @@ meta_monitor_manager_native_dispose (GObject *object)
   G_OBJECT_CLASS (meta_monitor_manager_native_parent_class)->dispose (object);
 }
 
+static void
+on_monitors_changed (MetaMonitorManagerNative *manager_native)
+{
+  MetaMonitorManagerNativePrivate *priv =
+    meta_monitor_manager_native_get_instance_private (manager_native);
+
+  g_clear_handle_id (&priv->rebuild_virtual_idle_id, g_source_remove);
+}
+
 static gboolean
 meta_monitor_manager_native_initable_init (GInitable    *initable,
                                            GCancellable *cancellable,
@@ -661,6 +670,9 @@ meta_monitor_manager_native_initable_init (GInitable    *initable,
     g_hash_table_new_full (NULL, NULL,
                            NULL,
                            (GDestroyNotify) meta_gamma_lut_free);
+
+  g_signal_connect (manager, "monitors-changed",
+                    G_CALLBACK (on_monitors_changed), NULL);
 
   return TRUE;
 }

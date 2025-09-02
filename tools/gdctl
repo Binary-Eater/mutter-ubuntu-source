@@ -112,6 +112,20 @@ class ColorMode(NamedEnum):
         ]
 
 
+class RgbRange(NamedEnum):
+    AUTO = 1
+    FULL = 2
+    LIMITED = 3
+
+    @classmethod
+    def enum_names(cls):
+        return [
+            (RgbRange.AUTO, "auto"),
+            (RgbRange.FULL, "full"),
+            (RgbRange.LIMITED, "limited"),
+        ]
+
+
 class ConfigMethod(Enum):
     VERIFY = 0
     TEMPORARY = 1
@@ -123,6 +137,7 @@ def translate_property(name, value):
         "layout-mode": LayoutMode,
         "color-mode": ColorMode,
         "supported-color-modes": ColorMode,
+        "rgb-range": RgbRange,
     }
 
     if name in enum_properties:
@@ -204,31 +219,37 @@ def print_monitor_prefs(
         level=level,
         is_last=is_last,
         lines=lines,
-        data="Preferences:",
+        data="Preferences",
     )
 
-    print_data(
-        level=level + 1,
-        is_last=True,
-        lines=lines,
-        data="Luminances:",
-    )
-
-    for color_mode in monitor.supported_color_modes:
-        (output_luminance, is_unset) = display_config.get_luminance(
-            monitor, color_mode
-        )
-        is_last = color_mode == monitor.supported_color_modes[-1]
-
-        is_default_string = " (default)" if is_unset else ""
-        is_current_string = (
-            " (current)" if monitor.color_mode == color_mode else ""
-        )
+    (_, backlight_entry) = display_config.get_backlight(monitor)
+    if backlight_entry:
         print_data(
-            level=level + 2,
-            is_last=is_last,
+            level=level + 1,
+            is_last=True,
             lines=lines,
-            data=f"{color_mode} ⇒  {output_luminance}{is_default_string}{is_current_string}",
+            data="Backlight:",
+        )
+
+        props = [
+            (k, v) for (k, v) in backlight_entry.items() if k != "connector"
+        ]
+        for prop in props:
+            is_last = prop == props[-1]
+            (k, v) = prop
+
+            print_data(
+                level=level + 2,
+                is_last=is_last,
+                lines=lines,
+                data=f"{k} ⇒  {v}",
+            )
+    else:
+        print_data(
+            level=level + 1,
+            is_last=True,
+            lines=lines,
+            data="Backlight: None",
         )
 
 
@@ -325,44 +346,34 @@ class DisplayConfig:
             cancellable=None,
         )
 
-    def get_luminance(self, monitor, color_mode) -> tuple[float, bool]:
-        variant = self._proxy.get_cached_property("Luminance")
+    def get_backlight(self, monitor) -> tuple[int, Any]:
+        variant = self._proxy.get_cached_property("Backlight")
+        [serial, backlights] = variant
 
-        luminance_entry = next(
-            entry
-            for entry in variant
-            if entry["connector"] == monitor.connector
-            and ColorMode(entry["color-mode"]) == color_mode
-        )
-        output_luminance = luminance_entry["luminance"]
-        is_unset = luminance_entry["is-unset"]
+        try:
+            backlight_entry = next(
+                entry
+                for entry in backlights
+                if entry["connector"] == monitor.connector
+            )
+        except StopIteration:
+            return (serial, None)
 
-        return (output_luminance, is_unset)
+        return (serial, backlight_entry)
 
-    def set_luminance(self, monitor, color_mode, luminance):
+    def set_backlight(self, monitor, value):
+        [serial, _] = self.get_backlight(monitor)
+
         parameters = GLib.Variant(
-            "(sud)",
+            "(usi)",
             (
+                serial,
                 monitor.connector,
-                color_mode.value,
-                luminance,
+                value,
             ),
         )
         self._proxy.call_sync(
-            method_name="SetLuminance",
-            parameters=parameters,
-            flags=Gio.DBusCallFlags.NO_AUTO_START,
-            timeout_msec=-1,
-            cancellable=None,
-        )
-
-    def reset_luminance(self, monitor, color_mode):
-        parameters = GLib.Variant(
-            "(su)",
-            (monitor.connector, color_mode.value),
-        )
-        self._proxy.call_sync(
-            method_name="ResetLuminance",
+            method_name="SetBacklight",
             parameters=parameters,
             flags=Gio.DBusCallFlags.NO_AUTO_START,
             timeout_msec=-1,
@@ -404,6 +415,7 @@ class Monitor:
     preferred_mode: MonitorMode | None
     color_mode: ColorMode | None
     supported_color_modes: list[ColorMode]
+    rgb_range: RgbRange | None
 
     @classmethod
     def from_variant(cls, variant):
@@ -430,6 +442,7 @@ class Monitor:
         display_name = properties.get("display-name", None)
         color_mode = properties.get("color-mode", None)
         supported_color_modes = properties.get("supported-color-modes")
+        rgb_range = properties.get("rgb-range", None)
 
         return cls(
             connector=connector,
@@ -443,6 +456,7 @@ class Monitor:
             display_name=display_name,
             color_mode=color_mode,
             supported_color_modes=supported_color_modes,
+            rgb_range=rgb_range,
         )
 
 
@@ -835,6 +849,9 @@ def create_logical_monitor(monitors_state, layout_mode, logical_monitor_args):
         monitor.color_mode = ColorMode.maybe_from_string(
             monitor_args.get("color_mode", None)
         )
+        monitor.rgb_range = RgbRange.maybe_from_string(
+            monitor_args.get("rgb_range", None)
+        )
 
         monitors.append(monitor)
 
@@ -962,16 +979,23 @@ def print_config(config):
             )
             print_data(
                 level=4,
-                is_last=not monitor.color_mode,
+                is_last=not monitor.color_mode and not monitor.rgb_range,
                 lines=lines,
                 data=f"Mode: {monitor.mode.name}",
             )
             if monitor.color_mode:
                 print_data(
                     level=4,
-                    is_last=True,
+                    is_last=not monitor.rgb_range,
                     lines=lines,
                     data=f"Color mode: {monitor.color_mode}",
+                )
+            if monitor.rgb_range:
+                print_data(
+                    level=4,
+                    is_last=True,
+                    lines=lines,
+                    data=f"RGB mode: {monitor.rgb_range}",
                 )
 
         index += 1
@@ -1241,6 +1265,10 @@ class Config:
                 options["color-mode"] = GLib.Variant(
                     "u", monitor.color_mode.value
                 )
+            if monitor.rgb_range:
+                options["rgb-range"] = GLib.Variant(
+                    "u", monitor.rgb_range.value
+                )
 
             # Variant type: (ssa{sv})
             tuples.append(
@@ -1423,6 +1451,11 @@ class ColorModeCompleter(NamedEnumCompleter):
         super().__init__(ColorMode)
 
 
+class RgbRangeCompleter(NamedEnumCompleter):
+    def __init__(self):
+        super().__init__(RgbRange)
+
+
 if __name__ == "__main__":
     parser = GdctlParser(
         description="Display control utility",
@@ -1540,6 +1573,14 @@ if __name__ == "__main__":
         choices=[str(color_mode) for color_mode in list(ColorMode)],
         type=str,
     ).completer = ColorModeCompleter()  # type: ignore[attr-defined]
+    monitor_parser.add_argument(
+        "--rgb-range",
+        "-r",
+        action=AppendToSubGroup,
+        help="RGB range",
+        choices=[str(rgb_range) for rgb_range in list(RgbRange)],
+        type=str,
+    ).completer = RgbRangeCompleter()  # type: ignore[attr-defined]
     logical_monitor_parser.add_argument(
         "--primary",
         "-p",
@@ -1627,18 +1668,11 @@ if __name__ == "__main__":
         argument_default=argparse.SUPPRESS,
     )
     monitor_prefs_parser.add_argument(
-        "-l",
-        "--luminance",
+        "-b",
+        "--backlight",
         action=AppendToGroup,
         type=float,
         nargs=1,
-    )
-    monitor_prefs_parser.add_argument(
-        "--reset-luminance",
-        action=AppendToGroup,
-        type=bool,
-        const=True,
-        nargs=0,
     )
 
     if argcomplete:
@@ -1733,16 +1767,6 @@ if __name__ == "__main__":
             for monitor_prefs in args.monitors:
                 connector = monitor_prefs["key"]
 
-                if (
-                    "luminance" in monitor_prefs
-                    and "reset_luminance" in monitor_prefs
-                ):
-                    print(
-                        "Cannot both set and reset luminance",
-                        file=sys.stderr,
-                    )
-                    sys.exit(1)
-
                 if connector not in monitors_state.monitors:
                     print(
                         f"Monitor with connector {connector} not found",
@@ -1752,10 +1776,6 @@ if __name__ == "__main__":
 
                 monitor = monitors_state.monitors[connector]
 
-                if "luminance" in monitor_prefs:
-                    (luminance,) = monitor_prefs["luminance"]
-                    display_config.set_luminance(
-                        monitor, monitor.color_mode, luminance
-                    )
-                elif "reset_luminance" in monitor_prefs:
-                    display_config.reset_luminance(monitor, monitor.color_mode)
+                if "backlight" in monitor_prefs:
+                    (value,) = monitor_prefs["backlight"]
+                    display_config.set_backlight(monitor, value)

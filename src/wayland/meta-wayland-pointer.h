@@ -75,7 +75,7 @@ gboolean meta_wayland_pointer_get_grab_info (MetaWaylandPointer    *pointer,
                                              MetaWaylandSurface    *surface,
                                              uint32_t               serial,
                                              gboolean               require_pressed,
-                                             ClutterInputDevice   **device_out,
+                                             ClutterSprite        **sprite_out,
                                              float                 *x,
                                              float                 *y);
 
@@ -94,6 +94,7 @@ void meta_wayland_pointer_update_cursor_surface (MetaWaylandPointer *pointer);
 
 MetaWaylandSurface * meta_wayland_pointer_get_current_surface (MetaWaylandPointer *pointer);
 
+META_EXPORT_TEST
 MetaWaylandSurface * meta_wayland_pointer_get_focus_surface (MetaWaylandPointer *pointer);
 
 void meta_wayland_pointer_focus_surface (MetaWaylandPointer *pointer,

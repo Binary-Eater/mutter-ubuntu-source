@@ -30,7 +30,7 @@
 #include "wayland/meta-wayland-tablet-tool.h"
 #include "wayland/meta-wayland-tablet.h"
 
-#include "tablet-unstable-v2-server-protocol.h"
+#include "tablet-v2-server-protocol.h"
 
 static void
 unbind_resource (struct wl_resource *resource)
@@ -409,6 +409,7 @@ meta_wayland_tablet_seat_update (MetaWaylandTabletSeat *tablet_seat,
     case CLUTTER_PAD_BUTTON_RELEASE:
     case CLUTTER_PAD_RING:
     case CLUTTER_PAD_STRIP:
+    case CLUTTER_PAD_DIAL:
       pad = g_hash_table_lookup (tablet_seat->pads, device);
       if (!pad)
         return;
@@ -447,6 +448,7 @@ meta_wayland_tablet_seat_handle_event (MetaWaylandTabletSeat *tablet_seat,
     case CLUTTER_PAD_BUTTON_RELEASE:
     case CLUTTER_PAD_RING:
     case CLUTTER_PAD_STRIP:
+    case CLUTTER_PAD_DIAL:
       pad = g_hash_table_lookup (tablet_seat->pads,
                                  clutter_event_get_source_device (event));
       if (!pad)
@@ -577,13 +579,13 @@ meta_wayland_tablet_seat_can_popup (MetaWaylandTabletSeat *tablet_seat,
 }
 
 gboolean
-meta_wayland_tablet_seat_get_grab_info (MetaWaylandTabletSeat *tablet_seat,
-                                        MetaWaylandSurface    *surface,
-                                        uint32_t               serial,
-                                        gboolean               require_pressed,
-                                        ClutterInputDevice   **device_out,
-                                        float                 *x,
-                                        float                 *y)
+meta_wayland_tablet_seat_get_grab_info (MetaWaylandTabletSeat  *tablet_seat,
+                                        MetaWaylandSurface     *surface,
+                                        uint32_t                serial,
+                                        gboolean                require_pressed,
+                                        ClutterSprite         **sprite_out,
+                                        float                  *x,
+                                        float                  *y)
 {
   g_autoptr (GList) tools = NULL;
   GList *l;
@@ -598,7 +600,7 @@ meta_wayland_tablet_seat_get_grab_info (MetaWaylandTabletSeat *tablet_seat,
                                                   surface,
                                                   serial,
                                                   require_pressed,
-                                                  device_out,
+                                                  sprite_out,
                                                   x, y))
         return TRUE;
     }

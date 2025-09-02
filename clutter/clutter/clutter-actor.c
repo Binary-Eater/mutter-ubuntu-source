@@ -11673,19 +11673,33 @@ clutter_actor_set_child_above_sibling (ClutterActor *self,
       (sibling != NULL && CLUTTER_ACTOR_IN_DESTRUCTION (sibling)))
     return;
 
-  /* we don't want to change the state of child, or emit signals, or
+  /* The child is already the last */
+  if (sibling == NULL && self->priv->last_child == child)
+    return;
+
+  /* The child is already above the sibling */
+  if (sibling != NULL && child->priv->prev_sibling == sibling)
+    return;
+
+  /* we don't want to change the state of child, or emit all signals, or
    * regenerate ChildMeta instances here, but we still want to follow
    * the correct sequence of steps encoded in remove_child() and
    * add_child(), so that correctness is ensured, and we only go
    * through one known code path.
+   * The only signals we care about are the first/last-child notifications,
+   * but we only emit them after the children are reordered so that we won't
+   * emit something while the child is temporarily unparented.
    */
   g_object_ref (child);
-  clutter_actor_remove_child_internal (self, child, 0);
+  g_object_freeze_notify (G_OBJECT (child));
+  clutter_actor_remove_child_internal (self, child,
+                                       REMOVE_CHILD_NOTIFY_FIRST_LAST);
   clutter_actor_add_child_internal (self, child,
                                     ADD_CHILD_NOTIFY_FIRST_LAST,
                                     insert_child_above,
                                     sibling);
-  g_object_unref(child);
+  g_object_thaw_notify (G_OBJECT (child));
+  g_object_unref (child);
 
   clutter_actor_queue_relayout (self);
 }
@@ -11723,14 +11737,25 @@ clutter_actor_set_child_below_sibling (ClutterActor *self,
       (sibling != NULL && CLUTTER_ACTOR_IN_DESTRUCTION (sibling)))
     return;
 
+  /* The child is already the first */
+  if (sibling == NULL && self->priv->first_child == child)
+    return;
+
+  /* The child is already below the sibling */
+  if (sibling != NULL && child->priv->next_sibling == sibling)
+    return;
+
   /* see the comment in set_child_above_sibling() */
   g_object_ref (child);
-  clutter_actor_remove_child_internal (self, child, 0);
+  g_object_freeze_notify (G_OBJECT (child));
+  clutter_actor_remove_child_internal (self, child,
+                                       REMOVE_CHILD_NOTIFY_FIRST_LAST);
   clutter_actor_add_child_internal (self, child,
                                     ADD_CHILD_NOTIFY_FIRST_LAST,
                                     insert_child_below,
                                     sibling);
-  g_object_unref(child);
+  g_object_thaw_notify (G_OBJECT (child));
+  g_object_unref (child);
 
   clutter_actor_queue_relayout (self);
 }
@@ -11761,12 +11786,18 @@ clutter_actor_set_child_at_index (ClutterActor *self,
       CLUTTER_ACTOR_IN_DESTRUCTION (child))
     return;
 
+  if (clutter_actor_get_child_at_index (self, index_) == child)
+    return;
+
   g_object_ref (child);
-  clutter_actor_remove_child_internal (self, child, 0);
+  g_object_freeze_notify (G_OBJECT (child));
+  clutter_actor_remove_child_internal (self, child,
+                                       REMOVE_CHILD_NOTIFY_FIRST_LAST);
   clutter_actor_add_child_internal (self, child,
                                     ADD_CHILD_NOTIFY_FIRST_LAST,
                                     insert_child_at_index,
                                     GINT_TO_POINTER (index_));
+  g_object_thaw_notify (G_OBJECT (child));
   g_object_unref (child);
 
   clutter_actor_queue_relayout (self);
@@ -11868,6 +11899,7 @@ clutter_actor_event (ClutterActor       *actor,
     case CLUTTER_PAD_BUTTON_RELEASE:
     case CLUTTER_PAD_STRIP:
     case CLUTTER_PAD_RING:
+    case CLUTTER_PAD_DIAL:
       signal_num = -1;
       detail = quark_pad;
       break;
@@ -15072,7 +15104,7 @@ clutter_actor_pick_frame_clock (ClutterActor  *self,
 {
   ClutterActorPrivate *priv = self->priv;
   GList *stage_views_list;
-  float max_refresh_rate = 0.0;
+  int max_priority = -1;
   ClutterStageView *best_view = NULL;
   GList *l;
 
@@ -15089,13 +15121,13 @@ clutter_actor_pick_frame_clock (ClutterActor  *self,
   for (l = stage_views_list; l; l = l->next)
     {
       ClutterStageView *view = CLUTTER_STAGE_VIEW (l->data);
-      float refresh_rate;
+      int priority;
 
-      refresh_rate = clutter_stage_view_get_refresh_rate (view);
-      if (refresh_rate > max_refresh_rate)
+      priority = clutter_stage_view_get_priority (view);
+      if (priority > max_priority)
         {
           best_view = view;
-          max_refresh_rate = refresh_rate;
+          max_priority = priority;
         }
     }
 
@@ -15233,6 +15265,12 @@ clutter_actor_get_child_at_index (ClutterActor *self,
 
   g_return_val_if_fail (CLUTTER_IS_ACTOR (self), NULL);
   g_return_val_if_fail (index_ <= self->priv->n_children, NULL);
+
+  if (index_ == 0)
+    return self->priv->first_child;
+
+  if (index_ == self->priv->n_children - 1)
+    return self->priv->last_child;
 
   for (iter = self->priv->first_child, i = 0;
        iter != NULL && i < index_;
@@ -18528,6 +18566,7 @@ clutter_actor_set_accessible (ClutterActor *self,
         {
           g_object_remove_weak_pointer (G_OBJECT (self),
                                         (gpointer *)&priv->accessible);
+          g_object_run_dispose (G_OBJECT (priv->accessible));
           g_clear_object (&priv->accessible);
         }
 

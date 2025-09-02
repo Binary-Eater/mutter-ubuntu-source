@@ -865,8 +865,8 @@ maybe_convert_scales (GList *logical_monitor_configs)
       new_scale =
         meta_get_closest_monitor_scale_factor_for_resolution (width,
                                                               height,
-                                                              existing_scale,
-                                                              0.1f);
+                                                              existing_scale);
+
       if (new_scale == 0.0f)
         new_scale = 1.0f;
 
@@ -2818,6 +2818,10 @@ meta_monitor_config_store_reset (MetaMonitorConfigStore *config_store)
   g_clear_object (&config_store->custom_read_file);
   g_clear_object (&config_store->custom_write_file);
   g_hash_table_remove_all (config_store->configs);
+
+  config_store->has_stores_policy = FALSE;
+  config_store->policy.enable_dbus = TRUE;
+  config_store->has_dbus_policy = FALSE;
 
   for (system_dirs = g_get_system_config_dirs ();
        system_dirs && *system_dirs;

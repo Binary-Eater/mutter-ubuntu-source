@@ -24,8 +24,9 @@
 
 #include "backends/meta-backend-private.h"
 #include "backends/meta-monitor-manager-private.h"
+#include "backends/native/meta-keymap-native.h"
 #include "clutter/clutter-mutter.h"
-#include "core/meta-anonymous-file.h"
+#include "mtk/mtk.h"
 
 #define MAX_BUTTON 128
 #define MAX_KEY 0x2ff /* KEY_MAX as of 5.13 */
@@ -62,6 +63,7 @@ struct _MetaEisClient
   MetaEisDevice *pointer_device;
   MetaEisDevice *keyboard_device;
   gulong keymap_changed_handler_id;
+  gulong keymap_state_changed_handler_id;
   gboolean have_abs_pointer_devices;
   gboolean have_touch_devices;
 
@@ -132,9 +134,9 @@ remove_device (MetaEisClient     *client,
 
   if (eis_keymap)
     {
-      MetaAnonymousFile *f = eis_keymap_get_user_data (eis_keymap);
+      MtkAnonymousFile *f = eis_keymap_get_user_data (eis_keymap);
       if (f)
-        meta_anonymous_file_free (f);
+        mtk_anonymous_file_free (f);
     }
 
   if (remove_from_hashtable)
@@ -232,7 +234,7 @@ configure_keyboard (MetaEisClient     *client,
                     gpointer           user_data)
 {
   size_t len;
-  MetaAnonymousFile *f;
+  MtkAnonymousFile *f;
   int fd = -1;
   char *data;
   struct xkb_keymap *xkb_keymap;
@@ -249,9 +251,9 @@ configure_keyboard (MetaEisClient     *client,
     return;
 
   len = strlen (data);
-  f = meta_anonymous_file_new (len, (uint8_t*)data);
+  f = mtk_anonymous_file_new ("eis-keymap", len, (uint8_t*)data);
   if (f)
-    fd = meta_anonymous_file_open_fd (f, META_ANONYMOUS_FILE_MAPMODE_SHARED);
+    fd = mtk_anonymous_file_open_fd (f, MTK_ANONYMOUS_FILE_MAPMODE_SHARED);
 
   g_free (data);
   if (fd != -1)
@@ -261,7 +263,7 @@ configure_keyboard (MetaEisClient     *client,
       eis_keymap = eis_device_new_keymap (eis_device, EIS_KEYMAP_TYPE_XKB,
                                           fd, len);
       /* libeis dup()s the fd */
-      meta_anonymous_file_close_fd (fd);
+      mtk_anonymous_file_close_fd (fd);
       /* The memfile must be kept alive while the device is alive */
       eis_keymap_set_user_data (eis_keymap, f);
       eis_keymap_add (eis_keymap);
@@ -781,6 +783,28 @@ on_keymap_changed (MetaBackend *backend,
 }
 
 static void
+on_keymap_state_changed (ClutterKeymap *keymap,
+                         MetaEisClient *client)
+{
+  xkb_mod_mask_t depressed_mods;
+  xkb_mod_mask_t latched_mods;
+  xkb_mod_mask_t locked_mods;
+  xkb_layout_index_t group;
+
+  clutter_keymap_get_modifier_state (keymap,
+                                     &depressed_mods,
+                                     &latched_mods,
+                                     &locked_mods);
+  group = clutter_keymap_get_layout_index (keymap);
+
+  eis_device_keyboard_send_xkb_modifiers (client->keyboard_device->eis_device,
+                                          depressed_mods,
+                                          latched_mods,
+                                          locked_mods,
+                                          group);
+}
+
+static void
 add_viewport_devices (MetaEisClient           *client,
                       ClutterInputDeviceType   type,
                       const char              *name_suffix,
@@ -912,6 +936,10 @@ meta_eis_client_process_event (MetaEisClient    *client,
 
         if (wants_keyboard_device && !client->keyboard_device)
           {
+            MetaBackend *backend = meta_eis_get_backend (client->eis);
+            ClutterSeat *seat = meta_backend_get_default_seat (backend);
+            ClutterKeymap *keymap = clutter_seat_get_keymap (seat);
+
             meta_topic (META_DEBUG_EIS,
                         "Seat %s bindings updated, creating keyboard device",
                         eis_seat_get_name (eis_seat));
@@ -923,13 +951,19 @@ meta_eis_client_process_event (MetaEisClient    *client,
                                                   configure_keyboard, NULL);
 
             client->keymap_changed_handler_id =
-              g_signal_connect (meta_eis_get_backend (client->eis),
-                                "keymap-changed",
+              g_signal_connect (backend, "keymap-changed",
                                 G_CALLBACK (on_keymap_changed),
+                                client);
+            client->keymap_state_changed_handler_id =
+              g_signal_connect (keymap, "state-changed",
+                                G_CALLBACK (on_keymap_state_changed),
                                 client);
           }
         else if (!wants_keyboard_device && client->keyboard_device)
           {
+            MetaBackend *backend = meta_eis_get_backend (client->eis);
+            ClutterSeat *seat = meta_backend_get_default_seat (backend);
+            ClutterKeymap *keymap = clutter_seat_get_keymap (seat);
             MetaEisDevice *keyboard;
 
             meta_topic (META_DEBUG_EIS,
@@ -937,9 +971,12 @@ meta_eis_client_process_event (MetaEisClient    *client,
                         eis_seat_get_name (eis_seat));
 
             keyboard = g_steal_pointer (&client->keyboard_device);
+
             eis_device_remove (keyboard->eis_device);
             g_clear_signal_handler (&client->keymap_changed_handler_id,
-                                    meta_eis_get_backend (client->eis));
+                                    backend);
+            g_clear_signal_handler (&client->keymap_state_changed_handler_id,
+                                    keymap);
           }
 
         if (wants_abs_pointer_devices && !client->have_abs_pointer_devices)
@@ -1141,9 +1178,12 @@ static void
 meta_eis_client_finalize (GObject *object)
 {
   MetaEisClient *client = META_EIS_CLIENT (object);
+  MetaBackend *backend = meta_eis_get_backend (client->eis);
+  ClutterSeat *seat = meta_backend_get_default_seat (backend);
+  ClutterKeymap *keymap = clutter_seat_get_keymap (seat);
 
-  g_clear_signal_handler (&client->keymap_changed_handler_id,
-                          meta_eis_get_backend (client->eis));
+  g_clear_signal_handler (&client->keymap_changed_handler_id, backend);
+  g_clear_signal_handler (&client->keymap_state_changed_handler_id, keymap);
   meta_eis_client_disconnect (client);
 
   G_OBJECT_CLASS (meta_eis_client_parent_class)->finalize (object);

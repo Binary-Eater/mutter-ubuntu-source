@@ -18,6 +18,8 @@
 #include "config.h"
 
 #include <gio/gio.h>
+#include <wayland-client.h>
+#include <gdesktop-enums.h>
 
 #include "backends/meta-virtual-monitor.h"
 #include "backends/native/meta-backend-native.h"
@@ -32,6 +34,7 @@
 #include "meta/meta-workspace-manager.h"
 #include "tests/meta-test-utils.h"
 #include "tests/meta-monitor-test-utils.h"
+#include "tests/meta-ref-test.h"
 #include "tests/meta-wayland-test-driver.h"
 #include "tests/meta-wayland-test-utils.h"
 #include "wayland/meta-wayland-client-private.h"
@@ -46,6 +49,18 @@ static MetaContext *test_context;
 static MetaWaylandTestDriver *test_driver;
 static MetaVirtualMonitor *virtual_monitor;
 static ClutterVirtualInputDevice *virtual_pointer;
+
+static void
+wait_for_sync_point (unsigned int sync_point)
+{
+  meta_wayland_test_driver_wait_for_sync_point (test_driver, sync_point);
+}
+
+static void
+emit_sync_event (unsigned int sync_point)
+{
+  meta_wayland_test_driver_emit_sync_event (test_driver, sync_point);
+}
 
 static MetaWindow *
 find_client_window (const char *title)
@@ -143,6 +158,21 @@ buffer_ycbcr_basic (void)
   wayland_test_client =
     meta_wayland_test_client_new (test_context, "ycbcr");
   meta_wayland_test_client_finish (wayland_test_client);
+}
+
+static void
+buffer_shm_destroy_before_release (void)
+{
+  MetaWaylandTestClient *wayland_test_client;
+
+  wayland_test_client =
+    meta_wayland_test_client_new (test_context, "shm-destroy-before-release");
+
+  wait_for_sync_point (0);
+  meta_wayland_test_driver_emit_sync_event (test_driver, 0);
+
+  meta_wayland_test_client_finish (wayland_test_client);
+  g_test_assert_expected_messages ();
 }
 
 static gboolean
@@ -263,7 +293,9 @@ registry_filter (void)
   struct wl_display *wayland_display =
     meta_wayland_compositor_get_wayland_display (wayland_compositor);
   struct wl_global *dummy_global;
-  int fd;
+  int fd1;
+  int fd2;
+  int fd3;
   g_autoptr (MetaWaylandClient) client1 = NULL;
   g_autoptr (MetaWaylandClient) client2 = NULL;
   g_autoptr (MetaWaylandClient) client3 = NULL;
@@ -277,22 +309,21 @@ registry_filter (void)
   gboolean client2_saw_global;
   gboolean client3_saw_global;
 
-  client1 = meta_wayland_client_new_indirect (test_context, &error);
+  client1 = meta_wayland_client_new_create (test_context, getpid (), &error);
   g_assert_nonnull (client1);
   g_assert_null (error);
-  client2 = meta_wayland_client_new_indirect (test_context, &error);
+  fd1 = meta_wayland_client_take_client_fd (client1);
+  g_assert_cmpint (fd1, >=, 0);
+  client2 = meta_wayland_client_new_create (test_context, getpid (), &error);
   g_assert_nonnull (client2);
   g_assert_null (error);
-  client3 = meta_wayland_client_new_indirect (test_context, &error);
-  g_assert_nonnull (client3);
-  g_assert_null (error);
+  fd2 = meta_wayland_client_take_client_fd (client2);
+  g_assert_cmpint (fd2, >=, 0);
 
   g_signal_connect (client1, "client-destroyed",
                     G_CALLBACK (on_client_destroyed), &client1_destroyed);
   g_signal_connect (client2, "client-destroyed",
                     G_CALLBACK (on_client_destroyed), &client2_destroyed);
-  g_signal_connect (client3, "client-destroyed",
-                    G_CALLBACK (on_client_destroyed), &client3_destroyed);
 
   dummy_global = wl_global_create (wayland_display,
                                    &dummy_interface,
@@ -302,19 +333,13 @@ registry_filter (void)
                                           dummy_global_filter,
                                           client1);
 
-  fd = meta_wayland_client_setup_fd (client1, &error);
-  g_assert_cmpint (fd, >=, 0);
-  g_assert_null (error);
   thread1 = g_thread_new ("test client thread 1",
                           test_client_thread_func,
-                          GINT_TO_POINTER (fd));
+                          GINT_TO_POINTER (fd1));
 
-  fd = meta_wayland_client_setup_fd (client2, &error);
-  g_assert_cmpint (fd, >=, 0);
-  g_assert_null (error);
   thread2 = g_thread_new ("test client thread 2",
                           test_client_thread_func,
-                          GINT_TO_POINTER (fd));
+                          GINT_TO_POINTER (fd2));
 
   while (!client1_destroyed || !client2_destroyed)
     g_main_context_iteration (NULL, TRUE);
@@ -328,17 +353,131 @@ registry_filter (void)
   meta_wayland_filter_manager_remove_global (filter_manager, dummy_global);
   wl_global_destroy (dummy_global);
 
-  fd = meta_wayland_client_setup_fd (client3, &error);
-  g_assert_cmpint (fd, >=, 0);
+  client3 = meta_wayland_client_new_create (test_context, getpid (), &error);
+  g_assert_nonnull (client3);
   g_assert_null (error);
+  fd3 = meta_wayland_client_take_client_fd (client3);
+  g_assert_cmpint (fd3, >=, 0);
+
+  g_signal_connect (client3, "client-destroyed",
+                    G_CALLBACK (on_client_destroyed), &client3_destroyed);
+
   thread3 = g_thread_new ("test client thread 3",
                           test_client_thread_func,
-                          GINT_TO_POINTER (fd));
+                          GINT_TO_POINTER (fd3));
+
   while (!client3_destroyed)
     g_main_context_iteration (NULL, TRUE);
 
   client3_saw_global = GPOINTER_TO_INT (g_thread_join (thread3));
   g_assert_false (client3_saw_global);
+}
+
+static const MetaWaylandSurface *
+get_surface_from_window (const char *title)
+{
+  MetaWindow *window;
+  MetaWaylandSurface *surface;
+
+  window = find_client_window ("color-representation");
+  g_assert_nonnull (window);
+  surface = meta_window_get_wayland_surface (window);
+  g_assert_nonnull (surface);
+  return surface;
+}
+
+static void
+color_representation_state (void)
+{
+  MetaWaylandTestClient *wayland_test_client;
+  const MetaWaylandSurface *surface;
+
+  wayland_test_client =
+    meta_wayland_test_client_new_with_args (test_context,
+                                            "color-representation",
+                                            "state",
+                                            NULL);
+
+  wait_for_sync_point (0);
+  surface = get_surface_from_window ("color-representation");
+  g_assert_cmpint (surface->committed_state.premult, ==,
+                   META_MULTI_TEXTURE_ALPHA_MODE_NONE);
+  g_assert_cmpint (surface->committed_state.coeffs, ==,
+                   META_MULTI_TEXTURE_COEFFICIENTS_NONE);
+  emit_sync_event (0);
+
+  wait_for_sync_point (1);
+  g_assert_cmpint (surface->committed_state.premult, ==,
+                   META_MULTI_TEXTURE_ALPHA_MODE_STRAIGHT);
+  g_assert_cmpint (surface->committed_state.coeffs, ==,
+                   META_MULTI_TEXTURE_COEFFICIENTS_BT709_LIMITED);
+  emit_sync_event (1);
+
+  wait_for_sync_point (2);
+  g_assert_cmpint (surface->committed_state.premult, ==,
+                   META_MULTI_TEXTURE_ALPHA_MODE_STRAIGHT);
+  g_assert_cmpint (surface->committed_state.coeffs, ==,
+                   META_MULTI_TEXTURE_COEFFICIENTS_BT709_LIMITED);
+  emit_sync_event (2);
+
+  wait_for_sync_point (3);
+  g_assert_cmpint (surface->committed_state.premult, ==,
+                   META_MULTI_TEXTURE_ALPHA_MODE_NONE);
+  g_assert_cmpint (surface->committed_state.coeffs, ==,
+                   META_MULTI_TEXTURE_COEFFICIENTS_NONE);
+  emit_sync_event (3);
+
+  meta_wayland_test_client_finish (wayland_test_client);
+}
+
+static void
+color_representation_bad_state (void)
+{
+  MetaWaylandTestClient *wayland_test_client;
+
+  wayland_test_client =
+    meta_wayland_test_client_new_with_args (test_context,
+                                            "color-representation",
+                                            "bad-state",
+                                            NULL);
+  /* we wait for the window to flush out all the messages */
+  meta_wait_for_client_window (test_context, "color-representation");
+  g_test_expect_message ("libmutter", G_LOG_LEVEL_WARNING,
+                         "WL: error in client communication*");
+  meta_wayland_test_client_finish (wayland_test_client);
+  g_test_assert_expected_messages ();
+}
+
+static void
+color_representation_bad_state2 (void)
+{
+  MetaWaylandTestClient *wayland_test_client;
+
+  wayland_test_client =
+    meta_wayland_test_client_new_with_args (test_context,
+                                            "color-representation",
+                                            "bad-state-2",
+                                            NULL);
+  /* we wait for the window to flush out all the messages */
+  meta_wait_for_client_window (test_context, "color-representation");
+  g_test_expect_message ("libmutter", G_LOG_LEVEL_WARNING,
+                         "WL: error in client communication*");
+  meta_wayland_test_client_finish (wayland_test_client);
+  g_test_assert_expected_messages ();
+}
+
+static void
+color_representation_premult_reftest (void)
+{
+  MetaWaylandTestClient *wayland_test_client;
+
+  wayland_test_client =
+    meta_wayland_test_client_new_with_args (test_context,
+                                            "color-representation",
+                                            "premult-reftest",
+                                            NULL);
+  meta_wayland_test_client_finish (wayland_test_client);
+  g_test_assert_expected_messages ();
 }
 
 static void
@@ -573,12 +712,6 @@ subsurface_parent_unmapped (void)
 }
 
 static void
-wait_for_sync_point (unsigned int sync_point)
-{
-  meta_wayland_test_driver_wait_for_sync_point (test_driver, sync_point);
-}
-
-static void
 toplevel_apply_limits (void)
 {
   MetaWaylandTestClient *wayland_test_client;
@@ -606,6 +739,39 @@ toplevel_apply_limits (void)
 }
 
 static void
+toplevel_invalid_limits (void)
+{
+  GSettings *settings = g_settings_new ("org.gnome.mutter");
+  MetaWaylandTestClient *wayland_test_client;
+  MetaWindow *window;
+  MtkRectangle rect;
+
+  g_assert_true (g_settings_set_boolean (settings, "center-new-windows", TRUE));
+
+  wayland_test_client =
+    meta_wayland_test_client_new (test_context, "invalid-size-limits-on-map-client");
+
+  while (!(window = find_client_window ("invalid-size-limits-client")))
+    g_main_context_iteration (NULL, TRUE);
+  while (meta_window_is_hidden (window))
+    g_main_context_iteration (NULL, TRUE);
+
+  rect = meta_window_config_get_rect (window->config);
+  g_assert_cmpint (window->size_hints.max_width, ==, 200);
+  g_assert_cmpint (window->size_hints.max_height, ==, 200);
+  g_assert_cmpint (window->size_hints.max_width, ==, 200);
+  g_assert_cmpint (window->size_hints.max_height, ==, 200);
+  g_assert_cmpint (rect.width, ==, 250);
+  g_assert_cmpint (rect.height, ==, 250);
+  g_assert_cmpint (rect.x, ==, 195);
+  g_assert_cmpint (rect.y, ==, 115);
+
+  meta_wayland_test_driver_terminate (test_driver);
+  meta_wayland_test_client_finish (wayland_test_client);
+  g_test_assert_expected_messages ();
+}
+
+static void
 toplevel_activation (void)
 {
   MetaWaylandTestClient *wayland_test_client;
@@ -626,7 +792,7 @@ toplevel_reuse_surface (void)
 }
 
 static void
-toplevel_sessions (void)
+toplevel_sessions_basic (void)
 {
   MetaWaylandTestClient *wayland_test_client;
 
@@ -942,7 +1108,7 @@ toplevel_sessions_restore_maximized (void)
   g_assert_cmpint (frame_rect.width, ==, 100);
   g_assert_cmpint (frame_rect.height, ==, 100);
 
-  meta_window_maximize (window, META_MAXIMIZE_BOTH);
+  meta_window_maximize (window);
 
   wl_window = META_WINDOW_WAYLAND (window);
   meta_window_wayland_get_pending_serial (wl_window, &state_change_serial);
@@ -1380,6 +1546,8 @@ enum
   XDG_TOPLEVEL_SUSPENDED_COMMAND_PREV_WORKSPACE = 1,
   XDG_TOPLEVEL_SUSPENDED_COMMAND_ACTIVATE_WINDOW = 2,
   XDG_TOPLEVEL_SUSPENDED_COMMAND_CLONE = 3,
+  XDG_TOPLEVEL_SUSPENDED_COMMAND_SHOW_SCREEN_SHIELD = 4,
+  XDG_TOPLEVEL_SUSPENDED_COMMAND_HIDE_SCREEN_SHIELD = 5,
 };
 
 static void
@@ -1442,6 +1610,34 @@ on_toplevel_suspended_sync_point (MetaWaylandTestDriver *driver,
 
         break;
       }
+    case XDG_TOPLEVEL_SUSPENDED_COMMAND_SHOW_SCREEN_SHIELD:
+      {
+        MetaCompositor *compositor = meta_display_get_compositor (display);
+        ClutterActor *window_group;
+        ClutterActor *top_window_group;
+
+        /* Imitate what the screen shield does to the window groups. */
+        window_group = meta_compositor_get_window_group (compositor);
+        top_window_group = meta_compositor_get_top_window_group (compositor);
+
+        clutter_actor_hide (window_group);
+        clutter_actor_hide (top_window_group);
+        break;
+      }
+    case XDG_TOPLEVEL_SUSPENDED_COMMAND_HIDE_SCREEN_SHIELD:
+      {
+        MetaCompositor *compositor = meta_display_get_compositor (display);
+        ClutterActor *window_group;
+        ClutterActor *top_window_group;
+
+        /* Imitate what the screen shield does to the window groups. */
+        window_group = meta_compositor_get_window_group (compositor);
+        top_window_group = meta_compositor_get_top_window_group (compositor);
+
+        clutter_actor_show (window_group);
+        clutter_actor_show (top_window_group);
+        break;
+      }
     }
 }
 
@@ -1467,6 +1663,137 @@ toplevel_suspended (void)
   meta_wayland_test_client_finish (wayland_test_client);
 
   g_signal_handler_disconnect (test_driver, sync_point_id);
+}
+
+static void
+toplevel_tag (void)
+{
+  MetaWaylandTestClient *wayland_test_client;
+  MetaWindow *window;
+
+  wayland_test_client =
+    meta_wayland_test_client_new (test_context, "xdg-toplevel-tag");
+  window = meta_wait_for_client_window (test_context, "toplevel-tag");
+  g_assert_null (meta_window_get_tag (window));
+
+  wait_for_sync_point (0);
+  g_assert_cmpstr (meta_window_get_tag (window), ==, "topleveltag-test");
+  meta_wayland_test_driver_emit_sync_event (test_driver, 0);
+
+  meta_wayland_test_client_finish (wayland_test_client);
+}
+
+static void
+toplevel_activation_before_mapped (void)
+{
+  MetaBackend *backend = meta_context_get_backend (test_context);
+  ClutterSeat *seat = meta_backend_get_default_seat (backend);
+  g_autoptr (ClutterVirtualInputDevice) virtual_keyboard = NULL;
+  g_autoptr (GSettings) wm_prefs = NULL;
+  MetaWaylandTestClient *wayland_test_client;
+  MetaWindow *window;
+
+  wm_prefs = g_settings_new ("org.gnome.desktop.wm.preferences");
+  virtual_keyboard =
+    clutter_seat_create_virtual_device (seat, CLUTTER_KEYBOARD_DEVICE);
+  wayland_test_client =
+    meta_wayland_test_client_new (test_context, "xdg-activation-before-mapped");
+
+  wait_for_sync_point (0);
+  g_settings_set_enum (wm_prefs, "focus-new-windows",
+                       G_DESKTOP_FOCUS_NEW_WINDOWS_STRICT);
+  emit_sync_event (0);
+
+  wait_for_sync_point (1);
+  window = find_client_window ("activated-window");
+  g_assert_true (meta_window_has_focus (window));
+  g_assert_true (window == meta_stack_get_top (window->display->stack));
+  g_assert_true (window->stack_position == 1);
+
+  meta_wayland_test_client_finish (wayland_test_client);
+  g_settings_reset (wm_prefs, "focus-new-windows");
+}
+
+static void
+toplevel_fixed_size_fullscreen (void)
+{
+  MetaBackend *backend = meta_context_get_backend (test_context);
+  MetaCursorTracker *cursor_tracker = meta_backend_get_cursor_tracker (backend);
+  MetaRenderer *renderer = meta_backend_get_renderer (backend);
+  MetaWaylandTestClient *wayland_test_client;
+  GSettings *settings;
+  GList *views;
+  ClutterStageView *view;
+  MetaWindow *window;
+
+  meta_cursor_tracker_inhibit_cursor_visibility (cursor_tracker);
+
+  settings = g_settings_new ("org.gnome.mutter");
+  g_assert_true (g_settings_set_boolean (settings, "center-new-windows", FALSE));
+
+  views = meta_renderer_get_views (renderer);
+  g_assert_cmpint (g_list_length (views), ==, 1);
+  view = CLUTTER_STAGE_VIEW (views->data);
+
+  wayland_test_client =
+    meta_wayland_test_client_new_with_args (test_context,
+                                            "fixed-size-client",
+                                            "100", "100",
+                                            NULL);
+
+  while (!(window = find_client_window ("fixed-size-client")))
+    g_main_context_iteration (NULL, TRUE);
+  while (meta_window_is_hidden (window))
+    g_main_context_iteration (NULL, TRUE);
+  meta_wait_for_effects (window);
+
+  meta_ref_test_verify_view (view,
+                             g_test_get_path (), 0,
+                             meta_ref_test_determine_ref_test_flag ());
+
+  meta_window_make_fullscreen (window);
+  meta_wait_wayland_window_reconfigure (window);
+  meta_wait_for_effects (window);
+
+  meta_ref_test_verify_view (view,
+                             g_test_get_path (), 1,
+                             meta_ref_test_determine_ref_test_flag ());
+
+  meta_wayland_test_driver_terminate (test_driver);
+  meta_wayland_test_client_finish (wayland_test_client);
+
+  meta_cursor_tracker_uninhibit_cursor_visibility (cursor_tracker);
+}
+
+static void
+toplevel_fixed_size_fullscreen_exceeds (void)
+{
+  MetaWaylandTestClient *wayland_test_client;
+  MetaWindow *window;
+
+  wayland_test_client =
+    meta_wayland_test_client_new_with_args (test_context,
+                                            "fixed-size-client",
+                                            "1000", "1000",
+                                            NULL);
+
+  while (!(window = find_client_window ("fixed-size-client")))
+    g_main_context_iteration (NULL, TRUE);
+  while (meta_window_is_hidden (window))
+    g_main_context_iteration (NULL, TRUE);
+  meta_wait_for_effects (window);
+
+  g_test_expect_message ("libmutter", G_LOG_LEVEL_WARNING,
+                         "Window * (fixed-size-client) (wl_surface#*) "
+                         "size 1000x1000 exceeds allowed maximum size 640x480");
+
+  meta_window_make_fullscreen (window);
+  meta_wait_wayland_window_reconfigure (window);
+  meta_wait_for_effects (window);
+
+  meta_wayland_test_driver_terminate (test_driver);
+  meta_wayland_test_client_finish (wayland_test_client);
+  g_test_assert_expected_messages ();
 }
 
 static void
@@ -1509,12 +1836,22 @@ on_after_tests (void)
 static void
 init_tests (void)
 {
+  g_test_add_func ("/wayland/color-representation/state",
+                   color_representation_state);
+  g_test_add_func ("/wayland/color-representation/bad-state",
+                   color_representation_bad_state);
+  g_test_add_func ("/wayland/color-representation/bad-state2",
+                   color_representation_bad_state2);
+  g_test_add_func ("/wayland/color-representation/premult-reftest",
+                   color_representation_premult_reftest);
   g_test_add_func ("/wayland/buffer/transform",
                    buffer_transform);
   g_test_add_func ("/wayland/buffer/single-pixel-buffer",
                    buffer_single_pixel_buffer);
   g_test_add_func ("/wayland/buffer/ycbcr-basic",
                    buffer_ycbcr_basic);
+  g_test_add_func ("/wayland/buffer/shm-destroy-before-release",
+                   buffer_shm_destroy_before_release);
   g_test_add_func ("/wayland/idle-inhibit/instant-destroy",
                    idle_inhibit_instant_destroy);
   g_test_add_func ("/wayland/registry/filter",
@@ -1533,13 +1870,15 @@ init_tests (void)
                    subsurface_parent_unmapped);
   g_test_add_func ("/wayland/toplevel/apply-limits",
                    toplevel_apply_limits);
+  g_test_add_func ("/wayland/toplevel/invalid-limits",
+                   toplevel_invalid_limits);
   g_test_add_func ("/wayland/toplevel/activation",
                    toplevel_activation);
-  g_test_add_func ("/wayland/toplevel/sessions",
-                   toplevel_sessions);
-  g_test_add_func ("/wayland/toplevel/sessions-replace",
+  g_test_add_func ("/wayland/toplevel/sessions/basic",
+                   toplevel_sessions_basic);
+  g_test_add_func ("/wayland/toplevel/sessions/replace",
                    toplevel_sessions_replace);
-  g_test_add_func ("/wayland/toplevel/sessions-restore",
+  g_test_add_func ("/wayland/toplevel/sessions/restore",
                    toplevel_sessions_restore);
 #ifdef MUTTER_PRIVILEGED_TEST
   (void)(toplevel_sessions_restore_maximized);
@@ -1549,13 +1888,13 @@ init_tests (void)
   (void)(toplevel_bounds_struts);
   (void)(toplevel_bounds_monitors);
 #else
-  g_test_add_func ("/wayland/toplevel/sessions-restore-maximized",
+  g_test_add_func ("/wayland/toplevel/sessions/restore-maximized",
                    toplevel_sessions_restore_maximized);
-  g_test_add_func ("/wayland/toplevel/sessions-restore-tiled",
+  g_test_add_func ("/wayland/toplevel/sessions/restore-tiled",
                    toplevel_sessions_restore_tiled);
-  g_test_add_func ("/wayland/toplevel/sessions-restore-fullscreen",
+  g_test_add_func ("/wayland/toplevel/sessions/restore-fullscreen",
                    toplevel_sessions_restore_fullscreen);
-  g_test_add_func ("/wayland/toplevel/sessions-restore-fullscreen-monitor-removed",
+  g_test_add_func ("/wayland/toplevel/sessions/restore-fullscreen-monitor-removed",
                    toplevel_sessions_restore_fullscreen_monitor_removed);
   g_test_add_func ("/wayland/toplevel/bounds/struts",
                    toplevel_bounds_struts);
@@ -1572,6 +1911,14 @@ init_tests (void)
                    toplevel_suspended);
   g_test_add_func ("/wayland/cursor/shape",
                    cursor_shape);
+  g_test_add_func ("/wayland/toplevel/tag",
+                   toplevel_tag);
+  g_test_add_func ("/wayland/toplevel/activation-before-mapped",
+                   toplevel_activation_before_mapped);
+  g_test_add_func ("/wayland/toplevel/fixed-size-fullscreen",
+                   toplevel_fixed_size_fullscreen);
+  g_test_add_func ("/wayland/toplevel/fixed-size-fullscreen-exceeds",
+                   toplevel_fixed_size_fullscreen_exceeds);
 }
 
 int
@@ -1591,6 +1938,8 @@ main (int   argc,
                                       META_CONTEXT_TEST_FLAG_NO_X11);
 #endif
   g_assert_true (meta_context_configure (context, &argc, &argv, NULL));
+  meta_context_test_set_background_color (META_CONTEXT_TEST (context),
+                                          COGL_COLOR_INIT (255, 255, 255, 255));
 
   test_context = context;
 

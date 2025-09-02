@@ -37,6 +37,7 @@
 #include "core/window-private.h"
 #include "wayland/meta-wayland-actor-surface.h"
 #include "wayland/meta-wayland-buffer.h"
+#include "wayland/meta-wayland-color-representation.h"
 #include "wayland/meta-wayland-fractional-scale.h"
 #include "wayland/meta-wayland-gtk-shell.h"
 #include "wayland/meta-wayland-outputs.h"
@@ -448,6 +449,10 @@ meta_wayland_surface_state_set_default (MetaWaylandSurfaceState *state)
 
   state->subsurface_placement_ops = NULL;
 
+  state->has_new_premult = FALSE;
+  state->has_new_coeffs = FALSE;
+  state->has_new_chroma_loc = FALSE;
+
   wl_list_init (&state->presentation_feedback_list);
 
   state->xdg_popup_reposition_token = 0;
@@ -639,6 +644,24 @@ meta_wayland_surface_state_merge_into (MetaWaylandSurfaceState *from,
   if (from->fifo_barrier)
     to->fifo_barrier = TRUE;
 
+  if (from->has_new_premult)
+    {
+      to->premult = from->premult;
+      to->has_new_premult = TRUE;
+    }
+
+  if (from->has_new_coeffs)
+    {
+      to->coeffs = from->coeffs;
+      to->has_new_coeffs = TRUE;
+    }
+
+  if (from->has_new_chroma_loc)
+    {
+      to->chroma_loc = from->chroma_loc;
+      to->has_new_chroma_loc = TRUE;
+    }
+
   /*
    * A new commit indicates a new content update, so any previous
    * content update did not go on screen and needs to be discarded.
@@ -767,6 +790,16 @@ meta_wayland_surface_apply_state (MetaWaylandSurface      *surface,
   gboolean had_damage = FALSE;
   int old_width, old_height;
 
+  if (surface->resource)
+    {
+      meta_topic (META_DEBUG_WAYLAND, "Applying wl_surface#%u state",
+                  wl_resource_get_id (surface->resource));
+    }
+  else
+    {
+      meta_topic (META_DEBUG_WAYLAND, "Applying state of orphaned surface");
+    }
+
   old_width = meta_wayland_surface_get_width (surface);
   old_height = meta_wayland_surface_get_height (surface);
 
@@ -818,6 +851,15 @@ meta_wayland_surface_apply_state (MetaWaylandSurface      *surface,
       meta_wayland_compositor_add_barrier_surface (surface->compositor,
                                                    surface);
     }
+
+  if (state->has_new_premult)
+    surface->applied_state.premult = state->premult;
+
+  if (state->has_new_coeffs)
+    surface->applied_state.coeffs = state->coeffs;
+
+  if (state->has_new_chroma_loc)
+    surface->applied_state.chroma_loc = state->chroma_loc;
 
   if (state->has_new_buffer_transform)
     surface->buffer_transform = state->buffer_transform;
@@ -1071,6 +1113,18 @@ meta_wayland_surface_commit (MetaWaylandSurface *surface)
             }
         }
     }
+
+  if (pending->has_new_premult)
+    surface->committed_state.premult = pending->premult;
+
+  if (pending->has_new_coeffs)
+    surface->committed_state.coeffs = pending->coeffs;
+
+  if (pending->has_new_chroma_loc)
+    surface->committed_state.chroma_loc = pending->chroma_loc;
+
+  if (!meta_wayland_color_representation_commit_check (surface))
+    return;
 
   if (meta_wayland_surface_is_synchronized (surface))
     {
@@ -1712,12 +1766,12 @@ gboolean
 meta_wayland_surface_begin_grab_op (MetaWaylandSurface   *surface,
                                     MetaWaylandSeat      *seat,
                                     MetaGrabOp            grab_op,
-                                    ClutterInputDevice   *device,
-                                    ClutterEventSequence *sequence,
+                                    ClutterSprite        *sprite,
                                     gfloat                x,
                                     gfloat                y)
 {
   MetaWindow *window = meta_wayland_surface_get_window (surface);
+  MetaDisplay *display = meta_window_get_display (window);
 
   if (grab_op == META_GRAB_OP_NONE)
     return FALSE;
@@ -1727,8 +1781,8 @@ meta_wayland_surface_begin_grab_op (MetaWaylandSurface   *surface,
      being moved/resized via a SSD event. */
   return meta_window_begin_grab_op (window,
                                     grab_op,
-                                    device, sequence,
-                                    meta_display_get_current_time_roundtrip (window->display),
+                                    sprite,
+                                    meta_display_get_current_time_roundtrip (display),
                                     &GRAPHENE_POINT_INIT (x, y));
 }
 
@@ -2335,6 +2389,9 @@ meta_wayland_surface_notify_geometry_changed (MetaWaylandSurface *surface)
 int
 meta_wayland_surface_get_width (MetaWaylandSurface *surface)
 {
+  if (!surface->buffer)
+    return 0;
+
   if (surface->viewport.has_dst_size)
     {
       return surface->viewport.dst_width;
@@ -2359,6 +2416,9 @@ meta_wayland_surface_get_width (MetaWaylandSurface *surface)
 int
 meta_wayland_surface_get_height (MetaWaylandSurface *surface)
 {
+  if (!surface->buffer)
+    return 0;
+
   if (surface->viewport.has_dst_size)
     {
       return surface->viewport.dst_height;

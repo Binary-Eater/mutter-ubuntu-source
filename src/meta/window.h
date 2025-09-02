@@ -263,7 +263,7 @@ void     meta_window_foreach_ancestor         (MetaWindow            *window,
                                                void                  *user_data);
 
 META_EXPORT
-MetaMaximizeFlags meta_window_get_maximized (MetaWindow *window);
+gboolean          meta_window_is_maximized (MetaWindow *window);
 
 META_EXPORT
 gboolean          meta_window_is_fullscreen (MetaWindow *window);
@@ -286,12 +286,10 @@ void meta_window_set_icon_geometry (MetaWindow   *window,
                                     MtkRectangle *rect);
 
 META_EXPORT
-void meta_window_maximize   (MetaWindow        *window,
-                             MetaMaximizeFlags  directions);
+void meta_window_maximize   (MetaWindow        *window);
 
 META_EXPORT
-void meta_window_unmaximize (MetaWindow        *window,
-                             MetaMaximizeFlags  directions);
+void meta_window_unmaximize (MetaWindow        *window);
 
 META_EXPORT
 void        meta_window_minimize           (MetaWindow  *window);
@@ -393,12 +391,11 @@ void meta_window_get_work_area_all_monitors    (MetaWindow   *window,
                                                 MtkRectangle *area);
 
 META_EXPORT
-gboolean meta_window_begin_grab_op (MetaWindow           *window,
-                                    MetaGrabOp            op,
-                                    ClutterInputDevice   *device,
-                                    ClutterEventSequence *sequence,
-                                    guint32               timestamp,
-                                    graphene_point_t     *pos_hint);
+gboolean meta_window_begin_grab_op (MetaWindow       *window,
+                                    MetaGrabOp        op,
+                                    ClutterSprite    *sprite,
+                                    guint32           timestamp,
+                                    graphene_point_t *pos_hint);
 
 META_EXPORT
 gboolean meta_window_can_maximize (MetaWindow *window);
@@ -439,3 +436,27 @@ META_EXPORT
 void meta_window_protocol_to_stage_rect (MetaWindow *window,
                                          const MtkRectangle *protocol_rect,
                                          MtkRectangle       *stage_rect);
+
+META_EXPORT
+const char * meta_window_get_tag (MetaWindow *window);
+
+META_EXPORT
+void meta_window_set_type (MetaWindow     *window,
+                           MetaWindowType  type);
+
+META_EXPORT
+void meta_window_hide_from_window_list (MetaWindow *window);
+
+META_EXPORT
+void meta_window_show_in_window_list (MetaWindow *window);
+
+META_EXPORT
+MetaMaximizeFlags meta_window_get_maximize_flags (MetaWindow *window);
+
+META_EXPORT
+void meta_window_set_maximize_flags   (MetaWindow        *window,
+                                       MetaMaximizeFlags  directions);
+
+META_EXPORT
+void meta_window_set_unmaximize_flags (MetaWindow        *window,
+                                       MetaMaximizeFlags  directions);

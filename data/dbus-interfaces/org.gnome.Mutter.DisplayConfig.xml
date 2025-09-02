@@ -239,53 +239,14 @@
 	control it via this D-Bus interface.
 
 	  * 'connector' (s) - An associated monitor connector
-	  * 'active' (s) - True if the monitor is active
+	  * 'active' (b) - True if the monitor is active
+	  * 'min' (i) - Minimum value (optional)
+	  * 'max' (i) - Maximum value (optional)
 	  * 'value' (i) - Current value (optional)
 
 	The initial 'u' is a serial number used when setting the backlight.
     -->
     <property name="Backlight" type="(uaa{sv})" access="read" />
-
-    <!--
-        SetOutputLuminance:
-
-        Sets the luminance of a monitor when in the specified color mode (see
-        GetCurrentState() for available color modes). The luminance is a
-        floating point value representing the luminance in percent (%).
-    -->
-    <method name="SetLuminance">
-      <arg name="connector" direction="in" type="s" />
-      <arg name="color_mode" direction="in" type="u" />
-      <arg name="luminance" direction="in" type="d" />
-    </method>
-
-    <!--
-        ResetOutputLuminance:
-
-        Resets the luminance of a monitor to its default when in the specified
-        color mode (see GetCurrentState() for available color modes).
-    -->
-    <method name="ResetLuminance">
-      <arg name="connector" direction="in" type="s" />
-      <arg name="color_mode" direction="in" type="u" />
-    </method>
-
-    <!--
-        Luminance:
-
-        Luminance settings. The property is a list of dictionaries of luminance
-        settings entries.
-
-        The luminance setting is per color mode and monitor.
-
-        Each dictionary consists of the following entries:
-	  * 'connector' (s) - The associated connector.
-	  * 'color-mode' (u) - The associated color mode.
-	  * 'luminance' (d) - The current luminance.
-	  * 'is-unset' (b) - True if the luminance is not explicitly set.
-	  * 'default' (d) - The default luminance.
-    -->
-    <property name="Luminance" type="aa{sv}" access="read" />
 
     <!--
         GetCrtcGamma:
@@ -436,15 +397,20 @@
 	    - "is-for-lease" (b): whether the monitor is for lease or not
 	    - "color-mode" (u): current color mode
 	    - "supported-color-modes" (au): list of supported color modes
+	    - "rgb-range" (u): current RGB quantization range
 
         Possible mode flags:
-	  1 : preferred mode
-	  2 : current mode
+          1 : preferred mode
+          2 : current mode
 
         Available color modes:
           0 : default
           1 : BT.2100
 
+        Available RGB quantization ranges:
+          1: auto
+          2: full
+          3: limited
 
 	@logical_monitors represent current logical monitor configuration
 

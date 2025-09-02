@@ -14,6 +14,9 @@ struct _ClutterModifierSet
 };
 
 CLUTTER_EXPORT
+ClutterInputDevice * clutter_event_get_device (const ClutterEvent *event);
+
+CLUTTER_EXPORT
 ClutterEvent * clutter_event_key_new (ClutterEventType     type,
                                       ClutterEventFlags    flags,
                                       int64_t              timestamp_us,
@@ -55,6 +58,7 @@ ClutterEvent * clutter_event_scroll_smooth_new (ClutterEventFlags         flags,
                                                 ClutterModifierType       modifiers,
                                                 graphene_point_t          coords,
                                                 graphene_point_t          delta,
+                                                ClutterScrollFlags        scroll_flags,
                                                 ClutterScrollSource       scroll_source,
                                                 ClutterScrollFinishFlags  finish_flags);
 CLUTTER_EXPORT
@@ -64,6 +68,7 @@ ClutterEvent * clutter_event_scroll_discrete_new (ClutterEventFlags       flags,
                                                   ClutterInputDeviceTool *tool,
                                                   ClutterModifierType     modifiers,
                                                   graphene_point_t        coords,
+                                                  ClutterScrollFlags      scroll_flags,
                                                   ClutterScrollSource     scroll_source,
                                                   ClutterScrollDirection  direction);
 CLUTTER_EXPORT
@@ -146,6 +151,14 @@ ClutterEvent * clutter_event_pad_ring_new (ClutterEventFlags            flags,
                                            uint32_t                     ring,
                                            uint32_t                     group,
                                            double                       angle,
+                                           uint32_t                     mode);
+CLUTTER_EXPORT
+ClutterEvent * clutter_event_pad_dial_new (ClutterEventFlags            flags,
+                                           int64_t                      timestamp_us,
+                                           ClutterInputDevice          *source_device,
+                                           uint32_t                     dial,
+                                           uint32_t                     group,
+                                           double                       v120,
                                            uint32_t                     mode);
 CLUTTER_EXPORT
 ClutterEvent * clutter_event_device_notify_new (ClutterEventType    type,

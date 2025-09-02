@@ -39,7 +39,9 @@
 #include "core/meta-context-private.h"
 #include "wayland/meta-wayland-activation.h"
 #include "wayland/meta-wayland-buffer.h"
+#include "wayland/meta-wayland-client-private.h"
 #include "wayland/meta-wayland-color-management.h"
+#include "wayland/meta-wayland-color-representation.h"
 #include "wayland/meta-wayland-commit-timing.h"
 #include "wayland/meta-wayland-cursor-shape.h"
 #include "wayland/meta-wayland-fifo.h"
@@ -47,6 +49,7 @@
 #include "wayland/meta-wayland-dma-buf.h"
 #include "wayland/meta-wayland-egl-stream.h"
 #include "wayland/meta-wayland-filter-manager.h"
+#include "wayland/meta-wayland-fixes.h"
 #include "wayland/meta-wayland-idle-inhibit.h"
 #include "wayland/meta-wayland-inhibit-shortcuts-dialog.h"
 #include "wayland/meta-wayland-inhibit-shortcuts.h"
@@ -64,6 +67,7 @@
 #include "wayland/meta-wayland-xdg-dialog.h"
 #include "wayland/meta-wayland-xdg-foreign.h"
 #include "wayland/meta-wayland-xdg-session-manager.h"
+#include "wayland/meta-wayland-xdg-toplevel-tag.h"
 
 #ifdef HAVE_XWAYLAND
 #include "wayland/meta-wayland-x11-interop.h"
@@ -698,11 +702,44 @@ meta_wayland_compositor_get_committed_transactions (MetaWaylandCompositor *compo
 }
 
 static gboolean
+update_activation_environment (GDBusConnection *session_bus,
+                               const char      *name,
+                               const char      *value)
+{
+  g_autoptr (GError) error = NULL;
+  g_autoptr (GVariant) result = NULL;
+  GVariantBuilder builder;
+
+  g_variant_builder_init (&builder, G_VARIANT_TYPE ("a{ss}"));
+  g_variant_builder_add (&builder, "{ss}", name, value);
+
+  result = g_dbus_connection_call_sync (session_bus,
+                                        "org.freedesktop.DBus",
+                                        "/org/freedesktop/DBus",
+                                        "org.freedesktop.DBus",
+                                        "UpdateActivationEnvironment",
+                                        g_variant_new ("(@a{ss})",
+                                                       g_variant_builder_end (&builder)),
+                                        NULL,
+                                        G_DBUS_CALL_FLAGS_NO_AUTO_START,
+                                        -1, NULL, &error);
+
+  if (error)
+    {
+      g_warning ("Failed to update activation environment with variable %s: %s",
+                 name, error->message);
+
+      return FALSE;
+    }
+  return TRUE;
+}
+
+static gboolean
 set_gnome_env (const char *name,
 	       const char *value)
 {
   GDBusConnection *session_bus;
-  GError *error = NULL;
+  g_autoptr (GError) error = NULL;
   g_autoptr (GVariant) result = NULL;
 
   setenv (name, value, TRUE);
@@ -721,22 +758,18 @@ set_gnome_env (const char *name,
 			       -1, NULL, &error);
   if (error)
     {
-      char *remote_error;
-      const char *ignored_remote_errors[] = {
-        "org.gnome.SessionManager.NotInInitialization",
-        "org.freedesktop.DBus.Error.NameHasNoOwner",
-        NULL,
-      };
+      g_autofree char *remote_error = NULL;
 
       remote_error = g_dbus_error_get_remote_error (error);
-      if (!g_strv_contains (ignored_remote_errors, remote_error))
+      if (g_strcmp0 (remote_error, "org.freedesktop.DBus.Error.NameHasNoOwner") == 0)
+        {
+          return update_activation_environment (session_bus, name, value);
+        }
+      else if (g_strcmp0 (remote_error, "org.gnome.SessionManager.NotInInitialization") != 0)
         {
           g_warning ("Failed to set environment variable %s for gnome-session: %s",
                      name, error->message);
         }
-
-      g_free (remote_error);
-      g_error_free (error);
 
       return FALSE;
     }
@@ -761,8 +794,10 @@ on_client_created (struct wl_listener *listener,
   struct wl_client *client = user_data;
   MetaWaylandCompositor *compositor =
     wl_container_of (listener, compositor, client_created_listener);
+  MetaContext *context = meta_wayland_compositor_get_context (compositor);
+  g_autoptr (MetaWaylandClient) wayland_client = NULL;
 
-  wl_client_set_user_data (client, compositor, NULL);
+  wayland_client = meta_wayland_client_new_from_wl (context, client);
 }
 
 void
@@ -992,12 +1027,15 @@ meta_wayland_compositor_new (MetaContext *context)
   meta_wayland_init_color_management (compositor);
   meta_wayland_xdg_session_management_init (compositor);
   meta_wayland_init_system_bell (compositor);
+  meta_wayland_xdg_toplevel_tag_init (compositor);
 #ifdef HAVE_NATIVE_BACKEND
   meta_wayland_drm_lease_manager_init (compositor);
 #endif
   meta_wayland_commit_timing_init (compositor);
   meta_wayland_fifo_init (compositor);
   meta_wayland_init_cursor_shape (compositor);
+  meta_wayland_init_color_representation (compositor);
+  meta_wayland_init_fixes (compositor);
 
 #ifdef HAVE_WAYLAND_EGLSTREAM
   {
@@ -1128,12 +1166,6 @@ meta_wayland_compositor_is_shortcuts_inhibited (MetaWaylandCompositor *composito
     return FALSE;
 
   return meta_wayland_surface_is_shortcuts_inhibited (focus, compositor->seat);
-}
-
-void
-meta_wayland_compositor_flush_clients (MetaWaylandCompositor *compositor)
-{
-  wl_display_flush_clients (compositor->wayland_display);
 }
 
 static void on_scheduled_association_unmanaged (MetaWindow *window,

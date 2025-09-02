@@ -52,6 +52,13 @@ typedef enum
   META_SEQUENCE_PENDING_END
 } MetaSequenceState;
 
+typedef enum _MetaEventMode
+{
+  META_EVENT_MODE_KEEP_FROZEN,
+  META_EVENT_MODE_THAW,
+  META_EVENT_MODE_REPLAY,
+} MetaEventMode;
+
 struct _MetaBackendClass
 {
   GObjectClass parent_class;
@@ -87,8 +94,8 @@ struct _MetaBackendClass
 
   MetaBackendCapabilities (* get_capabilities) (MetaBackend *backend);
 
-  MetaCursorRenderer * (* get_cursor_renderer) (MetaBackend        *backend,
-                                                ClutterInputDevice *device);
+  MetaCursorRenderer * (* get_cursor_renderer) (MetaBackend   *backend,
+                                                ClutterSprite *sprite);
 
   MetaInputSettings * (* get_input_settings) (MetaBackend *backend);
 
@@ -117,18 +124,20 @@ struct _MetaBackendClass
                                   ClutterEventSequence *sequence,
                                   MetaSequenceState     state);
 
-  void (* set_keymap) (MetaBackend *backend,
-                       const char  *layouts,
-                       const char  *variants,
-                       const char  *options,
-                       const char  *model);
+  void (* set_keymap_async) (MetaBackend *backend,
+                             const char  *layouts,
+                             const char  *variants,
+                             const char  *options,
+                             const char  *model,
+                             GTask       *task);
 
   struct xkb_keymap * (* get_keymap) (MetaBackend *backend);
 
   xkb_layout_index_t (* get_keymap_layout_group) (MetaBackend *backend);
 
-  void (* lock_layout_group) (MetaBackend *backend,
-                              guint        idx);
+  void (* set_keymap_layout_group_async) (MetaBackend        *backend,
+                                          xkb_layout_index_t  idx,
+                                          GTask              *task);
 
   void (* update_stage) (MetaBackend *backend);
 
@@ -155,9 +164,6 @@ ClutterContext * meta_backend_get_clutter_context (MetaBackend *backend);
 META_EXPORT_TEST
 ClutterSeat * meta_backend_get_default_seat (MetaBackend *backend);
 
-MetaIdleMonitor * meta_backend_get_idle_monitor (MetaBackend        *backend,
-                                                 ClutterInputDevice *device);
-
 MetaIdleManager * meta_backend_get_idle_manager (MetaBackend *backend);
 
 META_EXPORT_TEST
@@ -173,8 +179,8 @@ META_EXPORT_TEST
 MetaUdev * meta_backend_get_udev (MetaBackend *backend);
 #endif
 
-MetaCursorRenderer * meta_backend_get_cursor_renderer_for_device (MetaBackend        *backend,
-                                                                  ClutterInputDevice *device);
+MetaCursorRenderer * meta_backend_get_cursor_renderer_for_sprite (MetaBackend   *backend,
+                                                                  ClutterSprite *sprite);
 META_EXPORT_TEST
 MetaCursorRenderer * meta_backend_get_cursor_renderer (MetaBackend *backend);
 META_EXPORT_TEST
@@ -206,10 +212,9 @@ void meta_backend_finish_touch_sequence (MetaBackend          *backend,
                                          MetaSequenceState     state);
 
 META_EXPORT_TEST
-MetaLogicalMonitor * meta_backend_get_current_logical_monitor (MetaBackend *backend);
-
 struct xkb_keymap * meta_backend_get_keymap (MetaBackend *backend);
 
+META_EXPORT_TEST
 xkb_layout_index_t meta_backend_get_keymap_layout_group (MetaBackend *backend);
 
 gboolean meta_backend_is_lid_closed (MetaBackend *backend);

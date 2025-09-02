@@ -34,13 +34,15 @@
  * @META_TAB_LIST_DOCKS: Dock windows
  * @META_TAB_LIST_GROUP: Groups
  * @META_TAB_LIST_NORMAL_ALL: All windows
+ * @META_TAB_LIST_NORMAL_ALL_MRU: All windows in pure MRU order
  */
 typedef enum
 {
   META_TAB_LIST_NORMAL,
   META_TAB_LIST_DOCKS,
   META_TAB_LIST_GROUP,
-  META_TAB_LIST_NORMAL_ALL
+  META_TAB_LIST_NORMAL_ALL,
+  META_TAB_LIST_NORMAL_ALL_MRU,
 } MetaTabList;
 
 /**
@@ -58,6 +60,7 @@ typedef enum
 {
   META_PAD_FEATURE_RING,
   META_PAD_FEATURE_STRIP,
+  META_PAD_FEATURE_DIAL,
 } MetaPadFeatureType;
 
 typedef enum

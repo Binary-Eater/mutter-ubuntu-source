@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include "core/util-private.h"
 #include "meta/common.h"
 #include "meta/window.h"
 
@@ -37,16 +38,17 @@ G_DECLARE_FINAL_TYPE (MetaWindowDrag, meta_window_drag,
 MetaWindowDrag * meta_window_drag_new (MetaWindow *window,
                                        MetaGrabOp  grab_op);
 
-gboolean meta_window_drag_begin (MetaWindowDrag       *drag,
-                                 ClutterInputDevice   *device,
-                                 ClutterEventSequence *sequence,
-                                 uint32_t              timestamp,
-                                 MetaDragWindowFlags   flags);
+gboolean meta_window_drag_begin (MetaWindowDrag      *drag,
+                                 ClutterSprite       *sprite,
+                                 uint32_t             timestamp,
+                                 MetaDragWindowFlags  flags);
 
+META_EXPORT_TEST
 void meta_window_drag_end (MetaWindowDrag *drag);
 
 void meta_window_drag_update_resize (MetaWindowDrag *drag);
 
+META_EXPORT_TEST
 MetaWindow * meta_window_drag_get_window (MetaWindowDrag *window_drag);
 
 MetaGrabOp meta_window_drag_get_grab_op (MetaWindowDrag *window_drag);

@@ -17,10 +17,13 @@ Forwarded: no
  src/tests/clutter/conform/grab.c      |  6 ++++++
  src/tests/clutter/conform/meson.build |  8 +++++++-
  src/tests/meson.build                 | 16 ++++++++++++++--
- 4 files changed, 51 insertions(+), 3 deletions(-)
+ src/tests/monitor-tests-common.c      |  6 +++++-
+ src/tests/mtk/meson.build             |  1 +
+ src/tests/mtk/time-utils-tests.c      |  6 ++++++
+ 7 files changed, 63 insertions(+), 4 deletions(-)
 
 diff --git a/src/tests/clutter/conform/gesture.c b/src/tests/clutter/conform/gesture.c
-index f3901a2..c0affef 100644
+index ea2e382..4a59589 100644
 --- a/src/tests/clutter/conform/gesture.c
 +++ b/src/tests/clutter/conform/gesture.c
 @@ -133,6 +133,12 @@ gesture_state_machine_move_to_waiting (void)
@@ -93,11 +96,11 @@ index 93a8cf4..9018a53 100644
    pointer = clutter_seat_create_virtual_device (seat, CLUTTER_POINTER_DEVICE);
  
 diff --git a/src/tests/clutter/conform/meson.build b/src/tests/clutter/conform/meson.build
-index 488db05..f32892e 100644
+index 7cb80a2..8e95bc6 100644
 --- a/src/tests/clutter/conform/meson.build
 +++ b/src/tests/clutter/conform/meson.build
-@@ -68,6 +68,12 @@ test_env.set('CLUTTER_ENABLE_DIAGNOSTIC', '0')
- test_env.set('GSETTINGS_SCHEMA_DIR', locally_compiled_schemas_dir)
+@@ -70,6 +70,12 @@ test_env.set('GSETTINGS_SCHEMA_DIR', locally_compiled_schemas_dir)
+ test_env.set('TEST_DATADIR', mutter_srcdir / 'src' / 'tests')
  
  foreach test : clutter_conform_tests
 +  extra_suites = []
@@ -109,7 +112,7 @@ index 488db05..f32892e 100644
    test_executable = executable('@0@'.format(test),
      sources: [
        '@0@.c'.format(test),
-@@ -83,7 +89,7 @@ foreach test : clutter_conform_tests
+@@ -85,7 +91,7 @@ foreach test : clutter_conform_tests
    )
  
    test(test, test_executable,
@@ -119,10 +122,10 @@ index 488db05..f32892e 100644
      is_parallel: false,
    )
 diff --git a/src/tests/meson.build b/src/tests/meson.build
-index c58f70b..e095e0d 100644
+index b34e0dd..8227486 100644
 --- a/src/tests/meson.build
 +++ b/src/tests/meson.build
-@@ -514,6 +514,7 @@ test_cases += [
+@@ -658,6 +658,7 @@ test_cases += [
      'name': 'input-capture',
      'suite': 'backends/native',
      'sources': [ 'input-capture-tests.c' ],
@@ -130,7 +133,7 @@ index c58f70b..e095e0d 100644
    },
    {
      'name': 'thread',
-@@ -905,9 +906,20 @@ foreach test_case: test_cases
+@@ -1079,9 +1080,20 @@ foreach test_case: test_cases
  
    args = test_case.get('args', [])
  
@@ -152,7 +155,7 @@ index c58f70b..e095e0d 100644
      args: args,
      env: test_env,
      depends: test_depends,
-@@ -970,7 +982,7 @@ stacking_tests = [
+@@ -1159,7 +1171,7 @@ stacking_tests = [
  
  foreach stacking_test: stacking_tests
    test(stacking_test, test_runner,
@@ -161,3 +164,49 @@ index c58f70b..e095e0d 100644
      env: test_env,
      args: [
        files('stacking' / stacking_test + '.metatest'),
+diff --git a/src/tests/monitor-tests-common.c b/src/tests/monitor-tests-common.c
+index d03fecf..46f04b9 100644
+--- a/src/tests/monitor-tests-common.c
++++ b/src/tests/monitor-tests-common.c
+@@ -226,7 +226,11 @@ meta_check_monitor_test_clients_state (void)
+ {
+   meta_check_test_client_state (wayland_monitor_test_client);
+   meta_check_test_client_state (x11_monitor_test_client);
+-  check_test_client_x11_state (x11_monitor_test_client);
++
++  if (g_getenv ("DEB_ALLOW_FLAKY_TESTS") == NULL)
++    g_test_skip ("https://gitlab.gnome.org/GNOME/mutter/-/issues/4200");
++  else
++    check_test_client_x11_state (x11_monitor_test_client);
+ }
+ 
+ static MetaMonitorTestSetup *
+diff --git a/src/tests/mtk/meson.build b/src/tests/mtk/meson.build
+index 4e21b2f..d372d2d 100644
+--- a/src/tests/mtk/meson.build
++++ b/src/tests/mtk/meson.build
+@@ -30,6 +30,7 @@ test_cases += [
+   {
+     'name': 'mtk-time-utils',
+     'suite': 'unit',
++    'flaky': true,
+     'sources': [
+       'mtk/time-utils-tests.c',
+     ]
+diff --git a/src/tests/mtk/time-utils-tests.c b/src/tests/mtk/time-utils-tests.c
+index 792f82d..704dcb3 100644
+--- a/src/tests/mtk/time-utils-tests.c
++++ b/src/tests/mtk/time-utils-tests.c
+@@ -28,6 +28,12 @@ test_extrapolate_interval_boundary (void)
+   int64_t now_us;
+   int64_t next_interval_boundary_us;
+ 
++  if (g_getenv ("DEB_ALLOW_FLAKY_TESTS") == NULL)
++    {
++      g_test_skip ("https://gitlab.gnome.org/GNOME/mutter/-/issues/4199");
++      return;
++    }
++
+   now_us = g_get_monotonic_time ();
+ 
+   next_interval_boundary_us =

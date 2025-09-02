@@ -27,6 +27,16 @@
 
 enum
 {
+  ENABLED,
+  DISABLED,
+
+  N_SIGNALS
+};
+
+static guint signals[N_SIGNALS];
+
+enum
+{
   PROP_0,
 
   PROP_BACKEND,
@@ -42,8 +52,6 @@ static GParamSpec *obj_props[N_PROPS];
 
 typedef struct _MetaDbusSessionManagerPrivate
 {
-  GObject parent;
-
   MetaBackend *backend;
   char *service_name;
   char *service_path;
@@ -52,6 +60,8 @@ typedef struct _MetaDbusSessionManagerPrivate
 
   guint dbus_name_id;
   GDBusInterfaceSkeleton *interface_skeleton;
+
+  gboolean is_enabled;
 
   int inhibit_count;
 
@@ -129,6 +139,40 @@ on_bus_acquired (GDBusConnection *connection,
 }
 
 static void
+on_name_acquired (GDBusConnection *connection,
+                  const char      *name,
+                  gpointer         user_data)
+{
+  MetaDbusSessionManager *session_manager =
+    META_DBUS_SESSION_MANAGER (user_data);
+  MetaDbusSessionManagerPrivate *priv =
+    meta_dbus_session_manager_get_instance_private (session_manager);
+
+  meta_topic (META_DEBUG_DBUS, "Acquired name %s", name);
+
+  priv->is_enabled = TRUE;
+
+  g_signal_emit (session_manager, signals[ENABLED], 0);
+}
+
+static void
+on_name_lost (GDBusConnection *connection,
+              const char      *name,
+              gpointer         user_data)
+{
+  MetaDbusSessionManager *session_manager =
+    META_DBUS_SESSION_MANAGER (user_data);
+  MetaDbusSessionManagerPrivate *priv =
+    meta_dbus_session_manager_get_instance_private (session_manager);
+
+  g_warning ("Lost or failed to acquire name %s", name);
+
+  priv->is_enabled = FALSE;
+
+  g_signal_emit (session_manager, signals[DISABLED], 0);
+}
+
+static void
 meta_dbus_session_manager_constructed (GObject *object)
 {
   MetaDbusSessionManager *session_manager = META_DBUS_SESSION_MANAGER (object);
@@ -140,8 +184,8 @@ meta_dbus_session_manager_constructed (GObject *object)
                     priv->service_name,
                     G_BUS_NAME_OWNER_FLAGS_NONE,
                     on_bus_acquired,
-                    NULL,
-                    NULL,
+                    on_name_acquired,
+                    on_name_lost,
                     session_manager,
                     NULL);
 
@@ -259,6 +303,19 @@ meta_dbus_session_manager_class_init (MetaDbusSessionManagerClass *klass)
                          G_PARAM_CONSTRUCT_ONLY |
                          G_PARAM_STATIC_STRINGS);
   g_object_class_install_properties (object_class, N_PROPS, obj_props);
+
+  signals[ENABLED] = g_signal_new ("enabled",
+                                   G_TYPE_FROM_CLASS (klass),
+                                   G_SIGNAL_RUN_LAST,
+                                   0,
+                                   NULL, NULL, NULL,
+                                   G_TYPE_NONE, 0);
+  signals[DISABLED] = g_signal_new ("disabled",
+                                    G_TYPE_FROM_CLASS (klass),
+                                    G_SIGNAL_RUN_LAST,
+                                    0,
+                                    NULL, NULL, NULL,
+                                    G_TYPE_NONE, 0);
 }
 
 static void
@@ -498,4 +555,29 @@ meta_dbus_session_manager_get_num_sessions (MetaDbusSessionManager *session_mana
     meta_dbus_session_manager_get_instance_private (session_manager);
 
   return g_hash_table_size (priv->sessions);
+}
+
+gboolean
+meta_dbus_session_manager_is_enabled (MetaDbusSessionManager *session_manager)
+{
+  MetaDbusSessionManagerPrivate *priv =
+    meta_dbus_session_manager_get_instance_private (session_manager);
+
+  return priv->is_enabled;
+}
+
+MetaDbusSessionManager *
+meta_dbus_session_manager_new (MetaBackend            *backend,
+                               const char             *service_name,
+                               const char             *service_path,
+                               GType                   session_gtype,
+                               GDBusInterfaceSkeleton *skeleton)
+{
+  return g_object_new (META_TYPE_DBUS_SESSION_MANAGER,
+                       "backend", backend,
+                       "service-name", service_name,
+                       "service-path", service_path,
+                       "session-gtype", session_gtype,
+                       "interface-skeleton", skeleton,
+                       NULL);
 }

@@ -71,6 +71,9 @@ META_EXPORT
 char * meta_test_client_get_id (MetaTestClient *client);
 
 META_EXPORT
+MetaWindowClientType meta_test_client_get_client_type (MetaTestClient *client);
+
+META_EXPORT
 gboolean meta_test_client_wait (MetaTestClient  *client,
                                 GError         **error);
 
@@ -152,3 +155,9 @@ void meta_wait_test_process (GSubprocess *subprocess);
 
 META_EXPORT
 void meta_wait_for_window_cursor (MetaContext *context);
+
+META_EXPORT
+void meta_wait_for_effects (MetaWindow *window);
+
+META_EXPORT
+void meta_wait_wayland_window_reconfigure (MetaWindow *window);

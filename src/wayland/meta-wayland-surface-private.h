@@ -146,6 +146,14 @@ struct _MetaWaylandSurfaceState
 
   gboolean fifo_barrier;
   gboolean fifo_wait;
+
+  /* color-representation */
+  gboolean has_new_premult;
+  MetaMultiTextureAlphaMode premult;
+  gboolean has_new_coeffs;
+  MetaMultiTextureCoefficients coeffs;
+  gboolean has_new_chroma_loc;
+  MetaMultiTextureChromaLoc chroma_loc;
 };
 
 struct _MetaWaylandDragDestFuncs
@@ -209,6 +217,9 @@ struct _MetaWaylandSurface
     MetaMultiTexture *texture;
     int scale;
     gboolean is_valid;
+    MetaMultiTextureAlphaMode premult;
+    MetaMultiTextureCoefficients coeffs;
+    MetaMultiTextureChromaLoc chroma_loc;
   } applied_state, committed_state;
 
   /* Extension resources. */
@@ -370,8 +381,7 @@ MtkRegion * meta_wayland_surface_calculate_input_region (MetaWaylandSurface *sur
 gboolean            meta_wayland_surface_begin_grab_op (MetaWaylandSurface   *surface,
                                                         MetaWaylandSeat      *seat,
                                                         MetaGrabOp            grab_op,
-                                                        ClutterInputDevice   *device,
-                                                        ClutterEventSequence *sequence,
+                                                        ClutterSprite        *sprite,
                                                         gfloat                x,
                                                         gfloat                y);
 

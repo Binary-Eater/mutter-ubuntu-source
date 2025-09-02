@@ -572,6 +572,98 @@ clutter_backend_is_display_server (ClutterBackend *backend)
   return CLUTTER_BACKEND_GET_CLASS (backend)->is_display_server (backend);
 }
 
+/**
+ * clutter_backend_get_sprite:
+ * @backend: A #ClutterBackend
+ * @stage: A #ClutterStage
+ * @for_event: Event to get sprite for
+ *
+ * Retrieves the #ClutterSprite affected by @for_event
+ *
+ * Returns: (transfer none)(nullable): a #ClutterSprite, or %NULL if event does not drive one
+ **/
+ClutterSprite *
+clutter_backend_get_sprite (ClutterBackend     *backend,
+                            ClutterStage       *stage,
+                            const ClutterEvent *for_event)
+{
+  return CLUTTER_BACKEND_GET_CLASS (backend)->get_sprite (backend,
+                                                          stage,
+                                                          for_event);
+}
+
+/**
+ * clutter_backend_lookup_sprite: (skip)
+ */
+ClutterSprite *
+clutter_backend_lookup_sprite (ClutterBackend       *backend,
+                               ClutterStage         *stage,
+                               ClutterInputDevice   *device,
+                               ClutterEventSequence *sequence)
+{
+  return CLUTTER_BACKEND_GET_CLASS (backend)->lookup_sprite (backend,
+                                                             stage,
+                                                             device,
+                                                             sequence);
+}
+
+/**
+ * clutter_backend_get_pointer_sprite:
+ * @backend: a #ClutterBackend
+ * @stage: a #ClutterStage
+ *
+ * Gets the on-screen sprite typically considered "the pointer"
+ *
+ * Returns: (transfer none): The "pointer" sprite
+ */
+ClutterSprite *
+clutter_backend_get_pointer_sprite (ClutterBackend *backend,
+                                    ClutterStage   *stage)
+{
+  return CLUTTER_BACKEND_GET_CLASS (backend)->get_pointer_sprite (backend, stage);
+}
+
+/**
+ * clutter_backend_destroy_sprite: (skip)
+ */
+void
+clutter_backend_destroy_sprite (ClutterBackend *backend,
+                                ClutterSprite  *sprite)
+{
+  CLUTTER_BACKEND_GET_CLASS (backend)->destroy_sprite (backend, sprite);
+}
+
+/**
+ * clutter_backend_foreach_sprite: (skip)
+ */
+gboolean
+clutter_backend_foreach_sprite (ClutterBackend               *backend,
+                                ClutterStage                 *stage,
+                                ClutterStageInputForeachFunc  func,
+                                gpointer                      user_data)
+{
+  return CLUTTER_BACKEND_GET_CLASS (backend)->foreach_sprite (backend,
+                                                              stage,
+                                                              func,
+                                                              user_data);
+}
+
+/**
+ * clutter_backend_get_key_focus:
+ * @backend: a #ClutterBackend
+ * @stage: a #ClutterStage
+ *
+ * Returns the key focus for stage
+ *
+ * Returns: (transfer none): the #ClutterKeyFocus representing key focus
+ **/
+ClutterKeyFocus *
+clutter_backend_get_key_focus (ClutterBackend *backend,
+                               ClutterStage   *stage)
+{
+  return CLUTTER_BACKEND_GET_CLASS (backend)->get_key_focus (backend, stage);
+}
+
 void
 clutter_backend_destroy (ClutterBackend *backend)
 {

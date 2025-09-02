@@ -106,6 +106,7 @@ typedef struct _ClutterProximityEvent   ClutterProximityEvent;
 typedef struct _ClutterPadButtonEvent   ClutterPadButtonEvent;
 typedef struct _ClutterPadStripEvent    ClutterPadStripEvent;
 typedef struct _ClutterPadRingEvent     ClutterPadRingEvent;
+typedef struct _ClutterPadDialEvent     ClutterPadDialEvent;
 typedef struct _ClutterDeviceEvent      ClutterDeviceEvent;
 typedef struct _ClutterIMEvent          ClutterIMEvent;
 
@@ -161,8 +162,6 @@ CLUTTER_EXPORT
 guint32                 clutter_event_get_time                  (const ClutterEvent     *event);
 CLUTTER_EXPORT
 ClutterModifierType     clutter_event_get_state                 (const ClutterEvent     *event);
-CLUTTER_EXPORT
-ClutterInputDevice *    clutter_event_get_device                (const ClutterEvent     *event);
 
 CLUTTER_EXPORT
 ClutterInputDevice *    clutter_event_get_source_device         (const ClutterEvent     *event);
@@ -258,6 +257,9 @@ ClutterScrollSource      clutter_event_get_scroll_source             (const Clut
 
 CLUTTER_EXPORT
 ClutterScrollFinishFlags clutter_event_get_scroll_finish_flags       (const ClutterEvent     *event);
+
+CLUTTER_EXPORT
+ClutterScrollFlags       clutter_event_get_scroll_flags              (const ClutterEvent     *event);
 
 CLUTTER_EXPORT
 guint                    clutter_event_get_mode_group                (const ClutterEvent     *event);

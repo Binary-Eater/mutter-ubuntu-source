@@ -27,6 +27,8 @@ clutter_pkg_deps = [
   glib_dep,
   gobject_dep,
   gio_dep,
+  xkbcommon_dep,
+  lcms2_dep,
 ]
 
 clutter_pkg_private_deps = [

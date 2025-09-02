@@ -256,6 +256,8 @@ ensure_stage_view_offscreen (ClutterStageView *view)
     }
   else
     {
+      formats[n_formats++] = COGL_PIXEL_FORMAT_RGBX_FP_16161616;
+      formats[n_formats++] = COGL_PIXEL_FORMAT_BGRX_FP_16161616;
       formats[n_formats++] = COGL_PIXEL_FORMAT_XRGB_FP_16161616;
       formats[n_formats++] = COGL_PIXEL_FORMAT_XBGR_FP_16161616;
       formats[n_formats++] = COGL_PIXEL_FORMAT_RGBA_FP_16161616_PRE;
@@ -322,7 +324,8 @@ ensure_stage_view_offscreen_pipeline (ClutterStageView *view)
 
   clutter_color_state_add_pipeline_transform (priv->color_state,
                                               priv->output_color_state,
-                                              pipeline);
+                                              pipeline,
+                                              CLUTTER_COLOR_STATE_TRANSFORM_OPAQUE);
 
   g_set_object (&priv->offscreen_pipeline, g_steal_pointer (&pipeline));
 }
@@ -354,7 +357,8 @@ clutter_stage_view_invalidate_offscreen (ClutterStageView *view)
     }
 
   if (priv->transform == MTK_MONITOR_TRANSFORM_NORMAL &&
-      clutter_color_state_equals (priv->color_state, priv->output_color_state))
+      !clutter_color_state_needs_mapping (priv->color_state,
+                                          priv->output_color_state))
     {
       g_clear_object (&priv->offscreen_pipeline);
       g_clear_object (&priv->offscreen);
@@ -925,6 +929,18 @@ clutter_stage_view_peek_scanout (ClutterStageView *view)
   return priv->next_scanout;
 }
 
+/**
+ * clutter_stage_view_get_priority: (skip)
+ */
+int
+clutter_stage_view_get_priority (ClutterStageView *view)
+{
+  ClutterStageViewPrivate *priv =
+    clutter_stage_view_get_instance_private (view);
+
+  return clutter_frame_clock_get_priority (priv->frame_clock);
+}
+
 void
 clutter_stage_view_schedule_update (ClutterStageView *view)
 {
@@ -1066,13 +1082,13 @@ handle_frame_clock_frame (ClutterFrameClock *frame_clock,
   ClutterContext *context = clutter_actor_get_context (CLUTTER_ACTOR (stage));
 
   if (CLUTTER_ACTOR_IN_DESTRUCTION (stage))
-    return CLUTTER_FRAME_RESULT_IDLE;
+    return CLUTTER_FRAME_RESULT_IGNORED;
 
   if (!clutter_actor_is_realized (CLUTTER_ACTOR (stage)) ||
       !clutter_actor_is_mapped (CLUTTER_ACTOR (stage)))
     {
       clutter_stage_frame_discarded (stage, view, frame);
-      return CLUTTER_FRAME_RESULT_IDLE;
+      return CLUTTER_FRAME_RESULT_IGNORED;
     }
 
   if (clutter_context_get_show_fps (context))
@@ -1466,7 +1482,7 @@ clutter_stage_view_class_init (ClutterStageViewClass *klass)
 
   obj_props[PROP_REFRESH_RATE] =
     g_param_spec_float ("refresh-rate", NULL, NULL,
-                        1.0, G_MAXFLOAT, 60.0,
+                        0.0, G_MAXFLOAT, 60.0,
                         G_PARAM_READWRITE |
                         G_PARAM_CONSTRUCT |
                         G_PARAM_STATIC_STRINGS);

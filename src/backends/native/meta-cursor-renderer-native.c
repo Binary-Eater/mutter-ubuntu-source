@@ -32,8 +32,8 @@
 
 #include "backends/meta-backend-private.h"
 #include "backends/meta-cursor-sprite-xcursor.h"
-#include "backends/meta-logical-monitor.h"
-#include "backends/meta-monitor.h"
+#include "backends/meta-logical-monitor-private.h"
+#include "backends/meta-monitor-private.h"
 #include "backends/meta-monitor-manager-private.h"
 #include "backends/meta-output.h"
 #include "backends/native/meta-backend-native-private.h"
@@ -90,9 +90,6 @@ struct _MetaCursorRendererNativePrivate
   gboolean input_disconnected;
   GMutex input_mutex;
   GCond input_cond;
-
-  CoglSnippet *premult_snippet;
-  CoglSnippet *unpremult_snippet;
 };
 typedef struct _MetaCursorRendererNativePrivate MetaCursorRendererNativePrivate;
 
@@ -208,8 +205,6 @@ meta_cursor_renderer_native_finalize (GObject *object)
   g_clear_signal_handler (&priv->texture_changed_handler_id,
                           priv->current_cursor);
   g_clear_object (&priv->current_cursor);
-  g_clear_object (&priv->premult_snippet);
-  g_clear_object (&priv->unpremult_snippet);
   g_clear_handle_id (&priv->animation_timeout_id, g_source_remove);
 
   G_OBJECT_CLASS (meta_cursor_renderer_native_parent_class)->finalize (object);
@@ -771,40 +766,6 @@ load_cursor_sprite_gbm_buffer_for_crtc (MetaCursorRendererNative *native,
   return TRUE;
 }
 
-static void
-add_pipeline_snippet (CoglPipeline  *pipeline,
-                      CoglSnippet  **snippet,
-                      const char    *snippet_source)
-{
-  if (!*snippet)
-    *snippet = cogl_snippet_new (COGL_SNIPPET_HOOK_FRAGMENT, "",
-                                 snippet_source);
-
-  cogl_pipeline_add_snippet (pipeline, *snippet);
-}
-
-static void
-add_pipeline_premultiply (MetaCursorRendererNative *cursor_renderer_native,
-                          CoglPipeline             *pipeline)
-{
-  MetaCursorRendererNativePrivate *priv =
-    meta_cursor_renderer_native_get_instance_private (cursor_renderer_native);
-
-  add_pipeline_snippet (pipeline, &priv->premult_snippet,
-                        "  cogl_color_out.rgb *= cogl_color_out.a;\n");
-}
-
-static void
-add_pipeline_unpremultiply (MetaCursorRendererNative *cursor_renderer_native,
-                            CoglPipeline             *pipeline)
-{
-  MetaCursorRendererNativePrivate *priv =
-    meta_cursor_renderer_native_get_instance_private (cursor_renderer_native);
-
-  add_pipeline_snippet (pipeline, &priv->unpremult_snippet,
-                        "  cogl_color_out.rgb /= cogl_color_out.a;\n");
-}
-
 static CoglTexture *
 scale_and_transform_cursor_sprite_cpu (MetaCursorRendererNative *cursor_renderer_native,
                                        ClutterColorState        *target_color_state,
@@ -853,16 +814,16 @@ scale_and_transform_cursor_sprite_cpu (MetaCursorRendererNative *cursor_renderer
   cogl_pipeline_set_layer_texture (pipeline, 0, src_texture);
   cogl_pipeline_set_layer_matrix (pipeline, 0, matrix);
 
-  if (cogl_texture_get_premultiplied (src_texture))
-    add_pipeline_unpremultiply (cursor_renderer_native, pipeline);
+  if (!cogl_texture_get_premultiplied (src_texture))
+    g_warning_once ("Src texture format doesn't have premultiplied alpha");
+  if (!cogl_texture_get_premultiplied (dst_texture))
+    g_warning_once ("Dst texture format doesn't have premultiplied alpha");
 
   color_state = meta_cursor_sprite_get_color_state (cursor_sprite);
   clutter_color_state_add_pipeline_transform (color_state,
                                               target_color_state,
-                                              pipeline);
-
-  if (cogl_texture_get_premultiplied (dst_texture))
-    add_pipeline_premultiply (cursor_renderer_native, pipeline);
+                                              pipeline,
+                                              0);
 
   cogl_framebuffer_clear4f (COGL_FRAMEBUFFER (offscreen),
                             COGL_BUFFER_BIT_COLOR,
@@ -1089,7 +1050,6 @@ realize_cursor_sprite_from_wl_buffer_for_crtc (MetaCursorRenderer      *renderer
   CoglTexture *texture;
   uint width, height;
   MetaWaylandBuffer *buffer;
-  struct wl_resource *buffer_resource;
   struct wl_shm_buffer *shm_buffer;
 
   if (!is_hw_cursor_available_for_gpu (gpu_kms))
@@ -1099,11 +1059,7 @@ realize_cursor_sprite_from_wl_buffer_for_crtc (MetaCursorRenderer      *renderer
   if (!buffer)
     return FALSE;
 
-  buffer_resource = meta_wayland_buffer_get_resource (buffer);
-  if (!buffer_resource)
-    return FALSE;
-
-  shm_buffer = wl_shm_buffer_get (buffer_resource);
+  shm_buffer = buffer->shm.buffer;
   if (shm_buffer)
     {
       int rowstride = wl_shm_buffer_get_stride (shm_buffer);
@@ -1522,11 +1478,9 @@ query_cursor_position_in_kms_impl (float    *x,
                                    gpointer  user_data)
 {
   ClutterSeat *seat = user_data;
-  ClutterInputDevice *device;
   graphene_point_t position;
 
-  device = clutter_seat_get_pointer (seat);
-  clutter_seat_query_state (seat, device, NULL, &position, NULL);
+  clutter_seat_query_state (seat, NULL, &position, NULL);
   *x = position.x;
   *y = position.y;
 }
@@ -1606,8 +1560,8 @@ on_prepare_shutdown (MetaContext              *context,
 }
 
 MetaCursorRendererNative *
-meta_cursor_renderer_native_new (MetaBackend        *backend,
-                                 ClutterInputDevice *device)
+meta_cursor_renderer_native_new (MetaBackend   *backend,
+                                 ClutterSprite *sprite)
 {
   MetaMonitorManager *monitor_manager =
     meta_backend_get_monitor_manager (backend);
@@ -1620,7 +1574,7 @@ meta_cursor_renderer_native_new (MetaBackend        *backend,
 
   cursor_renderer_native = g_object_new (META_TYPE_CURSOR_RENDERER_NATIVE,
                                          "backend", backend,
-                                         "device", device,
+                                         "sprite", sprite,
                                          NULL);
   priv =
     meta_cursor_renderer_native_get_instance_private (cursor_renderer_native);

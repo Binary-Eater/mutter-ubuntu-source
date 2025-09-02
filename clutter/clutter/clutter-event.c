@@ -32,6 +32,7 @@
 #include "clutter/clutter-keysyms.h"
 #include "clutter/clutter-input-device-tool.h"
 #include "clutter/clutter-private.h"
+#include "clutter/clutter-seat-private.h"
 
 #include <math.h>
 
@@ -140,6 +141,7 @@ struct _ClutterScrollEvent
   ClutterModifierType modifier_state;
   double *axes;
   ClutterInputDeviceTool *tool;
+  ClutterScrollFlags scroll_flags;
   ClutterScrollSource scroll_source;
   ClutterScrollFinishFlags finish_flags;
 };
@@ -254,6 +256,20 @@ struct _ClutterPadRingEvent
   uint32_t mode;
 };
 
+struct _ClutterPadDialEvent
+{
+  ClutterEventType type;
+  int64_t time_us;
+  ClutterEventFlags flags;
+  ClutterInputDevice *device;
+  ClutterInputDevice *source_device;
+
+  uint32_t dial_number;
+  uint32_t group;
+  double v120;
+  uint32_t mode;
+};
+
 struct _ClutterDeviceEvent
 {
   ClutterEventType type;
@@ -297,6 +313,7 @@ union _ClutterEvent
   ClutterPadButtonEvent pad_button;
   ClutterPadStripEvent pad_strip;
   ClutterPadRingEvent pad_ring;
+  ClutterPadDialEvent pad_dial;
   ClutterDeviceEvent device;
   ClutterIMEvent im;
 };
@@ -459,6 +476,7 @@ clutter_event_get_position (const ClutterEvent *event,
     case CLUTTER_PAD_BUTTON_RELEASE:
     case CLUTTER_PAD_STRIP:
     case CLUTTER_PAD_RING:
+    case CLUTTER_PAD_DIAL:
     case CLUTTER_DEVICE_ADDED:
     case CLUTTER_DEVICE_REMOVED:
     case CLUTTER_IM_COMMIT:
@@ -778,19 +796,7 @@ clutter_event_get_device_type (const ClutterEvent *event)
 }
 
 /**
- * clutter_event_get_device:
- * @event: a #ClutterEvent
- *
- * Retrieves the #ClutterInputDevice for the event.
- * If you want the physical device the event originated from, use
- * [method@Clutter.Event.get_source_device].
- *
- * The #ClutterInputDevice structure is completely opaque and should
- * be cast to the platform-specific implementation.
- *
- * Return value: (transfer none): the #ClutterInputDevice or %NULL. The
- *   returned device is owned by the #ClutterEvent and it should not
- *   be unreferenced
+ * clutter_event_get_device: (skip)
  */
 ClutterInputDevice *
 clutter_event_get_device (const ClutterEvent *event)
@@ -1088,11 +1094,6 @@ clutter_get_current_event (void)
  *
  * Retrieves the hardware device that originated the event.
  *
- * If you need the virtual device, use [method@Clutter.Event.get_device].
- *
- * If no hardware device originated this event, this function will
- * return the same device as [method@Clutter.Event.get_device].
- *
  * Return value: (transfer none): a pointer to a #ClutterInputDevice
  *   or %NULL
  */
@@ -1163,6 +1164,7 @@ clutter_event_get_axes (const ClutterEvent *event,
     case CLUTTER_PAD_BUTTON_RELEASE:
     case CLUTTER_PAD_STRIP:
     case CLUTTER_PAD_RING:
+    case CLUTTER_PAD_DIAL:
     case CLUTTER_IM_COMMIT:
     case CLUTTER_IM_DELETE:
     case CLUTTER_IM_PREEDIT:
@@ -1561,7 +1563,7 @@ clutter_event_get_gesture_motion_delta_unaccelerated (const ClutterEvent *event,
  *
  * Returns the #ClutterScrollSource that applies to an scroll event.
  *
- * Returns: The source of scroll events6
+ * Returns: The source of scroll events
  **/
 ClutterScrollSource
 clutter_event_get_scroll_source (const ClutterEvent *event)
@@ -1581,7 +1583,7 @@ clutter_event_get_scroll_source (const ClutterEvent *event)
  * can be used to determine whether post-scroll effects like kinetic
  * scrolling should be applied.
  *
- * Returns: The scroll finish flags6
+ * Returns: The scroll finish flags
  **/
 ClutterScrollFinishFlags
 clutter_event_get_scroll_finish_flags (const ClutterEvent *event)
@@ -1593,13 +1595,32 @@ clutter_event_get_scroll_finish_flags (const ClutterEvent *event)
   return event->scroll.finish_flags;
 }
 
+/**
+ * clutter_event_get_scroll_flags:
+ * @event: an scroll event
+ *
+ * Returns the #ClutterScrollFlags of an scroll event.
+ *
+ * Returns: The scroll flags
+ **/
+ClutterScrollFlags
+clutter_event_get_scroll_flags (const ClutterEvent *event)
+{
+  g_return_val_if_fail (event != NULL, CLUTTER_SCROLL_NONE);
+  g_return_val_if_fail (event->type == CLUTTER_SCROLL,
+                        CLUTTER_SCROLL_NONE);
+
+  return event->scroll.scroll_flags;
+}
+
 guint
 clutter_event_get_mode_group (const ClutterEvent *event)
 {
   g_return_val_if_fail (event->type == CLUTTER_PAD_BUTTON_PRESS ||
                         event->type == CLUTTER_PAD_BUTTON_RELEASE ||
                         event->type == CLUTTER_PAD_RING ||
-                        event->type == CLUTTER_PAD_STRIP, 0);
+                        event->type == CLUTTER_PAD_STRIP ||
+                        event->type == CLUTTER_PAD_DIAL, 0);
   switch (event->type)
     {
     case CLUTTER_PAD_BUTTON_PRESS:
@@ -1609,6 +1630,8 @@ clutter_event_get_mode_group (const ClutterEvent *event)
       return event->pad_ring.group;
     case CLUTTER_PAD_STRIP:
       return event->pad_strip.group;
+    case CLUTTER_PAD_DIAL:
+      return event->pad_dial.group;
     default:
       return 0;
     }
@@ -1617,7 +1640,7 @@ clutter_event_get_mode_group (const ClutterEvent *event)
 /**
  * clutter_event_get_pad_details:
  * @event: a pad event
- * @number: (out) (optional): ring/strip/button number
+ * @number: (out) (optional): ring/strip/dial/button number
  * @mode: (out) (optional): pad mode as per the event
  * @source: (out) (optional): source of the event
  * @value: (out) (optional): event axis value
@@ -1641,7 +1664,8 @@ clutter_event_get_pad_details (const ClutterEvent          *event,
   g_return_val_if_fail (event->type == CLUTTER_PAD_BUTTON_PRESS ||
                         event->type == CLUTTER_PAD_BUTTON_RELEASE ||
                         event->type == CLUTTER_PAD_RING ||
-                        event->type == CLUTTER_PAD_STRIP, FALSE);
+                        event->type == CLUTTER_PAD_STRIP ||
+                        event->type == CLUTTER_PAD_DIAL, FALSE);
 
   switch (event->type)
     {
@@ -1663,6 +1687,12 @@ clutter_event_get_pad_details (const ClutterEvent          *event,
       m = event->pad_strip.mode;
       s = event->pad_strip.strip_source;
       v = event->pad_strip.value;
+      break;
+    case CLUTTER_PAD_DIAL:
+      n = event->pad_dial.dial_number;
+      m = event->pad_dial.mode;
+      s = CLUTTER_INPUT_DEVICE_PAD_SOURCE_UNKNOWN;
+      v = event->pad_dial.v120;
       break;
     default:
       return FALSE;
@@ -1832,6 +1862,8 @@ clutter_event_get_name (const ClutterEvent *event)
       return "pad-strip";
     case CLUTTER_PAD_RING:
       return "pad-ring";
+    case CLUTTER_PAD_DIAL:
+      return "pad-dial";
     case CLUTTER_DEVICE_ADDED:
       return "device-added";
     case CLUTTER_DEVICE_REMOVED:
@@ -1994,6 +2026,7 @@ clutter_event_scroll_smooth_new (ClutterEventFlags         flags,
                                  ClutterModifierType       modifiers,
                                  graphene_point_t          coords,
                                  graphene_point_t          delta,
+                                 ClutterScrollFlags        scroll_flags,
                                  ClutterScrollSource       scroll_source,
                                  ClutterScrollFinishFlags  finish_flags)
 {
@@ -2012,6 +2045,7 @@ clutter_event_scroll_smooth_new (ClutterEventFlags         flags,
   event->scroll.delta_y = delta.y;
   event->scroll.direction = CLUTTER_SCROLL_SMOOTH;
   event->scroll.modifier_state = modifiers;
+  event->scroll.scroll_flags = scroll_flags;
   event->scroll.scroll_source = scroll_source;
   event->scroll.finish_flags = finish_flags;
   event->scroll.tool = tool;
@@ -2041,6 +2075,7 @@ clutter_event_scroll_discrete_new (ClutterEventFlags       flags,
                                    ClutterInputDeviceTool *tool,
                                    ClutterModifierType     modifiers,
                                    graphene_point_t        coords,
+                                   ClutterScrollFlags      scroll_flags,
                                    ClutterScrollSource     scroll_source,
                                    ClutterScrollDirection  direction)
 {
@@ -2056,6 +2091,7 @@ clutter_event_scroll_discrete_new (ClutterEventFlags       flags,
   event->scroll.x = coords.x;
   event->scroll.y = coords.y;
   event->scroll.direction = direction;
+  event->scroll.scroll_flags = scroll_flags;
   event->scroll.scroll_source = scroll_source;
   event->scroll.modifier_state = modifiers;
   event->scroll.tool = tool;
@@ -2408,6 +2444,33 @@ clutter_event_pad_ring_new (ClutterEventFlags            flags,
 }
 
 ClutterEvent *
+clutter_event_pad_dial_new (ClutterEventFlags            flags,
+                            int64_t                      timestamp_us,
+                            ClutterInputDevice          *source_device,
+                            uint32_t                     dial,
+                            uint32_t                     group,
+                            double                       v120,
+                            uint32_t                     mode)
+{
+  ClutterEvent *event;
+
+  g_return_val_if_fail (CLUTTER_IS_INPUT_DEVICE (source_device), NULL);
+
+  event = clutter_event_new (CLUTTER_PAD_DIAL);
+
+  event->pad_dial.time_us = timestamp_us;
+  event->pad_dial.flags = flags;
+  event->pad_dial.dial_number = dial;
+  event->pad_dial.group = group;
+  event->pad_dial.v120 = v120;
+  event->pad_dial.mode = mode;
+
+  g_set_object (&event->pad_dial.device, source_device);
+  g_set_object (&event->pad_dial.source_device, source_device);
+
+  return event;
+}
+ClutterEvent *
 clutter_event_device_notify_new (ClutterEventType    type,
                                  ClutterEventFlags   flags,
                                  int64_t             timestamp_us,
@@ -2639,6 +2702,12 @@ generate_event_description (const ClutterEvent *event)
                               event->pad_ring.angle,
                               event->pad_ring.group,
                               event->pad_ring.mode);
+    case CLUTTER_PAD_DIAL:
+      return g_strdup_printf ("(%d), v120=%f, group=%u, mode=%u",
+                              event->pad_dial.dial_number,
+                              event->pad_dial.v120,
+                              event->pad_dial.group,
+                              event->pad_dial.mode);
     case CLUTTER_DEVICE_ADDED:
     case CLUTTER_DEVICE_REMOVED:
       {

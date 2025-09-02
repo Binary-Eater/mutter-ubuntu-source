@@ -85,9 +85,7 @@ struct _MetaInputDeviceNative
   double output_ratio;        /* w:h */
   MetaInputDeviceMapping mapping_mode;
 
-  /* Pointer position */
-  float pointer_x;
-  float pointer_y;
+  ClutterModifierType button_state;
 
   /* When the client doesn't support high-resolution scroll, accumulate deltas
    * until we can notify a discrete event.
@@ -104,6 +102,7 @@ struct _MetaInputDeviceNative
 
   /* Keyboard a11y */
   MetaKeyboardA11yFlags a11y_flags;
+  ClutterVirtualInputDevice *mousekeys_pointer;
   GList *slow_keys_list;
   GSource *debounce_timer;
   uint16_t debounce_key;
@@ -161,12 +160,8 @@ void                      meta_input_device_native_a11y_maybe_notify_toggle_keys
 
 struct libinput_device * meta_input_device_native_get_libinput_device (ClutterInputDevice *device);
 
-void                     meta_input_device_native_set_coords_in_impl (MetaInputDeviceNative *device_native,
-                                                                      float                  x,
-                                                                      float                  y);
-void                     meta_input_device_native_get_coords_in_impl (MetaInputDeviceNative *device_native,
-                                                                      float                 *x,
-                                                                      float                 *y);
 gboolean                 meta_input_device_native_process_kbd_a11y_event_in_impl (ClutterInputDevice *device,
                                                                                   ClutterEvent       *event);
 void                     meta_input_device_native_detach_libinput_in_impl (MetaInputDeviceNative *device_native);
+
+gboolean                 meta_input_device_native_has_scroll_inverted (MetaInputDeviceNative *device_native);

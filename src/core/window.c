@@ -1471,14 +1471,6 @@ meta_window_initable_init (GInitable     *initable,
                            GCancellable  *cancellable,
                            GError       **error)
 {
-  MetaWindow *window = META_WINDOW (initable);
-  MetaDisplay *display = window->display;
-
-  meta_display_notify_window_created (display, window);
-
-  if (window->wm_state_demands_attention)
-    g_signal_emit_by_name (display, "window-demands-attention", window);
-
   return TRUE;
 }
 
@@ -2294,8 +2286,7 @@ update_suspend_state (MetaWindow *window)
   if (window->unmanaging)
     return;
 
-  if (!window->hidden &&
-      priv->suspend_state_inhibitors > 0)
+  if (priv->suspend_state_inhibitors > 0)
     {
       priv->suspend_state = META_WINDOW_SUSPEND_STATE_ACTIVE;
       g_object_notify_by_pspec (G_OBJECT (window), obj_props[PROP_SUSPEND_STATE]);
@@ -3508,8 +3499,7 @@ meta_window_set_unmaximize_flags (MetaWindow        *window,
       MtkRectangle old_frame_rect, old_buffer_rect;
       gboolean has_target_size;
       MetaPlaceFlag place_flags = META_PLACE_FLAG_NONE;
-      MetaMoveResizeFlags flags = (META_MOVE_RESIZE_MOVE_ACTION |
-                                   META_MOVE_RESIZE_RESIZE_ACTION |
+      MetaMoveResizeFlags flags = (META_MOVE_RESIZE_RESIZE_ACTION |
                                    META_MOVE_RESIZE_STATE_CHANGED |
                                    META_MOVE_RESIZE_UNMAXIMIZE);
 
@@ -3620,7 +3610,10 @@ meta_window_set_unmaximize_flags (MetaWindow        *window,
        */
       has_target_size = (target_rect.width > 0 && target_rect.height > 0);
       if (has_target_size)
-        meta_window_maybe_apply_size_hints (window, &target_rect);
+        {
+          meta_window_maybe_apply_size_hints (window, &target_rect);
+          flags |= META_MOVE_RESIZE_MOVE_ACTION;
+        }
 
       meta_compositor_size_change_window (window->display->compositor, window,
                                           META_SIZE_CHANGE_UNMAXIMIZE,
@@ -3751,8 +3744,7 @@ meta_window_unmake_fullscreen (MetaWindow  *window)
       MtkRectangle old_frame_rect, old_buffer_rect, target_rect;
       gboolean has_target_size;
       MetaPlaceFlag place_flags = META_PLACE_FLAG_NONE;
-      MetaMoveResizeFlags flags = (META_MOVE_RESIZE_MOVE_ACTION |
-                                   META_MOVE_RESIZE_RESIZE_ACTION |
+      MetaMoveResizeFlags flags = (META_MOVE_RESIZE_RESIZE_ACTION |
                                    META_MOVE_RESIZE_STATE_CHANGED |
                                    META_MOVE_RESIZE_UNFULLSCREEN);
 
@@ -3787,7 +3779,10 @@ meta_window_unmake_fullscreen (MetaWindow  *window)
        */
       has_target_size = (target_rect.width > 0 && target_rect.height > 0);
       if (has_target_size)
-        meta_window_maybe_apply_size_hints (window, &target_rect);
+        {
+          meta_window_maybe_apply_size_hints (window, &target_rect);
+          flags |= META_MOVE_RESIZE_MOVE_ACTION;
+        }
 
       /* Need to update window->has_resize_func before we move_resize()
        */
@@ -4369,7 +4364,8 @@ meta_window_move_resize_internal (MetaWindow          *window,
       g_signal_emit (window, window_signals[SIZE_CHANGED], 0);
     }
 
-  if (result & META_MOVE_RESIZE_RESULT_UPDATE_UNCONSTRAINED)
+  if (result & META_MOVE_RESIZE_RESULT_UPDATE_UNCONSTRAINED ||
+      did_placement)
     {
       window->unconstrained_rect = unconstrained_rect;
       window->unconstrained_rect_valid = TRUE;
@@ -6396,23 +6392,21 @@ meta_window_is_ancestor_of_transient (MetaWindow *window,
  * meta_window_begin_grab_op:
  * @window:
  * @op:
- * @device: (nullable):
- * @sequence: (nullable):
+ * @sprite: (nullable):
  * @timestamp:
  * @pos_hint: (nullable):
  **/
 gboolean
-meta_window_begin_grab_op (MetaWindow           *window,
-                           MetaGrabOp            op,
-                           ClutterInputDevice   *device,
-                           ClutterEventSequence *sequence,
-                           guint32               timestamp,
-                           graphene_point_t     *pos_hint)
+meta_window_begin_grab_op (MetaWindow       *window,
+                           MetaGrabOp        op,
+                           ClutterSprite    *sprite,
+                           guint32           timestamp,
+                           graphene_point_t *pos_hint)
 {
   return meta_compositor_drag_window (window->display->compositor,
                                       window, op,
                                       META_DRAG_WINDOW_FLAG_NONE,
-                                      device, sequence,
+                                      sprite,
                                       timestamp,
                                       pos_hint);
 }
@@ -7662,17 +7656,17 @@ meta_window_set_opacity (MetaWindow *window,
 static gboolean
 window_has_pointer_wayland (MetaWindow *window)
 {
-  ClutterSeat *seat;
-  ClutterInputDevice *dev;
+  ClutterBackend *clutter_backend;
   ClutterStage *stage;
   ClutterActor *pointer_actor, *window_actor;
   ClutterContext *context;
+  ClutterSprite *sprite;
 
   stage = CLUTTER_STAGE (meta_backend_get_stage (backend_from_window (window)));
   context = clutter_actor_get_context (CLUTTER_ACTOR (stage));
-  seat = clutter_backend_get_default_seat (clutter_context_get_backend (context));
-  dev = clutter_seat_get_pointer (seat);
-  pointer_actor = clutter_stage_get_device_actor (stage, dev, NULL);
+  clutter_backend = clutter_context_get_backend (context);
+  sprite = clutter_backend_get_pointer_sprite (clutter_backend, stage);
+  pointer_actor = clutter_focus_get_current_actor (CLUTTER_FOCUS (sprite));
   window_actor = CLUTTER_ACTOR (meta_window_get_compositor_private (window));
 
   return pointer_actor && clutter_actor_contains (window_actor, pointer_actor);
@@ -7696,6 +7690,11 @@ meta_window_handle_ungrabbed_event (MetaWindow         *window,
                                     const ClutterEvent *event)
 {
   MetaDisplay *display = window->display;
+  MetaContext *context = meta_display_get_context (display);
+  MetaBackend *backend = meta_context_get_backend (context);
+  ClutterStage *stage = CLUTTER_STAGE (meta_backend_get_stage (backend));
+  ClutterBackend *clutter_backend = meta_backend_get_clutter_backend (backend);
+  ClutterSprite *sprite;
   gboolean unmodified;
   gboolean is_window_grab;
   gboolean is_window_button_grab_allowed;
@@ -7778,6 +7777,8 @@ meta_window_handle_ungrabbed_event (MetaWindow         *window,
 
   clutter_event_get_coords (event, &x, &y);
 
+  sprite = clutter_backend_get_sprite (clutter_backend, stage, event);
+
   if (unmodified)
     {
       if (meta_prefs_get_raise_on_click ())
@@ -7816,8 +7817,7 @@ meta_window_handle_ungrabbed_event (MetaWindow         *window,
               op |= META_GRAB_OP_WINDOW_FLAG_UNCONSTRAINED;
               if (meta_window_begin_grab_op (window,
                                              op,
-                                             clutter_event_get_device (event),
-                                             clutter_event_get_event_sequence (event),
+                                             sprite,
                                              time_ms,
                                              NULL))
                 return CLUTTER_EVENT_STOP;
@@ -7842,8 +7842,7 @@ meta_window_handle_ungrabbed_event (MetaWindow         *window,
           if (meta_window_begin_grab_op (window,
                                          META_GRAB_OP_MOVING |
                                          META_GRAB_OP_WINDOW_FLAG_UNCONSTRAINED,
-                                         clutter_event_get_device (event),
-                                         clutter_event_get_event_sequence (event),
+                                         sprite,
                                          time_ms,
                                          NULL))
             return CLUTTER_EVENT_STOP;
@@ -8583,13 +8582,54 @@ meta_window_get_client_content_rect (MetaWindow   *window,
 #endif
 }
 
-MetaWindowConfig *
-meta_window_new_window_config (MetaWindow *window)
+void
+meta_window_apply_config (MetaWindow           *window,
+                          MetaWindowConfig     *config,
+                          MetaWindowApplyFlags  flags)
 {
-  if (window->showing_for_first_time)
-    return meta_window_config_initial_new ();
-  else
-    return meta_window_config_new ();
+  if (meta_window_config_get_is_fullscreen (config))
+    {
+      meta_window_make_fullscreen (window);
+    }
+  else if (meta_window_config_get_tile_mode (config) != META_TILE_NONE)
+    {
+      MetaTileMode tile_mode = meta_window_config_get_tile_mode (config);
+
+      meta_window_tile (window, tile_mode);
+    }
+  else if (meta_window_config_is_any_maximized (config))
+    {
+      MetaMaximizeFlags maximize_flags = 0;
+
+      if (meta_window_config_is_maximized_horizontally (config))
+        maximize_flags |= META_MAXIMIZE_HORIZONTAL;
+      if (meta_window_config_is_maximized_vertically (config))
+        maximize_flags |= META_MAXIMIZE_VERTICAL;
+
+      meta_window_set_maximize_flags (window, maximize_flags);
+    }
+  else if (meta_window_config_has_position (config))
+    {
+      MtkRectangle rect = meta_window_config_get_rect (config);
+
+      if (meta_window_config_is_floating (config))
+        window->placed = TRUE;
+
+      meta_window_move_resize (window,
+                               (META_MOVE_RESIZE_MOVE_ACTION |
+                                META_MOVE_RESIZE_RESIZE_ACTION |
+                                META_MOVE_RESIZE_CONSTRAIN),
+                               rect);
+    }
+  else if (flags & META_WINDOW_APPLY_FLAG_ALWAYS_MOVE_RESIZE)
+    {
+      MtkRectangle rect = meta_window_config_get_rect (config);
+
+      meta_window_move_resize (window,
+                               (META_MOVE_RESIZE_RESIZE_ACTION |
+                                META_MOVE_RESIZE_CONSTRAIN),
+                               rect);
+    }
 }
 
 MetaGravity

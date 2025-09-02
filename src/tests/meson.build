@@ -452,11 +452,6 @@ test_cases += [
     ],
   },
   {
-    'name': 'anonymous-file',
-    'suite': 'unit',
-    'sources': [ 'anonymous-file.c', ],
-  },
-  {
     'name': 'edid',
     'suite': 'unit',
     'sources': [ 'edid-tests.c', ],
@@ -488,6 +483,11 @@ test_cases += [
     'name': 'debug-control',
     'suite': 'core',
     'sources': [ 'debug-control-tests.c', ],
+  },
+  {
+    'name': 'window-created',
+    'suite': 'core',
+    'sources': [ 'window-created-tests.c', ],
   },
 ]
 
@@ -938,6 +938,25 @@ wayland_test_cases = [
     ],
   },
   {
+    'name': 'window-config',
+    'suite': 'wayland',
+    'sources': [
+      'window-config-tests.c',
+      wayland_test_utils,
+    ],
+  },
+  {
+    'name': 'viewport-tests',
+    'suite': 'wayland',
+    'sources': [
+      'viewport-tests.c',
+      wayland_test_utils,
+    ],
+    'depends': [
+      test_client_executables.get('buffer-less-viewport-client'),
+    ],
+  },
+  {
     'name': 'wayland-unit',
     'suite': 'wayland',
     'sources': [
@@ -955,6 +974,7 @@ wayland_test_cases = [
       test_client_executables.get('fractional-scale'),
       test_client_executables.get('fullscreen'),
       test_client_executables.get('idle-inhibit'),
+      test_client_executables.get('invalid-size-limits-on-map-client'),
       test_client_executables.get('invalid-subsurfaces'),
       test_client_executables.get('invalid-xdg-shell-actions'),
       test_client_executables.get('kms-cursor-hotplug-helper'),
@@ -1033,6 +1053,7 @@ test_cases += [
     'suite': 'wayland',
     'sources': [
       'service-channel-tests.c',
+      wayland_test_client_utils,
       wayland_test_utils,
     ],
     'depends': [
@@ -1134,6 +1155,7 @@ stacking_tests = [
   'x11-move',
   'map-maximized',
   'map-fullscreen',
+  'fullscreen-on-monitor',
   'tiling',
   'interactive-move',
   'map-on-monitor',
@@ -1142,6 +1164,9 @@ stacking_tests = [
   'popup-focus',
   'auto-maximize',
   'auto-maximize-dialog',
+  'drag-restore-maximized',
+  'monitors-changed-position',
+  'multi-monitor-placement',
 ]
 
 foreach stacking_test: stacking_tests

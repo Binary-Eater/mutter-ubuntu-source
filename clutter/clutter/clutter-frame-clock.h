@@ -103,6 +103,10 @@ CLUTTER_EXPORT
 void clutter_frame_clock_schedule_update_now (ClutterFrameClock *frame_clock);
 
 CLUTTER_EXPORT
+void clutter_frame_clock_set_frame_sync_update_time (ClutterFrameClock *frame_clock,
+                                                     int64_t            update_time_us);
+
+CLUTTER_EXPORT
 void clutter_frame_clock_add_future_time (ClutterFrameClock *frame_clock,
                                           int64_t            when_us);
 
@@ -140,3 +144,6 @@ void clutter_frame_clock_set_passive (ClutterFrameClock       *frame_clock,
 CLUTTER_EXPORT
 ClutterFrameResult clutter_frame_clock_dispatch (ClutterFrameClock *frame_clock,
                                                  int64_t            time_us);
+
+CLUTTER_EXPORT
+int64_t clutter_frame_clock_get_frame_count (ClutterFrameClock *frame_clock);

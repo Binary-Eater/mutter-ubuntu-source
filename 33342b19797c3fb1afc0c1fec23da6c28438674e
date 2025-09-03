@@ -1,0 +1,20 @@
+  [ Daniel van Vugt ]
+  * New upstream release 49.rc (LP: #2079823, LP: #2120628, LP: #2121517)
+  * Added new script 'gnome-service-client' to 'mutter-common'.
+  * Replaced 'libgdk-pixbuf-2.0-dev' dependency with 'libglycin-2-dev'.
+  * Added 'libadwaita-1-dev' dependency for the devkit.
+  * Updated 'libmutter-17-0.symbols' and 'libmutter-test-17.symbols' for 49.rc
+  * Refreshed debian/patches:
+    - workarounds/Mark-several-additional-tests-as-flaky.patch
+    - workarounds/tests-Install-stacking-tests-into-a-subdirectory.patch
+    - workarounds/tests-Mark-view-verification-tests-as-incomplete-in-big-e.patch
+    - ubuntu/window-Add-ability-to-override-the-edge-constraints.patch
+  * Drop upstreamed debian/patches:
+    - ubuntu/clutter-stage-Allow-for-there-being-no-sprite-when-a-devi.patch
+    - ubuntu/core-place-Guarantee-we-never-get-work-area-for-a-NULL-lo.patch
+    - ubuntu/monitor-Calculate-fractional-scaling-factors-using-exact-.patch
+  * Add debian/patches for the current top crasher (LP: #2121195):
+    - ubuntu/clutter-Add-function-clutter_frame_clock_get_frame_count.patch
+    - ubuntu/compositor-Don-t-assume-there-s-an-active-ClutterFrame-du.patch
+  * debian/control: libmutter-17-0 now breaks gnome-shell<<49~rc due to
+    some clutter symbols being removed.

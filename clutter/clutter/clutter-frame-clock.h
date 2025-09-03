@@ -144,3 +144,6 @@ void clutter_frame_clock_set_passive (ClutterFrameClock       *frame_clock,
 CLUTTER_EXPORT
 ClutterFrameResult clutter_frame_clock_dispatch (ClutterFrameClock *frame_clock,
                                                  int64_t            time_us);
+
+CLUTTER_EXPORT
+int64_t clutter_frame_clock_get_frame_count (ClutterFrameClock *frame_clock);

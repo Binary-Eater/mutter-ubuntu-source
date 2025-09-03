@@ -1935,3 +1935,9 @@ clutter_frame_clock_set_passive (ClutterFrameClock       *frame_clock,
 
   clear_source (frame_clock);
 }
+
+int64_t
+clutter_frame_clock_get_frame_count (ClutterFrameClock *frame_clock)
+{
+  return frame_clock->frame_count;
+}

@@ -1,0 +1,5 @@
+  * debian/control:
+    - Break on gnome-shell versions prior to 49~rc only
+    - Set version on libglycin-2-dev dependency
+    - Add libglycin-2-dev dependency to libmutter-17-dev
+  * debian/libmutter-17-0.symbols: Drop ubuntu version from symbols file

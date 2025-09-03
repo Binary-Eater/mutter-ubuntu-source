@@ -186,7 +186,7 @@ queue_send_frame_messages_timeout (MetaWindowActorX11 *actor_x11)
 
 static void
 assign_frame_counter_to_frames (MetaWindowActorX11 *actor_x11,
-                                ClutterFrame       *clutter_frame)
+                                int64_t             frame_count)
 {
   MetaWindow *window =
     meta_window_actor_get_meta_window (META_WINDOW_ACTOR (actor_x11));
@@ -200,14 +200,12 @@ assign_frame_counter_to_frames (MetaWindowActorX11 *actor_x11,
     return;
 
   sync_counter = meta_window_x11_get_sync_counter (window);
-  meta_sync_counter_assign_counter_to_frames (sync_counter,
-                                              clutter_frame->frame_count);
+  meta_sync_counter_assign_counter_to_frames (sync_counter, frame_count);
   frame = meta_window_x11_get_frame (window);
   if (frame)
     {
       sync_counter = meta_frame_get_sync_counter (frame);
-      meta_sync_counter_assign_counter_to_frames (sync_counter,
-                                                  clutter_frame->frame_count);
+      meta_sync_counter_assign_counter_to_frames (sync_counter, frame_count);
     }
 }
 
@@ -1218,7 +1216,7 @@ meta_window_actor_x11_before_paint (MetaWindowActor  *actor,
 
   handle_updates (actor_x11);
 
-  assign_frame_counter_to_frames (actor_x11, frame);
+  assign_frame_counter_to_frames (actor_x11, frame->frame_count);
 }
 
 static void
@@ -1236,11 +1234,13 @@ meta_window_actor_x11_paint (ClutterActor        *actor,
   * and send the completion events normally */
   if (actor_x11->send_frame_messages_timer != 0)
     {
-      ClutterFrame *frame;
+      ClutterFrameClock *frame_clock;
+      int64_t last_count;
 
       remove_frame_messages_timer (actor_x11);
-      frame = clutter_paint_context_get_frame (paint_context);
-      assign_frame_counter_to_frames (actor_x11, frame);
+      frame_clock = clutter_actor_pick_frame_clock (actor, NULL);
+      last_count = clutter_frame_clock_get_frame_count (frame_clock);
+      assign_frame_counter_to_frames (actor_x11, last_count);
     }
 
   window = meta_window_actor_get_meta_window (META_WINDOW_ACTOR (actor_x11));

@@ -969,6 +969,18 @@ add_tiled_monitor_outputs (MetaGpu          *gpu,
 
       monitor_priv->outputs = g_list_append (monitor_priv->outputs,
                                              g_object_ref (output));
+    }
+}
+
+static void set_tiled_monitor_outputs_monitor (MetaMonitorTiled *monitor_tiled)
+{
+  MetaMonitorPrivate *monitor_priv =
+    meta_monitor_get_instance_private (META_MONITOR (monitor_tiled));
+  GList *l;
+
+  for (l = monitor_priv->outputs; l; l = l->next)
+    {
+      MetaOutput *output = l->data;
 
       meta_output_set_monitor (output, META_MONITOR (monitor_tiled));
     }
@@ -1537,9 +1549,72 @@ meta_monitor_tiled_generate_modes (MetaMonitorTiled *monitor_tiled)
     }
 }
 
+static gboolean
+verify_tiles_filled (MetaMonitorTiled *monitor_tiled)
+{
+  MetaMonitorPrivate *monitor_priv =
+    meta_monitor_get_instance_private (META_MONITOR (monitor_tiled));
+  uint32_t group_id = 0;
+  uint32_t max_h_tiles;
+  uint32_t max_v_tiles;
+  uint32_t tile_w;
+  uint32_t tile_h;
+  g_autofree gboolean *tiles = NULL;
+  GList *tile_outputs = monitor_priv->outputs;
+  GList *l;
+
+  for (l = tile_outputs; l; l = l->next)
+    {
+      MetaOutput *output = META_OUTPUT (l->data);
+      const MetaOutputInfo *output_info =
+        meta_output_get_info (output);
+      const MetaTileInfo *tile_info = &output_info->tile_info;
+
+      if (!tile_info->group_id)
+        return FALSE;
+
+      if (tile_info->loc_h_tile >= tile_info->max_h_tiles ||
+          tile_info->loc_v_tile >= tile_info->max_v_tiles)
+        return FALSE;
+
+      if (!group_id)
+        {
+          group_id = tile_info->group_id;
+          max_h_tiles = tile_info->max_h_tiles;
+          max_v_tiles = tile_info->max_v_tiles;
+
+          if ((max_h_tiles * max_v_tiles) != g_list_length (tile_outputs))
+            return FALSE;
+
+          tile_w = tile_info->tile_w;
+          tile_h = tile_info->tile_h;
+          tiles = g_new0 (gboolean, max_h_tiles * max_v_tiles);
+          tiles[tile_info->loc_h_tile +
+                (tile_info->loc_v_tile * max_h_tiles)] = TRUE;
+          continue;
+        }
+
+      if (group_id != tile_info->group_id ||
+          max_h_tiles != tile_info->max_h_tiles ||
+          max_v_tiles != tile_info->max_v_tiles ||
+          tile_w != tile_info->tile_w ||
+          tile_h != tile_info->tile_h)
+        return FALSE;
+
+      if (tiles[tile_info->loc_h_tile + (tile_info->loc_v_tile * max_h_tiles)])
+        return FALSE;
+
+      tiles[tile_info->loc_h_tile +
+            (tile_info->loc_v_tile * max_h_tiles)] = TRUE;
+    }
+
+  return TRUE;
+}
+
 MetaMonitorTiled *
-meta_monitor_tiled_new (MetaMonitorManager *monitor_manager,
-                        MetaOutput         *output)
+meta_monitor_tiled_new (MetaMonitorManager  *monitor_manager,
+                        MetaOutput          *output,
+                        GError             **error)
 {
   const MetaOutputInfo *output_info = meta_output_get_info (output);
   MetaMonitorTiled *monitor_tiled;
@@ -1557,6 +1632,16 @@ meta_monitor_tiled_new (MetaMonitorManager *monitor_manager,
 
   monitor_tiled->origin_output = output;
   add_tiled_monitor_outputs (meta_output_get_gpu (output), monitor_tiled);
+
+  if (!verify_tiles_filled (monitor_tiled))
+    {
+      g_set_error (error, G_IO_ERROR, G_IO_ERROR_FAILED,
+                   "Invalid tile group %u",
+                   meta_output_get_info (monitor_tiled->origin_output)->tile_info.group_id);
+      return NULL;
+    }
+
+  set_tiled_monitor_outputs_monitor (monitor_tiled);
 
   monitor_tiled->main_output = find_untiled_output (monitor_tiled);
 

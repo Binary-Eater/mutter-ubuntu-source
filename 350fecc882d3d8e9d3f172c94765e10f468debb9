@@ -1,0 +1,2 @@
+  * debian/libmutter-17-0.symbols: Restore architecture restrictions
+    for cogl_trace*

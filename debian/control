@@ -23,7 +23,7 @@ Build-Depends: debhelper-compat (= 13),
                gir1.2-pangocairo-1.0-dev,
                gir1.2-xfixes-4.0-dev,
                gir1.2-xlib-2.0-dev,
-               libglycin-2-dev,
+               libglycin-2-dev (>= 2.0~beta.2),
                gnome-control-center-data,
                gnome-pkg-tools,
                gnome-settings-daemon-common <!nocheck>,
@@ -102,8 +102,7 @@ Build-Depends: debhelper-compat (= 13),
                xvfb,
                xwayland (>= 2:23.1.0),
                zenity,
-Rules-Requires-Root: no
-Standards-Version: 4.7.0
+Standards-Version: 4.7.2
 Homepage: https://mutter.gnome.org/
 Vcs-Git: https://salsa.debian.org/gnome-team/mutter.git
 Vcs-Browser: https://salsa.debian.org/gnome-team/mutter
@@ -203,7 +202,7 @@ Depends: adwaita-icon-theme,
          mutter-common-bin (= ${binary:Version}),
          ${misc:Depends},
          ${shlibs:Depends}
-Breaks: gnome-shell (<< 49~rc),
+Breaks: gnome-shell (<< 49~rc~),
         xwayland (<< 2:23.1.0),
 Description: window manager library from the Mutter window manager
  Mutter is a Wayland display server and X11 window manager and
@@ -237,6 +236,7 @@ Depends: gir1.2-mutter-17 (= ${binary:Version}),
          libgbm-dev (>= 21.3),
          libgles-dev,
          libglib2.0-dev (>= 2.76),
+         libglycin-2-dev (>= 2.0~beta.2),
          libgnome-desktop-4-dev,
          libgraphene-1.0-dev,
          libinput-dev (>= 1.27.0),
@@ -365,5 +365,4 @@ Description: Development programs for the Mutter window manager
  library used to simplify usage of OpenGL pipelines, as well as a fork
  of Clutter, a scene graph and user interface toolkit.
  .
- This package contains the program files which are used for the libraries
- and others.
+ This package contains the Mutter Development Kit.

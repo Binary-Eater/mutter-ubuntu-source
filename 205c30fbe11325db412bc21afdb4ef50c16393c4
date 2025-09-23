@@ -1,0 +1,2 @@
+  * Add clutter-Use-event-type-to-determine-ClutterFocus-to-deliv.patch
+    to ensure the gnome-shell overview gets keyboard focus (LP: #2124255)

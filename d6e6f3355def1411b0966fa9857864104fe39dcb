@@ -1,0 +1,3 @@
+  * Add another patch related to LP: #2122579 and refresh the existing one.
+    I'm just finding out now from upstream what actually fixed it because
+    the bug was never tracked properly before the fix landed.

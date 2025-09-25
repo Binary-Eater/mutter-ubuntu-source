@@ -1,0 +1,6 @@
+  * Add patches from upstream (to be released in 49.1) fixing common
+    shell crashes:
+    - clutter-gesture-Do-not-crash-on-unknown-events.patch (LP: #2122579)
+    - cursor-renderer-native-Sanity-check-texture-size-before-a.patch &
+      prefs-Fallback-cursor-size-to-24-when-invalid-value-in-se.patch
+      (LP: #2125552)

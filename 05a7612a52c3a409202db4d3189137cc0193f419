@@ -1,0 +1,12 @@
+  * Team upload
+  * Merge packaging changes from unstable
+    - No functional changes, changelog entry only
+  * d/p/Use-dbus-debug-topic-for-D-Bus-name-changes.patch,
+    d/p/wayland-xdg-shell-Make-invalid-geometry-warning-more-desc.patch,
+    d/p/tests-wayland-Add-test-case-for-client-with-invalid-geome.patch,
+    d/p/wayland-surface-Make-state-applied-logs-more-informative.patch,
+    d/p/wayland-shell-surface-Assume-geometry-empty-if-no-buffer-.patch,
+    d/p/wayland-xdg-shell-Ensure-applied-window-geometry-is-alway.patch,
+    d/p/tests-wayland-Add-test-for-invalid-geometry-with-subsurfa.patch:
+    Add proposed patches from upstream MR mutter!4648 to fix a crash
+    with sdl2-compat and ioquake3

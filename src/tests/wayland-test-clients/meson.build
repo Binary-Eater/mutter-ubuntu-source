@@ -145,6 +145,9 @@ wayland_test_clients = [
   {
     'name': 'invalid-size-limits-on-map-client',
   },
+  {
+    'name': 'invalid-geometry',
+  },
 ]
 
 test_client_executables = {}

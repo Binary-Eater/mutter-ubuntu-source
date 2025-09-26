@@ -68,6 +68,27 @@ find_client_window (const char *title)
   return meta_find_client_window (test_context, title);
 }
 
+static MetaWindow *
+map_test_window (MetaTestClient *test_client,
+                 const char     *script)
+{
+  MetaWindow *window;
+  GError *error = NULL;
+
+  meta_test_client_run (test_client, script);
+
+  while (!(window = meta_test_client_find_window (test_client, "1", &error)))
+    {
+      g_assert_no_error (error);
+      g_main_context_iteration (NULL, TRUE);
+    }
+  while (meta_window_is_hidden (window))
+    g_main_context_iteration (NULL, TRUE);
+  meta_wait_for_effects (window);
+
+  return window;
+}
+
 static void
 cursor_shape (void)
 {
@@ -769,6 +790,98 @@ toplevel_invalid_limits (void)
   meta_wayland_test_driver_terminate (test_driver);
   meta_wayland_test_client_finish (wayland_test_client);
   g_test_assert_expected_messages ();
+}
+
+static void
+toplevel_invalid_geometry_basic (void)
+{
+  GSettings *settings = g_settings_new ("org.gnome.mutter");
+  MetaWaylandTestClient *wayland_test_client;
+  MetaWindow *window;
+  MtkRectangle rect;
+
+  g_assert_true (g_settings_set_boolean (settings, "center-new-windows", TRUE));
+
+  wayland_test_client =
+    meta_wayland_test_client_new (test_context, "invalid-geometry");
+
+  g_test_expect_message ("libmutter", G_LOG_LEVEL_WARNING,
+                         "Client provided invalid window geometry for "
+                         "xdg_surface*");
+  g_test_expect_message ("libmutter", G_LOG_LEVEL_WARNING,
+                         "Client provided invalid window geometry for "
+                         "xdg_surface*");
+
+  while (!(window = find_client_window ("invalid-geometry")))
+    g_main_context_iteration (NULL, TRUE);
+  while (meta_window_is_hidden (window))
+    g_main_context_iteration (NULL, TRUE);
+
+  rect = meta_window_config_get_rect (window->config);
+  g_assert_cmpint (rect.width, ==, 200);
+  g_assert_cmpint (rect.height, ==, 200);
+  g_assert_cmpint (rect.x, ==, 220);
+  g_assert_cmpint (rect.y, ==, 140);
+
+  meta_wayland_test_driver_terminate (test_driver);
+  meta_wayland_test_client_finish (wayland_test_client);
+  g_test_assert_expected_messages ();
+}
+
+static void
+toplevel_invalid_geometry_subsurface (void)
+{
+  GSettings *settings = g_settings_new ("org.gnome.mutter");
+  GError *error = NULL;
+  MetaTestClient *test_client;
+  MetaWaylandTestClient *wayland_test_client;
+  MetaWindow *window;
+  MtkRectangle rect;
+
+  g_assert_true (g_settings_set_boolean (settings, "center-new-windows", TRUE));
+
+  test_client = meta_test_client_new (test_context,
+                                      "1",
+                                      META_WINDOW_CLIENT_TYPE_WAYLAND,
+                                      &error);
+  g_assert_no_error (error);
+  map_test_window (test_client,
+                   "create 1 csd\n"
+                   "resize 1 400 400\n"
+                   "show 1\n");
+
+  wayland_test_client =
+    meta_wayland_test_client_new_with_args (test_context,
+                                            "invalid-geometry",
+                                            "with-subsurface",
+                                            NULL);
+
+  g_test_expect_message ("libmutter", G_LOG_LEVEL_WARNING,
+                         "Client provided invalid window geometry for "
+                         "xdg_surface*");
+  g_test_expect_message ("libmutter", G_LOG_LEVEL_WARNING,
+                         "Client provided invalid window geometry for "
+                         "xdg_surface*");
+  g_test_expect_message ("libmutter", G_LOG_LEVEL_WARNING,
+                         "Client provided invalid window geometry for "
+                         "xdg_surface*");
+
+  while (!(window = find_client_window ("invalid-geometry")))
+    g_main_context_iteration (NULL, TRUE);
+  while (meta_window_is_hidden (window))
+    g_main_context_iteration (NULL, TRUE);
+
+  rect = meta_window_config_get_rect (window->config);
+  g_assert_cmpint (rect.width, ==, 200);
+  g_assert_cmpint (rect.height, ==, 200);
+  g_assert_cmpint (rect.x, ==, 220);
+  g_assert_cmpint (rect.y, ==, 140);
+
+  meta_wayland_test_driver_terminate (test_driver);
+  meta_wayland_test_client_finish (wayland_test_client);
+  g_test_assert_expected_messages ();
+
+  meta_test_client_destroy (test_client);
 }
 
 static void
@@ -1882,6 +1995,10 @@ init_tests (void)
                    toplevel_apply_limits);
   g_test_add_func ("/wayland/toplevel/invalid-limits",
                    toplevel_invalid_limits);
+  g_test_add_func ("/wayland/toplevel/invalid-geometry/basic",
+                   toplevel_invalid_geometry_basic);
+  g_test_add_func ("/wayland/toplevel/invalid-geometry/subsurface",
+                   toplevel_invalid_geometry_subsurface);
   g_test_add_func ("/wayland/toplevel/activation",
                    toplevel_activation);
   g_test_add_func ("/wayland/toplevel/sessions/basic",
@@ -1942,10 +2059,12 @@ main (int   argc,
 
 #ifdef MUTTER_PRIVILEGED_TEST
   context = meta_create_test_context (META_CONTEXT_TEST_TYPE_VKMS,
-                                      META_CONTEXT_TEST_FLAG_NO_X11);
+                                      META_CONTEXT_TEST_FLAG_NO_X11 |
+                                      META_CONTEXT_TEST_FLAG_TEST_CLIENT);
 #else
   context = meta_create_test_context (META_CONTEXT_TEST_TYPE_HEADLESS,
-                                      META_CONTEXT_TEST_FLAG_NO_X11);
+                                      META_CONTEXT_TEST_FLAG_NO_X11 |
+                                      META_CONTEXT_TEST_FLAG_TEST_CLIENT);
 #endif
   g_assert_true (meta_context_configure (context, &argc, &argv, NULL));
   meta_context_test_set_background_color (META_CONTEXT_TEST (context),

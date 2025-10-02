@@ -1,3 +1,16 @@
+mutter (49.0-2ubuntu5) questing; urgency=medium
+
+  [ Daniel van Vugt ]
+  * Add patches to resolve handling of modifier keys in the wrong order,
+    in some cases (LP: #2125866, LP: #2125240)
+
+  [ Alessandro Astone ]
+  * Add patch fixing popups freezing near the screen edge (LP: #2125770)
+  * Add patch fixing maximized windows extending under the dock on unlock
+    (LP: #2125581)
+
+ -- Daniel van Vugt <daniel.van.vugt@canonical.com>  Thu, 02 Oct 2025 10:04:46 +0800
+
 mutter (49.0-2ubuntu4) questing; urgency=medium
 
   * Add another patch related to LP: #2122579 and refresh the existing one.

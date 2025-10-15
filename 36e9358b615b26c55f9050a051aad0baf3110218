@@ -1,0 +1,7 @@
+  * Team upload
+  * New upstream stable release
+    - d/patches: Drop patches that were applied upstream
+    - d/libmutter-17-0.symbols: Ignore removal of meta_window_resize_frame().
+      This is technically an ABI break, but it was only declared in a
+      private header for use by automated tests.
+    - d/libmutter-test-17.symbols: Update for 49.1

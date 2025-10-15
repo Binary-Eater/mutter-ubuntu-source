@@ -916,6 +916,17 @@ wayland_test_cases = [
     ],
   },
   {
+    'name': 'wayland-keyboard',
+    'suite': 'wayland',
+    'sources': [
+      'wayland-keyboard-tests.c',
+      wayland_test_utils,
+    ],
+    'depends': [
+      test_client_executables.get('keyboard'),
+    ],
+  },
+  {
     'name': 'wayland-fullscreen',
     'suite': 'wayland',
     'sources': [
@@ -1134,9 +1145,11 @@ stacking_tests = [
   'modals',
   'map-fixed-size',
   'client-resize-respect-constraints',
+  'client-resize-focus-change',
   'map-on-hotplug',
   'workspace-basic',
   'workspace-test',
+  'workspace-maximized',
   'always-on-top',
   'always-on-top-map-new-maximized',
   'always-on-top-map-new-partial',
@@ -1168,9 +1181,18 @@ stacking_tests = [
   'auto-maximize',
   'auto-maximize-dialog',
   'drag-restore-maximized',
+  'drag-maximized-to-monitor',
+  'drag-then-unmaximize',
+  'drag-cancel',
+  'drag-restore-initial',
   'monitors-changed-position',
   'multi-monitor-placement',
   'unmaximize-placement',
+  'resize-after-unmaximize',
+  'maximize-unmaximize-race',
+  'partially-maximized',
+  'move-to-monitor',
+  'keyboard-resize',
 ]
 
 foreach stacking_test: stacking_tests

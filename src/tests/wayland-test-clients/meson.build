@@ -146,6 +146,9 @@ wayland_test_clients = [
     'name': 'invalid-size-limits-on-map-client',
   },
   {
+    'name': 'keyboard',
+  },
+  {
     'name': 'invalid-geometry',
   },
 ]

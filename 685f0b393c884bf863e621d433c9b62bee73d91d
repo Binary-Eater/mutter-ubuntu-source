@@ -1,0 +1,3 @@
+  [ Marco Trevisan (Treviño) ]
+  * d/p: Fix privacy screen enum definitions (LP: #2085423)
+  * d/p: Correctly track the current privacy screen state (LP: #2121517)

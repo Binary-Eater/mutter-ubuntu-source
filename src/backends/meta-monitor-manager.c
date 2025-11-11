@@ -1316,9 +1316,12 @@ ensure_privacy_screen_settings (MetaMonitorManager *manager)
 {
   MetaSettings *settings = meta_backend_get_settings (manager->backend);
   gboolean privacy_screen_enabled;
+  gboolean any_changed;
   GList *l;
 
   privacy_screen_enabled = meta_settings_is_privacy_screen_enabled (settings);
+  any_changed = FALSE;
+
   for (l = manager->monitors; l; l = l->next)
     {
       MetaMonitor *monitor = l->data;
@@ -1335,9 +1338,11 @@ ensure_privacy_screen_settings (MetaMonitorManager *manager)
                      meta_monitor_get_display_name (monitor), error->message);
           return FALSE;
         }
+
+      any_changed = TRUE;
     }
 
-  return TRUE;
+  return any_changed;
 }
 
 static MetaPrivacyScreenState

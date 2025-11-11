@@ -27,6 +27,7 @@
 #include <string.h>
 
 #include "backends/meta-crtc.h"
+#include "backends/meta-output.h"
 #include "backends/native/meta-kms.h"
 #include "backends/native/meta-kms-connector.h"
 #include "backends/native/meta-kms-device.h"
@@ -61,6 +62,9 @@ meta_output_kms_get_privacy_screen_state (MetaOutput *output)
 
   connector_state =
     meta_kms_connector_get_current_state (output_kms->kms_connector);
+
+  if (!connector_state)
+    return META_PRIVACY_SCREEN_UNAVAILABLE;
 
   return connector_state->privacy_screen_state;
 }

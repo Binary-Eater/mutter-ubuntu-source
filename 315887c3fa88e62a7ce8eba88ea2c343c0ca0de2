@@ -1,0 +1,1 @@
+  * Fix possible crash during output changes (LP: #2130619)

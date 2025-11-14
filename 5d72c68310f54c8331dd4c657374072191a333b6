@@ -1,0 +1,3 @@
+  * d/salsa-ci: Configure for ubuntu/noble
+  * Fix possible crash during output changes, introduced in the
+    previous upload (LP: #2130619)
